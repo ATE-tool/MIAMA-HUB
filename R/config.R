@@ -1,134 +1,141 @@
-# Workflow configuration object + loader/validator
+# Workflow configuration object, validator, and HM data loaders
+
+`%||%` <- function(x, y) if (is.null(x)) y else x
 
 miama_default_config <- function() {
   p <- miama_paths()
 
   list(
     workflow = list(
-      scenario = MIAMA_DEFAULT_SCENARIO,
-      max_rows = MIAMA_DEFAULT_MAX_ROWS
+      dataset_size = "sample",    # options: "sample", "full"
+      max_rows     = MIAMA_DEFAULT_MAX_ROWS
     ),
     sources = list(
-      synthpop = list(
-        dev_parquet = file.path(p$data_dir, "synthpop_dev.parquet"),
-        parquet = file.path(p$data_dir, "synthpop.parquet"),
-        dta = file.path(p$data_dir, "synthpop.dta")
-      ),
+      sp_attributes = p$sp_attributes,
+      sp_trips      = p$sp_trips,
       hm_outcomes = list(
-        path = file.path(p$hm_processed_root, "hm_outcomes.parquet"),
-        format = "parquet"
+        overall        = p$hm_sp_overall,
+        overall_sample = p$hm_sp_overall_sample,
+        cycle          = p$hm_sp_cycle,
+        cycle_sample   = p$hm_sp_cycle_sample
+      ),
+      hm_lookup = list(
+        overall = p$hm_lookup_overall,
+        cycle   = p$hm_lookup_cycle
       )
     ),
+    cache = list(
+      enabled = TRUE,
+      refresh = FALSE,
+      dir     = p$cache_dir
+    ),
     output = list(
-      root = p$output_root,
-      lookup = p$output_lookup,
+      root      = p$output_root,
+      lookup    = p$output_lookup,
       reference = p$output_reference
     )
   )
 }
 
-miama_pick_existing_source <- function(candidates) {
-  hits <- candidates[file.exists(candidates)]
-  if (length(hits) == 0L) {
-    stop("No source file found in candidates.", call. = FALSE)
-  }
-  hits[[1]]
+miama_hm_suffix_from_request <- function(results_request = list()) {
+  aggregation <- results_request$res_aggregation %||% "total"
+
+  switch(
+    aggregation,
+    total = "overall",
+    timeline = "cycle",
+    stop("Unsupported res_aggregation: ", aggregation, call. = FALSE)
+  )
 }
 
-miama_resolve_config <- function(cfg = NULL) {
+# Validate that the resolved source paths actually exist on disk.
+miama_resolve_config <- function(cfg = NULL, results_request = list()) {
   cfg <- cfg %||% miama_default_config()
 
-  synthpop_candidates <- c(
-    cfg$sources$synthpop$dev_parquet,
-    cfg$sources$synthpop$parquet,
-    cfg$sources$synthpop$dta
+  sp_path <- cfg$sources$sp_attributes$path
+  if (!file.exists(sp_path) && !dir.exists(sp_path)) {
+    stop("Synthpop attributes source not found: ", sp_path, call. = FALSE)
+  }
+
+  sp_trips_path <- cfg$sources$sp_trips$path
+  if (!file.exists(sp_trips_path) && !dir.exists(sp_trips_path)) {
+    stop("Synthpop trips source not found: ", sp_trips_path, call. = FALSE)
+  }
+
+  hm_suffix <- miama_hm_suffix_from_request(results_request)
+  hm_key <- paste0(
+    hm_suffix,
+    if (cfg$workflow$dataset_size == "sample") "_sample" else ""
   )
+  hm_dir <- cfg$sources$hm_outcomes[[hm_key]]
 
-  cfg$sources$synthpop$selected <- miama_pick_existing_source(synthpop_candidates)
-
-  if (!file.exists(cfg$sources$hm_outcomes$path)) {
-    stop(
-      paste0("HM outcomes source not found: ", cfg$sources$hm_outcomes$path),
-      call. = FALSE
-    )
+  if (!dir.exists(hm_dir)) {
+    stop("HM outcomes directory not found: ", hm_dir, call. = FALSE)
   }
 
   cfg
 }
 
-`%||%` <- function(x, y) {
-  if (is.null(x)) y else x
-}
-# MIAMA-HUB: Health-model outcomes configuration and loader
-# Migrated from POC_impact_workflow.R section 0.3
+# Load HM outcomes parquet with optional rds caching for faster future loads.
+load_hm_outcomes <- function(cfg = NULL, results_request = list(), census_ids = NULL) {
+  cfg <- cfg %||% miama_default_config()
 
-hm_outcomes_cfg <- list(
-  base_dir = HM_PROCESSED_ROOT,
-  granularity = "overall", # options: "overall", "cycle"
-  dataset_size = "sample", # options: "sample", "full"
-  cache_as_rds = TRUE,
-  refresh_cache = FALSE,
-  cache_dir = file.path("data", "cache")
-)
-
-# Load health model outcomes from parquet with optional rds caching.
-load_hm_outcomes <- function(cfg = hm_outcomes_cfg) {
-  valid_granularity <- c("overall", "cycle")
   valid_sizes <- c("sample", "full")
-
-  if (!cfg$granularity %in% valid_granularity) {
-    stop("cfg$granularity must be one of: ", paste(valid_granularity, collapse = ", "))
-  }
-  if (!cfg$dataset_size %in% valid_sizes) {
-    stop("cfg$dataset_size must be one of: ", paste(valid_sizes, collapse = ", "))
+  if (!cfg$workflow$dataset_size %in% valid_sizes) {
+    stop("cfg$workflow$dataset_size must be one of: ",
+         paste(valid_sizes, collapse = ", "), call. = FALSE)
   }
 
-  dataset_dir <- paste0(
-    "sp_",
-    cfg$granularity,
-    "_outcomes",
-    if (cfg$dataset_size == "sample") "_sample" else ""
+  hm_suffix <- miama_hm_suffix_from_request(results_request)
+  key <- paste0(
+    hm_suffix,
+    if (cfg$workflow$dataset_size == "sample") "_sample" else ""
   )
+  parquet_path <- cfg$sources$hm_outcomes[[key]]
 
-  parquet_path <- file.path(cfg$base_dir, dataset_dir)
   if (!dir.exists(parquet_path)) {
-    stop("Parquet dataset directory not found: ", parquet_path)
+    stop("HM outcomes parquet directory not found: ", parquet_path, call. = FALSE)
   }
 
   cache_file <- file.path(
-    cfg$cache_dir,
-    paste0("hm_outcomes_", cfg$granularity, "_", cfg$dataset_size, ".rds")
+    cfg$cache$dir,
+    paste0("hm_outcomes_", key, ".rds")
   )
 
-  if (isTRUE(cfg$cache_as_rds) && file.exists(cache_file) && !isTRUE(cfg$refresh_cache)) {
-    message("Loading health model outcomes from cached rds: ", cache_file)
+  if (isTRUE(cfg$cache$enabled) && is.null(census_ids) && file.exists(cache_file) && !isTRUE(cfg$cache$refresh)) {
+    message("Loading HM outcomes from cache: ", cache_file)
     return(readRDS(cache_file))
   }
 
-  message("Loading health model outcomes from parquet: ", parquet_path)
-  hm_outcomes <- dplyr::collect(
-    arrow::open_dataset(parquet_path, format = "parquet")
-  )
+  message("Loading HM outcomes from parquet: ", parquet_path)
+  hm_ds <- arrow::open_dataset(parquet_path, format = "parquet")
 
-  if (isTRUE(cfg$cache_as_rds)) {
-    dir.create(cfg$cache_dir, recursive = TRUE, showWarnings = FALSE)
+  if (!is.null(census_ids)) {
+    hm_ds <- dplyr::filter(hm_ds, census_id %in% census_ids)
+  }
+
+  hm_outcomes <- dplyr::collect(hm_ds)
+
+  if (isTRUE(cfg$cache$enabled) && is.null(census_ids)) {
+    dir.create(cfg$cache$dir, recursive = TRUE, showWarnings = FALSE)
     saveRDS(hm_outcomes, cache_file)
-    message("Saved health model outcomes cache: ", cache_file)
+    message("Cached HM outcomes to: ", cache_file)
   }
 
   hm_outcomes
 }
 
-# Load lookup table for the given granularity
-load_hm_lookup <- function(granularity = "overall") {
-  lookup_path <- switch(granularity,
-    overall = LOOKUP_OVERALL_LOC,
-    cycle   = LOOKUP_CYCLE_LOC,
-    stop("granularity must be 'overall' or 'cycle'")
-  )
+# Load mmet lookup table for the requested aggregation.
+load_hm_lookup <- function(cfg = NULL, results_request = list()) {
+  cfg <- cfg %||% miama_default_config()
+  hm_suffix <- miama_hm_suffix_from_request(results_request)
 
+  lookup_path <- cfg$sources$hm_lookup[[hm_suffix]]
+  if (is.null(lookup_path)) {
+    stop("Unknown HM lookup suffix: ", hm_suffix, call. = FALSE)
+  }
   if (!dir.exists(lookup_path)) {
-    stop("Lookup parquet directory not found: ", lookup_path)
+    stop("HM lookup parquet directory not found: ", lookup_path, call. = FALSE)
   }
 
   dplyr::collect(arrow::open_dataset(lookup_path, format = "parquet"))

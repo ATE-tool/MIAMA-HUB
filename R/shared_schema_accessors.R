@@ -31,3 +31,22 @@ get_input_value <- function(appraisal_inputs_in, field_name, default = NULL) {
 
   field
 }
+
+# Flattens a canonical `appraisal_inputs` object into a plain named list of
+# values. Raw named lists are returned unchanged.
+extract_input_values <- function(appraisal_inputs_in, drop_null = FALSE) {
+  assert_named_list(appraisal_inputs_in, "appraisal_inputs_in")
+
+  values <- lapply(appraisal_inputs_in, function(field) {
+    if (is_input_field(field)) {
+      return(field$input_value)
+    }
+    field
+  })
+
+  if (isTRUE(drop_null)) {
+    values <- values[!vapply(values, is.null, logical(1))]
+  }
+
+  values
+}

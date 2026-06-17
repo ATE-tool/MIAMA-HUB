@@ -1,12 +1,7 @@
 Package: MIAMAHUB
 Title: Integration Layer for MIAMA UI and Health Model Workflows
 Version: 0.0.0.9000
-Authors@R: person(
-  given = "Thomas",
-  family = "Gotschi",
-  role = c("aut", "cre"),
-  email = "thomas.gotschi@example.com"
-)
+Authors@R: person(given = "Thomas", family = "Gotschi", role = c("aut", "cre"), email = "gotschi@berkeley.edu")
 Description: Scaffold package for the MIAMA integration layer that mediates
   between MIAMA-UI inputs, synthetic population reference data, counterfactual
   scenario generation, and comparative risk assessment outputs.
@@ -15,6 +10,9 @@ Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
+Imports:
+    R6
 Suggests:
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    withr
 Config/testthat/edition: 3

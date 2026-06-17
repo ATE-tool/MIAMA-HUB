@@ -134,11 +134,19 @@ hm_outcomes <- load_hm_outcomes()
 # -------------------------------------#
 
 source("R/run_scenario_functions.R")
+source(file.path("..", "MIAMA-UI", "schemes", "appraisal_inputs.R")) # canonical UI input scheme; serves as profile template
 source("helpers/build_mock_case_study_profile.R")
 
-# 1. Load UI input
-case_study_profile_overall <- build_mock_case_study_profile(outcome_format = "overall")
-case_study_profile_cycle <- build_mock_case_study_profile(outcome_format = "cycle")
+# 1. Load UI input ----
+## Mock profiles
+case_study_profile_overall <- build_mock_case_study_profile(
+  appraisal_inputs = appraisal_inputs,
+  res_aggregation = "total"
+)
+case_study_profile_cycle <- build_mock_case_study_profile(
+  appraisal_inputs = appraisal_inputs,
+  res_aggregation = "timeline"
+)
 
 
 # 2. Run scenario(s) ----

@@ -47,58 +47,47 @@ miama_hm_root <- function() {
   normalizePath(root, winslash = "/", mustWork = FALSE)
 }
 
+# Resolve which synthpop source to use: dev parquet > full parquet > dta fallback
+miama_pick_synthpop_source <- function(data_dir, prefix) {
+  dev_parquet <- file.path(data_dir, "synthetic_pop", paste0(prefix, "_dev_parquet"))
+  parquet     <- file.path(data_dir, "synthetic_pop", paste0(prefix, "_parquet"))
+  dta         <- file.path(data_dir, "synthetic_pop", paste0(prefix, ".dta"))
+
+  if (dir.exists(dev_parquet)) return(list(path = dev_parquet, format = "parquet"))
+  if (dir.exists(parquet))     return(list(path = parquet,     format = "parquet"))
+  return(list(path = dta, format = "dta"))
+}
+
 miama_paths <- function() {
   project_root <- miama_project_root()
-  hm_root <- miama_hm_root()
+  hm_root      <- miama_hm_root()
+  data_dir     <- file.path(project_root, "data")
+  hm_processed <- file.path(hm_root, "health_data", "processed")
+
+  sp_attributes <- miama_pick_synthpop_source(data_dir, "SPindivid_CensusNTSALS")
+  sp_trips      <- miama_pick_synthpop_source(data_dir, "SPtrip_CensusNTSALS")
 
   list(
-    project_root = project_root,
-    hm_root = hm_root,
-    hm_processed_root = file.path(hm_root, "processed"),
-    inst_workflows = file.path(project_root, "inst", "workflows"),
-    data_dir = file.path(project_root, "data"),
-    output_root = file.path(project_root, "data", MIAMA_SCENARIO_DIRNAME),
-    output_lookup = file.path(project_root, "data", "lookup"),
-    output_reference = file.path(project_root, "data", "reference")
+    project_root      = project_root,
+    hm_root           = hm_root,
+    hm_processed_root = hm_processed,
+    inst_workflows    = file.path(project_root, "inst", "workflows"),
+    data_dir          = data_dir,
+    cache_dir         = file.path(data_dir, "cache"),
+    output_root       = file.path(data_dir, MIAMA_SCENARIO_DIRNAME),
+    output_lookup     = file.path(data_dir, "lookup"),
+    output_reference  = file.path(data_dir, "reference"),
+
+    # Synthetic population sources (resolved at call time)
+    sp_attributes     = sp_attributes,
+    sp_trips          = sp_trips,
+
+    # HM processed dataset directories
+    hm_sp_overall         = file.path(hm_processed, "sp_overall_outcomes"),
+    hm_sp_cycle           = file.path(hm_processed, "sp_cycle_outcomes"),
+    hm_sp_overall_sample  = file.path(hm_processed, "sp_overall_outcomes_sample"),
+    hm_sp_cycle_sample    = file.path(hm_processed, "sp_cycle_outcomes_sample"),
+    hm_lookup_overall     = file.path(hm_processed, "mmet_d_overall_lookup"),
+    hm_lookup_cycle       = file.path(hm_processed, "mmet_d_cycle_lookup")
   )
 }
-# R/paths.R ---------------------------------------------------------------
-# Project-local locations and fallbacks copied from POC_impact_workflow.R
-
-MIAMA_HM_ROOT <- "../MIAMA-HM"
-HM_PROCESSED_ROOT <- file.path(MIAMA_HM_ROOT, "health_data", "processed")
-
-SP_ATTRIBUTES_DTA_LOC <- file.path("data", "synthetic_pop", "SPindivid_CensusNTSALS.dta")
-SP_TRIPS_DTA_LOC <- file.path("data", "synthetic_pop", "SPtrip_CensusNTSALS.dta")
-SP_ATTRIBUTES_PARQUET_LOC <- file.path("data", "synthetic_pop", "SPindivid_CensusNTSALS_parquet")
-SP_TRIPS_PARQUET_LOC <- file.path("data", "synthetic_pop", "SPtrip_CensusNTSALS_parquet")
-SP_ATTRIBUTES_DEV_PARQUET_LOC <- file.path("data", "synthetic_pop", "SPindivid_CensusNTSALS_dev_parquet")
-SP_TRIPS_DEV_PARQUET_LOC <- file.path("data", "synthetic_pop", "SPtrip_CensusNTSALS_dev_parquet")
-
-# choose development parquet if present, then regular parquet, else original dta
-SP_ATTRIBUTES_LOC <- dplyr::case_when(
-  dir.exists(SP_ATTRIBUTES_DEV_PARQUET_LOC) ~ SP_ATTRIBUTES_DEV_PARQUET_LOC,
-  dir.exists(SP_ATTRIBUTES_PARQUET_LOC) ~ SP_ATTRIBUTES_PARQUET_LOC,
-  TRUE ~ SP_ATTRIBUTES_DTA_LOC
-)
-
-SP_TRIPS_LOC <- dplyr::case_when(
-  dir.exists(SP_TRIPS_DEV_PARQUET_LOC) ~ SP_TRIPS_DEV_PARQUET_LOC,
-  dir.exists(SP_TRIPS_PARQUET_LOC) ~ SP_TRIPS_PARQUET_LOC,
-  TRUE ~ SP_TRIPS_DTA_LOC
-)
-
-# Health-model processed outputs
-SP_JOINED_OVERALL_LOC <- file.path(HM_PROCESSED_ROOT, "sp_overall_outcomes")
-SP_JOINED_CYCLE_LOC <- file.path(HM_PROCESSED_ROOT, "sp_cycle_outcomes")
-SP_JOINED_OVERALL_SAMPLE_LOC <- file.path(HM_PROCESSED_ROOT, "sp_overall_outcomes_sample")
-SP_JOINED_CYCLE_SAMPLE_LOC <- file.path(HM_PROCESSED_ROOT, "sp_cycle_outcomes_sample")
-LOOKUP_OVERALL_LOC <- file.path(HM_PROCESSED_ROOT, "mmet_d_overall_lookup")
-LOOKUP_CYCLE_LOC <- file.path(HM_PROCESSED_ROOT, "mmet_d_cycle_lookup")
-
-# Scenario outputs
-SCENARIO_OUTPUT_ROOT <- file.path("outputs", "scenarios")
-SCENARIO_OVERALL_LOC <- file.path(SCENARIO_OUTPUT_ROOT, "sample_scenario_overall")
-SCENARIO_CYCLE_LOC <- file.path(SCENARIO_OUTPUT_ROOT, "sample_scenario_cycle")
-
-dir.create(SCENARIO_OUTPUT_ROOT, recursive = TRUE, showWarnings = FALSE)

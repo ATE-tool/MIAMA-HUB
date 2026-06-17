@@ -1,0 +1,20 @@
+{
+  "permission": {
+    "edit": {
+      "*.R": "allow",
+      "*/DESCRIPTION": "allow",
+      "*.lock": "allow",
+      "*/.gitignore": "allow",
+      "*.md": "allow"
+    },
+    "executeCode": {
+      "*": "allow"
+    },
+    "bash": {
+      "cd *": "allow",
+      "Rscript *": "allow",
+      "head *": "allow",
+      "*": "allow"
+    }
+  }
+}

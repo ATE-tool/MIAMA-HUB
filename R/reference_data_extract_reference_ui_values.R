@@ -5,12 +5,16 @@
 # Outputs: Compact UI updates and related reference-side values.
 # Notes: This should be a major interface back to the UI during intermediate
 #   steps, and should return small objects rather than datasets.
-#
-# Placeholder for extracting compact reference values for UI prepopulation.
+
 extract_reference_ui_values <- function(reference_data, reference_request = list()) {
+  assert_named_list(reference_data, "reference_data")
+
+  population_size <- if (!is.null(reference_data$ind)) nrow(reference_data$ind) else NA_integer_
+
   list(
-    reference_data = reference_data,
     reference_request = reference_request,
-    ui_updates = list()
+    ui_updates = list(
+      pop_total_ref = population_size
+    )
   )
 }

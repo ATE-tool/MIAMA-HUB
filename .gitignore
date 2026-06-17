@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# Data files (too large for git; stored externally)
+data/
