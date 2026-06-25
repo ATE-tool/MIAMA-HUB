@@ -69,3 +69,167 @@ test_that("filter_reference_data leaves England-wide data unchanged", {
   expect_equal(nrow(filtered$ind), 2)
   expect_equal(nrow(filtered$trips), 3)
 })
+
+test_that("extract_reference_ui_values derives Tab 2 trip reference fields", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:2,
+      walktime_wkhr = c(1, 0),
+      cycletime_wkhr = c(0, 2)
+    ),
+    trips = data.frame(
+      census_id = c(1, 2, 2),
+      nts_tripid = c(11, 21, 22),
+      weight_tripXhh = c(1, 2, 1),
+      trip_walkdist_km = c(1, 0, 0),
+      trip_walktime_min = c(10, 0, 0),
+      trip_cycledist_km = c(0, 5, 3),
+      trip_cycletime_min = c(0, 20, 12)
+    )
+  )
+
+  values <- extract_reference_ui_values(
+    reference_data,
+    appraisal_input_values = list(
+      at_data_unit = "trips",
+      modes = c("walking", "cycling"),
+      trips_timeframe_walk = "week",
+      trips_timeframe_bike = "week",
+      trips_denominator_walk = "total",
+      trips_denominator_bike = "total"
+    )
+  )
+
+  expect_equal(values$ui_updates$pop_total_ref, 2)
+  expect_equal(values$ui_updates$trips_count_ref_walk, 1)
+  expect_equal(values$ui_updates$trips_count_ref_bike, 3)
+})
+
+test_that("extract_reference_ui_values supports individual-only user counts", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:3,
+      walktime_wkhr = c(1, 0, 0.5),
+      cycletime_wkhr = c(0, 2, 0)
+    )
+  )
+
+  values <- extract_reference_ui_values(
+    reference_data,
+    appraisal_input_values = list(
+      at_data_unit = "users",
+      modes = c("walking", "cycling", "ebiking")
+    )
+  )
+
+  expect_equal(values$ui_updates$users_count_ref_walk, 2)
+  expect_equal(values$ui_updates$users_count_ref_bike, 1)
+  expect_true(is.na(values$ui_updates$users_count_ref_ebike))
+  expect_true("users_count_ref_ebike" %in% values$extraction_report$skipped_fields)
+})
+
+test_that("extract_reference_ui_values derives mode-share reference fields", {
+  reference_data <- list(
+    ind = data.frame(census_id = 1:2),
+    trips = data.frame(
+      census_id = c(1, 1, 2),
+      nts_tripid = c(11, 12, 21),
+      weight_tripXhh = c(1, 1, 2),
+      trip_distraw_km = c(2, 5, 6),
+      trip_durationraw_min = c(20, 30, 40),
+      trip_walkdist_km = c(2, 0, 0),
+      trip_walktime_min = c(20, 0, 0),
+      trip_cycledist_km = c(0, 5, 6),
+      trip_cycletime_min = c(0, 30, 40)
+    )
+  )
+
+  values <- extract_reference_ui_values(
+    reference_data,
+    appraisal_input_values = list(
+      at_data_unit = "mode_share",
+      modes = c("walking", "cycling"),
+      ui_mode_share_show_options = FALSE
+    )
+  )
+
+  expect_equal(values$ui_updates$mode_share_total_trips, 4)
+  expect_equal(values$ui_updates$mode_share_total_trips_2, 4)
+  expect_equal(values$ui_updates$mode_share_ref_walk, 25)
+  expect_equal(values$ui_updates$mode_share_ref_bike, 75)
+})
+
+test_that("extract_reference_ui_values derives Tab 3 population reference fields", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:4,
+      age1year = c(20, 30, 40, 50),
+      female = c(0, 1, 1, 0),
+      walktime_wkhr = c(1, 0, 0, 2),
+      cycletime_wkhr = c(0, 3, 0, 0)
+    )
+  )
+
+  current_values <- extract_reference_ui_values(
+    reference_data,
+    appraisal_input_values = list(
+      at_data_unit = "users",
+      modes = c("walking", "cycling"),
+      pop_refine_choice = "pop_age_current"
+    )
+  )
+
+  expect_equal(current_values$ui_updates$pop_total_ref, 4)
+  expect_equal(current_values$ui_updates$pop_number_ref_walk, 2)
+  expect_equal(current_values$ui_updates$pop_number_ref_bike, 1)
+  expect_equal(current_values$ui_updates$pop_spread_age_mean_ref, mean(c(20, 30, 50)))
+  expect_equal(current_values$ui_updates$pop_spread_sex_prop_ref, 2 / 3)
+
+  new_values <- extract_reference_ui_values(
+    reference_data,
+    appraisal_input_values = list(
+      at_data_unit = "users",
+      modes = c("walking", "cycling"),
+      pop_refine_choice = "pop_age_new"
+    )
+  )
+
+  expect_equal(new_values$ui_updates$pop_spread_age_mean_ref, 40)
+  expect_equal(new_values$ui_updates$pop_spread_sex_prop_ref, 0)
+})
+
+test_that("extract_reference_ui_values derives Tab 4 trip reference fields", {
+  reference_data <- list(
+    ind = data.frame(census_id = 1:2),
+    trips = data.frame(
+      census_id = c(1, 1, 2),
+      nts_tripid = c(11, 12, 21),
+      weight_tripXhh = c(1, 1, 2),
+      trip_distraw_km = c(2, 5, 6),
+      trip_durationraw_min = c(20, 30, 40),
+      trip_purpose = c("Commuting", "Leisure", "Shopping"),
+      trip_walkdist_km = c(2, 0, 0),
+      trip_walktime_min = c(20, 0, 0),
+      trip_cycledist_km = c(0, 5, 6),
+      trip_cycletime_min = c(0, 30, 40)
+    )
+  )
+
+  values <- extract_reference_ui_values(
+    reference_data,
+    appraisal_input_values = list(
+      at_data_unit = "trips",
+      modes = c("walking", "cycling")
+    )
+  )
+
+  expect_equal(values$ui_updates$trips_number_total_ref, 4)
+  expect_equal(values$ui_updates$trips_number_ref_walk, 1)
+  expect_equal(values$ui_updates$trips_number_ref_bike, 3)
+  expect_equal(values$ui_updates$trips_spread_mean_ref, 19 / 4)
+  expect_equal(values$ui_updates$trips_spread_util_prop_ref, 3 / 4)
+  expect_equal(values$ui_updates$trips_diversion_total_trips, 4)
+  expect_equal(values$ui_updates$trips_diversion_trips_n, 4)
+  expect_equal(values$ui_updates$trips_diversion_distance_total, 19)
+  expect_equal(values$ui_updates$trips_diversion_duration_total, 130)
+})

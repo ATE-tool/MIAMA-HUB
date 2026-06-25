@@ -16,6 +16,8 @@ invalidate_hub_state <- function(state = list(), changed_fields = character()) {
     state$reference_sources <- NULL
     state$reference_data_raw <- NULL
     state$reference_data <- NULL
+  }
+  if (length(changed_fields) > 0) {
     state$reference_ui_values <- NULL
   }
 

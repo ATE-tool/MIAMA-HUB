@@ -65,12 +65,12 @@ Hub <- R6::R6Class(
     },
 
     get_request = function() {
-      self$.require_request()
+      private$.require_request()
       self$request
     },
 
     load_reference_sources = function() {
-      self$.require_request()
+      private$.require_request()
 
       self$reference_sources <- load_reference_sources(
         cfg = self$cfg,
@@ -82,8 +82,8 @@ Hub <- R6::R6Class(
     },
 
     build_reference_data = function() {
-      self$.require_request()
-      self$.require_reference_sources()
+      private$.require_request()
+      private$.require_reference_sources()
 
       self$reference_data_raw <- join_hm_and_synthpop(self$reference_sources)
       self$reference_data <- filter_reference_data(
@@ -94,21 +94,45 @@ Hub <- R6::R6Class(
       invisible(self$reference_data)
     },
 
-    get_reference_ui_values = function() {
-      self$.require_request()
-      self$.require_reference_data()
+    build_reference_ui_values = function() {
+      private$.require_request()
+      private$.require_reference_data()
 
       self$reference_ui_values <- extract_reference_ui_values(
         self$reference_data,
-        self$request$reference_request
+        self$request$reference_request,
+        self$request$appraisal_input_values
       )
 
       self$reference_ui_values
     },
 
+    get_reference_ui_values = function(refresh = FALSE) {
+      if (isTRUE(refresh) || is.null(self$reference_ui_values)) {
+        return(self$build_reference_ui_values())
+      }
+
+      self$reference_ui_values
+    },
+
+    get_reference_ui_updates = function(refresh = FALSE) {
+      ui_values <- self$get_reference_ui_values(refresh = refresh)
+      ui_values$ui_updates
+    },
+
+    get_reference_ui_value = function(field_name, refresh = FALSE, default = NULL) {
+      updates <- self$get_reference_ui_updates(refresh = refresh)
+      value <- updates[[field_name]]
+
+      if (is.null(value)) {
+        return(default)
+      }
+
+      value
+    },
+
     get_population_size = function() {
-      ui_values <- self$get_reference_ui_values()
-      ui_values$ui_updates$pop_total_ref
+      self$get_reference_ui_value("pop_total_ref")
     }
   ),
   private = list(

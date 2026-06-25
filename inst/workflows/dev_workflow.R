@@ -42,6 +42,7 @@ request <- receive_appraisal_inputs(appraisal_inputs)
 str(request$appraisal_input_values)
 str(request$reference_request)
 str(request$results_request)
+str(request$counterfactual_request)
 
 
 # 1. Load reference sources ----
@@ -139,15 +140,33 @@ dplyr::glimpse(reference_data$ind)
 dplyr::glimpse(reference_data$trips)
 
 
+# 5. Extract info from reference data to pre-populate UI input fields ----
+# -----------------------------------------------------------------------------#
+# Returns compact values for visible Tab 2 reference fields implied by
+# appraisal_inputs, plus a report of skipped fields and data limitations.
+
+reference_ui_values <- extract_reference_ui_values(
+  reference_data,
+  request$reference_request,
+  request$appraisal_input_values
+)
+
+## 5.1 Inspect UI updates and extraction report ----
+str(reference_ui_values$ui_updates)
+str(reference_ui_values$extraction_report)
+
+
 # --- Full pipeline (commented out until modules are implemented) ----
 # -----------------------------------------------------------------------------#
-#
-# reference_ui_values <- extract_reference_ui_values(reference_data, request$reference_request)
+
+# 6. Create counterfactual data ----
 # counterfactual_data <- init_counterfactual_data(reference_data)
 # counterfactual_data <- apply_ind_rows_changes(counterfactual_data, request$counterfactual_request)
 # counterfactual_data <- apply_ind_attribute_changes(counterfactual_data, request$counterfactual_request)
 # counterfactual_data <- apply_trip_rows_changes(counterfactual_data, request$counterfactual_request)
 # counterfactual_data <- apply_trip_attribute_changes(counterfactual_data, request$counterfactual_request)
+
+# Step X: comparison of reference vs counterfactual data
 # cra_inputs          <- prepare_cra_inputs(reference_data, counterfactual_data, request$results_request)
 # health_impacts      <- run_cra(cra_inputs)
 # build_ui_return_payload(

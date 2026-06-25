@@ -135,6 +135,83 @@ The current loading strategy is:
 This is intended to reduce unnecessary data transfer and memory use,
 especially once synthetic population data is available in parquet format.
 
+## Reference UI value extraction
+
+`extract_reference_ui_values()` derives compact status-quo values from filtered
+`reference_data` for returning to `MIAMA-UI`. The function now accepts the
+flattened `appraisal_input_values` from `receive_appraisal_inputs()` so it can
+honor Tab 2 UI choices such as selected `modes`, `at_data_unit`, denominators,
+units, and timeframes.
+
+The current extractor covers Tab 2 reference fields for:
+
+- user counts (`users_count_ref_*`)
+- trip counts (`trips_count_ref_*`)
+- distance/duration amounts (`dist_dur_amount_ref_*`)
+- mode shares and denominators (`mode_share_ref_*`, `mode_share_total_*`)
+
+It also covers advanced Tab 3 and Tab 4 reference fields:
+
+- population totals and per-mode population counts (`pop_total_ref`,
+  `pop_number_ref_*`)
+- population distribution anchors (`pop_spread_age_mean_ref`,
+  `pop_spread_sex_prop_ref`, `pop_spread_pa_mean_ref`,
+  `pop_spread_pa_sex_prop_ref`)
+- trip totals and per-mode trip counts (`trips_number_total_ref`,
+  `trips_number_ref_*`)
+- trip distribution anchors (`trips_spread_mean_ref`,
+  `trips_spread_util_prop_ref`)
+- diversion denominators (`trips_diversion_total_trips`,
+  `trips_diversion_trips_n`, `trips_diversion_distance_total`,
+  `trips_diversion_duration_total`)
+
+Individual-only values, such as walking and cycling user counts from
+`walktime_wkhr` and `cycletime_wkhr`, can be extracted from `reference_data$ind`
+alone. Trip counts, trip-level distance/duration values, and mode-share values
+require `reference_data$trips`. The returned `extraction_report` records skipped
+fields and notes when a requested UI value cannot be derived from the currently
+available columns.
+
+Current data columns distinguish walking and cycling but do not expose a
+dedicated e-bike source. Walk-to-public-transport values are derived only when
+trip-level data includes recognizable public-transport `trip_mainmode` values.
+
+Current threshold assumptions are deliberately simple:
+
+- walking users are individuals with `walktime_wkhr > 0`
+- cycling users are individuals with `cycletime_wkhr > 0`
+- walking trips have `trip_walktime_min > 0` or `trip_walkdist_km > 0`
+- cycling trips have `trip_cycletime_min > 0` or `trip_cycledist_km > 0`
+- walk-to-public-transport trips have recognizable public-transport
+  `trip_mainmode` values plus positive walking time or distance
+
+Future refinements should make these thresholds mode-specific and configurable.
+Likely examples include defining walking users as `walktime_wkhr > 2`, or using
+minimum trip-count thresholds such as more than 10 trips.
+
+The Tab 3 distribution anchors currently use selected-mode current users for
+`pop_*_current` choices and selected-mode non-users for `pop_*_new` choices.
+If a selected group is empty, the extractor falls back to the filtered
+population to avoid returning unusable distribution anchors. One schema issue is
+currently unresolved: `pop_spread_pa_mean_ref` is named like a physical-activity
+distribution mean, but its UI description, label, and unit describe mean age in
+years. The extractor currently follows the UI text and returns mean age.
+
+The Tab 4 trip distribution anchors currently use all trips in the filtered
+reference geography. `trips_spread_util_prop_ref` classifies trips as
+utilitarian unless `trip_purpose` looks recreational, leisure, sport, exercise,
+holiday, visit, or social.
+
+For plausibility checks across all Tab 2-4 reference fields, use
+`inst/workflows/dev_reference_ui_values_tab234_all.R`.
+
+The R6 `Hub` wrapper exposes the same output through
+`build_reference_ui_values()` / `get_reference_ui_values()`. Call
+`get_reference_ui_updates()` for the compact named UI update list, or
+`get_reference_ui_value("field_name")` for a single value. `get_population_size()`
+is retained only as a convenience wrapper around `pop_total_ref`; new code
+should not add one R6 method per UI field.
+
 ## Synthetic population parquet conversion
 
 To enable Arrow filter pushdown, local synthpop `.dta` files should be converted
