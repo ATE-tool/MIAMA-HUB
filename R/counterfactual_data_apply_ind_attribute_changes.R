@@ -6,10 +6,7 @@
 # Notes: This is the likely landing place for carefully adapted legacy logic
 #   that changes MMETS or precursor variables.
 #
-# Placeholder for applying individual attribute changes.
 apply_ind_attribute_changes <- function(counterfactual_data, counterfactual_request = list()) {
-  list(
-    counterfactual_data = counterfactual_data,
-    individual_attribute_changes = counterfactual_request$individual_attribute_changes
-  )
+  assert_named_list(counterfactual_data, "counterfactual_data")
+  counterfactual_data
 }

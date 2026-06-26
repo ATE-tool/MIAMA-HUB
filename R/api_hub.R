@@ -21,6 +21,7 @@ Hub <- R6::R6Class(
     reference_data_raw = NULL,
     reference_data = NULL,
     reference_ui_values = NULL,
+    counterfactual_data = NULL,
 
     initialize = function(cfg = NULL, appraisal_inputs = NULL) {
       self$cfg <- cfg %||% miama_default_config()
@@ -49,7 +50,8 @@ Hub <- R6::R6Class(
           reference_sources = self$reference_sources,
           reference_data_raw = self$reference_data_raw,
           reference_data = self$reference_data,
-          reference_ui_values = self$reference_ui_values
+          reference_ui_values = self$reference_ui_values,
+          counterfactual_data = self$counterfactual_data
         ),
         changed_fields = changed_fields
       )
@@ -60,6 +62,7 @@ Hub <- R6::R6Class(
       self$reference_data_raw <- invalidation$state$reference_data_raw
       self$reference_data <- invalidation$state$reference_data
       self$reference_ui_values <- invalidation$state$reference_ui_values
+      self$counterfactual_data <- invalidation$state$counterfactual_data
 
       invisible(self$request)
     },
@@ -133,6 +136,29 @@ Hub <- R6::R6Class(
 
     get_population_size = function() {
       self$get_reference_ui_value("pop_total_ref")
+    },
+
+    build_counterfactual_data = function(seed = 1L) {
+      private$.require_request()
+      private$.require_reference_data()
+
+      self$counterfactual_data <- init_counterfactual_data(self$reference_data)
+      self$counterfactual_data <- apply_counterfactual_ui_values(
+        self$counterfactual_data,
+        self$request$appraisal_input_values,
+        reference_data = self$reference_data,
+        seed = seed
+      )
+
+      self$counterfactual_data
+    },
+
+    get_counterfactual_data = function(refresh = FALSE, seed = 1L) {
+      if (isTRUE(refresh) || is.null(self$counterfactual_data)) {
+        return(self$build_counterfactual_data(seed = seed))
+      }
+
+      self$counterfactual_data
     }
   ),
   private = list(

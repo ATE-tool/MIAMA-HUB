@@ -43,3 +43,27 @@ test_that("Hub clears cached reference UI values when lightweight inputs change"
   expect_false(is.null(hub$reference_data_raw))
   expect_false(is.null(hub$reference_data))
 })
+
+test_that("Hub builds counterfactual data from appraisal input values", {
+  hub <- Hub$new(cfg = list(), appraisal_inputs = build_mock_appraisal_inputs(
+    overrides = list(
+      at_data_unit = list(input_value = "users"),
+      modes = list(input_value = "walking"),
+      users_count_cf_walk = list(input_value = 2)
+    )
+  ))
+
+  hub$reference_data <- list(
+    ind = data.frame(
+      census_id = 1:3,
+      walktime_wkhr = c(1, 0, 0),
+      cycletime_wkhr = c(0, 0, 0)
+    )
+  )
+
+  counterfactual_data <- hub$build_counterfactual_data(seed = 1)
+
+  expect_equal(sum(counterfactual_data$ind$walktime_wkhr > 0), 2)
+  expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$target, 2)
+  expect_equal(hub$get_counterfactual_data(), counterfactual_data)
+})

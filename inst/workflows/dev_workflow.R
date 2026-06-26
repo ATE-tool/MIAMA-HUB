@@ -155,16 +155,38 @@ reference_ui_values <- extract_reference_ui_values(
 str(reference_ui_values$ui_updates)
 str(reference_ui_values$extraction_report)
 
+# Development-only example target for Step 6. Real UI calls should provide
+# `users_count_cf_walk` or another supported `_cf_` value directly.
+request$appraisal_input_values$users_count_cf_walk <- min(
+  reference_ui_values$ui_updates$pop_total_ref,
+  reference_ui_values$ui_updates$pop_number_ref_walk + 10
+)
+
 
 # --- Full pipeline (commented out until modules are implemented) ----
 # -----------------------------------------------------------------------------#
 
 # 6. Create counterfactual data ----
-# counterfactual_data <- init_counterfactual_data(reference_data)
-# counterfactual_data <- apply_ind_rows_changes(counterfactual_data, request$counterfactual_request)
-# counterfactual_data <- apply_ind_attribute_changes(counterfactual_data, request$counterfactual_request)
-# counterfactual_data <- apply_trip_rows_changes(counterfactual_data, request$counterfactual_request)
-# counterfactual_data <- apply_trip_attribute_changes(counterfactual_data, request$counterfactual_request)
+# -----------------------------------------------------------------------------#
+# First-pass UI-driven implementation. Starts from a 1:1 copy of reference_data,
+# then applies supported `_cf_` values while recording assumptions in
+# `counterfactual_report`.
+
+counterfactual_data <- init_counterfactual_data(reference_data)
+counterfactual_data <- apply_counterfactual_ui_values(
+  counterfactual_data,
+  request$appraisal_input_values,
+  reference_data = reference_data,
+  seed = 1L
+)
+
+## 6.1 Inspect counterfactual report and changed data ----
+str(counterfactual_data$counterfactual_report)
+counterfactual_data$counterfactual_report$comparison$ind
+counterfactual_data$counterfactual_report$comparison$trips
+counterfactual_data$counterfactual_report$comparison$changed_ind_rows
+dplyr::glimpse(counterfactual_data$ind)
+dplyr::glimpse(counterfactual_data$trips)
 
 # Step X: comparison of reference vs counterfactual data
 # cra_inputs          <- prepare_cra_inputs(reference_data, counterfactual_data, request$results_request)

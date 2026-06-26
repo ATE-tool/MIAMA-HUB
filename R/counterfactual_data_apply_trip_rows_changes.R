@@ -6,10 +6,7 @@
 # Notes: This should be kept distinct from trip attribute changes so the code
 #   mirrors the intended UI logic and remains manageable.
 #
-# Placeholder for applying trip row inclusion/exclusion changes.
 apply_trip_rows_changes <- function(counterfactual_data, counterfactual_request = list()) {
-  list(
-    counterfactual_data = counterfactual_data,
-    trip_row_changes = counterfactual_request$trip_row_changes
-  )
+  assert_named_list(counterfactual_data, "counterfactual_data")
+  counterfactual_data
 }

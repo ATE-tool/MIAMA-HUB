@@ -6,10 +6,7 @@
 # Notes: This is where trip-distance, duration, or mode-shift related value
 #   changes should ultimately land.
 #
-# Placeholder for applying trip attribute changes.
 apply_trip_attribute_changes <- function(counterfactual_data, counterfactual_request = list()) {
-  list(
-    counterfactual_data = counterfactual_data,
-    trip_attribute_changes = counterfactual_request$trip_attribute_changes
-  )
+  assert_named_list(counterfactual_data, "counterfactual_data")
+  counterfactual_data
 }

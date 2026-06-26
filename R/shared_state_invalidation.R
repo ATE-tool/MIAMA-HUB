@@ -19,6 +19,7 @@ invalidate_hub_state <- function(state = list(), changed_fields = character()) {
   }
   if (length(changed_fields) > 0) {
     state$reference_ui_values <- NULL
+    state$counterfactual_data <- NULL
   }
 
   list(

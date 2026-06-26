@@ -6,10 +6,7 @@
 # Notes: This should capture "who is affected" logic, distinct from changing
 #   variable values on already-selected individuals.
 #
-# Placeholder for applying individual row inclusion/exclusion changes.
 apply_ind_rows_changes <- function(counterfactual_data, counterfactual_request = list()) {
-  list(
-    counterfactual_data = counterfactual_data,
-    individual_row_changes = counterfactual_request$individual_row_changes
-  )
+  assert_named_list(counterfactual_data, "counterfactual_data")
+  counterfactual_data
 }

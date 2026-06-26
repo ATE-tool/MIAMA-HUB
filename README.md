@@ -212,6 +212,59 @@ The R6 `Hub` wrapper exposes the same output through
 is retained only as a convenience wrapper around `pop_total_ref`; new code
 should not add one R6 method per UI field.
 
+## Counterfactual data initialization and UI application
+
+`init_counterfactual_data()` starts Step 6 by returning a 1:1 copy of filtered
+`reference_data`. The first UI-driven implementation is
+`apply_counterfactual_ui_values()`, which applies supported `_cf_` inputs to
+that copy and adds a compact `counterfactual_report`.
+
+The current first-pass implementation supports `users_count_cf_*` and
+`pop_number_cf_*` for walking and cycling. These fields adjust the number of
+individuals with positive mode-specific weekly activity:
+
+- if the counterfactual target is larger than the current reference count,
+  existing non-users are sampled as `new_users`
+- if the target is smaller, existing users are sampled as `ex_users`
+- new users receive mode activity values sampled from the reference users'
+  observed activity distribution
+- ex-users receive values sampled from current non-users, usually zero
+- `mmets` is recalculated when present using HM constants:
+  `walktime_wkhr * 2.5 + cycletime_wkhr * 5.8 + sport_wkhr * 7`
+- if trip-level data is present, changed individual activity columns are
+  mirrored onto matching trip rows; trip rows are not created, deleted, or
+  shifted yet
+
+Targets must be finite, non-negative, rounded integer counts and cannot exceed
+the filtered reference population size. E-bike and walk-to-public-transport
+counterfactual user counts are currently reported as unsupported until the data
+contains dedicated activity columns or agreed classification rules.
+
+Parameter naming follows the same distinction used elsewhere in the package:
+`*_ref` values are measured from filtered reference data, while `*_default`
+values come from internal constants. Those constants are currently returned by
+`miama_counterfactual_defaults()` and should be externalized once the defaults
+are agreed.
+
+The R6 `Hub` wrapper exposes this step via `build_counterfactual_data()` and
+`get_counterfactual_data()`.
+
+`R/counterfactual_data_apply_ui_values.R` is structured as a handler registry:
+`apply_counterfactual_ui_values()` builds shared context, then each handler owns
+one conceptual family of UI fields. The first implemented handler is active-mode
+user-count targets. Future handlers should be added for activity amounts,
+population distributions, trip counts, trip mode shifts, trip attributes, and
+diversion rates. Keep each handler's assumptions visible near the handler code,
+and keep cross-cutting validation, sampling, constants, and report helpers in
+their dedicated outline sections.
+
+For validation, every counterfactual run adds
+`counterfactual_report$comparison`, with side-by-side reference vs.
+counterfactual summaries for key active-travel and physical-activity columns.
+The current comparison includes individual-level sums, means, active-row counts,
+trip-level sums/means, trip row counts, and a `changed_ind_rows` table showing
+affected `census_id` values with `_ref`, `_cf`, and `_delta` columns.
+
 ## Synthetic population parquet conversion
 
 To enable Arrow filter pushdown, local synthpop `.dta` files should be converted
