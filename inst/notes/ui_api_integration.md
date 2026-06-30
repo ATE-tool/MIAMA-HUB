@@ -166,80 +166,55 @@ counterfactual_data$counterfactual_report$comparison$changed_ind_rows
 
 ## Getting Geographic Levels And Geographic Options
 
-### Current State
-
-Geographic levels are currently defined by the UI schema:
+HUB now provides cached geography helpers for the UI:
 
 ```r
-c(
-  "England" = "eng",
-  "Region" = "reg",
-  "Grouped LADs" = "glads",
-  "LAD" = "lad",
-  "MSOA" = "msoa"
+levels <- MIAMAHUB::get_geo_levels(cfg)
+lad_options <- MIAMAHUB::get_geo_options(cfg, "lad")
+region_options <- MIAMAHUB::get_geo_options(cfg, "reg")
+
+# `region` is also accepted as an alias for `reg`.
+region_options <- MIAMAHUB::get_geo_options(cfg, "region")
+```
+
+The returned level table has:
+
+```r
+data.frame(
+  geo_level = c("eng", "reg", "lad"),
+  geo_label = c("England", "Region", "Local authority district"),
+  n_options = c(...)
 )
 ```
 
-HUB already knows how to map these levels to source columns:
+The returned option table has:
 
 ```r
-eng  -> no geography column
-reg  -> region
-lad  -> lad25cd
-glads -> lad25cd
-msoa -> msoa11cd
+data.frame(
+  geo_level = "lad",
+  geo_id = "E08000035",
+  geo_name = "Leeds",
+  n_individuals = ...
+)
 ```
 
-There is not yet a dedicated exported HUB function like
-`hub$get_geo_options("lad")`. The current implementation can derive options from
-synthetic population attributes, but this should be formalized before UI wiring.
-
-### Proposed HUB Helper
-
-Suggested API:
+For the R6 session API:
 
 ```r
-get_geo_levels <- function() {
-  c(
-    "England" = "eng",
-    "Region" = "reg",
-    "Grouped LADs" = "glads",
-    "LAD" = "lad",
-    "MSOA" = "msoa"
-  )
-}
-
-get_geo_options <- function(cfg = NULL, geo_level) {
-  cfg <- miama_resolve_config(cfg)
-
-  if (identical(geo_level, "eng")) {
-    return(data.frame(label = "England", value = "eng"))
-  }
-
-  geo_col <- switch(
-    geo_level,
-    reg = "region",
-    lad = "lad25cd",
-    glads = "lad25cd",
-    msoa = "msoa11cd",
-    stop("Unsupported geo_level: ", geo_level, call. = FALSE)
-  )
-
-  # Implementation should read only the required geography/name columns from
-  # `cfg$sources$sp_attributes`, preferably through Arrow when parquet-backed.
-  # Return a small UI-ready table:
-  # data.frame(label = ..., value = ...)
-}
+hub <- MIAMAHUB::Hub$new(cfg = cfg)
+hub$get_geo_options("lad")
 ```
 
-For LADs, use `lad25nm` as label and `lad25cd` as value when available. For
-regions, label and value can both be `region`. For MSOA, use `msoa11cd` until a
-name column is available.
+The lookup is built from the synthpop individual attributes source and cached at
+`data/lookup/geo_options.rds`. The first call creates the cache if needed;
+later calls read the small lookup rather than loading full reference data.
 
-### Current Workaround
+Current supported levels are based on columns available in
+`SPindivid_CensusNTSALS`: `region`, `lad25cd`, and `lad25nm`. Grouped LAD and
+MSOA options still need an external lookup table or additional source columns.
 
-Until that helper exists, UI can keep using hard-coded level choices and call
-HUB only once `geo_level` and `geo_id` are selected.
+For Shiny controls, use `geo_name` as the display label and `geo_id` as the
+value passed back into `appraisal_inputs[[\"geo_id\"]]$input_value`.
 
 ## Minimal Shiny Server Sketch
 
@@ -323,11 +298,10 @@ list(
 
 ## Recommended Next API Additions
 
-1. Export `get_geo_levels()`.
-2. Export `get_geo_options(cfg, geo_level)`.
-3. Add a method `Hub$get_geo_options(geo_level)` that calls the functional
-   helper.
-4. Add a high-level method like `Hub$build_reference()` that combines
+1. Add grouped LAD options once a grouping lookup is available.
+2. Add MSOA options once the active reference source exposes MSOA IDs or a
+   reliable lookup can be joined.
+3. Add a high-level method like `Hub$build_reference()` that combines
    `load_reference_sources()` and `build_reference_data()` for UI convenience.
-5. Add a compact payload method that returns only UI-facing values, not large
+4. Add a compact payload method that returns only UI-facing values, not large
    datasets.

@@ -101,6 +101,30 @@ Instead, `results_request$res_aggregation` maps to the HM dataset suffix:
 
 This keeps appraisal logic in the request layer and runtime concerns in config.
 
+## Geographic levels and options
+
+`MIAMA-HUB` exposes lightweight geography helpers for UI select controls:
+
+- `get_geo_levels(cfg)` returns available levels.
+- `get_geo_options(cfg, geo_level)` returns selectable `geo_id` / `geo_name`
+  rows for one level.
+- `Hub$get_geo_options(geo_level)` exposes the same options through the
+  session object.
+
+The current lookup is built from the synthpop individual attributes source and
+cached at `data/lookup/geo_options.rds`. If the cache is missing, the first call
+builds it from `cfg$sources$sp_attributes`; subsequent calls read the small RDS
+lookup instead of loading full reference data. The currently supported levels
+are:
+
+- `eng`: one England-wide option
+- `reg`: English regions, using `region`
+- `lad`: local authority districts, using `lad25cd` and `lad25nm`
+
+The alias `region` is accepted by `get_geo_options()` and normalized to `reg`.
+Grouped LAD and MSOA options are not derived yet because the current synthpop
+attributes source only exposes `region`, `lad25cd`, and `lad25nm`.
+
 ## Current development workflow for `appraisal_inputs`
 
 Direct package-to-UI wiring is not finished yet. For development, `MIAMA-HUB`
@@ -240,11 +264,34 @@ the filtered reference population size. E-bike and walk-to-public-transport
 counterfactual user counts are currently reported as unsupported until the data
 contains dedicated activity columns or agreed classification rules.
 
+The draft trip-count handler supports `trips_count_cf_*` and
+`trips_number_cf_*` for active-mode trip rows. It converts Tab 2 targets from
+total or mean-per-person values into a base-week trip count. If the target is
+larger than current active-mode trip rows, it duplicates sampled reference trip
+rows; if smaller, it removes sampled active-mode rows. Advanced trip refinement
+fields such as `pop_new_current_perc`, `trips_dist_value`,
+`trips_purpose_type`, `trips_spread_mean_cf`, `trips_spread_util_prop_cf`, and
+`trips_diversion_car_perc` are parsed and recorded in the change report, but are
+not yet used to reshape donor sampling or trip attributes.
+
+Important limitation: the draft trip handler currently changes physical rows,
+not weighted `weight_tripXhh` totals. This is useful for validating the
+manipulation flow, but the weighted-data behavior needs to be resolved before
+using these trip changes for final impact calculations.
+
 Parameter naming follows the same distinction used elsewhere in the package:
 `*_ref` values are measured from filtered reference data, while `*_default`
 values come from internal constants. Those constants are currently returned by
 `miama_counterfactual_defaults()` and should be externalized once the defaults
 are agreed.
+
+TODO: revisit how activity and trip attributes are assigned to sampled rows. In
+large populations, random sampling should usually return a sufficiently
+representative and more realistic distribution. In smaller reference
+populations, assigning average values or sampling from a smoothed distribution
+may better represent expected or predicted behavior and impacts. This should be
+handled consistently for individual activity values and trip attributes, likely
+through two or three reusable sampling strategies.
 
 The R6 `Hub` wrapper exposes this step via `build_counterfactual_data()` and
 `get_counterfactual_data()`.
@@ -277,6 +324,11 @@ Once parquet versions exist, `miama_paths()` will prefer them over the original
 Stata files, and `load_reference_sources()` can prefilter by geography before
 collecting data into R.
 
+The geography option lookup is a second small one-time/cacheable artifact. It is
+created by `build_geo_lookup(overwrite = TRUE)` or lazily by
+`get_geo_levels()` / `get_geo_options()`, and is stored at
+`data/lookup/geo_options.rds`.
+
 ## Later adjustments needed
 
 The current `appraisal_inputs` setup is deliberately temporary and dev-focused.
@@ -299,7 +351,16 @@ For local development, large data files should not be tracked in git.
 Current expected layout:
 
 - synthetic population files live in `MIAMA-HUB/data/synthetic_pop/`
-- HM processed outputs are read from `MIAMA-HM` via `MIAMA_HM_ROOT`
+- HM sample processed outputs may live in `MIAMA-HUB/data/health_data/`
+- full HM processed outputs are read from `MIAMA-HM` via `MIAMA_HM_ROOT`
+
+HM outcome loading follows this hierarchy:
+
+1. cached RDS files in `MIAMA-HUB/data/cache/` when cache is enabled and no
+   census-id prefilter is requested
+2. HUB-local sample parquet directories such as
+   `data/health_data/sp_overall_outcomes_sample/`
+3. external MIAMA-HM parquet directories under `MIAMA_HM_ROOT/health_data/processed/`
 
 This arrangement is temporary. Longer-term data storage will likely move to a
 VPS or another external location.

@@ -72,6 +72,14 @@ Hub <- R6::R6Class(
       self$request
     },
 
+    get_geo_options = function(geo_level, refresh = FALSE) {
+      get_geo_options(
+        cfg = self$cfg,
+        geo_level = geo_level,
+        refresh = refresh
+      )
+    },
+
     load_reference_sources = function() {
       private$.require_request()
 
