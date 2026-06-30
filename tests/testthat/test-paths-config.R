@@ -37,7 +37,7 @@ test_that("miama_paths() returns list with expected keys", {
   })
 })
 
-test_that("miama_paths() sp sources are named lists with path and format", {
+test_that("miama_paths() sources are named lists with path and format", {
   withr::with_envvar(list(
     MIAMA_PROJECT_ROOT = "/tmp/fake_project",
     MIAMA_HM_ROOT      = "/tmp/fake_hm"
@@ -45,8 +45,10 @@ test_that("miama_paths() sp sources are named lists with path and format", {
     p <- miama_paths()
     expect_named(p$sp_attributes, c("path", "format"))
     expect_named(p$sp_trips,      c("path", "format"))
+    expect_named(p$hm_sp_overall_sample, c("path", "format", "source"))
     expect_true(p$sp_attributes$format %in% c("parquet", "dta"))
     expect_true(p$sp_trips$format      %in% c("parquet", "dta"))
+    expect_equal(p$hm_sp_overall_sample$format, "parquet")
   })
 })
 
@@ -63,6 +65,37 @@ test_that("miama_paths() sp sources fall back to dta when no parquet dirs exist"
   })
 })
 
+test_that("miama_paths() selects HUB-local HM sample before external HM", {
+  tmp <- withr::local_tempdir()
+  hub_dir <- file.path(tmp, "data", "health_data", "sp_overall_outcomes_sample")
+  dir.create(hub_dir, recursive = TRUE)
+
+  withr::with_envvar(list(
+    MIAMA_PROJECT_ROOT = tmp,
+    MIAMA_HM_ROOT      = "/tmp/fake_hm"
+  ), {
+    p <- miama_paths()
+    expect_equal(p$hm_sp_overall_sample$path, normalizePath(hub_dir, winslash = "/", mustWork = FALSE))
+    expect_equal(p$hm_sp_overall_sample$source, "hub")
+  })
+})
+
+test_that("miama_paths() can resolve HUB-local HM sample without MIAMA_HM_ROOT", {
+  tmp <- withr::local_tempdir()
+  hub_dir <- file.path(tmp, "data", "health_data", "sp_cycle_outcomes_sample")
+  dir.create(hub_dir, recursive = TRUE)
+
+  withr::with_envvar(list(
+    MIAMA_PROJECT_ROOT = tmp,
+    MIAMA_HM_ROOT      = ""
+  ), {
+    p <- miama_paths()
+    expect_null(p$hm_root)
+    expect_equal(p$hm_sp_cycle_sample$path, normalizePath(hub_dir, winslash = "/", mustWork = FALSE))
+    expect_equal(p$hm_sp_cycle_sample$source, "hub")
+  })
+})
+
 test_that("miama_paths() selects dev_parquet when dev directory exists", {
   tmp <- withr::local_tempdir()
   dev_dir <- file.path(tmp, "data", "synthetic_pop", "SPindivid_CensusNTSALS_dev_parquet")
@@ -73,7 +106,7 @@ test_that("miama_paths() selects dev_parquet when dev directory exists", {
     MIAMA_HM_ROOT      = "/tmp/fake_hm"
   ), {
     p <- miama_paths()
-    expect_equal(p$sp_attributes$path,   dev_dir)
+    expect_equal(p$sp_attributes$path,   normalizePath(dev_dir, winslash = "/", mustWork = FALSE))
     expect_equal(p$sp_attributes$format, "parquet")
   })
 })

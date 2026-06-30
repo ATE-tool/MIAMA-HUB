@@ -299,7 +299,8 @@ extract_reference_ui_values <- function(
   }
 
   if (!is.na(spec$ind_duration_col) && !is.null(ind) && spec$ind_duration_col %in% names(ind)) {
-    total_minutes <- sum(ind[[spec$ind_duration_col]], na.rm = TRUE) * 60 * .timeframe_factor(timeframe)
+    duration_values <- .as_plain_numeric(ind[[spec$ind_duration_col]])
+    total_minutes <- sum(duration_values, na.rm = TRUE) * 60 * .timeframe_factor(timeframe)
     if (identical(denominator, "average_per_person")) {
       total_minutes <- .divide_or_na(total_minutes, population_size)
     }
@@ -640,6 +641,7 @@ extract_reference_ui_values <- function(
     return(NA_real_)
   }
 
+  values <- .as_plain_numeric(values)
   mean(values[keep], na.rm = TRUE)
 }
 
@@ -648,7 +650,8 @@ extract_reference_ui_values <- function(
     return(NA_real_)
   }
 
-  mean(1 - ind$female[keep], na.rm = TRUE)
+  female <- .as_plain_numeric(ind$female)
+  mean(1 - female[keep], na.rm = TRUE)
 }
 
 .weighted_mean_or_na <- function(values, weights, keep) {
@@ -656,6 +659,8 @@ extract_reference_ui_values <- function(
     return(NA_real_)
   }
 
+  values <- .as_plain_numeric(values)
+  weights <- .as_plain_numeric(weights)
   weight_total <- sum(weights[keep], na.rm = TRUE)
   if (is.na(weight_total) || weight_total == 0) {
     return(NA_real_)
@@ -667,7 +672,7 @@ extract_reference_ui_values <- function(
 .trip_weights <- function(trips) {
   weights <- rep(1, nrow(trips))
   if ("weight_tripXhh" %in% names(trips)) {
-    weights <- trips$weight_tripXhh
+    weights <- .as_plain_numeric(trips$weight_tripXhh)
     weights[is.na(weights)] <- 0
   }
 
@@ -695,7 +700,8 @@ extract_reference_ui_values <- function(
     return(rep(FALSE, if (is.null(data)) 0 else nrow(data)))
   }
 
-  !is.na(data[[col]]) & data[[col]] > 0
+  values <- .as_plain_numeric(data[[col]])
+  !is.na(values) & values > 0
 }
 
 .trip_evidence_available <- function(trips, spec) {
@@ -726,13 +732,22 @@ extract_reference_ui_values <- function(
     return(0)
   }
 
+  values <- .as_plain_numeric(values)
   weights <- rep(1, length(values))
   if ("weight_tripXhh" %in% names(trips)) {
-    weights <- trips$weight_tripXhh
+    weights <- .as_plain_numeric(trips$weight_tripXhh)
     weights[is.na(weights)] <- 0
   }
 
   sum(values[keep] * weights[keep], na.rm = TRUE)
+}
+
+.as_plain_numeric <- function(values) {
+  if (is.null(values)) {
+    return(NULL)
+  }
+
+  as.numeric(values)
 }
 
 .timeframe_factor <- function(timeframe) {

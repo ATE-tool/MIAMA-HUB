@@ -47,6 +47,15 @@ miama_hm_root <- function() {
   normalizePath(root, winslash = "/", mustWork = FALSE)
 }
 
+miama_hm_root_or_null <- function() {
+  root <- Sys.getenv("MIAMA_HM_ROOT", unset = "")
+  if (!nzchar(root)) {
+    return(NULL)
+  }
+
+  normalizePath(root, winslash = "/", mustWork = FALSE)
+}
+
 # Resolve which synthpop source to use: dev parquet > full parquet > dta fallback
 miama_pick_synthpop_source <- function(data_dir, prefix) {
   dev_parquet <- file.path(data_dir, "synthetic_pop", paste0(prefix, "_dev_parquet"))
@@ -58,14 +67,36 @@ miama_pick_synthpop_source <- function(data_dir, prefix) {
   return(list(path = dta, format = "dta"))
 }
 
+miama_pick_hm_source <- function(data_dir, hm_processed, dataset_name) {
+  hub_path <- file.path(data_dir, "health_data", dataset_name)
+  hm_path <- if (is.null(hm_processed)) NULL else file.path(hm_processed, dataset_name)
+
+  if (dir.exists(hub_path)) {
+    return(list(path = hub_path, format = "parquet", source = "hub"))
+  }
+  if (!is.null(hm_path) && dir.exists(hm_path)) {
+    return(list(path = hm_path, format = "parquet", source = "hm"))
+  }
+
+  list(
+    path = hub_path,
+    format = "parquet",
+    source = if (is.null(hm_path)) "missing_hub" else "missing"
+  )
+}
+
 miama_paths <- function() {
   project_root <- miama_project_root()
-  hm_root      <- miama_hm_root()
+  hm_root      <- miama_hm_root_or_null()
   data_dir     <- file.path(project_root, "data")
-  hm_processed <- file.path(hm_root, "health_data", "processed")
+  hm_processed <- if (is.null(hm_root)) NULL else file.path(hm_root, "health_data", "processed")
 
   sp_attributes <- miama_pick_synthpop_source(data_dir, "SPindivid_CensusNTSALS")
   sp_trips      <- miama_pick_synthpop_source(data_dir, "SPtrip_CensusNTSALS")
+  hm_sp_overall <- miama_pick_hm_source(data_dir, hm_processed, "sp_overall_outcomes")
+  hm_sp_cycle <- miama_pick_hm_source(data_dir, hm_processed, "sp_cycle_outcomes")
+  hm_sp_overall_sample <- miama_pick_hm_source(data_dir, hm_processed, "sp_overall_outcomes_sample")
+  hm_sp_cycle_sample <- miama_pick_hm_source(data_dir, hm_processed, "sp_cycle_outcomes_sample")
 
   list(
     project_root      = project_root,
@@ -83,11 +114,11 @@ miama_paths <- function() {
     sp_trips          = sp_trips,
 
     # HM processed dataset directories
-    hm_sp_overall         = file.path(hm_processed, "sp_overall_outcomes"),
-    hm_sp_cycle           = file.path(hm_processed, "sp_cycle_outcomes"),
-    hm_sp_overall_sample  = file.path(hm_processed, "sp_overall_outcomes_sample"),
-    hm_sp_cycle_sample    = file.path(hm_processed, "sp_cycle_outcomes_sample"),
-    hm_lookup_overall     = file.path(hm_processed, "mmet_d_overall_lookup"),
-    hm_lookup_cycle       = file.path(hm_processed, "mmet_d_cycle_lookup")
+    hm_sp_overall         = hm_sp_overall,
+    hm_sp_cycle           = hm_sp_cycle,
+    hm_sp_overall_sample  = hm_sp_overall_sample,
+    hm_sp_cycle_sample    = hm_sp_cycle_sample,
+    hm_lookup_overall     = if (is.null(hm_processed)) NULL else file.path(hm_processed, "mmet_d_overall_lookup"),
+    hm_lookup_cycle       = if (is.null(hm_processed)) NULL else file.path(hm_processed, "mmet_d_cycle_lookup")
   )
 }

@@ -198,6 +198,46 @@ test_that("extract_reference_ui_values derives Tab 3 population reference fields
   expect_equal(new_values$ui_updates$pop_spread_sex_prop_ref, 0)
 })
 
+test_that("extract_reference_ui_values handles haven-labelled numeric columns", {
+  skip_if_not_installed("haven")
+
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:3
+    ),
+    trips = data.frame(
+      census_id = c(1, 2, 3),
+      nts_tripid = c(11, 21, 31),
+      trip_purpose = c("Commuting", "Leisure", "Shopping")
+    )
+  )
+  reference_data$ind$age1year <- haven::labelled(c(20, 30, 40), c(young = 20, mid = 30, old = 40))
+  reference_data$ind$female <- haven::labelled(c(0, 1, 0), c(male = 0, female = 1))
+  reference_data$ind$walktime_wkhr <- haven::labelled(c(1, 0, 2), c(none = 0))
+  reference_data$trips$weight_tripXhh <- haven::labelled(c(1, 2, 1), c(one = 1, two = 2))
+  reference_data$trips$trip_walkdist_km <- haven::labelled(c(1, 0, 2), c(none = 0))
+  reference_data$trips$trip_walktime_min <- haven::labelled(c(10, 0, 20), c(none = 0))
+  reference_data$trips$trip_distraw_km <- haven::labelled(c(1, 5, 2), c(short = 1))
+  reference_data$trips$trip_durationraw_min <- haven::labelled(c(10, 50, 20), c(short = 10))
+
+  values <- extract_reference_ui_values(
+    reference_data,
+    appraisal_input_values = list(
+      at_data_unit = "trips",
+      modes = "walking",
+      trips_timeframe_walk = "week",
+      trips_denominator_walk = "total",
+      pop_refine_choice = "pop_age_current"
+    )
+  )
+
+  expect_equal(values$ui_updates$pop_number_ref_walk, 2)
+  expect_equal(values$ui_updates$trips_count_ref_walk, 2)
+  expect_equal(values$ui_updates$pop_spread_age_mean_ref, 30)
+  expect_equal(values$ui_updates$pop_spread_sex_prop_ref, 1)
+  expect_equal(values$ui_updates$trips_spread_mean_ref, 13 / 4)
+})
+
 test_that("extract_reference_ui_values derives Tab 4 trip reference fields", {
   reference_data <- list(
     ind = data.frame(census_id = 1:2),

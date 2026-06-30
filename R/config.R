@@ -68,9 +68,10 @@ miama_resolve_config <- function(cfg = NULL, results_request = list()) {
     if (cfg$workflow$dataset_size == "sample") "_sample" else ""
   )
   hm_dir <- cfg$sources$hm_outcomes[[hm_key]]
+  hm_path <- .hm_source_path(hm_dir)
 
-  if (!dir.exists(hm_dir)) {
-    stop("HM outcomes directory not found: ", hm_dir, call. = FALSE)
+  if (!dir.exists(hm_path)) {
+    stop("HM outcomes directory not found: ", hm_path, call. = FALSE)
   }
 
   cfg
@@ -91,11 +92,8 @@ load_hm_outcomes <- function(cfg = NULL, results_request = list(), census_ids = 
     hm_suffix,
     if (cfg$workflow$dataset_size == "sample") "_sample" else ""
   )
-  parquet_path <- cfg$sources$hm_outcomes[[key]]
-
-  if (!dir.exists(parquet_path)) {
-    stop("HM outcomes parquet directory not found: ", parquet_path, call. = FALSE)
-  }
+  hm_source <- cfg$sources$hm_outcomes[[key]]
+  parquet_path <- .hm_source_path(hm_source)
 
   cache_file <- file.path(
     cfg$cache$dir,
@@ -107,7 +105,12 @@ load_hm_outcomes <- function(cfg = NULL, results_request = list(), census_ids = 
     return(readRDS(cache_file))
   }
 
-  message("Loading HM outcomes from parquet: ", parquet_path)
+  if (!dir.exists(parquet_path)) {
+    stop("HM outcomes parquet directory not found: ", parquet_path, call. = FALSE)
+  }
+
+  source_label <- .hm_source_label(hm_source)
+  message("Loading HM outcomes from ", source_label, " parquet: ", parquet_path)
   hm_ds <- arrow::open_dataset(parquet_path, format = "parquet")
 
   if (!is.null(census_ids)) {
@@ -125,6 +128,22 @@ load_hm_outcomes <- function(cfg = NULL, results_request = list(), census_ids = 
   hm_outcomes
 }
 
+.hm_source_path <- function(source) {
+  if (is.list(source) && "path" %in% names(source)) {
+    return(source$path)
+  }
+
+  source
+}
+
+.hm_source_label <- function(source) {
+  if (is.list(source) && "source" %in% names(source)) {
+    return(source$source)
+  }
+
+  "configured"
+}
+
 # Load mmet lookup table for the requested aggregation.
 load_hm_lookup <- function(cfg = NULL, results_request = list()) {
   cfg <- cfg %||% miama_default_config()
@@ -132,7 +151,7 @@ load_hm_lookup <- function(cfg = NULL, results_request = list()) {
 
   lookup_path <- cfg$sources$hm_lookup[[hm_suffix]]
   if (is.null(lookup_path)) {
-    stop("Unknown HM lookup suffix: ", hm_suffix, call. = FALSE)
+    stop("HM lookup path is unavailable. Set MIAMA_HM_ROOT for lookup suffix: ", hm_suffix, call. = FALSE)
   }
   if (!dir.exists(lookup_path)) {
     stop("HM lookup parquet directory not found: ", lookup_path, call. = FALSE)

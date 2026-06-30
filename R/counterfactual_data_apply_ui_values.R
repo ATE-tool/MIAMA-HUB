@@ -44,6 +44,14 @@
 #   mirrored onto matching trip rows. Trip-specific rows/columns are not yet
 #   generated or shifted.
 #
+# TODO: Revisit random sampling of assigned attributes. In large populations,
+# random sampling should return a sufficiently representative and more realistic
+# distribution. In smaller reference populations, assigning average values or
+# sampling from a smoothed distribution may better represent expected/predicted
+# behavior and impacts. This applies to both individual activity attributes and
+# future trip attributes; implement a small set of reusable sampling strategies
+# instead of embedding one-off sampling behavior in each handler.
+#
 # Current constraints:
 # - Counterfactual user-count targets must be finite, non-negative integers after
 #   rounding, and no larger than the filtered reference population size.
@@ -98,7 +106,8 @@ apply_counterfactual_ui_values <- function(
 
 .counterfactual_ui_handler_registry <- function() {
   list(
-    .apply_cf_active_user_count_handler
+    .apply_cf_active_user_count_handler,
+    .apply_cf_active_trip_count_handler
   )
 }
 
@@ -178,8 +187,62 @@ apply_counterfactual_ui_values <- function(
   )
 }
 
+# Handler: active-mode trip count targets ----
+# UI fields:
+# - `trips_count_cf_walk`, `trips_count_cf_bike`
+# - `trips_number_cf_walk`, `trips_number_cf_bike`
+#
+# Related refinement fields parsed into report metadata:
+# - `trips_timeframe_*`, `trips_denominator_*`
+# - `pop_new_current_perc`
+# - `trips_dist_value`, `trips_purpose_type`, `trips_purpose_util_perc`
+# - `trips_spread_mean_cf`, `trips_spread_util_prop_cf`
+#
+# Data manipulation, first-pass:
+# - Convert user-supplied trip target to a base-week count.
+# - If target is larger than current active-mode trip rows, duplicate sampled
+#   active-mode reference trip rows.
+# - If target is smaller, remove sampled active-mode trip rows.
+# - Use reference trip rows as donors so distance/duration/purpose distributions
+#   initially follow current use.
+#
+# Key limitations:
+# - This currently manipulates physical rows, not weighted trip totals. If
+#   `weight_tripXhh` is present, the report flags this approximation.
+# - Advanced distribution controls are parsed and recorded but not yet used to
+#   reshape donor sampling or trip attributes.
+.apply_cf_active_trip_count_handler <- function(counterfactual_data, context) {
+  changes <- list()
+  notes <- character(0)
+
+  for (mode in context$modes) {
+    result <- .apply_cf_trip_count_for_mode(
+      counterfactual_data = counterfactual_data,
+      reference_data = context$reference_data,
+      appraisal_input_values = context$values,
+      mode = mode,
+      constants = context$constants,
+      seed = context$seed
+    )
+
+    counterfactual_data <- result$counterfactual_data
+    changes <- c(changes, result$changes)
+    notes <- c(notes, result$notes)
+  }
+
+  list(
+    counterfactual_data = counterfactual_data,
+    changes = changes,
+    notes = notes
+  )
+}
+
 
 # 4. Field-Specific Helpers ----
+
+## Tab 2 "How much does AT change?"
+
+### Users, user counts ----
 
 .apply_cf_user_count_for_mode <- function(
     counterfactual_data,
@@ -272,6 +335,10 @@ apply_counterfactual_ui_values <- function(
 
   if (delta > 0) {
     changed_rows <- .sample_rows(which(!cf_users), delta, seed + spec$seed_offset)
+    # TODO: This currently samples raw observed activity values from reference
+    # users. For small reference populations, compare against assigning
+    # reference means or drawing from a smoothed distribution so expected
+    # behavior and impacts are not overly driven by a few observed rows.
     replacement_values <- .sample_activity_values(
       values_ref = reference_data$ind[[spec$activity_col]][ref_users],
       n = length(changed_rows),
@@ -281,6 +348,9 @@ apply_counterfactual_ui_values <- function(
     role <- "new_users"
   } else {
     changed_rows <- .sample_rows(which(cf_users), abs(delta), seed + spec$seed_offset)
+    # TODO: Keep ex-user assignment consistent with the eventual sampling
+    # strategy abstraction. Current behavior samples observed non-user values,
+    # which usually assigns zero.
     replacement_values <- .sample_activity_values(
       values_ref = reference_data$ind[[spec$activity_col]][!ref_users],
       n = length(changed_rows),
@@ -312,6 +382,198 @@ apply_counterfactual_ui_values <- function(
   target
 }
 
+### Trips, Trip counts ----
+
+.apply_cf_trip_count_for_mode <- function(
+    counterfactual_data,
+    reference_data,
+    appraisal_input_values,
+    mode,
+    constants,
+    seed
+) {
+  spec <- .counterfactual_mode_spec(mode)
+  if (is.null(spec) || !.trip_evidence_available_for_counterfactual(reference_data$trips, spec)) {
+    return(.counterfactual_no_change(
+      counterfactual_data,
+      paste0("Counterfactual trip-count changes for mode `", mode, "` are not implemented yet.")
+    ))
+  }
+
+  target <- .cf_trip_target(appraisal_input_values, spec$suffix)
+  if (is.null(target$value)) {
+    return(.counterfactual_no_change(counterfactual_data))
+  }
+
+  .require_cf_trip_count_columns(counterfactual_data, reference_data, spec)
+
+  args <- .cf_trip_distribution_args(appraisal_input_values, spec$suffix)
+  target_base <- .validate_cf_trip_target(target, reference_data, spec)
+
+  cf_active <- spec$trip_filter(counterfactual_data$trips) & !is.na(counterfactual_data$trips$nts_tripid)
+  ref_active <- spec$trip_filter(reference_data$trips) & !is.na(reference_data$trips$nts_tripid)
+  cf_n <- sum(cf_active, na.rm = TRUE)
+  ref_n <- sum(ref_active, na.rm = TRUE)
+  delta <- target_base$count - cf_n
+
+  assignment <- .assign_cf_trip_count_delta(
+    counterfactual_data = counterfactual_data,
+    reference_data = reference_data,
+    spec = spec,
+    ref_active = ref_active,
+    cf_active = cf_active,
+    delta = delta,
+    seed = seed
+  )
+
+  counterfactual_data <- assignment$counterfactual_data
+  updated_cf_active <- spec$trip_filter(counterfactual_data$trips) &
+    !is.na(counterfactual_data$trips$nts_tripid)
+
+  change <- .compact_counterfactual_change(
+    field = target$field,
+    alias_field = paste0("trips_number_cf_", spec$suffix),
+    mode = mode,
+    activity_col = spec$trip_distance_col,
+    target = target$value,
+    ref_n = ref_n,
+    cf_n_before = cf_n,
+    cf_n_after = sum(updated_cf_active, na.rm = TRUE),
+    delta = delta,
+    role = assignment$role,
+    donor_source = "reference_data$trips",
+    census_id = .changed_trip_census_ids(assignment$changed_rows)
+  )
+  change$target_base_week_count <- target_base$count
+  change$target_denominator <- target$denominator
+  change$target_timeframe <- target$timeframe
+  change$distribution_args <- args
+
+  notes <- character(0)
+  if ("weight_tripXhh" %in% names(reference_data$trips)) {
+    notes <- c(
+      notes,
+      paste0(
+        "Trip-count handler for mode `", mode,
+        "` currently changes physical rows, not weighted `weight_tripXhh` totals."
+      )
+    )
+  }
+  if (length(args$advanced_fields_present) > 0) {
+    notes <- c(
+      notes,
+      paste0(
+        "Trip distribution fields parsed but not yet applied for mode `", mode,
+        "`: ", paste(args$advanced_fields_present, collapse = ", ")
+      )
+    )
+  }
+
+  list(
+    counterfactual_data = counterfactual_data,
+    changes = list(change),
+    notes = notes
+  )
+}
+
+.assign_cf_trip_count_delta <- function(
+    counterfactual_data,
+    reference_data,
+    spec,
+    ref_active,
+    cf_active,
+    delta,
+    seed
+) {
+  if (delta == 0) {
+    return(list(
+      counterfactual_data = counterfactual_data,
+      changed_rows = data.frame(),
+      role = "unchanged"
+    ))
+  }
+
+  if (delta > 0) {
+    donor_rows <- .sample_rows_with_replacement(which(ref_active), delta, seed + spec$seed_offset + 3000L)
+    new_rows <- reference_data$trips[donor_rows, , drop = FALSE]
+    new_rows <- .assign_new_trip_ids(counterfactual_data$trips, new_rows)
+    counterfactual_data$trips <- rbind(counterfactual_data$trips, new_rows)
+    changed_rows <- new_rows[, intersect(c("census_id", "nts_tripid"), names(new_rows)), drop = FALSE]
+    role <- "new_or_shifted_trips"
+  } else {
+    remove_rows <- .sample_rows(which(cf_active), abs(delta), seed + spec$seed_offset + 4000L)
+    changed_rows <- counterfactual_data$trips[
+      remove_rows,
+      intersect(c("census_id", "nts_tripid"), names(counterfactual_data$trips)),
+      drop = FALSE
+    ]
+    counterfactual_data$trips <- counterfactual_data$trips[-remove_rows, , drop = FALSE]
+    role <- "removed_or_shifted_away_trips"
+  }
+
+  list(
+    counterfactual_data = counterfactual_data,
+    changed_rows = changed_rows,
+    role = role
+  )
+}
+
+.cf_trip_target <- function(values, suffix) {
+  tab2_field <- paste0("trips_count_cf_", suffix)
+  tab4_field <- paste0("trips_number_cf_", suffix)
+
+  value <- .ui_value(values, tab2_field, NULL)
+  field <- tab2_field
+  timeframe <- .ui_value(values, paste0("trips_timeframe_", suffix), "year")
+  denominator <- .ui_value(values, paste0("trips_denominator_", suffix), "total")
+
+  if (is.null(value)) {
+    value <- .ui_value(values, tab4_field, NULL)
+    field <- tab4_field
+    timeframe <- "week"
+    denominator <- "total"
+  }
+
+  list(
+    field = field,
+    value = value,
+    timeframe = timeframe,
+    denominator = denominator
+  )
+}
+
+.cf_trip_distribution_args <- function(values, suffix) {
+  fields <- c(
+    "pop_new_current_perc",
+    "trips_dist_value",
+    "trips_purpose_type",
+    "trips_purpose_util_perc",
+    "trips_spread_mean_cf",
+    "trips_spread_util_prop_cf",
+    "trips_diversion_car_perc"
+  )
+  present <- fields[!vapply(lapply(fields, function(field) .ui_value(values, field, NULL)), is.null, logical(1))]
+
+  list(
+    new_user_percent = .ui_value(values, "pop_new_current_perc", NULL),
+    trip_distance_default = .ui_value(values, "trips_dist_value", NULL),
+    purpose_type = .ui_value(values, "trips_purpose_type", NULL),
+    utilitarian_percent = .ui_value(values, "trips_purpose_util_perc", NULL),
+    target_mean_distance = .ui_value(values, "trips_spread_mean_cf", NULL),
+    target_utilitarian_prop = .ui_value(values, "trips_spread_util_prop_cf", NULL),
+    diversion_car_percent = .ui_value(values, "trips_diversion_car_perc", NULL),
+    advanced_fields_present = present
+  )
+}
+
+
+### Distance ----
+
+
+### Duration ----
+
+
+### Mode share/shift/diversion ----
 
 # 5. Shared Data-Manipulation Helpers ----
 
@@ -363,6 +625,18 @@ apply_counterfactual_ui_values <- function(
   sample(candidate_rows, size = n, replace = FALSE)
 }
 
+.sample_rows_with_replacement <- function(candidate_rows, n, seed) {
+  if (n == 0) {
+    return(integer(0))
+  }
+  if (length(candidate_rows) == 0) {
+    stop("No candidate rows available for requested counterfactual change.", call. = FALSE)
+  }
+
+  set.seed(seed)
+  sample(candidate_rows, size = n, replace = TRUE)
+}
+
 .sample_activity_values <- function(values_ref, n, default_value, seed) {
   if (n == 0) {
     return(numeric(0))
@@ -377,6 +651,25 @@ apply_counterfactual_ui_values <- function(
   sample(values_ref, size = n, replace = TRUE)
 }
 
+.assign_new_trip_ids <- function(existing_trips, new_rows) {
+  if (!"nts_tripid" %in% names(new_rows)) {
+    return(new_rows)
+  }
+
+  existing_ids <- existing_trips$nts_tripid
+  if (is.numeric(existing_ids)) {
+    max_id <- suppressWarnings(max(existing_ids, na.rm = TRUE))
+    if (!is.finite(max_id)) {
+      max_id <- 0
+    }
+    new_rows$nts_tripid <- seq.int(max_id + 1, max_id + nrow(new_rows))
+    return(new_rows)
+  }
+
+  new_rows$nts_tripid <- paste0("cf_trip_", seq_len(nrow(new_rows)))
+  new_rows
+}
+
 
 # 6. Validation Helpers ----
 
@@ -387,6 +680,21 @@ apply_counterfactual_ui_values <- function(
   if (!spec$activity_col %in% names(counterfactual_data$ind) ||
       !spec$activity_col %in% names(reference_data$ind)) {
     stop("Activity column not found for mode `", spec$mode, "`: ", spec$activity_col, call. = FALSE)
+  }
+
+  invisible(TRUE)
+}
+
+.require_cf_trip_count_columns <- function(counterfactual_data, reference_data, spec) {
+  if (is.null(counterfactual_data$trips) || is.null(reference_data$trips)) {
+    stop("Counterfactual trip-count changes require `trips` data.", call. = FALSE)
+  }
+  if (!"nts_tripid" %in% names(counterfactual_data$trips) ||
+      !"nts_tripid" %in% names(reference_data$trips)) {
+    stop("Counterfactual trip-count changes require `nts_tripid` in trip data.", call. = FALSE)
+  }
+  if (!.trip_evidence_available_for_counterfactual(reference_data$trips, spec)) {
+    stop("Trip evidence columns not found for mode `", spec$mode, "`.", call. = FALSE)
   }
 
   invisible(TRUE)
@@ -410,6 +718,42 @@ apply_counterfactual_ui_values <- function(
   }
 
   target
+}
+
+.validate_cf_trip_target <- function(target, reference_data, spec) {
+  if (!is.numeric(target$value) || length(target$value) != 1 || !is.finite(target$value)) {
+    stop("Counterfactual trip target for mode `", spec$mode, "` must be one finite number.", call. = FALSE)
+  }
+  if (target$value < 0) {
+    stop("Counterfactual trip target for mode `", spec$mode, "` cannot be negative.", call. = FALSE)
+  }
+  if (!target$denominator %in% c("total", "mean")) {
+    stop("Unsupported trip denominator for mode `", spec$mode, "`: ", target$denominator, call. = FALSE)
+  }
+
+  count <- target$value
+  if (identical(target$denominator, "mean")) {
+    pop_total_ref <- if (!is.null(reference_data$ind)) nrow(reference_data$ind) else NA_integer_
+    if (is.na(pop_total_ref)) {
+      stop("Mean-per-person trip targets require `ind` data for population size.", call. = FALSE)
+    }
+    count <- count * pop_total_ref
+  }
+
+  count <- count / .counterfactual_timeframe_factor(target$timeframe)
+  count <- as.integer(round(count))
+
+  list(count = count)
+}
+
+.counterfactual_timeframe_factor <- function(timeframe) {
+  switch(
+    timeframe,
+    day = 1 / 7,
+    week = 1,
+    year = 52.1775,
+    1
+  )
 }
 
 
@@ -459,6 +803,17 @@ miama_counterfactual_defaults <- function() {
     default_col = default_col,
     seed_offset = seed_offset
   ))
+}
+
+.trip_evidence_available_for_counterfactual <- function(trips, spec) {
+  if (is.null(trips) || is.null(spec)) {
+    return(FALSE)
+  }
+  if (isTRUE(spec$needs_trip_mainmode) && !"trip_mainmode" %in% names(trips)) {
+    return(FALSE)
+  }
+
+  any(c(spec$trip_distance_col, spec$trip_duration_col) %in% names(trips))
 }
 
 
@@ -688,4 +1043,12 @@ miama_counterfactual_defaults <- function() {
   }
 
   ind$census_id[rows]
+}
+
+.changed_trip_census_ids <- function(changed_rows) {
+  if (is.null(changed_rows) || nrow(changed_rows) == 0 || !"census_id" %in% names(changed_rows)) {
+    return(integer(0))
+  }
+
+  changed_rows$census_id
 }
