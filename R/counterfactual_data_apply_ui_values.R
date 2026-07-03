@@ -29,28 +29,20 @@
 # - trip mode-shift/diversion targets
 # - trip attribute targets: distance, duration, purpose distributions
 #
-# Current first-pass scope:
-# - `users_count_cf_*` and `pop_number_cf_*` manipulate individual-level active
-#   travel user counts for walking and cycling.
-# - For a target above the current count, selected current non-users become
-#   `new_users`; their mode activity is sampled from the reference users'
-#   observed activity distribution.
-# - For a target below the current count, selected current users become
-#   `ex_users`; their mode activity is sampled from current non-users, which is
-#   usually zero.
-# - If `mmets` is present, it is recalculated from walking, cycling, and sport
-#   weekly hours using HM constants.
-# - If trip-level data is present, changed individual activity columns are
-#   mirrored onto matching trip rows. Trip-specific rows/columns are not yet
-#   generated or shifted.
+# Current scope:
+# - Individual row counts stay fixed. User-count targets switch existing people
+#   between current non-user/new user and current user/ex-user states.
+# - Key indicators (`user_walk`, `user_bike`, `trip_activemode`,
+#   `trip_utilitarian`, and CF change flags) are added to the returned data.
+# - Trip increases are represented as mode shifts for existing utilitarian
+#   non-active trips plus a default 10% induced recreational active trips.
+# - Trip decreases switch active trips away from the active mode rather than
+#   deleting utilitarian travel demand.
 #
-# TODO: Revisit random sampling of assigned attributes. In large populations,
-# random sampling should return a sufficiently representative and more realistic
-# distribution. In smaller reference populations, assigning average values or
-# sampling from a smoothed distribution may better represent expected/predicted
-# behavior and impacts. This applies to both individual activity attributes and
-# future trip attributes; implement a small set of reusable sampling strategies
-# instead of embedding one-off sampling behavior in each handler.
+# Sampling behavior is centralized in
+# `R/counterfactual_data_sampling_functions.R`. Sampling selects existing rows
+# "as is"; dependent activity values are drawn from observed current users or
+# defaults without creating synthetic individuals.
 #
 # Current constraints:
 # - Counterfactual user-count targets must be finite, non-negative integers after
@@ -132,13 +124,18 @@ apply_counterfactual_ui_values <- function(
     modes <- names(.miama_tab2_mode_specs())
   }
 
+  counterfactual_data <- cf_add_key_indicators(counterfactual_data, modes)
+  reference_data <- cf_add_key_indicators(reference_data, modes)
+
   list(
     counterfactual_data = counterfactual_data,
     reference_data = reference_data,
     values = appraisal_input_values,
     constants = constants,
     seed = seed,
-    modes = modes
+    modes = modes,
+    user_sampling_strategy = cf_sampling_strategy_from_ui(appraisal_input_values, scope = "user"),
+    trip_sampling_strategy = cf_sampling_strategy_from_ui(appraisal_input_values, scope = "trip")
   )
 }
 
@@ -172,7 +169,8 @@ apply_counterfactual_ui_values <- function(
       appraisal_input_values = context$values,
       mode = mode,
       constants = context$constants,
-      seed = context$seed
+      seed = context$seed,
+      sampling_strategy = context$user_sampling_strategy
     )
 
     counterfactual_data <- result$counterfactual_data
@@ -222,7 +220,8 @@ apply_counterfactual_ui_values <- function(
       appraisal_input_values = context$values,
       mode = mode,
       constants = context$constants,
-      seed = context$seed
+      seed = context$seed,
+      sampling_strategy = context$trip_sampling_strategy
     )
 
     counterfactual_data <- result$counterfactual_data
@@ -250,7 +249,8 @@ apply_counterfactual_ui_values <- function(
     appraisal_input_values,
     mode,
     constants,
-    seed
+    seed,
+    sampling_strategy
 ) {
   spec <- .counterfactual_mode_spec(mode)
   if (is.null(spec) || is.na(spec$activity_col)) {
@@ -284,12 +284,26 @@ apply_counterfactual_ui_values <- function(
     cf_users = cf_users,
     delta = delta,
     constants = constants,
-    seed = seed
+    seed = seed,
+    sampling_strategy = sampling_strategy,
+    population_target = cf_population_sampling_target(appraisal_input_values)
   )
 
   counterfactual_data <- assignment$counterfactual_data
   counterfactual_data <- .recalculate_counterfactual_mmets(counterfactual_data, constants)
-  counterfactual_data <- .mirror_ind_activity_to_trips(counterfactual_data, spec$activity_col)
+  trip_effect <- .apply_user_status_trip_effects(
+    counterfactual_data = counterfactual_data,
+    reference_data = reference_data,
+    spec = spec,
+    changed_rows = assignment$changed_rows,
+    role = assignment$role,
+    constants = constants,
+    seed = seed,
+    trip_target = cf_trip_sampling_target(appraisal_input_values),
+    diversion_target = .cf_diversion_target(appraisal_input_values, constants)
+  )
+  counterfactual_data <- trip_effect$counterfactual_data
+  counterfactual_data <- cf_add_key_indicators(counterfactual_data, spec$mode)
 
   updated_cf_users <- .positive_col(counterfactual_data$ind, spec$activity_col)
   change <- .compact_counterfactual_change(
@@ -306,11 +320,15 @@ apply_counterfactual_ui_values <- function(
     donor_source = assignment$donor_source,
     census_id = .changed_census_ids(counterfactual_data$ind, assignment$changed_rows)
   )
+  change$sampling_strategy <- assignment$sampling_strategy
+  change$relevant_attributes <- assignment$relevant_attributes
+  change$user_trip_shift_target_n <- trip_effect$trip_shift_target_n
+  change$user_trip_shift_n <- trip_effect$trip_shift_n
 
   list(
     counterfactual_data = counterfactual_data,
     changes = list(change),
-    notes = character(0)
+    notes = trip_effect$notes
   )
 }
 
@@ -322,24 +340,31 @@ apply_counterfactual_ui_values <- function(
     cf_users,
     delta,
     constants,
-    seed
+    seed,
+    sampling_strategy,
+    population_target
 ) {
   if (delta == 0) {
     return(list(
       counterfactual_data = counterfactual_data,
       changed_rows = integer(0),
       role = "unchanged",
-      donor_source = "reference_data"
+      donor_source = "reference_data",
+      sampling_strategy = sampling_strategy,
+      relevant_attributes = cf_individual_sampling_columns(reference_data$ind, spec$mode)
     ))
   }
 
   if (delta > 0) {
-    changed_rows <- .sample_rows(which(!cf_users), delta, seed + spec$seed_offset)
-    # TODO: This currently samples raw observed activity values from reference
-    # users. For small reference populations, compare against assigning
-    # reference means or drawing from a smoothed distribution so expected
-    # behavior and impacts are not overly driven by a few observed rows.
-    replacement_values <- .sample_activity_values(
+    candidate_rows <- which(!cf_users)
+    weights <- cf_individual_candidate_weights(counterfactual_data$ind, candidate_rows, population_target)
+    changed_rows <- cf_sample_candidate_indices(
+      candidate_rows,
+      delta,
+      seed + spec$seed_offset,
+      weights = weights
+    )
+    replacement_values <- cf_sample_observed_values(
       values_ref = reference_data$ind[[spec$activity_col]][ref_users],
       n = length(changed_rows),
       default_value = constants[[spec$default_col]],
@@ -347,26 +372,28 @@ apply_counterfactual_ui_values <- function(
     )
     role <- "new_users"
   } else {
-    changed_rows <- .sample_rows(which(cf_users), abs(delta), seed + spec$seed_offset)
-    # TODO: Keep ex-user assignment consistent with the eventual sampling
-    # strategy abstraction. Current behavior samples observed non-user values,
-    # which usually assigns zero.
-    replacement_values <- .sample_activity_values(
-      values_ref = reference_data$ind[[spec$activity_col]][!ref_users],
-      n = length(changed_rows),
-      default_value = 0,
-      seed = seed + spec$seed_offset + 2000L
+    candidate_rows <- which(cf_users)
+    weights <- cf_individual_candidate_weights(counterfactual_data$ind, candidate_rows, population_target)
+    changed_rows <- cf_sample_candidate_indices(
+      candidate_rows,
+      abs(delta),
+      seed + spec$seed_offset,
+      weights = weights
     )
+    replacement_values <- rep(constants[[spec$ex_user_default_col]], length(changed_rows))
     role <- "ex_users"
   }
 
   counterfactual_data$ind[[spec$activity_col]][changed_rows] <- replacement_values
+  counterfactual_data$ind$cf_user_change[changed_rows] <- role
 
   list(
     counterfactual_data = counterfactual_data,
     changed_rows = changed_rows,
     role = role,
-    donor_source = "reference_data"
+    donor_source = "reference_data",
+    sampling_strategy = sampling_strategy,
+    relevant_attributes = cf_individual_sampling_columns(reference_data$ind, spec$mode)
   )
 }
 
@@ -390,7 +417,8 @@ apply_counterfactual_ui_values <- function(
     appraisal_input_values,
     mode,
     constants,
-    seed
+    seed,
+    sampling_strategy
 ) {
   spec <- .counterfactual_mode_spec(mode)
   if (is.null(spec) || !.trip_evidence_available_for_counterfactual(reference_data$trips, spec)) {
@@ -423,7 +451,11 @@ apply_counterfactual_ui_values <- function(
     ref_active = ref_active,
     cf_active = cf_active,
     delta = delta,
-    seed = seed
+    seed = seed,
+    sampling_strategy = sampling_strategy,
+    trip_target = cf_trip_sampling_target(appraisal_input_values),
+    constants = constants,
+    diversion_target = .cf_diversion_target(appraisal_input_values, constants)
   )
 
   counterfactual_data <- assignment$counterfactual_data
@@ -448,6 +480,10 @@ apply_counterfactual_ui_values <- function(
   change$target_denominator <- target$denominator
   change$target_timeframe <- target$timeframe
   change$distribution_args <- args
+  change$sampling_strategy <- assignment$sampling_strategy
+  change$relevant_attributes <- assignment$relevant_attributes
+  change$mode_shift_n <- assignment$mode_shift_n
+  change$induced_n <- assignment$induced_n
 
   notes <- character(0)
   if ("weight_tripXhh" %in% names(reference_data$trips)) {
@@ -483,38 +519,81 @@ apply_counterfactual_ui_values <- function(
     ref_active,
     cf_active,
     delta,
-    seed
+    seed,
+    sampling_strategy,
+    trip_target,
+    constants,
+    diversion_target
 ) {
+  relevant_attributes <- cf_trip_sampling_columns(reference_data$trips, spec$mode)
+
   if (delta == 0) {
     return(list(
       counterfactual_data = counterfactual_data,
       changed_rows = data.frame(),
-      role = "unchanged"
+      role = "unchanged",
+      sampling_strategy = sampling_strategy,
+      relevant_attributes = relevant_attributes,
+      mode_shift_n = 0L,
+      induced_n = 0L
     ))
   }
 
   if (delta > 0) {
-    donor_rows <- .sample_rows_with_replacement(which(ref_active), delta, seed + spec$seed_offset + 3000L)
-    new_rows <- reference_data$trips[donor_rows, , drop = FALSE]
-    new_rows <- .assign_new_trip_ids(counterfactual_data$trips, new_rows)
-    counterfactual_data$trips <- rbind(counterfactual_data$trips, new_rows)
-    changed_rows <- new_rows[, intersect(c("census_id", "nts_tripid"), names(new_rows)), drop = FALSE]
-    role <- "new_or_shifted_trips"
+    mechanisms <- cf_trip_mechanism_counts(delta, constants$induced_trip_percent_default)
+    shifted <- .shift_nonactive_trips_to_mode(
+      counterfactual_data = counterfactual_data,
+      reference_data = reference_data,
+      spec = spec,
+      n = mechanisms$mode_shift_n,
+      trip_target = trip_target,
+      constants = constants,
+      seed = seed + spec$seed_offset + 3000L
+    )
+    counterfactual_data <- shifted$counterfactual_data
+    induced_n <- mechanisms$induced_n + max(0L, mechanisms$mode_shift_n - shifted$changed_n)
+    induced <- .add_induced_active_trips(
+      counterfactual_data = counterfactual_data,
+      reference_data = reference_data,
+      spec = spec,
+      n = induced_n,
+      seed = seed + spec$seed_offset + 3500L
+    )
+    counterfactual_data <- induced$counterfactual_data
+    changed_rows <- rbind(shifted$changed_rows, induced$changed_rows)
+    role <- "mode_shift_and_induced_trips"
+    mode_shift_n <- shifted$changed_n
+    induced_n <- induced$changed_n
   } else {
-    remove_rows <- .sample_rows(which(cf_active), abs(delta), seed + spec$seed_offset + 4000L)
+    remove_rows <- cf_sample_candidate_indices(which(cf_active), abs(delta), seed + spec$seed_offset + 4000L)
     changed_rows <- counterfactual_data$trips[
       remove_rows,
       intersect(c("census_id", "nts_tripid"), names(counterfactual_data$trips)),
       drop = FALSE
     ]
-    counterfactual_data$trips <- counterfactual_data$trips[-remove_rows, , drop = FALSE]
-    role <- "removed_or_shifted_away_trips"
+    counterfactual_data$trips <- .switch_trips_away_from_active(
+      counterfactual_data$trips,
+      rows = remove_rows,
+      spec = spec,
+      constants = constants,
+      diversion_target = diversion_target,
+      seed = seed + spec$seed_offset + 4500L
+    )
+    role <- "shifted_away_trips"
+    mode_shift_n <- -length(remove_rows)
+    induced_n <- 0L
   }
+
+  counterfactual_data <- cf_add_key_indicators(counterfactual_data, spec$mode)
 
   list(
     counterfactual_data = counterfactual_data,
     changed_rows = changed_rows,
-    role = role
+    role = role,
+    sampling_strategy = sampling_strategy,
+    relevant_attributes = relevant_attributes,
+    mode_shift_n = mode_shift_n,
+    induced_n = induced_n
   )
 }
 
@@ -550,7 +629,11 @@ apply_counterfactual_ui_values <- function(
     "trips_purpose_util_perc",
     "trips_spread_mean_cf",
     "trips_spread_util_prop_cf",
-    "trips_diversion_car_perc"
+    "trips_diversion_car_perc",
+    "trips_diversion_walk_perc",
+    "trips_diversion_bike_perc",
+    "trips_diversion_ebike_perc",
+    "trips_diversion_pt_perc"
   )
   present <- fields[!vapply(lapply(fields, function(field) .ui_value(values, field, NULL)), is.null, logical(1))]
 
@@ -574,6 +657,311 @@ apply_counterfactual_ui_values <- function(
 
 
 ### Mode share/shift/diversion ----
+
+.apply_user_status_trip_effects <- function(
+    counterfactual_data,
+    reference_data,
+    spec,
+    changed_rows,
+    role,
+    constants,
+    seed,
+    trip_target,
+    diversion_target
+) {
+  notes <- character(0)
+  if (length(changed_rows) == 0 || is.null(counterfactual_data$trips) ||
+      is.null(counterfactual_data$ind) || !"census_id" %in% names(counterfactual_data$ind) ||
+      !"census_id" %in% names(counterfactual_data$trips) ||
+      !"nts_tripid" %in% names(counterfactual_data$trips) ||
+      !.trip_evidence_available_for_counterfactual(counterfactual_data$trips, spec)) {
+    return(list(
+      counterfactual_data = counterfactual_data,
+      notes = notes,
+      trip_shift_target_n = 0L,
+      trip_shift_n = 0L
+    ))
+  }
+
+  changed_ids <- counterfactual_data$ind$census_id[changed_rows]
+  trip_shift_target_n <- 0L
+  trip_shift_n <- 0L
+  if (identical(role, "ex_users")) {
+    active <- spec$trip_filter(counterfactual_data$trips)
+    trip_rows <- which(counterfactual_data$trips$census_id %in% changed_ids & active)
+    counterfactual_data$trips <- .switch_trips_away_from_active(
+      counterfactual_data$trips,
+      rows = trip_rows,
+      spec = spec,
+      constants = constants,
+      diversion_target = diversion_target,
+      seed = seed + spec$seed_offset + 2400L
+    )
+    return(list(
+      counterfactual_data = counterfactual_data,
+      notes = notes,
+      trip_shift_target_n = length(trip_rows),
+      trip_shift_n = length(trip_rows)
+    ))
+  }
+
+  if (identical(role, "new_users")) {
+    trip_shift_target_n <- .new_user_trip_shift_count(
+      reference_data = reference_data,
+      spec = spec,
+      new_user_n = length(changed_ids),
+      seed = seed + spec$seed_offset + 2300L
+    )
+    shifted <- .shift_nonactive_trips_to_mode(
+      counterfactual_data = counterfactual_data,
+      reference_data = reference_data,
+      spec = spec,
+      n = trip_shift_target_n,
+      trip_target = trip_target,
+      constants = constants,
+      seed = seed + spec$seed_offset + 2500L,
+      census_ids = changed_ids
+    )
+    counterfactual_data <- shifted$counterfactual_data
+    trip_shift_n <- shifted$changed_n
+    if (shifted$changed_n < trip_shift_target_n) {
+      notes <- c(
+        notes,
+        paste0(
+          "Only ", shifted$changed_n, " plausible non-active trips were shifted for a target of ",
+          trip_shift_target_n, " trips among ", length(changed_ids), " new `", spec$mode, "` users."
+        )
+      )
+    }
+  }
+
+  list(
+    counterfactual_data = counterfactual_data,
+    notes = notes,
+    trip_shift_target_n = trip_shift_target_n,
+    trip_shift_n = trip_shift_n
+  )
+}
+
+.shift_nonactive_trips_to_mode <- function(
+    counterfactual_data,
+    reference_data,
+    spec,
+    n,
+    trip_target,
+    constants,
+    seed,
+    census_ids = NULL
+) {
+  if (n == 0 || is.null(counterfactual_data$trips)) {
+    return(list(counterfactual_data = counterfactual_data, changed_rows = .empty_changed_trip_rows(), changed_n = 0L))
+  }
+
+  trips <- counterfactual_data$trips
+  active <- spec$trip_filter(trips)
+  candidates <- which(!active & !is.na(trips$nts_tripid))
+  if (!is.null(census_ids) && "census_id" %in% names(trips)) {
+    candidates <- candidates[trips$census_id[candidates] %in% census_ids]
+  }
+  if ("trip_utilitarian" %in% names(trips)) {
+    candidates <- candidates[.true_values(trips$trip_utilitarian[candidates])]
+  }
+
+  active_distances <- .active_trip_distances(reference_data$trips, spec)
+  candidates <- cf_plausible_distance_candidates(
+    trips,
+    candidates,
+    active_distances,
+    max_multiplier = constants$plausible_distance_max_multiplier
+  )
+  if (length(candidates) == 0) {
+    return(list(counterfactual_data = counterfactual_data, changed_rows = .empty_changed_trip_rows(), changed_n = 0L))
+  }
+
+  shift_n <- min(n, length(candidates))
+  weights <- cf_trip_candidate_weights(trips, candidates, active_distances, trip_target)
+  rows <- cf_sample_candidate_indices(candidates, shift_n, seed, weights = weights)
+
+  trips <- .switch_trips_to_active_mode(trips, rows, spec)
+  trips$cf_trip_change[rows] <- "mode_shift_to_active"
+  trips$cf_mode_shift[rows] <- TRUE
+  counterfactual_data$trips <- trips
+
+  changed_rows <- trips[rows, intersect(c("census_id", "nts_tripid"), names(trips)), drop = FALSE]
+  list(counterfactual_data = counterfactual_data, changed_rows = changed_rows, changed_n = length(rows))
+}
+
+.add_induced_active_trips <- function(counterfactual_data, reference_data, spec, n, seed) {
+  if (n == 0 || is.null(reference_data$trips)) {
+    return(list(counterfactual_data = counterfactual_data, changed_rows = .empty_changed_trip_rows(), changed_n = 0L))
+  }
+
+  ref_active <- spec$trip_filter(reference_data$trips) & !is.na(reference_data$trips$nts_tripid)
+  donor_rows <- which(ref_active)
+  if (length(donor_rows) == 0) {
+    return(list(counterfactual_data = counterfactual_data, changed_rows = .empty_changed_trip_rows(), changed_n = 0L))
+  }
+
+  donor_rows <- cf_sample_candidate_indices(donor_rows, n, seed, replace = TRUE)
+  new_rows <- reference_data$trips[donor_rows, , drop = FALSE]
+  new_rows <- .assign_new_trip_ids(counterfactual_data$trips, new_rows)
+  new_rows <- .switch_trips_to_active_mode(new_rows, seq_len(nrow(new_rows)), spec)
+  if ("weight_tripXhh" %in% names(new_rows)) {
+    new_rows$weight_tripXhh <- 1
+  }
+  if ("trip_purpose" %in% names(new_rows)) {
+    new_rows$trip_purpose <- "Recreational"
+  }
+  new_rows$trip_utilitarian <- FALSE
+  new_rows$cf_trip_change <- "induced_recreational_active"
+  new_rows$cf_mode_shift <- FALSE
+  new_rows$cf_induced <- TRUE
+
+  counterfactual_data$trips <- rbind(counterfactual_data$trips, new_rows)
+  changed_rows <- new_rows[, intersect(c("census_id", "nts_tripid"), names(new_rows)), drop = FALSE]
+  list(counterfactual_data = counterfactual_data, changed_rows = changed_rows, changed_n = nrow(new_rows))
+}
+
+.switch_trips_to_active_mode <- function(trips, rows, spec) {
+  if (length(rows) == 0) {
+    return(trips)
+  }
+  if ("trip_mainmode" %in% names(trips)) {
+    trips$trip_mainmode[rows] <- spec$trip_mainmode_value
+  }
+  if (!is.na(spec$trip_distance_col) && spec$trip_distance_col %in% names(trips) &&
+      "trip_distraw_km" %in% names(trips)) {
+    trips[[spec$trip_distance_col]][rows] <- trips$trip_distraw_km[rows]
+  }
+  if (!is.na(spec$trip_duration_col) && spec$trip_duration_col %in% names(trips) &&
+      "trip_durationraw_min" %in% names(trips)) {
+    trips[[spec$trip_duration_col]][rows] <- trips$trip_durationraw_min[rows]
+  }
+
+  for (col in setdiff(
+    c("trip_walkdist_km", "trip_walktime_min", "trip_cycledist_km", "trip_cycletime_min"),
+    c(spec$trip_distance_col, spec$trip_duration_col)
+  )) {
+    if (col %in% names(trips)) {
+      trips[[col]][rows] <- 0
+    }
+  }
+
+  trips
+}
+
+.switch_trips_away_from_active <- function(trips, rows, spec, constants, diversion_target, seed) {
+  if (length(rows) == 0) {
+    return(trips)
+  }
+  if ("trip_mainmode" %in% names(trips)) {
+    trips$trip_mainmode[rows] <- .sample_diversion_modes(diversion_target, length(rows), seed)
+  }
+  for (col in c(spec$trip_distance_col, spec$trip_duration_col)) {
+    if (!is.na(col) && col %in% names(trips)) {
+      trips[[col]][rows] <- 0
+    }
+  }
+  trips$cf_trip_change[rows] <- "mode_shift_away_from_active"
+  trips$cf_mode_shift[rows] <- TRUE
+  trips
+}
+
+.new_user_trip_shift_count <- function(reference_data, spec, new_user_n, seed) {
+  if (new_user_n == 0 || is.null(reference_data$ind) || is.null(reference_data$trips) ||
+      !"census_id" %in% names(reference_data$ind) ||
+      !"census_id" %in% names(reference_data$trips) ||
+      !"nts_tripid" %in% names(reference_data$trips) ||
+      !spec$activity_col %in% names(reference_data$ind) ||
+      !.trip_evidence_available_for_counterfactual(reference_data$trips, spec)) {
+    return(new_user_n)
+  }
+
+  current_users <- .positive_col(reference_data$ind, spec$activity_col)
+  current_user_ids <- reference_data$ind$census_id[current_users]
+  if (length(current_user_ids) == 0) {
+    return(new_user_n)
+  }
+
+  active_trips <- spec$trip_filter(reference_data$trips) & !is.na(reference_data$trips$nts_tripid)
+  trip_counts <- table(reference_data$trips$census_id[active_trips])
+  observed_counts <- as.integer(trip_counts[as.character(current_user_ids)])
+  observed_counts[is.na(observed_counts)] <- 0L
+
+  if (length(observed_counts) == 0 || all(observed_counts == 0)) {
+    return(new_user_n)
+  }
+
+  set.seed(seed)
+  sampled_pos <- sample(seq_along(observed_counts), size = new_user_n, replace = TRUE)
+  sum(observed_counts[sampled_pos])
+}
+
+.cf_diversion_target <- function(values, constants) {
+  mode_fields <- c(
+    car = "trips_diversion_car_perc",
+    walk = "trips_diversion_walk_perc",
+    bike = "trips_diversion_bike_perc",
+    ebike = "trips_diversion_ebike_perc",
+    pt = "trips_diversion_pt_perc"
+  )
+
+  raw <- vapply(mode_fields, function(field) {
+    value <- .ui_value(values, field, NA_real_)
+    if (length(value) != 1 || is.null(value)) {
+      return(NA_real_)
+    }
+    as.numeric(value)
+  }, numeric(1))
+  raw <- raw[!is.na(raw) & raw > 0]
+
+  if (length(raw) == 0) {
+    return(list(
+      modes = constants$default_diversion_mode,
+      probs = 1,
+      source = "default"
+    ))
+  }
+
+  probs <- raw / sum(raw)
+  list(
+    modes = names(probs),
+    probs = as.numeric(probs),
+    source = "ui"
+  )
+}
+
+.sample_diversion_modes <- function(diversion_target, n, seed) {
+  if (n == 0) {
+    return(character(0))
+  }
+
+  set.seed(seed)
+  sample(diversion_target$modes, size = n, replace = TRUE, prob = diversion_target$probs)
+}
+
+.active_trip_distances <- function(trips, spec) {
+  if (is.null(trips)) {
+    return(numeric(0))
+  }
+  active <- spec$trip_filter(trips)
+  if ("trip_distraw_km" %in% names(trips)) {
+    return(trips$trip_distraw_km[active])
+  }
+  if (!is.na(spec$trip_distance_col) && spec$trip_distance_col %in% names(trips)) {
+    return(trips[[spec$trip_distance_col]][active])
+  }
+
+  numeric(0)
+}
+
+.empty_changed_trip_rows <- function() {
+  data.frame(census_id = integer(0), nts_tripid = integer(0))
+}
+
+.true_values <- function(x) {
+  !is.na(x) & x
+}
 
 # 5. Shared Data-Manipulation Helpers ----
 
@@ -611,44 +999,6 @@ apply_counterfactual_ui_values <- function(
   counterfactual_data$trips[[activity_col]] <- lookup[[activity_col]][matched]
 
   counterfactual_data
-}
-
-.sample_rows <- function(candidate_rows, n, seed) {
-  if (n == 0) {
-    return(integer(0))
-  }
-  if (length(candidate_rows) < n) {
-    stop("Not enough candidate rows available for requested counterfactual change.", call. = FALSE)
-  }
-
-  set.seed(seed)
-  sample(candidate_rows, size = n, replace = FALSE)
-}
-
-.sample_rows_with_replacement <- function(candidate_rows, n, seed) {
-  if (n == 0) {
-    return(integer(0))
-  }
-  if (length(candidate_rows) == 0) {
-    stop("No candidate rows available for requested counterfactual change.", call. = FALSE)
-  }
-
-  set.seed(seed)
-  sample(candidate_rows, size = n, replace = TRUE)
-}
-
-.sample_activity_values <- function(values_ref, n, default_value, seed) {
-  if (n == 0) {
-    return(numeric(0))
-  }
-
-  values_ref <- values_ref[!is.na(values_ref)]
-  if (length(values_ref) == 0) {
-    return(rep(default_value, n))
-  }
-
-  set.seed(seed)
-  sample(values_ref, size = n, replace = TRUE)
 }
 
 .assign_new_trip_ids <- function(existing_trips, new_rows) {
@@ -766,6 +1116,11 @@ miama_counterfactual_defaults <- function() {
     mmet_vigorous = 7,
     walktime_wkhr_default = 1,
     cycletime_wkhr_default = 1,
+    walktime_wkhr_ex_user_default = 0,
+    cycletime_wkhr_ex_user_default = 0,
+    induced_trip_percent_default = 10,
+    default_diversion_mode = "car",
+    plausible_distance_max_multiplier = 1.2,
     unsupported_mode_policy = "skip"
   )
 }
@@ -788,6 +1143,20 @@ miama_counterfactual_defaults <- function() {
     cycling = "cycletime_wkhr_default",
     NA_character_
   )
+  ex_user_default_col <- switch(
+    mode,
+    walking = "walktime_wkhr_ex_user_default",
+    cycling = "cycletime_wkhr_ex_user_default",
+    NA_character_
+  )
+  trip_mainmode_value <- switch(
+    mode,
+    walking = "walking",
+    cycling = "cycling",
+    ebiking = "ebiking",
+    pt = "pt",
+    mode
+  )
   seed_offset <- switch(
     mode,
     walking = 101L,
@@ -801,6 +1170,8 @@ miama_counterfactual_defaults <- function() {
     mode = mode,
     activity_col = activity_col,
     default_col = default_col,
+    ex_user_default_col = ex_user_default_col,
+    trip_mainmode_value = trip_mainmode_value,
     seed_offset = seed_offset
   ))
 }
@@ -840,13 +1211,14 @@ miama_counterfactual_defaults <- function() {
   list(
     ind = .counterfactual_ind_comparison(reference_data$ind, counterfactual_data$ind),
     trips = .counterfactual_trip_comparison(reference_data$trips, counterfactual_data$trips),
-    changed_ind_rows = .counterfactual_changed_ind_rows(reference_data$ind, counterfactual_data$ind)
+    changed_ind_rows = .counterfactual_changed_ind_rows(reference_data$ind, counterfactual_data$ind),
+    changed_trip_rows = .counterfactual_changed_trip_rows(reference_data$trips, counterfactual_data$trips)
   )
 }
 
 .counterfactual_ind_comparison <- function(reference_ind, counterfactual_ind) {
   cols <- .present_cols(
-    c("walktime_wkhr", "cycletime_wkhr", "sport_wkhr", "mmets"),
+    c("walktime_wkhr", "cycletime_wkhr", "sport_wkhr", "mmets", "user_walk", "user_bike"),
     reference_ind,
     counterfactual_ind
   )
@@ -980,10 +1352,45 @@ miama_counterfactual_defaults <- function() {
   for (col in cols) {
     out[[paste0(col, "_ref")]] <- reference_ind[[col]][changed]
     out[[paste0(col, "_cf")]] <- counterfactual_ind[[col]][changed]
-    out[[paste0(col, "_delta")]] <- out[[paste0(col, "_cf")]] - out[[paste0(col, "_ref")]]
+    if (is.numeric(out[[paste0(col, "_cf")]]) || is.logical(out[[paste0(col, "_cf")]])) {
+      out[[paste0(col, "_delta")]] <- out[[paste0(col, "_cf")]] - out[[paste0(col, "_ref")]]
+    }
+  }
+  if ("cf_user_change" %in% names(counterfactual_ind)) {
+    out$cf_user_change <- counterfactual_ind$cf_user_change[changed]
   }
 
   out
+}
+
+.counterfactual_changed_trip_rows <- function(reference_trips, counterfactual_trips) {
+  if (is.null(counterfactual_trips) || !"nts_tripid" %in% names(counterfactual_trips)) {
+    return(data.frame())
+  }
+
+  if ("cf_trip_change" %in% names(counterfactual_trips)) {
+    changed <- counterfactual_trips$cf_trip_change != "unchanged" |
+      ("cf_induced" %in% names(counterfactual_trips) & counterfactual_trips$cf_induced)
+  } else {
+    changed <- rep(FALSE, nrow(counterfactual_trips))
+  }
+
+  if (!any(changed, na.rm = TRUE)) {
+    return(data.frame())
+  }
+
+  cols <- intersect(
+    c(
+      "census_id", "nts_tripid", "trip_mainmode", "trip_distraw_km",
+      "trip_durationraw_min", "trip_walkdist_km", "trip_walktime_min",
+      "trip_cycledist_km", "trip_cycletime_min", "trip_purpose",
+      "trip_activemode", "trip_utilitarian", "cf_trip_change",
+      "cf_mode_shift", "cf_induced"
+    ),
+    names(counterfactual_trips)
+  )
+
+  counterfactual_trips[changed, cols, drop = FALSE]
 }
 
 .present_cols <- function(cols, reference_data, counterfactual_data) {

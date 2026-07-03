@@ -238,46 +238,78 @@ should not add one R6 method per UI field.
 
 ## Counterfactual data initialization and UI application
 
+### Initialize counterfactual data
 `init_counterfactual_data()` starts Step 6 by returning a 1:1 copy of filtered
 `reference_data`. The first UI-driven implementation is
 `apply_counterfactual_ui_values()`, which applies supported `_cf_` inputs to
 that copy and adds a compact `counterfactual_report`.
 
-The current first-pass implementation supports `users_count_cf_*` and
-`pop_number_cf_*` for walking and cycling. These fields adjust the number of
-individuals with positive mode-specific weekly activity:
+### Users: derive counterfactual number of active mode users
+The current implementation supports `users_count_cf_*` and `pop_number_cf_*`
+for walking and cycling. These fields adjust the number of individuals with
+positive mode-specific weekly activity while keeping the individual population
+fixed:
 
 - if the counterfactual target is larger than the current reference count,
   existing non-users are sampled as `new_users`
 - if the target is smaller, existing users are sampled as `ex_users`
-- new users receive mode activity values sampled from the reference users'
-  observed activity distribution
-- ex-users receive values sampled from current non-users, usually zero
+- new users receive mode activity values sampled from observed current users
+- ex-users receive configured near-zero defaults, currently `0`
+- returned individual data includes explicit `user_walk` / `user_bike`
+  indicators and `cf_user_change`
 - `mmets` is recalculated when present using HM constants:
   `walktime_wkhr * 2.5 + cycletime_wkhr * 5.8 + sport_wkhr * 7`
-- if trip-level data is present, changed individual activity columns are
-  mirrored onto matching trip rows; trip rows are not created, deleted, or
-  shifted yet
+- if trip-level data is present, ex-users' active trips are shifted away from
+  the active mode; new users trigger sampling of plausible non-active trips for
+  mode shift where matching trip rows exist
+- new-user trip shifts use current-user active trip rates: active trip counts
+  are computed for current users and sampled onto new users, rather than
+  assuming exactly one shifted trip per new user
 
 Targets must be finite, non-negative, rounded integer counts and cannot exceed
 the filtered reference population size. E-bike and walk-to-public-transport
 counterfactual user counts are currently reported as unsupported until the data
 contains dedicated activity columns or agreed classification rules.
 
-The draft trip-count handler supports `trips_count_cf_*` and
-`trips_number_cf_*` for active-mode trip rows. It converts Tab 2 targets from
-total or mean-per-person values into a base-week trip count. If the target is
-larger than current active-mode trip rows, it duplicates sampled reference trip
-rows; if smaller, it removes sampled active-mode rows. Advanced trip refinement
-fields such as `pop_new_current_perc`, `trips_dist_value`,
-`trips_purpose_type`, `trips_spread_mean_cf`, `trips_spread_util_prop_cf`, and
-`trips_diversion_car_perc` are parsed and recorded in the change report, but are
-not yet used to reshape donor sampling or trip attributes.
+### Trips: derive counterfactual number of active mode trips
+The trip-count handler supports `trips_count_cf_*` and `trips_number_cf_*` for
+active-mode trip rows. It converts Tab 2 targets from total or mean-per-person
+values into a base-week trip count. Increases are split into two mechanisms:
 
-Important limitation: the draft trip handler currently changes physical rows,
-not weighted `weight_tripXhh` totals. This is useful for validating the
-manipulation flow, but the weighted-data behavior needs to be resolved before
-using these trip changes for final impact calculations.
+- `mode_shift`: existing non-active, utilitarian trips are switched to the
+  active mode. Raw trip distance is preserved, and the active-mode
+  distance/duration columns are populated from raw distance/duration.
+- `induced_recreational_active`: a default 10% of additional active trips are
+  treated as newly induced discretionary trips and added as new trip rows with
+  recreational purpose.
+
+Decreases do not delete utilitarian travel demand. Instead, sampled active trips
+are shifted away from the active mode using the configured default diversion
+mode, currently `car`. If Tab 4 provides diversion percentages, the HUB parses
+the current simple `trips_diversion_car_perc` field and future mode-specific
+fields such as `trips_diversion_walk_perc`, `trips_diversion_bike_perc`,
+`trips_diversion_ebike_perc`, and `trips_diversion_pt_perc`.
+
+Returned trip data includes explicit `trip_activemode`, `trip_utilitarian`,
+`cf_trip_change`, `cf_mode_shift`, and `cf_induced` indicators. The change
+report records actual `mode_shift_n` and `induced_n`, and
+`counterfactual_report$comparison$changed_trip_rows` lists switched or induced
+trip rows.
+
+Advanced Tab 4 fields such as `trips_dist_value`, `trips_purpose_type`,
+`trips_spread_mean_cf`, `trips_spread_util_prop_cf`, and
+`trips_diversion_car_perc` are parsed and recorded. Distance-based candidate
+selection currently uses active-mode reference trip-distance quintiles; future
+UI category controls can plug into the `agecat_1_prop_cf` ...
+`agecat_5_prop_cf` and `distcat_1_prop_cf` ... `distcat_5_prop_cf` hooks, or
+the corresponding `_perc_cf` fields.
+
+TODO: Important limitation: the draft trip handler currently changes physical rows,
+not weighted `weight_tripXhh` totals. Existing shifted rows keep their existing
+weights; induced trip rows receive `weight_tripXhh = 1` when that column exists.
+This is useful for validating the manipulation flow, but the weighted-data
+behavior needs to be resolved before using these trip changes for final impact
+calculations.
 
 Parameter naming follows the same distinction used elsewhere in the package:
 `*_ref` values are measured from filtered reference data, while `*_default`
@@ -285,13 +317,13 @@ values come from internal constants. Those constants are currently returned by
 `miama_counterfactual_defaults()` and should be externalized once the defaults
 are agreed.
 
-TODO: revisit how activity and trip attributes are assigned to sampled rows. In
-large populations, random sampling should usually return a sufficiently
-representative and more realistic distribution. In smaller reference
-populations, assigning average values or sampling from a smoothed distribution
-may better represent expected or predicted behavior and impacts. This should be
-handled consistently for individual activity values and trip attributes, likely
-through two or three reusable sampling strategies.
+Sampling is centralized in `R/counterfactual_data_sampling_functions.R`.
+Sampling now means selecting existing candidate rows "as is"; the previous
+average-row and synthetic-distribution options were removed because they
+conflicted with the fixed-population mechanism. Candidate individual selection
+can be weighted by sex and five age-category targets. Candidate trip selection
+can be weighted by active-mode distance categories derived from local reference
+quintiles until final category breaks are available.
 
 The R6 `Hub` wrapper exposes this step via `build_counterfactual_data()` and
 `get_counterfactual_data()`.
@@ -311,6 +343,7 @@ counterfactual summaries for key active-travel and physical-activity columns.
 The current comparison includes individual-level sums, means, active-row counts,
 trip-level sums/means, trip row counts, and a `changed_ind_rows` table showing
 affected `census_id` values with `_ref`, `_cf`, and `_delta` columns.
+It also includes `changed_trip_rows` for trip mode switches and induced trips.
 
 ## Synthetic population parquet conversion
 
