@@ -270,6 +270,36 @@ test_that("apply_counterfactual_ui_values decreases walking trips by shifting mo
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$role, "shifted_away_trips")
 })
 
+test_that("counterfactual changed trip report handles data.table trip inputs", {
+  reference_data <- list(
+    trips = data.table::data.table(
+      census_id = 1,
+      nts_tripid = 10,
+      trip_mainmode = "walking",
+      cf_trip_change = "unchanged",
+      cf_induced = FALSE
+    )
+  )
+  counterfactual_data <- list(
+    trips = data.table::data.table(
+      census_id = 1,
+      nts_tripid = 10,
+      trip_mainmode = "car",
+      cf_trip_change = "mode_shift_away_from_active",
+      cf_induced = FALSE
+    )
+  )
+
+  changed <- MIAMAHUB:::.counterfactual_changed_trip_rows(
+    reference_data$trips,
+    counterfactual_data$trips
+  )
+
+  expect_s3_class(changed, "data.frame")
+  expect_equal(nrow(changed), 1)
+  expect_equal(changed$trip_mainmode, "car")
+})
+
 test_that("counterfactual sampling functions support status and candidate selection", {
   rows <- data.frame(
     census_id = 1:3,

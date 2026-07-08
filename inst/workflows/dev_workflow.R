@@ -188,6 +188,27 @@ counterfactual_data$counterfactual_report$comparison$changed_ind_rows
 dplyr::glimpse(counterfactual_data$ind)
 dplyr::glimpse(counterfactual_data$trips)
 
+# 7. Rejoin health outcomes based on updated physical activity levels (mmets) for counterfactual data ----
+# -----------------------------------------------------------------------------#
+# Uses the updated MIAMA-HM death-share cycle tables so HALY-compatible outputs
+# are available. The default `scheme_effect_duration = "longterm"` applies the
+# individual MMET delta to every model cycle.
+
+counterfactual_data <- apply_counterfactual_health_outcomes(
+  counterfactual_data,
+  reference_data,
+  cfg = cfg,
+  scheme_effect_duration = "longterm"
+)
+
+## 7.1 Inspect counterfactual health outcomes ----
+str(counterfactual_data$counterfactual_health_report)
+dplyr::glimpse(counterfactual_data$health_outcomes)
+counterfactual_data$counterfactual_health_report$impact_overview |>
+  dplyr::arrange(dplyr::desc(abs(delta_total))) |>
+  print(n = 30)
+
+
 # Step X: comparison of reference vs counterfactual data
 # cra_inputs          <- prepare_cra_inputs(reference_data, counterfactual_data, request$results_request)
 # health_impacts      <- run_cra(cra_inputs)

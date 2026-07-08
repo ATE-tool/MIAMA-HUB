@@ -994,7 +994,7 @@ apply_counterfactual_ui_values <- function(
     return(counterfactual_data)
   }
 
-  lookup <- counterfactual_data$ind[, c("census_id", activity_col), drop = FALSE]
+  lookup <- as.data.frame(counterfactual_data$ind)[, c("census_id", activity_col), drop = FALSE]
   matched <- match(counterfactual_data$trips$census_id, lookup$census_id)
   counterfactual_data$trips[[activity_col]] <- lookup[[activity_col]][matched]
 
@@ -1390,7 +1390,7 @@ miama_counterfactual_defaults <- function() {
     names(counterfactual_trips)
   )
 
-  counterfactual_trips[changed, cols, drop = FALSE]
+  as.data.frame(counterfactual_trips)[changed, cols, drop = FALSE]
 }
 
 .present_cols <- function(cols, reference_data, counterfactual_data) {

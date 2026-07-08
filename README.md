@@ -345,6 +345,54 @@ trip-level sums/means, trip row counts, and a `changed_ind_rows` table showing
 affected `census_id` values with `_ref`, `_cf`, and `_delta` columns.
 It also includes `changed_trip_rows` for trip mode switches and induced trips.
 
+### Counterfactual health outcomes
+`apply_counterfactual_health_outcomes()` is the Step 7 bridge from changed
+counterfactual physical activity to health model outcomes. It uses the updated
+MIAMA-HM death-share cycle artifacts:
+
+- `sp_cycle_outcomes_death_share`
+- `mmet_d_cycle_lookup_death_share`
+
+Those artifacts are produced by `MIAMA-HM/scripts/sp_hm_join.R`. HUB does not
+source or duplicate that script; it reads the processed artifacts and reproduces
+the scenario lookup-application logic documented in
+`MIAMA-HM/scenario_verification/scen_30to45_2mmets.qmd`.
+
+Terminology in this step is explicit:
+
+- `ref`: without-scheme/reference scenario
+- `cf`: with-scheme/counterfactual scenario
+- `delta`: `cf - ref`
+- `baseline`: avoided here except when referring to HM source tables, because it
+  can also mean the first simulation year
+
+The function keeps all filtered individuals and all HM cycle rows. For the
+current `scheme_effect_duration = "longterm"` setting, the individual-level
+MMET delta from Step 6 is applied to every model cycle:
+
+```r
+mmets_delta = mmets_cf_ind - mmets_ref
+mmets_new   = mmets_cycle + mmets_delta
+```
+
+It then caps MMETs to the lookup maximum, overlaps the changed MMET interval
+with lookup bands, multiplies overlap width by per-MMET outcome slopes, and
+adds `d_*` outcome columns. Convenience `*_cf` columns are also added as
+`ref + delta` for plotting and inspection.
+
+The returned `counterfactual_data` gains:
+
+- `health_outcomes`: full cycle-level reference, delta, and counterfactual
+  outcome table
+- `counterfactual_health_report`: counts, MMET-delta summary, terminology, and
+  summed outcome deltas
+- `counterfactual_health_report$impact_overview`: compact outcome-level totals
+  with `ref_total`, `cf_total`, `delta_total`, and `delta_per_1000_people`
+
+Future work: add `scheme_effect_duration = "shortterm"` and decide whether
+large production runs should keep all `*_cf` columns or compute them lazily for
+plotting to reduce data volume.
+
 ## Synthetic population parquet conversion
 
 To enable Arrow filter pushdown, local synthpop `.dta` files should be converted
