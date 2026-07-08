@@ -4,4 +4,9 @@
 .Ruserdata
 
 # Data files (too large for git; stored externally)
-data/
+# data/
+data/cache
+data/synthetic_pop/SPtrip_CensusNTSALS_parquet
+data/synthetic_pop/SPindivid_CensusNTSALS.dta
+data/synthetic_pop/SPtrip_CensusNTSALS.dta
+
