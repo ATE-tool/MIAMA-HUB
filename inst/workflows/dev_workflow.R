@@ -206,7 +206,8 @@ str(counterfactual_data$counterfactual_health_report)
 dplyr::glimpse(counterfactual_data$health_outcomes)
 counterfactual_data$counterfactual_health_report$impact_overview |>
   dplyr::arrange(dplyr::desc(abs(delta_total))) |>
-  print(n = 30)
+  utils::head(30) |>
+  print()
 
 
 # Step X: comparison of reference vs counterfactual data
