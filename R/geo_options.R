@@ -1,6 +1,6 @@
 # MIAMA-HUB Module: Geo Options
 # Purpose: Provide lightweight geography level and option lookups for MIAMA-UI.
-# Inputs: Cached lookup table or the synthetic-population attributes source.
+# Inputs: Cached lookup table or the synthetic-population attributes parquet source.
 # Outputs: Small data frames for UI select controls.
 # Notes: The lookup is built from unfiltered synthpop attributes once and cached
 #   under `cfg$output$lookup`. This avoids loading full reference data only to
@@ -73,8 +73,8 @@ build_geo_lookup <- function(cfg = NULL, overwrite = FALSE) {
   source_path <- source$path
   source_format <- source$format
 
-  if (!file.exists(source_path) && !dir.exists(source_path)) {
-    stop("Synthpop attributes source not found: ", source_path, call. = FALSE)
+  if (!identical(source_format, "parquet") || !dir.exists(source_path)) {
+    stop("Synthpop attributes parquet directory not found: ", source_path, call. = FALSE)
   }
 
   message("Building geo lookup from synthpop attributes: ", source_path)
@@ -117,12 +117,8 @@ build_geo_lookup <- function(cfg = NULL, overwrite = FALSE) {
     return(dplyr::collect(dplyr::select(ds, dplyr::all_of(geo_cols))))
   }
 
-  if (identical(source_format, "dta")) {
-    df <- haven::read_dta(source_path, col_select = dplyr::all_of(geo_cols))
-    return(as.data.frame(df))
-  }
-
-  stop("Unsupported synthpop attributes format: ", source_format, call. = FALSE)
+  stop("Unsupported synthpop attributes format: ", source_format,
+       ". Runtime synthpop sources must be parquet.", call. = FALSE)
 }
 
 .summarize_geo_lookup <- function(ind_geo) {

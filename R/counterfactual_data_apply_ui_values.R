@@ -1459,3 +1459,24 @@ miama_counterfactual_defaults <- function() {
 
   changed_rows$census_id
 }
+
+# Legacy Compatibility -------------------------------------------------------
+# These split-step hooks are retained as no-ops so older workflow snippets and
+# tests fail softly while the current implementation runs through
+# `apply_counterfactual_ui_values()`.
+
+apply_ind_rows_changes <- function(counterfactual_data, ...) {
+  counterfactual_data
+}
+
+apply_ind_attribute_changes <- function(counterfactual_data, ...) {
+  counterfactual_data
+}
+
+apply_trip_rows_changes <- function(counterfactual_data, ...) {
+  counterfactual_data
+}
+
+apply_trip_attribute_changes <- function(counterfactual_data, ...) {
+  counterfactual_data
+}

@@ -37,7 +37,7 @@ test_that("miama_paths() returns list with expected keys", {
   })
 })
 
-test_that("miama_paths() sources are named lists with path and format", {
+test_that("miama_paths() sources are named parquet lists with path and format", {
   withr::with_envvar(list(
     MIAMA_PROJECT_ROOT = "/tmp/fake_project",
     MIAMA_HM_ROOT      = "/tmp/fake_hm"
@@ -46,13 +46,13 @@ test_that("miama_paths() sources are named lists with path and format", {
     expect_named(p$sp_attributes, c("path", "format"))
     expect_named(p$sp_trips,      c("path", "format"))
     expect_named(p$hm_sp_overall_sample, c("path", "format", "source"))
-    expect_true(p$sp_attributes$format %in% c("parquet", "dta"))
-    expect_true(p$sp_trips$format      %in% c("parquet", "dta"))
+    expect_equal(p$sp_attributes$format, "parquet")
+    expect_equal(p$sp_trips$format, "parquet")
     expect_equal(p$hm_sp_overall_sample$format, "parquet")
   })
 })
 
-test_that("miama_paths() sp sources fall back to dta when no parquet dirs exist", {
+test_that("miama_paths() sp sources point to expected parquet paths when dirs are missing", {
   # Use a temp dir with no synthpop subdirectories at all
   tmp <- withr::local_tempdir()
   withr::with_envvar(list(
@@ -60,8 +60,10 @@ test_that("miama_paths() sp sources fall back to dta when no parquet dirs exist"
     MIAMA_HM_ROOT      = "/tmp/fake_hm"
   ), {
     p <- miama_paths()
-    expect_equal(p$sp_attributes$format, "dta")
-    expect_equal(p$sp_trips$format,      "dta")
+    expect_equal(p$sp_attributes$format, "parquet")
+    expect_equal(p$sp_trips$format, "parquet")
+    expect_match(p$sp_attributes$path, "SPindivid_CensusNTSALS_parquet$", fixed = FALSE)
+    expect_match(p$sp_trips$path, "SPtrip_CensusNTSALS_parquet$", fixed = FALSE)
   })
 })
 
@@ -111,13 +113,21 @@ test_that("miama_paths() selects dev_parquet when dev directory exists", {
   })
 })
 
-test_that("miama_resolve_config() errors when sp_attributes path is missing", {
+test_that("miama_project_root() uses loaded package root before caller working directory", {
+  withr::with_envvar(list(MIAMA_PROJECT_ROOT = ""), {
+    root <- miama_project_root()
+    expect_true(file.exists(file.path(root, "DESCRIPTION")))
+    expect_equal(unname(read.dcf(file.path(root, "DESCRIPTION"))[1, "Package"]), "MIAMAHUB")
+  })
+})
+
+test_that("miama_resolve_config() errors when sp_attributes parquet path is missing", {
   tmp <- withr::local_tempdir()
   withr::with_envvar(list(
     MIAMA_PROJECT_ROOT = tmp,
     MIAMA_HM_ROOT      = "/tmp/fake_hm"
   ), {
     cfg <- miama_default_config()
-    expect_error(miama_resolve_config(cfg), "Synthpop attributes source not found")
+    expect_error(miama_resolve_config(cfg), "Synthpop attributes parquet directory not found")
   })
 })

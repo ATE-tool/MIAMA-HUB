@@ -57,46 +57,29 @@ load_reference_sources <- function(cfg = NULL, reference_request = list(), resul
   )
 }
 
-# Internal: read a synthpop source given a list(path, format).
+# Internal: read a synthpop parquet source given a list(path, format).
 .load_synthpop_source <- function(source, reference_request = list(), census_ids = NULL) {
   path   <- source$path
   format <- source$format
 
-  if (format == "parquet") {
-    message("Loading synthpop parquet: ", path)
-    ds <- arrow::open_dataset(path, format = "parquet")
-
-    geo_col <- .miama_geo_column(reference_request$geo_level %||% NULL)
-    geo_id <- reference_request$geo_id %||% NULL
-
-    if (!is.null(geo_col) && !is.null(geo_id)) {
-      ds <- dplyr::filter(ds, .data[[geo_col]] %in% geo_id)
-    }
-
-    if (!is.null(census_ids)) {
-      ds <- dplyr::filter(ds, census_id %in% census_ids)
-    }
-
-    return(dplyr::collect(ds))
+  if (!identical(format, "parquet")) {
+    stop("Unsupported synthpop source format: ", format,
+         ". Runtime synthpop sources must be parquet.", call. = FALSE)
   }
 
-  if (format == "dta") {
-    message("Loading synthpop Stata file: ", path)
-    df <- haven::read_dta(path)
+  message("Loading synthpop parquet: ", path)
+  ds <- arrow::open_dataset(path, format = "parquet")
 
-    geo_col <- .miama_geo_column(reference_request$geo_level %||% NULL)
-    geo_id <- reference_request$geo_id %||% NULL
+  geo_col <- .miama_geo_column(reference_request$geo_level %||% NULL)
+  geo_id <- reference_request$geo_id %||% NULL
 
-    if (!is.null(geo_col) && !is.null(geo_id)) {
-      df <- df[df[[geo_col]] %in% geo_id, , drop = FALSE]
-    }
-
-    if (!is.null(census_ids)) {
-      df <- df[df$census_id %in% census_ids, , drop = FALSE]
-    }
-
-    return(df)
+  if (!is.null(geo_col) && !is.null(geo_id)) {
+    ds <- dplyr::filter(ds, .data[[geo_col]] %in% geo_id)
   }
 
-  stop("Unknown synthpop source format: ", format, call. = FALSE)
+  if (!is.null(census_ids)) {
+    ds <- dplyr::filter(ds, census_id %in% census_ids)
+  }
+
+  dplyr::collect(ds)
 }

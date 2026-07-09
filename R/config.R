@@ -53,13 +53,13 @@ miama_resolve_config <- function(cfg = NULL, results_request = list()) {
   cfg <- cfg %||% miama_default_config()
 
   sp_path <- cfg$sources$sp_attributes$path
-  if (!file.exists(sp_path) && !dir.exists(sp_path)) {
-    stop("Synthpop attributes source not found: ", sp_path, call. = FALSE)
+  if (!identical(cfg$sources$sp_attributes$format, "parquet") || !dir.exists(sp_path)) {
+    stop("Synthpop attributes parquet directory not found: ", sp_path, call. = FALSE)
   }
 
   sp_trips_path <- cfg$sources$sp_trips$path
-  if (!file.exists(sp_trips_path) && !dir.exists(sp_trips_path)) {
-    stop("Synthpop trips source not found: ", sp_trips_path, call. = FALSE)
+  if (!identical(cfg$sources$sp_trips$format, "parquet") || !dir.exists(sp_trips_path)) {
+    stop("Synthpop trips parquet directory not found: ", sp_trips_path, call. = FALSE)
   }
 
   hm_suffix <- miama_hm_suffix_from_request(results_request)

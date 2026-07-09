@@ -84,7 +84,7 @@ Examples of **config** concerns:
 - file locations
 - cache settings
 - whether development uses the `sample` or `full` datasets
-- whether local synthpop sources are parquet or dta
+- which parquet directories provide local synthpop sources
 
 Examples of **request** concerns:
 
@@ -111,11 +111,11 @@ This keeps appraisal logic in the request layer and runtime concerns in config.
 - `Hub$get_geo_options(geo_level)` exposes the same options through the
   session object.
 
-The current lookup is built from the synthpop individual attributes source and
-cached at `data/lookup/geo_options.rds`. If the cache is missing, the first call
-builds it from `cfg$sources$sp_attributes`; subsequent calls read the small RDS
-lookup instead of loading full reference data. The currently supported levels
-are:
+The current lookup is built from the synthpop individual attributes parquet
+source and cached at `data/lookup/geo_options.rds`. If the cache is missing, the
+first call builds it from `cfg$sources$sp_attributes`; subsequent calls read the
+small RDS lookup instead of loading full reference data. The currently supported
+levels are:
 
 - `eng`: one England-wide option
 - `reg`: English regions, using `region`
@@ -395,15 +395,17 @@ plotting to reduce data volume.
 
 ## Synthetic population parquet conversion
 
-To enable Arrow filter pushdown, local synthpop `.dta` files should be converted
-into parquet datasets.
+Runtime synthpop sources are parquet datasets. Legacy `.dta` files are only
+supported as optional local conversion inputs and are not required by the HUB
+pipeline.
 
 A development helper, `convert_synthpop_to_parquet()`, is available for this
 one-time local conversion.
 
-Once parquet versions exist, `miama_paths()` will prefer them over the original
-Stata files, and `load_reference_sources()` can prefilter by geography before
-collecting data into R.
+`miama_paths()` resolves to `SPindivid_CensusNTSALS_dev_parquet` when present,
+otherwise `SPindivid_CensusNTSALS_parquet`, with the equivalent trip paths for
+`SPtrip_CensusNTSALS`. `load_reference_sources()` then prefilters by geography
+before collecting data into R.
 
 The geography option lookup is a second small one-time/cacheable artifact. It is
 created by `build_geo_lookup(overwrite = TRUE)` or lazily by

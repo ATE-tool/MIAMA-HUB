@@ -29,7 +29,30 @@ miama_project_root <- function() {
   if (nzchar(env_root)) {
     return(normalizePath(env_root, winslash = "/", mustWork = FALSE))
   }
+
+  package_root <- .miama_loaded_package_root()
+  if (!is.null(package_root)) {
+    return(package_root)
+  }
+
   miama_find_project_root()
+}
+
+.miama_loaded_package_root <- function() {
+  ns_path <- tryCatch(
+    getNamespaceInfo(asNamespace("MIAMAHUB"), "path"),
+    error = function(e) ""
+  )
+  if (nzchar(ns_path) && file.exists(file.path(ns_path, "DESCRIPTION"))) {
+    return(normalizePath(ns_path, winslash = "/", mustWork = FALSE))
+  }
+
+  package_path <- system.file(package = "MIAMAHUB")
+  if (nzchar(package_path) && file.exists(file.path(package_path, "DESCRIPTION"))) {
+    return(normalizePath(package_path, winslash = "/", mustWork = FALSE))
+  }
+
+  NULL
 }
 
 miama_path <- function(...) {
@@ -56,15 +79,15 @@ miama_hm_root_or_null <- function() {
   normalizePath(root, winslash = "/", mustWork = FALSE)
 }
 
-# Resolve which synthpop source to use: dev parquet > full parquet > dta fallback
+# Resolve which synthpop source to use: dev parquet > full parquet.
+# Stata `.dta` files are legacy conversion inputs and are not runtime sources.
 miama_pick_synthpop_source <- function(data_dir, prefix) {
   dev_parquet <- file.path(data_dir, "synthetic_pop", paste0(prefix, "_dev_parquet"))
   parquet     <- file.path(data_dir, "synthetic_pop", paste0(prefix, "_parquet"))
-  dta         <- file.path(data_dir, "synthetic_pop", paste0(prefix, ".dta"))
 
   if (dir.exists(dev_parquet)) return(list(path = dev_parquet, format = "parquet"))
   if (dir.exists(parquet))     return(list(path = parquet,     format = "parquet"))
-  return(list(path = dta, format = "dta"))
+  list(path = parquet, format = "parquet")
 }
 
 miama_pick_hm_source <- function(data_dir, hm_processed, dataset_name) {
