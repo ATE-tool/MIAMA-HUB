@@ -23,8 +23,45 @@ test_that("Hub exposes reference UI updates and single-field accessors", {
   expect_equal(updates$pop_number_ref_walk, 2)
   expect_equal(hub$get_reference_ui_value("pop_number_ref_bike"), 1)
   expect_equal(hub$get_population_size(), 3)
+  expect_equal(hub$get_appraisal_summary_values()$population_size, 3)
   expect_null(hub$get_reference_ui_value("missing_field"))
   expect_equal(hub$get_reference_ui_value("missing_field", default = 99), 99)
+})
+
+test_that("Hub exposes appraisal summary geo name from geo lookup", {
+  skip_if_not_installed("arrow")
+
+  tmp <- withr::local_tempdir()
+  sp_dir <- file.path(tmp, "sp_attributes_parquet")
+  arrow::write_dataset(
+    data.frame(
+      census_id = 1:2,
+      region = c("North West", "North West"),
+      lad25cd = c("E08000035", "E08000035"),
+      lad25nm = c("Leeds", "Leeds"),
+      stringsAsFactors = FALSE
+    ),
+    sp_dir,
+    format = "parquet"
+  )
+
+  hub <- Hub$new(
+    cfg = list(
+      sources = list(sp_attributes = list(path = sp_dir, format = "parquet")),
+      output = list(lookup = file.path(tmp, "lookup"))
+    ),
+    appraisal_inputs = build_mock_appraisal_inputs(overrides = list(
+      geo_level = list(input_value = "lad"),
+      geo_id = list(input_value = "E08000035"),
+      appraisal_name = list(input_value = "Leeds test")
+    ))
+  )
+
+  summary <- hub$get_appraisal_summary_values()
+
+  expect_equal(hub$get_geo_name(), "Leeds")
+  expect_equal(summary$geo_name, "Leeds")
+  expect_equal(summary$appraisal_name, "Leeds test")
 })
 
 test_that("Hub clears cached reference UI values when lightweight inputs change", {

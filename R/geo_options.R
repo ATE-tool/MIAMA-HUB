@@ -60,6 +60,48 @@ get_geo_options <- function(cfg = NULL, geo_level, refresh = FALSE) {
   out
 }
 
+#' Get Geography Name
+#'
+#' Resolve a selected geography ID to its display name using the cached geo
+#' lookup. For England-wide appraisals, `geo_id` may be omitted.
+#'
+#' @param cfg MIAMA-HUB configuration object. Defaults to `miama_default_config()`.
+#' @param geo_level Geography level.
+#' @param geo_id Geography ID selected by the UI. Optional for `geo_level = "eng"`.
+#' @param refresh Rebuild the cached lookup before resolving the name.
+#'
+#' @return A length-one character vector, or `NA_character_` if the ID is not found.
+#' @export
+get_geo_name <- function(cfg = NULL, geo_level, geo_id = NULL, refresh = FALSE) {
+  if (missing(geo_level) || is.null(geo_level) || length(geo_level) != 1) {
+    stop("`geo_level` must be one geography level.", call. = FALSE)
+  }
+
+  geo_level <- .normalize_geo_level(as.character(geo_level))
+  .assert_supported_geo_level(geo_level)
+
+  options <- get_geo_options(cfg = cfg, geo_level = geo_level, refresh = refresh)
+
+  if (identical(geo_level, "eng")) {
+    return(options$geo_name[1] %||% "England")
+  }
+
+  if (is.null(geo_id) || length(geo_id) == 0 || is.na(geo_id[1])) {
+    return(NA_character_)
+  }
+
+  geo_id <- as.character(geo_id[1])
+  matched <- options[options$geo_id == geo_id, , drop = FALSE]
+  if (nrow(matched) == 0) {
+    matched <- options[options$geo_name == geo_id, , drop = FALSE]
+  }
+  if (nrow(matched) == 0) {
+    return(NA_character_)
+  }
+
+  matched$geo_name[1]
+}
+
 build_geo_lookup <- function(cfg = NULL, overwrite = FALSE) {
   cfg <- cfg %||% miama_default_config()
   lookup_path <- .geo_lookup_path(cfg)

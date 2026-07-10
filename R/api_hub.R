@@ -80,6 +80,26 @@ Hub <- R6::R6Class(
       )
     },
 
+    get_geo_name = function(refresh = FALSE, default = NA_character_) {
+      private$.require_request()
+
+      value <- tryCatch(
+        get_geo_name(
+          cfg = self$cfg,
+          geo_level = self$request$reference_request$geo_level,
+          geo_id = self$request$reference_request$geo_id,
+          refresh = refresh
+        ),
+        error = function(e) default
+      )
+
+      if (is.null(value) || length(value) == 0 || is.na(value[1])) {
+        return(default)
+      }
+
+      value[1]
+    },
+
     load_reference_sources = function() {
       private$.require_request()
 
@@ -114,6 +134,10 @@ Hub <- R6::R6Class(
         self$request$reference_request,
         self$request$appraisal_input_values
       )
+      geo_name <- self$get_geo_name(default = self$reference_ui_values$ui_updates$geo_name %||% NA_character_)
+      if (!is.na(geo_name)) {
+        self$reference_ui_values$ui_updates$geo_name <- geo_name
+      }
 
       self$reference_ui_values
     },
@@ -143,7 +167,25 @@ Hub <- R6::R6Class(
     },
 
     get_population_size = function() {
-      self$get_reference_ui_value("pop_total_ref")
+      self$get_reference_ui_value("population_size")
+    },
+
+    get_appraisal_summary_values = function(refresh = FALSE) {
+      private$.require_request()
+
+      ui_updates <- if (!is.null(self$reference_data)) {
+        self$get_reference_ui_updates(refresh = refresh)
+      } else {
+        list()
+      }
+
+      list(
+        geo_level = self$request$reference_request$geo_level,
+        geo_id = self$request$reference_request$geo_id,
+        geo_name = self$get_geo_name(default = ui_updates$geo_name %||% NA_character_),
+        population_size = ui_updates$population_size %||% ui_updates$pop_total_ref %||% NA_integer_,
+        appraisal_name = self$request$appraisal_input_values$appraisal_name %||% NULL
+      )
     },
 
     build_counterfactual_data = function(seed = 1L) {

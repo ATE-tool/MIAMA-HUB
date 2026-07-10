@@ -61,7 +61,15 @@ extract_reference_ui_values <- function(
     skipped_fields = character(0)
   )
 
-  ui_updates <- list(pop_total_ref = population_size)
+  geo_name <- .reference_geo_name(reference_data, reference_request)
+  ui_updates <- list(
+    pop_total_ref = population_size,
+    population_size = population_size,
+    geo_name = geo_name
+  )
+  if (is.na(geo_name)) {
+    report$notes <- c(report$notes, "geo_name could not be derived from filtered reference data.")
+  }
 
   for (mode in context$modes) {
     if (!mode %in% names(.miama_tab2_mode_specs())) {
@@ -152,6 +160,37 @@ extract_reference_ui_values <- function(
     modes = modes,
     at_data_unit = .ui_value(appraisal_input_values, "at_data_unit", "trips")
   )
+}
+
+.reference_geo_name <- function(reference_data, reference_request) {
+  geo_level <- reference_request$geo_level %||% "eng"
+  geo_level <- .normalize_geo_level(as.character(geo_level))
+  geo_id <- reference_request$geo_id %||% NULL
+
+  if (identical(geo_level, "eng")) {
+    return("England")
+  }
+  if (identical(geo_level, "reg")) {
+    if (is.null(geo_id) || length(geo_id) == 0 || is.na(geo_id[1])) {
+      return(NA_character_)
+    }
+    return(as.character(geo_id[1]))
+  }
+  if (!identical(geo_level, "lad")) {
+    return(NA_character_)
+  }
+
+  ind <- reference_data$ind
+  if (is.null(ind) || !"lad25nm" %in% names(ind)) {
+    return(NA_character_)
+  }
+
+  names <- unique(stats::na.omit(as.character(ind$lad25nm)))
+  if (length(names) == 0) {
+    return(NA_character_)
+  }
+
+  names[1]
 }
 
 .miama_tab2_mode_specs <- function() {

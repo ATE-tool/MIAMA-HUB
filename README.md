@@ -108,8 +108,11 @@ This keeps appraisal logic in the request layer and runtime concerns in config.
 - `get_geo_levels(cfg)` returns available levels.
 - `get_geo_options(cfg, geo_level)` returns selectable `geo_id` / `geo_name`
   rows for one level.
+- `get_geo_name(cfg, geo_level, geo_id)` resolves one selected geography to its
+  display name.
 - `Hub$get_geo_options(geo_level)` exposes the same options through the
   session object.
+- `Hub$get_geo_name()` resolves the current session's selected geography.
 
 The current lookup is built from the synthpop individual attributes parquet
 source and cached at `data/lookup/geo_options.rds`. If the cache is missing, the
@@ -124,6 +127,36 @@ levels are:
 The alias `region` is accepted by `get_geo_options()` and normalized to `reg`.
 Grouped LAD and MSOA options are not derived yet because the current synthpop
 attributes source only exposes `region`, `lad25cd`, and `lad25nm`.
+
+## Tab 1 appraisal summary values
+
+The Tab 1 summary should reuse canonical user-selected fields where they already
+exist, rather than creating duplicate summary-only parameter names. In
+particular, `geo_level` and `geo_id` remain the source of truth for the selected
+geography.
+
+Summary-only fields should be reserved for values that are derived or displayed:
+
+- `geo_name`: display name resolved from `geo_level` / `geo_id`
+- `population_size`: display alias for the filtered reference population size
+- `appraisal_name`: user-entered nickname for the appraisal
+
+`geo_name` is available from the lightweight geography lookup and can be
+resolved before full reference data is built. `population_size` is equivalent to
+`pop_total_ref` and is available after reference data has been filtered and
+`extract_reference_ui_values()` has run. The R6 API exposes a compact helper:
+
+```r
+hub$get_appraisal_summary_values()
+```
+
+which returns `geo_level`, `geo_id`, `geo_name`, `population_size`, and
+`appraisal_name`.
+
+In `appraisal_inputs`, `input_source` is optional metadata used by HUB
+normalization: when omitted it defaults to `"user"`. For fields populated by HUB
+rather than typed by the user, set it explicitly to `"derived"` so UI code and
+developers can distinguish display values from user inputs.
 
 ## Current development workflow for `appraisal_inputs`
 
@@ -177,7 +210,7 @@ The current extractor covers Tab 2 reference fields for:
 It also covers advanced Tab 3 and Tab 4 reference fields:
 
 - population totals and per-mode population counts (`pop_total_ref`,
-  `pop_number_ref_*`)
+  `population_size`, `pop_number_ref_*`)
 - population distribution anchors (`pop_spread_age_mean_ref`,
   `pop_spread_sex_prop_ref`, `pop_spread_pa_mean_ref`,
   `pop_spread_pa_sex_prop_ref`)
@@ -233,8 +266,9 @@ The R6 `Hub` wrapper exposes the same output through
 `build_reference_ui_values()` / `get_reference_ui_values()`. Call
 `get_reference_ui_updates()` for the compact named UI update list, or
 `get_reference_ui_value("field_name")` for a single value. `get_population_size()`
-is retained only as a convenience wrapper around `pop_total_ref`; new code
-should not add one R6 method per UI field.
+is retained only as a convenience wrapper around `population_size`; new code
+should prefer `get_appraisal_summary_values()` for the Tab 1 summary rather than
+adding one R6 method per UI field.
 
 ## Counterfactual data initialization and UI application
 

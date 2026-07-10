@@ -101,8 +101,28 @@ test_that("extract_reference_ui_values derives Tab 2 trip reference fields", {
   )
 
   expect_equal(values$ui_updates$pop_total_ref, 2)
+  expect_equal(values$ui_updates$population_size, 2)
   expect_equal(values$ui_updates$trips_count_ref_walk, 1)
   expect_equal(values$ui_updates$trips_count_ref_bike, 3)
+})
+
+test_that("extract_reference_ui_values derives summary geo_name where possible", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:2,
+      lad25cd = c("E08000035", "E08000035"),
+      lad25nm = c("Leeds", "Leeds")
+    )
+  )
+
+  values <- extract_reference_ui_values(
+    reference_data,
+    reference_request = list(geo_level = "lad", geo_id = "E08000035"),
+    appraisal_input_values = list(modes = "walking")
+  )
+
+  expect_equal(values$ui_updates$geo_name, "Leeds")
+  expect_equal(values$ui_updates$population_size, values$ui_updates$pop_total_ref)
 })
 
 test_that("extract_reference_ui_values supports individual-only user counts", {
