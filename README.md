@@ -384,7 +384,9 @@ It also includes `changed_trip_rows` for trip mode switches and induced trips.
 counterfactual physical activity to health model outcomes. It uses the updated
 MIAMA-HM death-share cycle artifacts:
 
-- `sp_cycle_outcomes_death_share`
+- `sp_cycle_outcomes_sample_death_share` when `cfg$workflow$dataset_size =
+  "sample"` and the sample artifact is available
+- `sp_cycle_outcomes_death_share` otherwise
 - `mmet_d_cycle_lookup_death_share`
 
 Those artifacts are produced by `MIAMA-HM/scripts/sp_hm_join.R`. HUB does not
@@ -469,7 +471,8 @@ Current expected layout:
 
 - synthetic population files live in `MIAMA-HUB/data/synthetic_pop/`
 - HM sample processed outputs may live in `MIAMA-HUB/data/health_data/`
-- full HM processed outputs are read from `MIAMA-HM` via `MIAMA_HM_ROOT`
+- full HM processed outputs are read from `MIAMA-HM` via `MIAMA_HM_ROOT`, or
+  from a sibling `../MIAMA-HM` repo when that common development layout exists
 
 HM outcome loading follows this hierarchy:
 
@@ -477,7 +480,14 @@ HM outcome loading follows this hierarchy:
    census-id prefilter is requested
 2. HUB-local sample parquet directories such as
    `data/health_data/sp_overall_outcomes_sample/`
-3. external MIAMA-HM parquet directories under `MIAMA_HM_ROOT/health_data/processed/`
+3. external MIAMA-HM parquet directories under
+   `MIAMA_HM_ROOT/health_data/processed/`, or under
+   `../MIAMA-HM/health_data/processed/` when `MIAMA_HM_ROOT` is unset
+
+Step 7 uses the same idea for death-share HM artifacts, with one additional
+sample/full detail: sample workflows prefer
+`sp_cycle_outcomes_sample_death_share` when present, while
+`mmet_d_cycle_lookup_death_share` is shared.
 
 This arrangement is temporary. Longer-term data storage will likely move to a
 VPS or another external location.

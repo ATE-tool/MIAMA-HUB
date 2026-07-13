@@ -6,6 +6,8 @@
 #   MIAMA_PROJECT_ROOT=/path/to/MIAMA-HUB
 #   MIAMA_HM_ROOT=/path/to/MIAMA-HM
 # Then restart R so the vars are picked up before loading the package.
+# `MIAMA_HM_ROOT` is optional in the common dev layout where `MIAMA-HUB` and
+# `MIAMA-HM` are sibling repos; HUB will discover `../MIAMA-HM` automatically.
 
 # 0. Setup ----
 # -----------------------------------------------------------------------------#
@@ -191,8 +193,9 @@ dplyr::glimpse(counterfactual_data$trips)
 # 7. Rejoin health outcomes based on updated physical activity levels (mmets) for counterfactual data ----
 # -----------------------------------------------------------------------------#
 # Uses the updated MIAMA-HM death-share cycle tables so HALY-compatible outputs
-# are available. The default `scheme_effect_duration = "longterm"` applies the
-# individual MMET delta to every model cycle.
+# are available. For `dataset_size = "sample"`, Step 7 prefers the sample
+# death-share cycle table when present. The default `scheme_effect_duration =
+# "longterm"` applies the individual MMET delta to every model cycle.
 
 counterfactual_data <- apply_counterfactual_health_outcomes(
   counterfactual_data,

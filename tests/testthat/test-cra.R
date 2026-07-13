@@ -4,6 +4,50 @@ test_that("health impacts defaults to an empty data frame", {
   expect_equal(nrow(payload$health_impacts), 0)
 })
 
+test_that("death-share path prefers sample outcome table for sample workflows", {
+  tmp <- withr::local_tempdir()
+  hub_root <- file.path(tmp, "MIAMA-HUB")
+  hm_root <- file.path(tmp, "MIAMA-HM")
+  sample_dir <- file.path(hm_root, "health_data", "processed", "sp_cycle_outcomes_sample_death_share")
+  full_dir <- file.path(hm_root, "health_data", "processed", "sp_cycle_outcomes_death_share")
+  dir.create(hub_root, recursive = TRUE)
+  dir.create(sample_dir, recursive = TRUE)
+  dir.create(full_dir, recursive = TRUE)
+
+  cfg <- list(workflow = list(dataset_size = "sample"))
+
+  withr::with_envvar(list(
+    MIAMA_PROJECT_ROOT = hub_root,
+    MIAMA_HM_ROOT = ""
+  ), {
+    expect_equal(
+      .hm_death_share_path(cfg, "sp_cycle_outcomes_death_share"),
+      normalizePath(sample_dir, winslash = "/", mustWork = FALSE)
+    )
+  })
+})
+
+test_that("death-share path uses shared lookup table without sample suffix", {
+  tmp <- withr::local_tempdir()
+  hub_root <- file.path(tmp, "MIAMA-HUB")
+  hm_root <- file.path(tmp, "MIAMA-HM")
+  lookup_dir <- file.path(hm_root, "health_data", "processed", "mmet_d_cycle_lookup_death_share")
+  dir.create(hub_root, recursive = TRUE)
+  dir.create(lookup_dir, recursive = TRUE)
+
+  cfg <- list(workflow = list(dataset_size = "sample"))
+
+  withr::with_envvar(list(
+    MIAMA_PROJECT_ROOT = hub_root,
+    MIAMA_HM_ROOT = ""
+  ), {
+    expect_equal(
+      .hm_death_share_path(cfg, "mmet_d_cycle_lookup_death_share"),
+      normalizePath(lookup_dir, winslash = "/", mustWork = FALSE)
+    )
+  })
+})
+
 test_that("apply_counterfactual_health_outcomes calculates lookup deltas and cf columns", {
   reference_data <- list(
     ind = data.frame(

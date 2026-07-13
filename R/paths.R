@@ -60,23 +60,33 @@ miama_path <- function(...) {
 }
 
 miama_hm_root <- function() {
-  root <- Sys.getenv("MIAMA_HM_ROOT", unset = "")
-  if (!nzchar(root)) {
+  root <- miama_hm_root_or_null()
+  if (is.null(root)) {
     stop(
-      "MIAMA_HM_ROOT is not set. Please set it to your external HM data root.",
+      "MIAMA_HM_ROOT is not set and no sibling MIAMA-HM repo was found.",
       call. = FALSE
     )
   }
-  normalizePath(root, winslash = "/", mustWork = FALSE)
+  root
 }
 
 miama_hm_root_or_null <- function() {
   root <- Sys.getenv("MIAMA_HM_ROOT", unset = "")
-  if (!nzchar(root)) {
+  if (nzchar(root)) {
+    return(normalizePath(root, winslash = "/", mustWork = FALSE))
+  }
+
+  .miama_sibling_hm_root_or_null()
+}
+
+.miama_sibling_hm_root_or_null <- function() {
+  candidate <- file.path(dirname(miama_project_root()), "MIAMA-HM")
+  processed <- file.path(candidate, "health_data", "processed")
+  if (!dir.exists(processed)) {
     return(NULL)
   }
 
-  normalizePath(root, winslash = "/", mustWork = FALSE)
+  normalizePath(candidate, winslash = "/", mustWork = FALSE)
 }
 
 # Resolve which synthpop source to use: dev parquet > full parquet.

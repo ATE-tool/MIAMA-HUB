@@ -99,17 +99,43 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL) {
 }
 
 .hm_death_share_path <- function(cfg, dataset_name) {
-  hub_path <- file.path(miama_project_root(), "data", "health_data", dataset_name)
-  if (dir.exists(hub_path)) {
-    return(hub_path)
+  cfg <- cfg %||% miama_default_config()
+  dataset_candidates <- .hm_death_share_dataset_candidates(cfg, dataset_name)
+
+  hub_paths <- file.path(miama_project_root(), "data", "health_data", dataset_candidates)
+  for (path in hub_paths) {
+    if (dir.exists(path)) {
+      return(normalizePath(path, winslash = "/", mustWork = FALSE))
+    }
   }
 
   hm_processed <- miama_paths()$hm_processed_root
   if (is.null(hm_processed)) {
-    stop("MIAMA_HM_ROOT is not set and HUB-local death-share HM data was not found.", call. = FALSE)
+    stop(
+      "Death-share HM data was not found locally and MIAMA_HM_ROOT is not set. ",
+      "Set MIAMA_HM_ROOT to the MIAMA-HM repo, place death-share data under ",
+      "`data/health_data`, or keep MIAMA-HM as a sibling repo.",
+      call. = FALSE
+    )
   }
 
-  file.path(hm_processed, dataset_name)
+  hm_paths <- file.path(hm_processed, dataset_candidates)
+  for (path in hm_paths) {
+    if (dir.exists(path)) {
+      return(normalizePath(path, winslash = "/", mustWork = FALSE))
+    }
+  }
+
+  normalizePath(hm_paths[1], winslash = "/", mustWork = FALSE)
+}
+
+.hm_death_share_dataset_candidates <- function(cfg, dataset_name) {
+  if (identical(dataset_name, "sp_cycle_outcomes_death_share") &&
+      identical(cfg$workflow$dataset_size, "sample")) {
+    return(c("sp_cycle_outcomes_sample_death_share", dataset_name))
+  }
+
+  dataset_name
 }
 
 # Exposure Preparation -------------------------------------------------------

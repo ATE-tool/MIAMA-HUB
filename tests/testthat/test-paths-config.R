@@ -5,8 +5,12 @@ test_that("miama_project_root() uses MIAMA_PROJECT_ROOT env var when set", {
   })
 })
 
-test_that("miama_hm_root() errors when MIAMA_HM_ROOT is unset", {
-  withr::with_envvar(list(MIAMA_HM_ROOT = ""), {
+test_that("miama_hm_root() errors when MIAMA_HM_ROOT is unset and no sibling HM repo exists", {
+  tmp <- withr::local_tempdir()
+  withr::with_envvar(list(
+    MIAMA_PROJECT_ROOT = tmp,
+    MIAMA_HM_ROOT = ""
+  ), {
     expect_error(miama_hm_root(), "MIAMA_HM_ROOT is not set")
   })
 })
@@ -15,6 +19,22 @@ test_that("miama_hm_root() returns normalised path when env var is set", {
   withr::with_envvar(list(MIAMA_HM_ROOT = "/tmp/fake_hm"), {
     result <- miama_hm_root()
     expect_equal(result, normalizePath("/tmp/fake_hm", winslash = "/", mustWork = FALSE))
+  })
+})
+
+test_that("miama_hm_root_or_null() discovers sibling MIAMA-HM repo", {
+  tmp <- withr::local_tempdir()
+  hub_root <- file.path(tmp, "MIAMA-HUB")
+  hm_root <- file.path(tmp, "MIAMA-HM")
+  dir.create(hub_root, recursive = TRUE)
+  dir.create(file.path(hm_root, "health_data", "processed"), recursive = TRUE)
+
+  withr::with_envvar(list(
+    MIAMA_PROJECT_ROOT = hub_root,
+    MIAMA_HM_ROOT = ""
+  ), {
+    expect_equal(miama_hm_root_or_null(), normalizePath(hm_root, winslash = "/", mustWork = FALSE))
+    expect_equal(miama_hm_root(), normalizePath(hm_root, winslash = "/", mustWork = FALSE))
   })
 })
 
