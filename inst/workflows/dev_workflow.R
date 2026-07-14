@@ -13,7 +13,30 @@
 # -----------------------------------------------------------------------------#
 
 ## 0.1 Load package ----
-devtools::load_all()
+find_miama_hub_root <- function(start = getwd()) {
+  env_root <- Sys.getenv("MIAMA_PROJECT_ROOT", unset = "")
+  candidates <- unique(c(
+    env_root[nzchar(env_root)],
+    start,
+    file.path(start, "MIAMA-HUB"),
+    file.path(dirname(start), "MIAMA-HUB")
+  ))
+
+  for (candidate in candidates) {
+    desc <- file.path(candidate, "DESCRIPTION")
+    if (file.exists(desc) && identical(unname(read.dcf(desc)[1, "Package"]), "MIAMAHUB")) {
+      return(normalizePath(candidate, winslash = "/", mustWork = FALSE))
+    }
+  }
+
+  stop(
+    "Could not find MIAMA-HUB package root. Set MIAMA_PROJECT_ROOT to the MIAMA-HUB folder.",
+    call. = FALSE
+  )
+}
+
+hub_root <- find_miama_hub_root()
+devtools::load_all(hub_root)
 
 ## 0.2 Configure run ----
 # Config is for runtime/data-source concerns, not appraisal logic.
@@ -213,13 +236,34 @@ counterfactual_data$counterfactual_health_report$impact_overview |>
   print()
 
 
+# 8. Prepare results data for Tab 5 presentation ----
+# -----------------------------------------------------------------------------#
+# Based on UI Tab 5 inputs this step filters and aggregates the health-outcome
+# deltas into compact tables for plots, result tiles, and exports. The first
+# draft also creates ggplot objects that can be used for development testing.
+
+results_data <- prepare_results_data(
+  counterfactual_data = counterfactual_data,
+  reference_data = reference_data,
+  results_request = request$results_request,
+  appraisal_input_values = request$appraisal_input_values
+)
+
+## 8.1 Inspect result summaries and tables ----
+str(results_data$headline_metrics)
+str(results_data$results_report)
+results_data$results_table |>
+  dplyr::arrange(dplyr::desc(abs(delta_value))) |>
+  utils::head(30) |>
+  print()
+
+## 8.2 Draft presentation plots ----
+plot_health_overview <- results_plot_health_overview(results_data, value = "delta")
+plot_trip_modes <- results_plot_trip_mode_distribution(results_data)
+plot_health_timeline <- results_plot_health_timeline(results_data)
+
+plot_health_overview
+plot_trip_modes
+plot_health_timeline
+
 # Step X: comparison of reference vs counterfactual data
-# cra_inputs          <- prepare_cra_inputs(reference_data, counterfactual_data, request$results_request)
-# health_impacts      <- run_cra(cra_inputs)
-# build_ui_return_payload(
-#   ui_updates               = reference_ui_values,
-#   reference_summaries      = summarize_reference_data(reference_data),
-#   counterfactual_summaries = summarize_health_impacts(health_impacts, request$results_request),
-#   health_impacts           = health_impacts,
-#   state                    = list(reference_data = reference_data, counterfactual_data = counterfactual_data)
-# )

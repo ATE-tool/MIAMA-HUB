@@ -1,14 +1,25 @@
 # MIAMA-HUB Module: API / Hub R6 Wrapper
-# Purpose: Provide a session-scoped stateful wrapper around the package's core
-#   functions so Shiny can hold one Hub instance per appraisal session.
-# Notes: Keep business logic in the existing functional modules; this class
-#   should mainly manage state, sequencing, and user-facing method boundaries.
+# Purpose: Session-scoped interface between MIAMA-UI profile objects and HUB
+#   calculation modules.
+#
+# Primary UI workflow:
+# 1. `get_appraisal_setup_inputs()` returns the setup subset of the active
+#    profile: UI mode, geography, modes, and intervention descriptors.
+# 2. `build_reference_profile_defaults()` loads/builds reference data as needed
+#    and writes derived reference values into matching `default_value` fields.
+# 3. `get_counterfactual_profile_inputs()` returns the profile fields relevant
+#    to Tabs 2-4 counterfactual inputs.
+# 4. `build_results()` runs the current end-to-end calculation from the active
+#    profile and returns profile, data objects, result tables, and plot-ready
+#    data.
+#
+# Developer helpers remain available below the primary methods. They expose
+# intermediate objects for testing, debugging, and workflow scripts.
 
 #' Hub Session Object
 #'
-#' Stateful wrapper for one MIAMA appraisal session. Stores current inputs,
-#' request sections, and loaded reference-side objects. Intended to be created
-#' once per Shiny session and called via methods rather than via global state.
+#' Stateful wrapper for one MIAMA appraisal session. Stores the active
+#' MIAMA-UI profile object, internal request views, and intermediate data.
 #'
 #' @export
 Hub <- R6::R6Class(
@@ -22,6 +33,11 @@ Hub <- R6::R6Class(
     reference_data = NULL,
     reference_ui_values = NULL,
     counterfactual_data = NULL,
+    results_data = NULL,
+
+    # Lifecycle --------------------------------------------------------------
+    # Create one Hub per Shiny appraisal/session. `appraisal_inputs` is the
+    # active MIAMA-UI profile, typically `mdata[["profile"]]`.
 
     initialize = function(cfg = NULL, appraisal_inputs = NULL) {
       self$cfg <- cfg %||% miama_default_config()
@@ -32,8 +48,8 @@ Hub <- R6::R6Class(
     },
 
     set_appraisal_inputs = function(appraisal_inputs) {
-      self$appraisal_inputs <- appraisal_inputs
       self$request <- receive_appraisal_inputs(appraisal_inputs)
+      self$appraisal_inputs <- self$request$appraisal_inputs_in
       invisible(self$request)
     },
 
@@ -51,26 +67,103 @@ Hub <- R6::R6Class(
           reference_data_raw = self$reference_data_raw,
           reference_data = self$reference_data,
           reference_ui_values = self$reference_ui_values,
-          counterfactual_data = self$counterfactual_data
+          counterfactual_data = self$counterfactual_data,
+          results_data = self$results_data
         ),
         changed_fields = changed_fields
       )
 
-      self$appraisal_inputs <- merged
-      self$request <- receive_appraisal_inputs(self$appraisal_inputs)
+      self$request <- receive_appraisal_inputs(merged)
+      self$appraisal_inputs <- self$request$appraisal_inputs_in
       self$reference_sources <- invalidation$state$reference_sources
       self$reference_data_raw <- invalidation$state$reference_data_raw
       self$reference_data <- invalidation$state$reference_data
       self$reference_ui_values <- invalidation$state$reference_ui_values
       self$counterfactual_data <- invalidation$state$counterfactual_data
+      self$results_data <- invalidation$state$results_data
 
       invisible(self$request)
     },
 
-    get_request = function() {
-      private$.require_request()
-      self$request
+    # Primary UI Methods -----------------------------------------------------
+    # These are the intended high-level calls for MIAMA-UI.
+
+    get_appraisal_setup_inputs = function(profile = NULL) {
+      if (!is.null(profile)) {
+        self$set_appraisal_inputs(profile)
+      }
+      private$.require_profile()
+
+      private$.profile_subset(.hub_appraisal_setup_fields())
     },
+
+    build_reference_profile_defaults = function(profile = NULL, refresh = FALSE) {
+      if (!is.null(profile)) {
+        self$set_appraisal_inputs(profile)
+      }
+      private$.require_request()
+
+      if (isTRUE(refresh) || is.null(self$reference_sources)) {
+        self$load_reference_sources()
+      }
+      if (isTRUE(refresh) || is.null(self$reference_data)) {
+        self$build_reference_data()
+      }
+
+      reference_ui_values <- self$build_reference_ui_values()
+      updated_profile <- apply_reference_defaults_to_profile(
+        profile = self$appraisal_inputs,
+        ui_updates = reference_ui_values$ui_updates
+      )
+      defaults_report <- attr(updated_profile, "reference_defaults_report")
+
+      self$request <- receive_appraisal_inputs(updated_profile)
+      self$appraisal_inputs <- self$request$appraisal_inputs_in
+      attr(self$appraisal_inputs, "reference_defaults_report") <- defaults_report
+
+      self$appraisal_inputs
+    },
+
+    get_counterfactual_profile_inputs = function(profile = NULL) {
+      if (!is.null(profile)) {
+        self$set_appraisal_inputs(profile)
+      }
+      private$.require_profile()
+
+      private$.profile_subset(.hub_counterfactual_profile_fields(names(self$appraisal_inputs)))
+    },
+
+    build_results = function(profile = NULL, seed = 1L, refresh = FALSE) {
+      if (!is.null(profile)) {
+        self$set_appraisal_inputs(profile)
+      }
+      private$.require_request()
+
+      if (isTRUE(refresh) || is.null(self$reference_sources)) {
+        self$load_reference_sources()
+      }
+      if (isTRUE(refresh) || is.null(self$reference_data)) {
+        self$build_reference_data()
+      }
+      if (isTRUE(refresh) || is.null(self$counterfactual_data)) {
+        self$build_counterfactual_data(seed = seed)
+      }
+      if (isTRUE(refresh) || is.null(self$counterfactual_data$health_outcomes)) {
+        self$build_counterfactual_health_outcomes()
+      }
+
+      self$build_results_data()
+
+      list(
+        profile = self$appraisal_inputs,
+        reference_data = self$reference_data,
+        counterfactual_data = self$counterfactual_data,
+        results_data = self$results_data
+      )
+    },
+
+    # Geography Helpers ------------------------------------------------------
+    # Lightweight helpers for geography select controls and summary labels.
 
     get_geo_options = function(geo_level, refresh = FALSE) {
       get_geo_options(
@@ -99,6 +192,41 @@ Hub <- R6::R6Class(
 
       value[1]
     },
+
+    # Developer Helpers: Request/Profile Inspection --------------------------
+    # These are useful for testing and debugging. UI code should usually pass
+    # around the profile object instead of using the internal request directly.
+
+    get_request = function() {
+      private$.require_request()
+      self$request
+    },
+
+    get_profile = function() {
+      private$.require_profile()
+      self$appraisal_inputs
+    },
+
+    get_appraisal_summary_values = function(refresh = FALSE) {
+      private$.require_request()
+
+      ui_updates <- if (!is.null(self$reference_data)) {
+        self$get_reference_ui_updates(refresh = refresh)
+      } else {
+        list()
+      }
+
+      list(
+        geo_level = self$request$reference_request$geo_level,
+        geo_id = self$request$reference_request$geo_id,
+        geo_name = self$get_geo_name(default = ui_updates$geo_name %||% NA_character_),
+        population_size = ui_updates$population_size %||% ui_updates$pop_total_ref %||% NA_integer_,
+        appraisal_name = self$request$appraisal_input_values$appraisal_name %||% NULL
+      )
+    },
+
+    # Developer Helpers: Reference Pipeline ----------------------------------
+    # Expose intermediate reference objects for scripts and tests.
 
     load_reference_sources = function() {
       private$.require_request()
@@ -170,23 +298,9 @@ Hub <- R6::R6Class(
       self$get_reference_ui_value("population_size")
     },
 
-    get_appraisal_summary_values = function(refresh = FALSE) {
-      private$.require_request()
-
-      ui_updates <- if (!is.null(self$reference_data)) {
-        self$get_reference_ui_updates(refresh = refresh)
-      } else {
-        list()
-      }
-
-      list(
-        geo_level = self$request$reference_request$geo_level,
-        geo_id = self$request$reference_request$geo_id,
-        geo_name = self$get_geo_name(default = ui_updates$geo_name %||% NA_character_),
-        population_size = ui_updates$population_size %||% ui_updates$pop_total_ref %||% NA_integer_,
-        appraisal_name = self$request$appraisal_input_values$appraisal_name %||% NULL
-      )
-    },
+    # Developer Helpers: Counterfactual And Results Pipeline ------------------
+    # These remain callable for dev workflows, while `build_results()` is the
+    # preferred high-level UI method.
 
     build_counterfactual_data = function(seed = 1L) {
       private$.require_request()
@@ -209,9 +323,53 @@ Hub <- R6::R6Class(
       }
 
       self$counterfactual_data
+    },
+
+    build_counterfactual_health_outcomes = function(scheme_effect_duration = "longterm") {
+      private$.require_counterfactual_data()
+      private$.require_reference_data()
+
+      self$counterfactual_data <- apply_counterfactual_health_outcomes(
+        counterfactual_data = self$counterfactual_data,
+        reference_data = self$reference_data,
+        cfg = self$cfg,
+        scheme_effect_duration = scheme_effect_duration
+      )
+
+      self$counterfactual_data
+    },
+
+    build_results_data = function() {
+      private$.require_request()
+      private$.require_reference_data()
+      private$.require_counterfactual_data()
+
+      self$results_data <- prepare_results_data(
+        counterfactual_data = self$counterfactual_data,
+        reference_data = self$reference_data,
+        results_request = self$request$results_request,
+        appraisal_input_values = self$request$appraisal_input_values
+      )
+
+      self$results_data
+    },
+
+    get_results_data = function(refresh = FALSE) {
+      if (isTRUE(refresh) || is.null(self$results_data)) {
+        return(self$build_results_data())
+      }
+
+      self$results_data
     }
   ),
+
   private = list(
+    .require_profile = function() {
+      if (is.null(self$appraisal_inputs)) {
+        stop("Hub profile is not set. Call set_appraisal_inputs() first.", call. = FALSE)
+      }
+    },
+
     .require_request = function() {
       if (is.null(self$request)) {
         stop("Hub request is not set. Call set_appraisal_inputs() first.", call. = FALSE)
@@ -228,6 +386,32 @@ Hub <- R6::R6Class(
       if (is.null(self$reference_data)) {
         stop("Reference data is not built. Call build_reference_data() first.", call. = FALSE)
       }
+    },
+
+    .require_counterfactual_data = function() {
+      if (is.null(self$counterfactual_data)) {
+        stop("Counterfactual data is not built. Call build_counterfactual_data() first.", call. = FALSE)
+      }
+    },
+
+    .profile_subset = function(fields) {
+      fields <- fields[fields %in% names(self$appraisal_inputs)]
+      self$appraisal_inputs[fields]
     }
   )
 )
+
+.hub_appraisal_setup_fields <- function() {
+  c(
+    "ui_version", "ui_input_scope", "geo_level", "geo_id", "modes",
+    "intervention_type", "data_source"
+  )
+}
+
+.hub_counterfactual_profile_fields <- function(profile_names) {
+  setup <- .hub_appraisal_setup_fields()
+  results <- grep("^res_", profile_names, value = TRUE)
+  reference_defaults <- grep("_ref$|^pop_total_ref$|^population_size$|^geo_name$", profile_names, value = TRUE)
+  context <- c("ui_version", "modes", "intervention_type", "data_source")
+  unique(c(context[context %in% profile_names], setdiff(profile_names, unique(c(setup, results, reference_defaults)))))
+}

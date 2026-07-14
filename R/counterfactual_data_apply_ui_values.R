@@ -119,7 +119,7 @@ apply_counterfactual_ui_values <- function(
   assert_named_list(appraisal_input_values, "appraisal_input_values")
   assert_named_list(constants, "constants")
 
-  modes <- .ui_value(appraisal_input_values, "modes", character(0))
+  modes <- normalize_active_modes(.ui_value(appraisal_input_values, "modes", character(0)))
   if (length(modes) == 0) {
     modes <- names(.miama_tab2_mode_specs())
   }

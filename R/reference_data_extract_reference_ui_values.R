@@ -150,7 +150,7 @@ extract_reference_ui_values <- function(
 }
 
 .reference_ui_context <- function(appraisal_input_values) {
-  modes <- .ui_value(appraisal_input_values, "modes", character(0))
+  modes <- normalize_active_modes(.ui_value(appraisal_input_values, "modes", character(0)))
   if (length(modes) == 0) {
     modes <- c("walking", "cycling", "ebiking", "pt")
   }

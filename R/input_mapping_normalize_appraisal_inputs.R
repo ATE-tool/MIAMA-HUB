@@ -21,10 +21,6 @@ normalize_appraisal_inputs <- function(appraisal_inputs) {
         field$is_filled <- !is.null(field$input_value)
       }
 
-      if (is.null(field$input_value) && "default_value" %in% names(field)) {
-        field$input_value <- field$default_value
-      }
-
       if (is.null(field$input_source)) {
         field$input_source <- "user"
       }

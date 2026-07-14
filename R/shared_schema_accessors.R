@@ -19,6 +19,9 @@ get_input_value <- function(appraisal_inputs_in, field_name, default = NULL) {
 
   field <- appraisal_inputs_in[[field_name]]
   if (is_input_field(field)) {
+    if ("is_filled" %in% names(field) && !isTRUE(field$is_filled)) {
+      return(default)
+    }
     if (is.null(field$input_value)) {
       return(default)
     }
@@ -39,6 +42,9 @@ extract_input_values <- function(appraisal_inputs_in, drop_null = FALSE) {
 
   values <- lapply(appraisal_inputs_in, function(field) {
     if (is_input_field(field)) {
+      if ("is_filled" %in% names(field) && !isTRUE(field$is_filled)) {
+        return(NULL)
+      }
       return(field$input_value)
     }
     field
@@ -49,4 +55,33 @@ extract_input_values <- function(appraisal_inputs_in, drop_null = FALSE) {
   }
 
   values
+}
+
+# Normalizes active-mode identifiers used by MIAMA-UI and MIAMA-HUB.
+# MIAMA-UI currently uses short keys such as `walk` and `bike`, while several
+# HUB internals use descriptive keys such as `walking` and `cycling`.
+normalize_active_modes <- function(modes) {
+  if (is.null(modes) || length(modes) == 0) {
+    return(character(0))
+  }
+
+  x <- tolower(as.character(modes))
+  aliases <- c(
+    walk = "walking",
+    walking = "walking",
+    bike = "cycling",
+    bicycle = "cycling",
+    cycling = "cycling",
+    cycle = "cycling",
+    ebike = "ebiking",
+    e_bike = "ebiking",
+    ebiking = "ebiking",
+    pt = "pt",
+    public_transport = "pt",
+    walk_to_pt = "pt"
+  )
+
+  out <- unname(aliases[x])
+  out[is.na(out)] <- x[is.na(out)]
+  unique(out)
 }

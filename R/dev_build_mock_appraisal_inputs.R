@@ -123,10 +123,40 @@ build_mock_appraisal_inputs <- function(overrides = list()) {
       description = "Whether results are total or timeline outputs.",
       input_value = "total"
     ),
+    res_temp_aggregation = list(
+      is_filled = TRUE,
+      description = "Whether results are total or timeline outputs.",
+      input_value = "total"
+    ),
+    res_pop_aggregation = list(
+      is_filled = TRUE,
+      description = "Whether results are total or broken down by population strata.",
+      input_value = "total"
+    ),
+    res_impact_type = list(
+      is_filled = TRUE,
+      description = "How health impacts are presented.",
+      input_value = "attributable"
+    ),
     res_outcomes = list(
       is_filled = TRUE,
       description = "Health outcomes included in result summaries.",
       input_value = c("mortality", "stroke", "diabetes")
+    ),
+    res_age_groups = list(
+      is_filled = TRUE,
+      description = "Age groups included in result summaries.",
+      input_value = c("age_20_34", "age_35_49", "age_50_64", "age_65_74", "age_75plus")
+    ),
+    res_gender = list(
+      is_filled = TRUE,
+      description = "Gender strata included in result summaries.",
+      input_value = c("male", "female")
+    ),
+    res_modes_filter = list(
+      is_filled = TRUE,
+      description = "Active travel modes included in result summaries.",
+      input_value = c("walking", "cycling")
     )
   )
 

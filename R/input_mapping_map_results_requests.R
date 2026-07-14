@@ -12,6 +12,12 @@ map_results_requests <- function(appraisal_inputs_in) {
 
   list(
     res_aggregation = get_input_value(appraisal_inputs_in, "res_aggregation", default = NULL),
-    res_outcomes = get_input_value(appraisal_inputs_in, "res_outcomes", default = NULL)
+    res_temp_aggregation = get_input_value(appraisal_inputs_in, "res_temp_aggregation", default = NULL),
+    res_pop_aggregation = get_input_value(appraisal_inputs_in, "res_pop_aggregation", default = NULL),
+    res_impact_type = get_input_value(appraisal_inputs_in, "res_impact_type", default = NULL),
+    res_outcomes = get_input_value(appraisal_inputs_in, "res_outcomes", default = NULL),
+    res_age_groups = get_input_value(appraisal_inputs_in, "res_age_groups", default = NULL),
+    res_gender = get_input_value(appraisal_inputs_in, "res_gender", default = NULL),
+    res_modes_filter = get_input_value(appraisal_inputs_in, "res_modes_filter", default = NULL)
   )
 }

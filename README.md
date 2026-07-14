@@ -54,12 +54,30 @@ The scaffold is built around the following internal objects:
 See [inst/workflows/dev_workflow.R](inst/workflows/dev_workflow.R) for the
 active development orchestration flow.
 
-## `appraisal_inputs` and the API boundary
+## Profile objects and the API boundary
 
-For now, the `receive_appraisal_inputs()` function is an **R-level API boundary**,
-not a web API. Its job is to accept the canonical `appraisal_inputs` object shape
-used by `MIAMA-UI`, normalize it, and expose its values to the rest of
+For now, the `receive_appraisal_inputs()` function is an internal **R-level API
+boundary**, not a web API. Its job is to accept the active MIAMA-UI profile
+object, normalize it, and expose its submitted values to the rest of
 `MIAMA-HUB`.
+
+In MIAMA-UI, the active profile is created from `schemes/default.R`:
+
+```r
+mdata[["profile"]] <- mdata$schemes$default$appraisal_inputs
+```
+
+HUB expects that same canonical parameter-list shape. The field contract is:
+
+- `input_value`: value submitted by the user or Shiny input binding
+- `is_filled`: `TRUE` only when `input_value` should be treated as a submitted
+  appraisal value
+- `default_value`: UI prefill/default value, including HUB-derived reference
+  values
+
+`default_value` is deliberately not promoted into `input_value`. This prevents
+reference defaults from being mistaken for user-supplied counterfactual or
+results inputs.
 
 At the moment, this boundary returns:
 
@@ -71,6 +89,67 @@ At the moment, this boundary returns:
 
 This keeps `MIAMA-HUB` focused on calculation and data transformation, while
 letting `MIAMA-UI` remain the source of truth for interactive input definition.
+The `request` object is therefore a HUB-internal convenience view, not an object
+that MIAMA-UI needs to manage directly.
+
+## R6 Hub method outline
+
+The R6 `Hub` object is the intended session-scoped interface for MIAMA-UI. It
+stores one active profile, the internal request view derived from that profile,
+and any intermediate data objects built during the appraisal.
+
+Primary UI-facing methods:
+
+- `get_appraisal_setup_inputs(profile = NULL)`: returns the setup subset of the
+  profile, currently `ui_version`, `ui_input_scope`, `geo_level`, `geo_id`,
+  `modes`, `intervention_type`, and `data_source`.
+- `build_reference_profile_defaults(profile = NULL, refresh = FALSE)`: loads,
+  joins, filters, and summarizes reference data as needed, then writes matching
+  reference values into each profile field's `default_value`.
+- `get_counterfactual_profile_inputs(profile = NULL)`: returns profile fields
+  relevant to the counterfactual input steps, excluding reference-only defaults
+  and results-only controls.
+- `build_results(profile = NULL, seed = 1L, refresh = FALSE)`: runs the current
+  end-to-end calculation and returns the updated `profile`, `reference_data`,
+  `counterfactual_data`, and `results_data`.
+
+The intended Shiny flow is:
+
+```r
+hub <- MIAMAHUB::Hub$new(cfg = hub_cfg, appraisal_inputs = mdata[["profile"]])
+
+setup_profile <- hub$get_appraisal_setup_inputs()
+
+mdata[["profile"]] <- hub$build_reference_profile_defaults(mdata[["profile"]])
+attr(mdata[["profile"]], "reference_defaults_report")
+
+counterfactual_profile <- hub$get_counterfactual_profile_inputs(mdata[["profile"]])
+
+result <- hub$build_results(mdata[["profile"]])
+```
+
+For inspection during development:
+
+```r
+names(hub$get_profile())
+str(hub$get_profile()$pop_total_ref)
+hub$get_request()$appraisal_input_values
+hub$get_reference_ui_updates()
+result$results_data$results_table
+```
+
+For a more realistic profile test that reads the actual MIAMA-UI
+`schemes/default.R`, fills a LAD selection, runs the reference-data pipeline,
+and creates an inspectable `profile_with_defaults` object, run:
+
+```r
+source("inst/workflows/dev_profile_defaults_from_ui_default.R")
+```
+
+Developer helpers such as `load_reference_sources()`, `build_reference_data()`,
+`build_counterfactual_data()`, and `build_results_data()` remain available for
+workflow scripts and targeted testing. New MIAMA-UI integration should prefer
+the four primary methods above, with `request` treated as HUB-internal state.
 
 ## `config` versus `request`
 
@@ -195,10 +274,26 @@ especially once synthetic population data is available in parquet format.
 ## Reference UI value extraction
 
 `extract_reference_ui_values()` derives compact status-quo values from filtered
-`reference_data` for returning to `MIAMA-UI`. The function now accepts the
-flattened `appraisal_input_values` from `receive_appraisal_inputs()` so it can
-honor Tab 2 UI choices such as selected `modes`, `at_data_unit`, denominators,
-units, and timeframes.
+`reference_data`. The low-level function still returns a named `ui_updates`
+list for developer inspection and tests. The UI-facing R6 method is
+`Hub$build_reference_profile_defaults(profile)`: it runs the reference-data
+pipeline and writes all matching reference values into the profile's
+`default_value` fields.
+
+Intended UI usage:
+
+```r
+hub <- MIAMAHUB::Hub$new(cfg = hub_cfg, appraisal_inputs = mdata[["profile"]])
+mdata[["profile"]] <- hub$build_reference_profile_defaults(mdata[["profile"]])
+```
+
+The returned profile keeps `input_value` and `is_filled` unchanged. Fields that
+do not exist in the UI profile are skipped and listed in the
+`reference_defaults_report` attribute.
+
+The extractor accepts the flattened submitted values from
+`receive_appraisal_inputs()` so it can honor Tab 2 UI choices such as selected
+`modes`, `at_data_unit`, denominators, units, and timeframes.
 
 The current extractor covers Tab 2 reference fields for:
 
@@ -262,13 +357,12 @@ holiday, visit, or social.
 For plausibility checks across all Tab 2-4 reference fields, use
 `inst/workflows/dev_reference_ui_values_tab234_all.R`.
 
-The R6 `Hub` wrapper exposes the same output through
-`build_reference_ui_values()` / `get_reference_ui_values()`. Call
-`get_reference_ui_updates()` for the compact named UI update list, or
-`get_reference_ui_value("field_name")` for a single value. `get_population_size()`
-is retained only as a convenience wrapper around `population_size`; new code
-should prefer `get_appraisal_summary_values()` for the Tab 1 summary rather than
-adding one R6 method per UI field.
+The R6 `Hub` wrapper still exposes developer helpers
+`build_reference_ui_values()` / `get_reference_ui_values()` /
+`get_reference_ui_updates()` for inspection. New MIAMA-UI integration should use
+`build_reference_profile_defaults()` as the single call for populating reference
+fields. `get_population_size()` and `get_appraisal_summary_values()` are
+convenience helpers for development and summary displays.
 
 ## Counterfactual data initialization and UI application
 
@@ -384,9 +478,7 @@ It also includes `changed_trip_rows` for trip mode switches and induced trips.
 counterfactual physical activity to health model outcomes. It uses the updated
 MIAMA-HM death-share cycle artifacts:
 
-- `sp_cycle_outcomes_sample_death_share` when `cfg$workflow$dataset_size =
-  "sample"` and the sample artifact is available
-- `sp_cycle_outcomes_death_share` otherwise
+- `sp_cycle_outcomes_death_share`
 - `mmet_d_cycle_lookup_death_share`
 
 Those artifacts are produced by `MIAMA-HM/scripts/sp_hm_join.R`. HUB does not
@@ -471,8 +563,7 @@ Current expected layout:
 
 - synthetic population files live in `MIAMA-HUB/data/synthetic_pop/`
 - HM sample processed outputs may live in `MIAMA-HUB/data/health_data/`
-- full HM processed outputs are read from `MIAMA-HM` via `MIAMA_HM_ROOT`, or
-  from a sibling `../MIAMA-HM` repo when that common development layout exists
+- full HM processed outputs are read from `MIAMA-HM` via `MIAMA_HM_ROOT`
 
 HM outcome loading follows this hierarchy:
 
@@ -480,14 +571,7 @@ HM outcome loading follows this hierarchy:
    census-id prefilter is requested
 2. HUB-local sample parquet directories such as
    `data/health_data/sp_overall_outcomes_sample/`
-3. external MIAMA-HM parquet directories under
-   `MIAMA_HM_ROOT/health_data/processed/`, or under
-   `../MIAMA-HM/health_data/processed/` when `MIAMA_HM_ROOT` is unset
-
-Step 7 uses the same idea for death-share HM artifacts, with one additional
-sample/full detail: sample workflows prefer
-`sp_cycle_outcomes_sample_death_share` when present, while
-`mmet_d_cycle_lookup_death_share` is shared.
+3. external MIAMA-HM parquet directories under `MIAMA_HM_ROOT/health_data/processed/`
 
 This arrangement is temporary. Longer-term data storage will likely move to a
 VPS or another external location.
