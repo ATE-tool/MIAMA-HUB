@@ -94,9 +94,11 @@ that MIAMA-UI needs to manage directly.
 
 ## R6 Hub method outline
 
-The R6 `Hub` object is the intended session-scoped interface for MIAMA-UI. It
-stores one active profile, the internal request view derived from that profile,
-and any intermediate data objects built during the appraisal.
+The R6 `Hub` object is the intended session-scoped interface for MIAMA-UI. It is
+initialized with runtime configuration only. Profile objects are supplied to
+UI-facing methods when needed; HUB then stores the active profile, the internal
+request view derived from that profile, and any intermediate data objects built
+during the appraisal.
 
 Primary UI-facing methods:
 
@@ -116,9 +118,9 @@ Primary UI-facing methods:
 The intended Shiny flow is:
 
 ```r
-hub <- MIAMAHUB::Hub$new(cfg = hub_cfg, appraisal_inputs = mdata[["profile"]])
+hub <- MIAMAHUB::Hub$new(cfg = hub_cfg)
 
-setup_profile <- hub$get_appraisal_setup_inputs()
+setup_profile <- hub$get_appraisal_setup_inputs(mdata[["profile"]])
 
 mdata[["profile"]] <- hub$build_reference_profile_defaults(mdata[["profile"]])
 attr(mdata[["profile"]], "reference_defaults_report")
@@ -283,7 +285,7 @@ pipeline and writes all matching reference values into the profile's
 Intended UI usage:
 
 ```r
-hub <- MIAMAHUB::Hub$new(cfg = hub_cfg, appraisal_inputs = mdata[["profile"]])
+hub <- MIAMAHUB::Hub$new(cfg = hub_cfg)
 mdata[["profile"]] <- hub$build_reference_profile_defaults(mdata[["profile"]])
 ```
 

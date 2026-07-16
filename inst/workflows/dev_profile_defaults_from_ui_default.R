@@ -128,9 +128,9 @@ profile <- set_profile_input_if_present(profile, "res_temp_aggregation", "total"
 # This is the UI-facing call. It loads, joins, filters, and summarizes reference
 # data as needed, then writes all matching values into `default_value`.
 
-hub <- Hub$new(cfg = cfg, appraisal_inputs = profile)
+hub <- Hub$new(cfg = cfg)
 
-setup_profile <- hub$get_appraisal_setup_inputs()
+setup_profile <- hub$get_appraisal_setup_inputs(profile)
 profile_with_defaults <- hub$build_reference_profile_defaults(profile)
 reference_defaults_report <- attr(profile_with_defaults, "reference_defaults_report")
 

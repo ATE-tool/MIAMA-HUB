@@ -1,5 +1,19 @@
+test_that("Hub initializes with cfg only and accepts profile state later", {
+  hub <- Hub$new(cfg = list())
+
+  expect_null(hub$appraisal_inputs)
+  expect_null(hub$request)
+
+  profile <- build_mock_appraisal_inputs()
+  request <- hub$set_appraisal_inputs(profile)
+
+  expect_false(is.null(request))
+  expect_false(is.null(hub$get_profile()))
+})
+
 test_that("Hub exposes reference UI updates and single-field accessors", {
-  hub <- Hub$new(cfg = list(), appraisal_inputs = build_mock_appraisal_inputs(
+  hub <- Hub$new(cfg = list())
+  hub$set_appraisal_inputs(build_mock_appraisal_inputs(
     overrides = list(
       at_data_unit = list(input_value = "users"),
       modes = list(input_value = c("walking", "cycling"))
@@ -34,10 +48,10 @@ test_that("Hub exposes profile subsets for setup and counterfactual UI steps", {
     intervention_type = list(input_value = "infras", is_filled = TRUE),
     users_count_cf_walk = list(input_value = 10, is_filled = TRUE)
   ))
-  hub <- Hub$new(cfg = list(), appraisal_inputs = profile)
+  hub <- Hub$new(cfg = list())
 
-  setup <- hub$get_appraisal_setup_inputs()
-  counterfactual <- hub$get_counterfactual_profile_inputs()
+  setup <- hub$get_appraisal_setup_inputs(profile)
+  counterfactual <- hub$get_counterfactual_profile_inputs(profile)
 
   expect_true(all(c("ui_version", "geo_level", "geo_id", "modes", "intervention_type") %in% names(setup)))
   expect_true("modes" %in% names(counterfactual))
@@ -74,7 +88,7 @@ test_that("Hub builds a profile with reference defaults in one UI-facing call", 
     population_size = list(is_filled = FALSE, input_value = NULL, description = "Population size"),
     pop_number_ref_walk = list(is_filled = FALSE, input_value = NULL, description = "Walking users")
   ))
-  hub <- Hub$new(cfg = list(), appraisal_inputs = profile)
+  hub <- Hub$new(cfg = list())
   hub$reference_sources <- list(source_report = list())
   hub$reference_data <- list(
     ind = data.frame(
@@ -85,7 +99,7 @@ test_that("Hub builds a profile with reference defaults in one UI-facing call", 
     )
   )
 
-  updated <- hub$build_reference_profile_defaults()
+  updated <- hub$build_reference_profile_defaults(profile)
   report <- attr(updated, "reference_defaults_report")
 
   expect_equal(updated$pop_total_ref$default_value, 3)
@@ -117,13 +131,13 @@ test_that("Hub exposes appraisal summary geo name from geo lookup", {
     cfg = list(
       sources = list(sp_attributes = list(path = sp_dir, format = "parquet")),
       output = list(lookup = file.path(tmp, "lookup"))
-    ),
-    appraisal_inputs = build_mock_appraisal_inputs(overrides = list(
-      geo_level = list(input_value = "lad"),
-      geo_id = list(input_value = "E08000035"),
-      appraisal_name = list(input_value = "Leeds test")
-    ))
+    )
   )
+  hub$set_appraisal_inputs(build_mock_appraisal_inputs(overrides = list(
+    geo_level = list(input_value = "lad"),
+    geo_id = list(input_value = "E08000035"),
+    appraisal_name = list(input_value = "Leeds test")
+  )))
 
   summary <- hub$get_appraisal_summary_values()
 
@@ -133,7 +147,8 @@ test_that("Hub exposes appraisal summary geo name from geo lookup", {
 })
 
 test_that("Hub clears cached reference UI values when lightweight inputs change", {
-  hub <- Hub$new(cfg = list(), appraisal_inputs = build_mock_appraisal_inputs())
+  hub <- Hub$new(cfg = list())
+  hub$set_appraisal_inputs(build_mock_appraisal_inputs())
   hub$reference_sources <- list(source_report = list())
   hub$reference_data_raw <- list(ind = data.frame(), trips = data.frame())
   hub$reference_data <- list(ind = data.frame(), trips = data.frame())
@@ -150,7 +165,8 @@ test_that("Hub clears cached reference UI values when lightweight inputs change"
 })
 
 test_that("Hub builds counterfactual data from appraisal input values", {
-  hub <- Hub$new(cfg = list(), appraisal_inputs = build_mock_appraisal_inputs(
+  hub <- Hub$new(cfg = list())
+  hub$set_appraisal_inputs(build_mock_appraisal_inputs(
     overrides = list(
       at_data_unit = list(input_value = "users"),
       modes = list(input_value = "walking"),
@@ -174,12 +190,13 @@ test_that("Hub builds counterfactual data from appraisal input values", {
 })
 
 test_that("Hub builds results through high-level UI method when data are already available", {
-  hub <- Hub$new(cfg = list(), appraisal_inputs = build_mock_appraisal_inputs(
+  hub <- Hub$new(cfg = list())
+  profile <- build_mock_appraisal_inputs(
     overrides = list(
       res_outcomes = list(input_value = "mortality", is_filled = TRUE),
       res_aggregation = list(input_value = "total", is_filled = TRUE)
     )
-  ))
+  )
   hub$reference_sources <- list(source_report = list())
   hub$reference_data <- list(ind = data.frame(census_id = 1))
   hub$counterfactual_data <- list(
@@ -194,7 +211,7 @@ test_that("Hub builds results through high-level UI method when data are already
     )
   )
 
-  out <- hub$build_results()
+  out <- hub$build_results(profile)
 
   expect_true(all(c("profile", "reference_data", "counterfactual_data", "results_data") %in% names(out)))
   expect_equal(out$results_data$results_table$outcome, "mortality")

@@ -18,8 +18,9 @@
 
 #' Hub Session Object
 #'
-#' Stateful wrapper for one MIAMA appraisal session. Stores the active
-#' MIAMA-UI profile object, internal request views, and intermediate data.
+#' Stateful wrapper for one MIAMA appraisal session. The object is initialized
+#' with runtime configuration only; MIAMA-UI profile objects are supplied to
+#' profile-aware methods or set explicitly with `set_appraisal_inputs()`.
 #'
 #' @export
 Hub <- R6::R6Class(
@@ -36,15 +37,13 @@ Hub <- R6::R6Class(
     results_data = NULL,
 
     # Lifecycle --------------------------------------------------------------
-    # Create one Hub per Shiny appraisal/session. `appraisal_inputs` is the
-    # active MIAMA-UI profile, typically `mdata[["profile"]]`.
+    # Create one Hub per Shiny appraisal/session. Construction is config-only;
+    # pass the active MIAMA-UI profile to UI-facing methods such as
+    # `build_reference_profile_defaults(profile)` or call
+    # `set_appraisal_inputs(profile)` before using stateful developer helpers.
 
-    initialize = function(cfg = NULL, appraisal_inputs = NULL) {
+    initialize = function(cfg = NULL) {
       self$cfg <- cfg %||% miama_default_config()
-
-      if (!is.null(appraisal_inputs)) {
-        self$set_appraisal_inputs(appraisal_inputs)
-      }
     },
 
     set_appraisal_inputs = function(appraisal_inputs) {

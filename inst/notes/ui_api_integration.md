@@ -96,8 +96,9 @@ library(MIAMAHUB)
 cfg <- miama_default_config()
 cfg$workflow$dataset_size <- "sample"
 
-# In Shiny, create one Hub per user session.
-hub <- Hub$new(cfg = cfg, appraisal_inputs = appraisal_inputs)
+# In Shiny, create one Hub per user session, then attach the active profile.
+hub <- Hub$new(cfg = cfg)
+hub$set_appraisal_inputs(appraisal_inputs)
 
 # Load and build reference data after required setup fields are available:
 hub$load_reference_sources()
@@ -228,8 +229,9 @@ server <- function(input, output, session) {
     cfg <- MIAMAHUB::miama_default_config()
     cfg$workflow$dataset_size <- "sample"
 
-    ai <- appraisal_inputs
-    hub(MIAMAHUB::Hub$new(cfg = cfg, appraisal_inputs = ai))
+    h <- MIAMAHUB::Hub$new(cfg = cfg)
+    h$set_appraisal_inputs(appraisal_inputs)
+    hub(h)
   }, once = TRUE)
 
   observeEvent(input$geo_id, {

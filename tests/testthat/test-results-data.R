@@ -100,7 +100,8 @@ test_that("result plotting functions return ggplot objects", {
 })
 
 test_that("Hub builds results data from counterfactual health outcomes", {
-  hub <- Hub$new(cfg = list(), appraisal_inputs = build_mock_appraisal_inputs(
+  hub <- Hub$new(cfg = list())
+  hub$set_appraisal_inputs(build_mock_appraisal_inputs(
     overrides = list(
       res_outcomes = list(input_value = "mortality"),
       res_aggregation = list(input_value = "total")
