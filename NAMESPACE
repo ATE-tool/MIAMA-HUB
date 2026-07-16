@@ -1,5 +1,6 @@
 export(build_ui_return_payload)
 export(get_geo_levels)
+export(get_geo_details)
 export(get_geo_name)
 export(get_geo_options)
 export(Hub)

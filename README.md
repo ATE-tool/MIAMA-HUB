@@ -189,6 +189,9 @@ This keeps appraisal logic in the request layer and runtime concerns in config.
 - `get_geo_levels(cfg)` returns available levels.
 - `get_geo_options(cfg, geo_level)` returns selectable `geo_id` / `geo_name`
   rows for one level.
+- `get_geo_details(cfg, geo_id, geo_level = NULL)` resolves one selected option
+  to summary fields for Tab 1: `location`, `geographic_scale`, and
+  `administrative_location_id`.
 - `get_geo_name(cfg, geo_level, geo_id)` resolves one selected geography to its
   display name.
 - `Hub$get_geo_options(geo_level)` exposes the same options through the
@@ -209,6 +212,18 @@ The alias `region` is accepted by `get_geo_options()` and normalized to `reg`.
 Grouped LAD and MSOA options are not derived yet because the current synthpop
 attributes source only exposes `region`, `lad25cd`, and `lad25nm`.
 
+Tab 1 can call the lightweight geography helpers directly, without creating a
+`Hub` object:
+
+```r
+lad_options <- MIAMAHUB::get_geo_options(mdata[["hub_cfg"]], "lad")
+geo_details <- MIAMAHUB::get_geo_details(mdata[["hub_cfg"]], input$geo_id)
+
+geo_details$location
+geo_details$geographic_scale
+geo_details$administrative_location_id
+```
+
 ## Tab 1 appraisal summary values
 
 The Tab 1 summary should reuse canonical user-selected fields where they already
@@ -222,10 +237,12 @@ Summary-only fields should be reserved for values that are derived or displayed:
 - `population_size`: display alias for the filtered reference population size
 - `appraisal_name`: user-entered nickname for the appraisal
 
-`geo_name` is available from the lightweight geography lookup and can be
-resolved before full reference data is built. `population_size` is equivalent to
-`pop_total_ref` and is available after reference data has been filtered and
-`extract_reference_ui_values()` has run. The R6 API exposes a compact helper:
+`geo_name` / `location` is available from the lightweight geography lookup and
+can be resolved before full reference data is built. Prefer
+`get_geo_details(cfg, geo_id)` for Tab 1 summary panels. `population_size` is
+equivalent to `pop_total_ref` and is available after reference data has been
+filtered and `extract_reference_ui_values()` has run. The R6 API still exposes a
+compact development helper:
 
 ```r
 hub$get_appraisal_summary_values()

@@ -102,6 +102,58 @@ get_geo_name <- function(cfg = NULL, geo_level, geo_id = NULL, refresh = FALSE) 
   matched$geo_name[1]
 }
 
+#' Get Geography Details
+#'
+#' Resolve a selected geography ID to the compact metadata needed by the Tab 1
+#' summary panel. This is intentionally independent of the `Hub` R6 object so
+#' early setup UI can stay lightweight.
+#'
+#' @param cfg MIAMA-HUB configuration object. Defaults to `miama_default_config()`.
+#' @param geo_id Geography ID selected by the UI. For England-wide appraisals,
+#'   `geo_id = "eng"` is supported.
+#' @param geo_level Optional geography level. If omitted, the ID is resolved
+#'   across all supported levels. The alias `region` is normalized to `reg`.
+#' @param refresh Rebuild the cached lookup before resolving details.
+#'
+#' @return A one-row data frame with canonical lookup columns plus UI summary
+#'   aliases: `location`, `geographic_scale`, and
+#'   `administrative_location_id`. Returns a zero-row data frame if no match is
+#'   found.
+#' @export
+get_geo_details <- function(cfg = NULL, geo_id, geo_level = NULL, refresh = FALSE) {
+  if (missing(geo_id) || is.null(geo_id) || length(geo_id) == 0 || is.na(geo_id[1])) {
+    stop("`geo_id` must be one selected geography ID.", call. = FALSE)
+  }
+
+  lookup <- .load_geo_lookup(cfg = cfg, refresh = refresh)
+  levels <- .geo_level_specs()
+
+  if (!is.null(geo_level)) {
+    if (length(geo_level) != 1 || is.na(geo_level[1])) {
+      stop("`geo_level` must be one geography level when supplied.", call. = FALSE)
+    }
+
+    geo_level <- .normalize_geo_level(as.character(geo_level))
+    .assert_supported_geo_level(geo_level)
+    lookup <- lookup[lookup$geo_level == geo_level, , drop = FALSE]
+  }
+
+  geo_id <- as.character(geo_id[1])
+  matched <- lookup[lookup$geo_id == geo_id, , drop = FALSE]
+  if (nrow(matched) == 0) {
+    matched <- lookup[lookup$geo_name == geo_id, , drop = FALSE]
+  }
+
+  out <- matched[seq_len(min(nrow(matched), 1L)), , drop = FALSE]
+  out$geo_label <- unname(vapply(out$geo_level, function(level) levels[[level]]$label, character(1)))
+  out$location <- out$geo_name
+  out$geographic_scale <- out$geo_label
+  out$administrative_location_id <- out$geo_id
+
+  row.names(out) <- NULL
+  out
+}
+
 build_geo_lookup <- function(cfg = NULL, overwrite = FALSE) {
   cfg <- cfg %||% miama_default_config()
   lookup_path <- .geo_lookup_path(cfg)

@@ -176,6 +176,9 @@ region_options <- MIAMAHUB::get_geo_options(cfg, "reg")
 
 # `region` is also accepted as an alias for `reg`.
 region_options <- MIAMAHUB::get_geo_options(cfg, "region")
+
+# Tab 1 summary details can be resolved without creating a Hub object.
+geo_details <- MIAMAHUB::get_geo_details(cfg, "E08000035")
 ```
 
 The returned level table has:
@@ -196,6 +199,16 @@ data.frame(
   geo_id = "E08000035",
   geo_name = "Leeds",
   n_individuals = ...
+)
+```
+
+The returned detail table has one row and adds UI-friendly aliases:
+
+```r
+data.frame(
+  location = "Leeds",
+  geographic_scale = "Local authority district",
+  administrative_location_id = "E08000035"
 )
 ```
 

@@ -42,6 +42,24 @@ test_that("get_geo_levels and get_geo_options build cached lookup from synthpop 
   expect_equal(get_geo_name(cfg, "lad", "E08000035"), "Leeds")
   expect_equal(get_geo_name(cfg, "reg", "London"), "London")
   expect_true(is.na(get_geo_name(cfg, "lad", "missing")))
+
+  leeds <- get_geo_details(cfg, "E08000035")
+  expect_equal(nrow(leeds), 1L)
+  expect_equal(leeds$location, "Leeds")
+  expect_equal(leeds$geographic_scale, "Local authority district")
+  expect_equal(leeds$administrative_location_id, "E08000035")
+  expect_equal(leeds$n_individuals, 2L)
+
+  london <- get_geo_details(cfg, "London", geo_level = "region")
+  expect_equal(london$geo_level, "reg")
+  expect_equal(london$location, "London")
+
+  england <- get_geo_details(cfg, "eng")
+  expect_equal(england$location, "England")
+  expect_equal(england$geographic_scale, "England")
+
+  missing <- get_geo_details(cfg, "missing")
+  expect_equal(nrow(missing), 0L)
 })
 
 test_that("Hub exposes geo options through session cfg", {
