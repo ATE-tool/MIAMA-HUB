@@ -55,7 +55,7 @@ cfg$cache$refresh         <- FALSE
 appraisal_inputs <- build_mock_appraisal_inputs(
   overrides = list(
     geo_level = list(input_value = "lad"),
-    geo_id = list(input_value = "E08000035"),
+    geo_id = list(input_value = "E08000035"), # Leeds
     modes = list(input_value = c("walking", "cycling")),
     res_aggregation = list(input_value = "total")
   )
