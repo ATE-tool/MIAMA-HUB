@@ -87,6 +87,31 @@ test_that("miama_paths() sp sources point to expected parquet paths when dirs ar
   })
 })
 
+test_that("miama_runtime_data_dir() falls back to packaged extdata when source data is empty", {
+  project_root <- withr::local_tempdir()
+  dir.create(file.path(project_root, "data"), recursive = TRUE)
+
+  packaged_root <- withr::local_tempdir()
+  packaged_data <- file.path(packaged_root, "extdata", "data")
+  dir.create(packaged_data, recursive = TRUE)
+
+  local_mocked_bindings(
+    system.file = function(..., package = NULL) {
+      args <- c(...)
+      if (identical(package, "MIAMAHUB") && identical(args, c("extdata", "data"))) {
+        return(packaged_data)
+      }
+      base::system.file(..., package = package)
+    },
+    .env = environment(miama_runtime_data_dir)
+  )
+
+  expect_equal(
+    miama_runtime_data_dir(project_root),
+    normalizePath(packaged_data, winslash = "/", mustWork = FALSE)
+  )
+})
+
 test_that("miama_paths() selects HUB-local HM sample before external HM", {
   tmp <- withr::local_tempdir()
   hub_dir <- file.path(tmp, "data", "health_data", "sp_overall_outcomes_sample")

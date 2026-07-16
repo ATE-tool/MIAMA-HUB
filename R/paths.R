@@ -59,6 +59,20 @@ miama_path <- function(...) {
   file.path(miama_project_root(), ...)
 }
 
+miama_runtime_data_dir <- function(project_root = miama_project_root()) {
+  source_data <- file.path(project_root, "data")
+  packaged_data <- system.file("extdata", "data", package = "MIAMAHUB")
+
+  if (dir.exists(source_data) && length(list.files(source_data, all.files = FALSE)) > 0) {
+    return(source_data)
+  }
+  if (nzchar(packaged_data) && dir.exists(packaged_data)) {
+    return(normalizePath(packaged_data, winslash = "/", mustWork = FALSE))
+  }
+
+  source_data
+}
+
 miama_hm_root <- function() {
   root <- miama_hm_root_or_null()
   if (is.null(root)) {
@@ -121,7 +135,7 @@ miama_pick_hm_source <- function(data_dir, hm_processed, dataset_name) {
 miama_paths <- function() {
   project_root <- miama_project_root()
   hm_root      <- miama_hm_root_or_null()
-  data_dir     <- file.path(project_root, "data")
+  data_dir     <- miama_runtime_data_dir(project_root)
   hm_processed <- if (is.null(hm_root)) NULL else file.path(hm_root, "health_data", "processed")
 
   sp_attributes <- miama_pick_synthpop_source(data_dir, "SPindivid_CensusNTSALS")
