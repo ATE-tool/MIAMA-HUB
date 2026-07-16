@@ -786,6 +786,10 @@ extract_reference_ui_values <- function(
     return(NULL)
   }
 
+  if (inherits(values, "haven_labelled") || inherits(values, "vctrs_vctr")) {
+    values <- unclass(values)
+  }
+
   as.numeric(values)
 }
 

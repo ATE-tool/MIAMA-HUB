@@ -220,6 +220,7 @@ test_that("extract_reference_ui_values derives Tab 3 population reference fields
 
 test_that("extract_reference_ui_values handles haven-labelled numeric columns", {
   skip_if_not_installed("haven")
+  skip_if_not_installed("vctrs")
 
   reference_data <- list(
     ind = data.frame(
@@ -232,7 +233,7 @@ test_that("extract_reference_ui_values handles haven-labelled numeric columns", 
     )
   )
   reference_data$ind$age1year <- haven::labelled(c(20, 30, 40), c(young = 20, mid = 30, old = 40))
-  reference_data$ind$female <- haven::labelled(c(0, 1, 0), c(male = 0, female = 1))
+  reference_data$ind$female <- vctrs::new_vctr(c(0, 1, 0), class = "haven_labelled", labels = c(male = 0, female = 1))
   reference_data$ind$walktime_wkhr <- haven::labelled(c(1, 0, 2), c(none = 0))
   reference_data$trips$weight_tripXhh <- haven::labelled(c(1, 2, 1), c(one = 1, two = 2))
   reference_data$trips$trip_walkdist_km <- haven::labelled(c(1, 0, 2), c(none = 0))
