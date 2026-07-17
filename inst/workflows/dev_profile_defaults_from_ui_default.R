@@ -113,7 +113,7 @@ profile <- set_profile_input(profile, "ui_version", "advanced")
 profile <- set_profile_input(profile, "ui_input_scope", "counter")
 profile <- set_profile_input(profile, "geo_level", "lad")
 profile <- set_profile_input(profile, "geo_id", "E08000035")
-profile <- set_profile_input(profile, "modes", c("walk", "bike"))
+profile <- set_profile_input(profile, "modes", c("walking", "cycling"))
 profile <- set_profile_input(profile, "intervention_type", "infras")
 profile <- set_profile_input(profile, "data_source", "counts")
 

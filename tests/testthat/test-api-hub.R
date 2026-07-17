@@ -57,6 +57,15 @@ test_that("Hub exposes profile subset for setup UI step", {
   expect_false("res_outcomes" %in% names(setup))
 })
 
+test_that("get_input_value treats unfilled list fields as missing even without input_value", {
+  profile <- list(
+    geo_level = list(is_filled = FALSE, description = "Spatial resolution")
+  )
+
+  expect_null(get_input_value(profile, "geo_level", default = NULL))
+  expect_equal(get_input_value(profile, "geo_level", default = "missing"), "missing")
+})
+
 test_that("apply_reference_defaults_to_profile writes defaults without filling inputs", {
   profile <- list(
     pop_total_ref = list(is_filled = FALSE, input_value = NULL, description = "Population"),
@@ -196,6 +205,20 @@ test_that("Hub builds a profile with reference defaults in one UI-facing call", 
   expect_null(updated$pop_total_ref$input_value)
   expect_false(updated$pop_total_ref$is_filled)
   expect_true("pop_total_ref" %in% report$updated_fields)
+})
+
+test_that("Hub reference loading fails fast when Tab 1 geography is not written to profile", {
+  profile <- build_mock_appraisal_inputs()
+  profile$geo_level$input_value <- NULL
+  profile$geo_level$is_filled <- FALSE
+  profile$geo_id$input_value <- NULL
+  profile$geo_id$is_filled <- FALSE
+  hub <- Hub$new(cfg = list())
+
+  expect_error(
+    hub$build_reference_profile_defaults(profile),
+    "Reference geography is not set"
+  )
 })
 
 test_that("Hub exposes appraisal summary geo name from geo lookup", {

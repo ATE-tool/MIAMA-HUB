@@ -218,6 +218,7 @@ Hub <- R6::R6Class(
 
     load_reference_sources = function() {
       private$.require_request()
+      private$.require_reference_scope()
 
       self$reference_sources <- load_reference_sources(
         cfg = self$cfg,
@@ -361,6 +362,28 @@ Hub <- R6::R6Class(
     .require_request = function() {
       if (is.null(self$request)) {
         stop("Hub request is not set. Call set_appraisal_inputs() first.", call. = FALSE)
+      }
+    },
+
+    .require_reference_scope = function() {
+      geo_level <- self$request$reference_request$geo_level %||% NULL
+      geo_id <- self$request$reference_request$geo_id %||% NULL
+
+      if (is.null(geo_level) || length(geo_level) == 0 || !nzchar(as.character(geo_level)[1])) {
+        stop(
+          "Reference geography is not set. Update the profile fields `geo_level`",
+          " and, unless `geo_level = \"eng\"`, `geo_id` before calling HUB reference loading.",
+          call. = FALSE
+        )
+      }
+
+      if (!identical(as.character(geo_level)[1], "eng") &&
+          (is.null(geo_id) || length(geo_id) == 0 || !nzchar(as.character(geo_id)[1]))) {
+        stop(
+          "Reference geography ID is not set. Update the profile field `geo_id`",
+          " before calling HUB reference loading.",
+          call. = FALSE
+        )
       }
     },
 

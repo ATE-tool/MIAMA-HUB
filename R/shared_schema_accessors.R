@@ -18,10 +18,11 @@ get_input_value <- function(appraisal_inputs_in, field_name, default = NULL) {
   }
 
   field <- appraisal_inputs_in[[field_name]]
+  if (is.list(field) && "is_filled" %in% names(field) && !isTRUE(field$is_filled)) {
+    return(default)
+  }
+
   if (is_input_field(field)) {
-    if ("is_filled" %in% names(field) && !isTRUE(field$is_filled)) {
-      return(default)
-    }
     if (is.null(field$input_value)) {
       return(default)
     }

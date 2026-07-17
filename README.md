@@ -328,6 +328,12 @@ hub <- MIAMAHUB::Hub$new(cfg = hub_cfg)
 mdata[["profile"]] <- hub$build_reference_profile_defaults(mdata[["profile"]])
 ```
 
+Before this call, MIAMA-UI must copy the selected Tab 1 setup values into
+`mdata[["profile"]]`, especially `geo_level`, `geo_id` for non-England
+geographies, `ui_version`, `modes`, `intervention_type`, and `data_source`.
+The R6 method now fails fast if reference geography is missing, because an
+unscoped call can otherwise trigger a much larger parquet load than intended.
+
 The returned profile keeps `input_value` and `is_filled` unchanged. Fields that
 do not exist in the UI profile are skipped and listed in the
 `reference_defaults_report` attribute. Fields that exist but are not relevant
@@ -410,8 +416,11 @@ reference geography. `trips_spread_util_prop_ref` classifies trips as
 utilitarian unless `trip_purpose` looks recreational, leisure, sport, exercise,
 holiday, visit, or social.
 
-For plausibility checks across all Tab 2-4 reference fields, use
-`inst/workflows/dev_reference_ui_values_tab234_all.R`.
+For plausibility checks against the real MIAMA-UI profile object, use
+`inst/workflows/dev_profile_defaults_from_ui_default.R`. It loads
+`MIAMA-UI/schemes/default.R`, fills minimal Tab 1 setup inputs, runs
+`build_reference_profile_defaults()`, and shows fields populated in
+`default_value`.
 
 The R6 `Hub` wrapper still exposes developer helpers
 `build_reference_ui_values()` / `get_reference_ui_values()` /
