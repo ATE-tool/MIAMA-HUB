@@ -177,6 +177,9 @@ test_that("extract_reference_ui_values derives mode-share reference fields", {
   expect_equal(values$ui_updates$mode_share_total_trips_2, 4)
   expect_equal(values$ui_updates$mode_share_ref_walk, 25)
   expect_equal(values$ui_updates$mode_share_ref_bike, 75)
+  expect_true(all(c("mode_share_ref_ebike", "mode_share_ref_pt") %in% names(values$ui_updates)))
+  expect_true(is.na(values$ui_updates$mode_share_ref_ebike))
+  expect_true(is.na(values$ui_updates$mode_share_ref_pt))
 })
 
 test_that("extract_reference_ui_values derives Tab 3 population reference fields", {
@@ -293,4 +296,14 @@ test_that("extract_reference_ui_values derives Tab 4 trip reference fields", {
   expect_equal(values$ui_updates$trips_diversion_trips_n, 4)
   expect_equal(values$ui_updates$trips_diversion_distance_total, 19)
   expect_equal(values$ui_updates$trips_diversion_duration_total, 130)
+
+  diversion_values <- extract_reference_ui_values(
+    reference_data,
+    appraisal_input_values = list(
+      at_data_unit = "trips",
+      modes = "walking",
+      trips_refine_method = "trip_diversion"
+    )
+  )
+  expect_true(all(c("mode_share_ref_walk", "mode_share_ref_bike", "mode_share_ref_ebike", "mode_share_ref_pt") %in% names(diversion_values$ui_updates)))
 })

@@ -117,12 +117,14 @@ extract_reference_ui_values <- function(
     }
   }
 
-  if (identical(context$at_data_unit, "mode_share")) {
+  if (identical(context$at_data_unit, "mode_share") ||
+      identical(context$trips_refine_method, "trip_diversion")) {
     result <- .reference_mode_share_values(
       trips = trips,
-      modes = context$modes,
+      modes = context$mode_share_modes,
       total_unit = .reference_mode_share_total_unit(context$values),
-      show_options = isTRUE(.ui_value(context$values, "ui_mode_share_show_options", FALSE))
+      show_options = isTRUE(.ui_value(context$values, "ui_mode_share_show_options", FALSE)) ||
+        isTRUE(.ui_value(context$values, "ui_trips_diversion_show_options", FALSE))
     )
     ui_updates <- utils::modifyList(ui_updates, result$ui_updates)
     report$notes <- c(report$notes, result$notes)
@@ -158,7 +160,9 @@ extract_reference_ui_values <- function(
   list(
     values = appraisal_input_values,
     modes = modes,
-    at_data_unit = .ui_value(appraisal_input_values, "at_data_unit", "trips")
+    mode_share_modes = names(.miama_tab2_mode_specs()),
+    at_data_unit = .ui_value(appraisal_input_values, "at_data_unit", "trips"),
+    trips_refine_method = .ui_value(appraisal_input_values, "trips_refine_method", NULL)
   )
 }
 
@@ -504,6 +508,17 @@ extract_reference_ui_values <- function(
   show_options <- isTRUE(.ui_value(values, "ui_mode_share_show_options", FALSE))
   if (isTRUE(show_options)) {
     return(.ui_value(values, "mode_share_total_unit", "trips"))
+  }
+
+  diversion_show_options <- isTRUE(.ui_value(values, "ui_trips_diversion_show_options", FALSE))
+  if (isTRUE(diversion_show_options)) {
+    basis <- .ui_value(values, "trips_diversion_basis", "total_trips")
+    return(switch(
+      basis,
+      total_distance = "distance",
+      total_duration = "duration",
+      "trips"
+    ))
   }
 
   "trips"

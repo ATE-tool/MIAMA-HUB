@@ -299,6 +299,14 @@ list for developer inspection and tests. The UI-facing R6 method is
 pipeline and writes all matching reference values into the profile's
 `default_value` fields.
 
+The extraction and profile-write responsibilities are intentionally separated:
+
+- [reference_data_extract_reference_ui_values.R](R/reference_data_extract_reference_ui_values.R)
+  derives all reference values that HUB currently knows how to calculate.
+- [api_reference_profile_defaults.R](R/api_reference_profile_defaults.R)
+  decides which derived values are relevant for the current profile and writes
+  them into `default_value`.
+
 Intended UI usage:
 
 ```r
@@ -308,11 +316,26 @@ mdata[["profile"]] <- hub$build_reference_profile_defaults(mdata[["profile"]])
 
 The returned profile keeps `input_value` and `is_filled` unchanged. Fields that
 do not exist in the UI profile are skipped and listed in the
-`reference_defaults_report` attribute.
+`reference_defaults_report` attribute. Fields that exist but are not relevant
+for the current `ui_version`, selected `modes`, or refinement method are listed
+as `excluded_fields`.
 
 The extractor accepts the flattened submitted values from
 `receive_appraisal_inputs()` so it can honor Tab 2 UI choices such as selected
 `modes`, `at_data_unit`, denominators, units, and timeframes.
+
+Conditional default-writing rules:
+
+- `ui_version = "basic"` writes only Tab 2 reference defaults plus always-useful
+  summary defaults (`geo_name`, `population_size`, `pop_total_ref`).
+- `ui_version = "advanced"` writes Tab 3 and Tab 4 reference defaults plus the
+  same summary defaults.
+- Mode-specific defaults are written only for selected `modes`, except
+  `at_data_unit = "mode_share"` writes all mode-share defaults because the mode
+  share denominator covers all modes.
+- `trips_refine_method = "trip_diversion"` keeps Tab 4 diversion denominator
+  defaults and also permits all mode-share defaults if the UI profile includes
+  the shared diversion/modal fields.
 
 The current extractor covers Tab 2 reference fields for:
 
