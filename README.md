@@ -288,12 +288,21 @@ The current loading strategy is:
 1. use `reference_request` to prefilter synthetic population attributes by
    geography where possible
 2. derive matching `census_id` values from the filtered attributes
-3. use those IDs to filter synthpop trips and HM outcomes
+3. filter synthpop trips by the same geography when possible; for unscoped or
+   England-wide requests, use the matched `census_id` values to keep trips
+   aligned with loaded attributes
 4. use `results_request$res_aggregation` to choose whether HM loads the
    `overall` or `cycle` dataset
 
 This is intended to reduce unnecessary data transfer and memory use,
 especially once synthetic population data is available in parquet format.
+
+Parquet reads run through a small Arrow runtime wrapper. By default
+`miama_default_config()` sets `cfg$arrow$cpu_count = 1L` during HUB source
+loading, restores the previous Arrow thread setting afterwards, and triggers
+garbage collection after the read block. This avoids large parallel decode
+buffers in memory-constrained Shiny/Connect sessions. Set
+`cfg$arrow$cpu_count = NULL` to leave Arrow's current thread setting unchanged.
 
 ## Reference UI value extraction
 

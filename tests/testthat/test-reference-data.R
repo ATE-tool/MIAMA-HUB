@@ -70,6 +70,27 @@ test_that("filter_reference_data leaves England-wide data unchanged", {
   expect_equal(nrow(filtered$trips), 3)
 })
 
+test_that("trip census-id parquet filter is skipped when geography pushdown is available", {
+  matched_ids <- c(1, 2, 3)
+
+  expect_null(.synthpop_trip_census_ids_filter(
+    list(geo_level = "lad", geo_id = "E08000035"),
+    matched_ids
+  ))
+  expect_null(.synthpop_trip_census_ids_filter(
+    list(geo_level = "reg", geo_id = "Yorkshire and The Humber"),
+    matched_ids
+  ))
+  expect_equal(.synthpop_trip_census_ids_filter(
+    list(geo_level = "eng", geo_id = NULL),
+    matched_ids
+  ), matched_ids)
+  expect_equal(.synthpop_trip_census_ids_filter(
+    list(),
+    matched_ids
+  ), matched_ids)
+})
+
 test_that("extract_reference_ui_values derives Tab 2 trip reference fields", {
   reference_data <- list(
     ind = data.frame(
@@ -104,6 +125,45 @@ test_that("extract_reference_ui_values derives Tab 2 trip reference fields", {
   expect_equal(values$ui_updates$population_size, 2)
   expect_equal(values$ui_updates$trips_count_ref_walk, 1)
   expect_equal(values$ui_updates$trips_count_ref_bike, 3)
+})
+
+test_that("extract_reference_ui_values scales Tab 2 trip counts by timeframe", {
+  reference_data <- list(
+    ind = data.frame(census_id = 1:2),
+    trips = data.frame(
+      census_id = c(1, 2, 2),
+      nts_tripid = c(11, 21, 22),
+      weight_tripXhh = c(1, 2, 1),
+      trip_walkdist_km = c(1, 0, 0),
+      trip_walktime_min = c(10, 0, 0),
+      trip_cycledist_km = c(0, 5, 3),
+      trip_cycletime_min = c(0, 20, 12)
+    )
+  )
+
+  day_values <- extract_reference_ui_values(
+    reference_data,
+    appraisal_input_values = list(
+      at_data_unit = "trips",
+      modes = c("walking", "cycling"),
+      trips_timeframe_walk = "day",
+      trips_timeframe_bike = "day"
+    )
+  )
+  year_values <- extract_reference_ui_values(
+    reference_data,
+    appraisal_input_values = list(
+      at_data_unit = "trips",
+      modes = c("walking", "cycling"),
+      trips_timeframe_walk = "year",
+      trips_timeframe_bike = "year"
+    )
+  )
+
+  expect_equal(day_values$ui_updates$trips_count_ref_walk, 1 / 7)
+  expect_equal(day_values$ui_updates$trips_count_ref_bike, 3 / 7)
+  expect_equal(year_values$ui_updates$trips_count_ref_walk, 52.1775)
+  expect_equal(year_values$ui_updates$trips_count_ref_bike, 3 * 52.1775)
 })
 
 test_that("extract_reference_ui_values derives summary geo_name where possible", {

@@ -10,6 +10,10 @@ miama_default_config <- function() {
       dataset_size = "sample",    # options: "sample", "full"
       max_rows     = MIAMA_DEFAULT_MAX_ROWS
     ),
+    arrow = list(
+      cpu_count      = 1L,
+      release_unused = TRUE
+    ),
     sources = list(
       sp_attributes = p$sp_attributes,
       sp_trips      = p$sp_trips,
@@ -110,14 +114,16 @@ load_hm_outcomes <- function(cfg = NULL, results_request = list(), census_ids = 
   }
 
   source_label <- .hm_source_label(hm_source)
-  message("Loading HM outcomes from ", source_label, " parquet: ", parquet_path)
-  hm_ds <- arrow::open_dataset(parquet_path, format = "parquet")
+  hm_outcomes <- .with_miama_arrow_runtime(cfg, {
+    message("Loading HM outcomes from ", source_label, " parquet: ", parquet_path)
+    hm_ds <- arrow::open_dataset(parquet_path, format = "parquet")
 
-  if (!is.null(census_ids)) {
-    hm_ds <- dplyr::filter(hm_ds, census_id %in% census_ids)
-  }
+    if (!is.null(census_ids)) {
+      hm_ds <- dplyr::filter(hm_ds, census_id %in% census_ids)
+    }
 
-  hm_outcomes <- dplyr::collect(hm_ds)
+    dplyr::collect(hm_ds)
+  })
 
   if (isTRUE(cfg$cache$enabled) && is.null(census_ids)) {
     dir.create(cfg$cache$dir, recursive = TRUE, showWarnings = FALSE)
@@ -157,5 +163,7 @@ load_hm_lookup <- function(cfg = NULL, results_request = list()) {
     stop("HM lookup parquet directory not found: ", lookup_path, call. = FALSE)
   }
 
-  dplyr::collect(arrow::open_dataset(lookup_path, format = "parquet"))
+  .with_miama_arrow_runtime(cfg, {
+    dplyr::collect(arrow::open_dataset(lookup_path, format = "parquet"))
+  })
 }
