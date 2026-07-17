@@ -194,11 +194,19 @@ This keeps appraisal logic in the request layer and runtime concerns in config.
   session object.
 - `Hub$get_geo_name()` resolves the current session's selected geography.
 
-The current lookup is built from the synthpop individual attributes parquet
-source and cached at `data/lookup/geo_options.rds`. If the cache is missing, the
-first call builds it from `cfg$sources$sp_attributes`; subsequent calls read the
-small RDS lookup instead of loading full reference data. The currently supported
-levels are:
+The current lookup is built from the full synthpop individual attributes parquet
+source and cached at `data/lookup/geo_options.rds`. The same full-derived lookup
+is also stored at `inst/extdata/data/lookup/geo_options.rds` for installed
+package deployments. If the cache is missing, the first call builds it from
+`cfg$sources$sp_attributes`; subsequent calls read the small RDS lookup instead
+of loading full reference data. The returned table includes:
+
+- `n_individuals`: synthetic rows in the full 5% sample
+- `person_weight`: currently `20`
+- `population_size_synth_scaled`: `n_individuals * person_weight`
+- `population_source`: `"Census 2021 5% synthpop scale"`
+
+The currently supported levels are:
 
 - `eng`: one England-wide option
 - `reg`: English regions, using `region`
@@ -218,6 +226,7 @@ geo_details <- MIAMAHUB::get_geo_details(mdata[["hub_cfg"]], input$geo_id)
 geo_details$location
 geo_details$geographic_scale
 geo_details$administrative_location_id
+geo_details$population_size_synth_scaled
 ```
 
 ## Tab 1 appraisal summary values
@@ -576,7 +585,8 @@ before collecting data into R.
 The geography option lookup is a second small one-time/cacheable artifact. It is
 created by `build_geo_lookup(overwrite = TRUE)` or lazily by
 `get_geo_levels()` / `get_geo_options()`, and is stored at
-`data/lookup/geo_options.rds`.
+`data/lookup/geo_options.rds`. For package deployments, a copy of the
+full-derived lookup is stored under `inst/extdata/data/lookup/geo_options.rds`.
 
 ## Later adjustments needed
 
@@ -597,9 +607,18 @@ Later work should:
 For local development, large data files should not be tracked in git.
 `data/` is git-ignored.
 
+`inst/extdata/` is different: files under this directory are bundled when
+MIAMA-HUB is installed as an R package. To keep the package publishable, it
+contains small runtime/sample data, plus small lookup artifacts that the UI can
+load without full data access.
+
 Current expected layout:
 
 - synthetic population files live in `MIAMA-HUB/data/synthetic_pop/`
+- packaged sample synthetic population files live in
+  `MIAMA-HUB/inst/extdata/data/synthetic_pop/`
+- the packaged `geo_options.rds` is intentionally full-derived because it is
+  small and needed for complete UI geography dropdowns and population labels
 - HM sample processed outputs may live in `MIAMA-HUB/data/health_data/`
 - full HM processed outputs are read from `MIAMA-HM` via `MIAMA_HM_ROOT`
 

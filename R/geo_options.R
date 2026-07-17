@@ -255,6 +255,13 @@ build_geo_lookup <- function(cfg = NULL, overwrite = FALSE) {
 
   out <- rbind(england, regions, lads)
   out <- out[order(match(out$geo_level, names(.geo_level_specs())), out$geo_name, out$geo_id), ]
+  out$person_weight <- MIAMA_SYNTHPOP_PERSON_WEIGHT
+  out$population_size_synth_scaled <- out$n_individuals * out$person_weight
+  out$population_source <- "Census 2021 5% synthpop scale"
+  out <- out[, c(
+    "geo_level", "geo_id", "geo_name", "n_individuals",
+    "person_weight", "population_size_synth_scaled", "population_source"
+  )]
   row.names(out) <- NULL
   out
 }

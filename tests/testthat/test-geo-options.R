@@ -36,6 +36,9 @@ test_that("get_geo_levels and get_geo_options build cached lookup from synthpop 
   expect_equal(levels$n_options, c(1L, 2L, 3L))
   expect_equal(regions$geo_id, c("London", "North West"))
   expect_equal(regions$n_individuals, c(3L, 2L))
+  expect_equal(regions$person_weight, c(20, 20))
+  expect_equal(regions$population_size_synth_scaled, c(60, 40))
+  expect_equal(regions$population_source, rep("Census 2021 5% synthpop scale", 2))
   expect_equal(lads$geo_id, c("E09000002", "E09000001", "E08000035"))
   expect_equal(get_geo_options(cfg, "region")$geo_level, c("reg", "reg"))
   expect_equal(get_geo_name(cfg, "eng"), "England")
@@ -49,6 +52,7 @@ test_that("get_geo_levels and get_geo_options build cached lookup from synthpop 
   expect_equal(leeds$geographic_scale, "Local authority district")
   expect_equal(leeds$administrative_location_id, "E08000035")
   expect_equal(leeds$n_individuals, 2L)
+  expect_equal(leeds$population_size_synth_scaled, 40)
 
   london <- get_geo_details(cfg, "London", geo_level = "region")
   expect_equal(london$geo_level, "reg")

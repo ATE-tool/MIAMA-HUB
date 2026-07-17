@@ -34,3 +34,7 @@ MIAMA_SCENARIO_DIRNAME  <- "scenario_analysis"
 # Dataset size controls
 MIAMA_DEFAULT_MAX_ROWS       <- Inf
 MIAMA_SMALL_DATASET_MAX_ROWS <- 100000L
+
+# The full synthetic population is a random 5% Census 2021 sample.
+# Each synthetic individual therefore represents approximately 20 residents.
+MIAMA_SYNTHPOP_PERSON_WEIGHT <- 20
