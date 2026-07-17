@@ -42,7 +42,7 @@ test_that("Hub exposes reference UI updates and single-field accessors", {
   expect_equal(hub$get_reference_ui_value("missing_field", default = 99), 99)
 })
 
-test_that("Hub exposes profile subsets for setup and counterfactual UI steps", {
+test_that("Hub exposes profile subset for setup UI step", {
   profile <- build_mock_appraisal_inputs(overrides = list(
     ui_version = list(input_value = "advanced", is_filled = TRUE),
     intervention_type = list(input_value = "infras", is_filled = TRUE),
@@ -51,12 +51,10 @@ test_that("Hub exposes profile subsets for setup and counterfactual UI steps", {
   hub <- Hub$new(cfg = list())
 
   setup <- hub$get_appraisal_setup_inputs(profile)
-  counterfactual <- hub$get_counterfactual_profile_inputs(profile)
 
   expect_true(all(c("ui_version", "geo_level", "geo_id", "modes", "intervention_type") %in% names(setup)))
-  expect_true("modes" %in% names(counterfactual))
-  expect_true("users_count_cf_walk" %in% names(counterfactual))
-  expect_false("res_outcomes" %in% names(counterfactual))
+  expect_false("users_count_cf_walk" %in% names(setup))
+  expect_false("res_outcomes" %in% names(setup))
 })
 
 test_that("apply_reference_defaults_to_profile writes defaults without filling inputs", {

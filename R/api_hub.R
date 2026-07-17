@@ -7,11 +7,9 @@
 #    profile: UI mode, geography, modes, and intervention descriptors.
 # 2. `build_reference_profile_defaults()` loads/builds reference data as needed
 #    and writes derived reference values into matching `default_value` fields.
-# 3. `get_counterfactual_profile_inputs()` returns the profile fields relevant
-#    to Tabs 2-4 counterfactual inputs.
-# 4. `build_results()` runs the current end-to-end calculation from the active
-#    profile and returns profile, data objects, result tables, and plot-ready
-#    data.
+# 3. `build_results()` receives the filled profile after UI counterfactual
+#    inputs have been collected, then runs the current end-to-end calculation
+#    and returns profile, data objects, result tables, and plot-ready data.
 #
 # Developer helpers remain available below the primary methods. They expose
 # intermediate objects for testing, debugging, and workflow scripts.
@@ -121,15 +119,6 @@ Hub <- R6::R6Class(
       attr(self$appraisal_inputs, "reference_defaults_report") <- defaults_report
 
       self$appraisal_inputs
-    },
-
-    get_counterfactual_profile_inputs = function(profile = NULL) {
-      if (!is.null(profile)) {
-        self$set_appraisal_inputs(profile)
-      }
-      private$.require_profile()
-
-      private$.profile_subset(.hub_counterfactual_profile_fields(names(self$appraisal_inputs)))
     },
 
     build_results = function(profile = NULL, seed = 1L, refresh = FALSE) {
@@ -405,12 +394,4 @@ Hub <- R6::R6Class(
     "ui_version", "ui_input_scope", "geo_level", "geo_id", "modes",
     "intervention_type", "data_source"
   )
-}
-
-.hub_counterfactual_profile_fields <- function(profile_names) {
-  setup <- .hub_appraisal_setup_fields()
-  results <- grep("^res_", profile_names, value = TRUE)
-  reference_defaults <- grep("_ref$|^pop_total_ref$|^population_size$|^geo_name$", profile_names, value = TRUE)
-  context <- c("ui_version", "modes", "intervention_type", "data_source")
-  unique(c(context[context %in% profile_names], setdiff(profile_names, unique(c(setup, results, reference_defaults)))))
 }

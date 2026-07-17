@@ -108,12 +108,9 @@ Primary UI-facing methods:
 - `build_reference_profile_defaults(profile = NULL, refresh = FALSE)`: loads,
   joins, filters, and summarizes reference data as needed, then writes matching
   reference values into each profile field's `default_value`.
-- `get_counterfactual_profile_inputs(profile = NULL)`: returns profile fields
-  relevant to the counterfactual input steps, excluding reference-only defaults
-  and results-only controls.
 - `build_results(profile = NULL, seed = 1L, refresh = FALSE)`: runs the current
-  end-to-end calculation and returns the updated `profile`, `reference_data`,
-  `counterfactual_data`, and `results_data`.
+  end-to-end calculation from the fully filled profile and returns the updated
+  `profile`, `reference_data`, `counterfactual_data`, and `results_data`.
 
 The intended Shiny flow is:
 
@@ -125,8 +122,7 @@ setup_profile <- hub$get_appraisal_setup_inputs(mdata[["profile"]])
 mdata[["profile"]] <- hub$build_reference_profile_defaults(mdata[["profile"]])
 attr(mdata[["profile"]], "reference_defaults_report")
 
-counterfactual_profile <- hub$get_counterfactual_profile_inputs(mdata[["profile"]])
-
+# After the UI has collected Tab 2 or Tab 3/4 counterfactual inputs:
 result <- hub$build_results(mdata[["profile"]])
 ```
 
@@ -151,7 +147,7 @@ source("inst/workflows/dev_profile_defaults_from_ui_default.R")
 Developer helpers such as `load_reference_sources()`, `build_reference_data()`,
 `build_counterfactual_data()`, and `build_results_data()` remain available for
 workflow scripts and targeted testing. New MIAMA-UI integration should prefer
-the four primary methods above, with `request` treated as HUB-internal state.
+the primary methods above, with `request` treated as HUB-internal state.
 
 ## `config` versus `request`
 
