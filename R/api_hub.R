@@ -45,7 +45,33 @@ Hub <- R6::R6Class(
     },
 
     set_appraisal_inputs = function(appraisal_inputs) {
-      self$request <- receive_appraisal_inputs(appraisal_inputs)
+      new_request <- receive_appraisal_inputs(appraisal_inputs)
+
+      if (!is.null(self$request)) {
+        old_values <- self$request$appraisal_input_values
+        new_values <- new_request$appraisal_input_values
+        changed_fields <- private$.changed_input_fields(old_values, new_values)
+        invalidation <- invalidate_hub_state(
+          state = list(
+            reference_sources = self$reference_sources,
+            reference_data_raw = self$reference_data_raw,
+            reference_data = self$reference_data,
+            reference_ui_values = self$reference_ui_values,
+            counterfactual_data = self$counterfactual_data,
+            results_data = self$results_data
+          ),
+          changed_fields = changed_fields
+        )
+
+        self$reference_sources <- invalidation$state$reference_sources
+        self$reference_data_raw <- invalidation$state$reference_data_raw
+        self$reference_data <- invalidation$state$reference_data
+        self$reference_ui_values <- invalidation$state$reference_ui_values
+        self$counterfactual_data <- invalidation$state$counterfactual_data
+        self$results_data <- invalidation$state$results_data
+      }
+
+      self$request <- new_request
       self$appraisal_inputs <- self$request$appraisal_inputs_in
       invisible(self$request)
     },
@@ -403,6 +429,13 @@ Hub <- R6::R6Class(
       if (is.null(self$counterfactual_data)) {
         stop("Counterfactual data is not built. Call build_counterfactual_data() first.", call. = FALSE)
       }
+    },
+
+    .changed_input_fields = function(old_values, new_values) {
+      fields <- union(names(old_values), names(new_values))
+      fields[!vapply(fields, function(field) {
+        identical(old_values[[field]], new_values[[field]])
+      }, logical(1))]
     },
 
     .profile_subset = function(fields) {

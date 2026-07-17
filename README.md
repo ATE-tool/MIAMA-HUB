@@ -340,6 +340,40 @@ do not exist in the UI profile are skipped and listed in the
 for the current `ui_version`, selected `modes`, or refinement method are listed
 as `excluded_fields`.
 
+### HUB session state and refresh behavior
+
+`Hub$new(cfg = hub_cfg)` creates a session-scoped object. Construction is light:
+it stores configuration only and does not load parquet data. Reference parquet
+data are first loaded when `build_reference_profile_defaults()` or another
+reference-data method calls `load_reference_sources()`.
+
+The object keeps intermediate reference objects in memory so repeated calls do
+not reload large files unnecessarily:
+
+- `reference_sources`: loaded HM and synthetic population source tables
+- `reference_data_raw`: joined, unfiltered reference data
+- `reference_data`: filtered reference data
+- `reference_ui_values`: compact extracted defaults for the active profile
+
+When `build_reference_profile_defaults(profile)` receives a profile, HUB
+compares the new flattened input values with the previous request and
+invalidates cached state as needed:
+
+- Changes to `geo_level`, `geo_id`, or `res_aggregation` clear
+  `reference_sources`, `reference_data_raw`, `reference_data`, and
+  `reference_ui_values`, so the next call reloads/rebuilds reference data.
+- Lighter changes such as `modes`, `ui_version`, denominators, units, or
+  timeframes keep loaded reference data but clear `reference_ui_values`, so
+  defaults are recalculated from the same data.
+- Counterfactual and results objects are cleared whenever submitted profile
+  values change.
+
+Use `refresh = TRUE` only for an explicit forced recomputation when the inputs
+have not changed, for example during debugging or after replacing source files
+on disk. Normal UI navigation from Tab 2 back to Tab 1 and selecting a different
+location should not require `refresh = TRUE`; the geography change should
+invalidate and reload automatically.
+
 The extractor accepts the flattened submitted values from
 `receive_appraisal_inputs()` so it can honor Tab 2 UI choices such as selected
 `modes`, `at_data_unit`, denominators, units, and timeframes.

@@ -275,6 +275,42 @@ test_that("Hub clears cached reference UI values when lightweight inputs change"
   expect_false(is.null(hub$reference_data))
 })
 
+test_that("Hub clears cached reference data when profile geography changes", {
+  hub <- Hub$new(cfg = list())
+  profile <- build_mock_appraisal_inputs()
+  hub$set_appraisal_inputs(profile)
+  hub$reference_sources <- list(source_report = list())
+  hub$reference_data_raw <- list(ind = data.frame(), trips = data.frame())
+  hub$reference_data <- list(ind = data.frame(), trips = data.frame())
+  hub$reference_ui_values <- list(ui_updates = list(pop_total_ref = 3))
+
+  profile$geo_id$input_value <- "E09000001"
+  hub$set_appraisal_inputs(profile)
+
+  expect_null(hub$reference_sources)
+  expect_null(hub$reference_data_raw)
+  expect_null(hub$reference_data)
+  expect_null(hub$reference_ui_values)
+})
+
+test_that("Hub keeps loaded reference data when profile change only affects display defaults", {
+  hub <- Hub$new(cfg = list())
+  profile <- build_mock_appraisal_inputs()
+  hub$set_appraisal_inputs(profile)
+  hub$reference_sources <- list(source_report = list())
+  hub$reference_data_raw <- list(ind = data.frame(), trips = data.frame())
+  hub$reference_data <- list(ind = data.frame(), trips = data.frame())
+  hub$reference_ui_values <- list(ui_updates = list(pop_total_ref = 3))
+
+  profile$modes$input_value <- "walking"
+  hub$set_appraisal_inputs(profile)
+
+  expect_false(is.null(hub$reference_sources))
+  expect_false(is.null(hub$reference_data_raw))
+  expect_false(is.null(hub$reference_data))
+  expect_null(hub$reference_ui_values)
+})
+
 test_that("Hub builds counterfactual data from appraisal input values", {
   hub <- Hub$new(cfg = list())
   hub$set_appraisal_inputs(build_mock_appraisal_inputs(
