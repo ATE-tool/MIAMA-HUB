@@ -105,12 +105,16 @@ Primary UI-facing methods:
 - `get_appraisal_setup_inputs(profile = NULL)`: returns the setup subset of the
   profile, currently `ui_version`, `ui_input_scope`, `geo_level`, `geo_id`,
   `modes`, `intervention_type`, and `data_source`.
-- `build_reference_profile_defaults(profile = NULL, refresh = FALSE)`: loads,
-  joins, filters, and summarizes reference data as needed, then writes matching
-  reference values into each profile field's `default_value`.
+- `build_reference_profile_defaults(profile = NULL, refresh = FALSE)`: loads
+  and filters synthpop reference data for the selected geography, summarizes
+  reference values, and writes matching values into each profile field's
+  `default_value`.
 - `build_results(profile = NULL, seed = 1L, refresh = FALSE)`: runs the current
-  end-to-end calculation from the fully filled profile and returns the updated
-  `profile`, `reference_data`, `counterfactual_data`, and `results_data`.
+  end-to-end calculation from the fully filled profile. It builds
+  counterfactual data from the synthpop reference data, applies the HM
+  death-share cycle lookup to ref/cf physical-activity exposure, and returns
+  the updated `profile`, `reference_data`, `counterfactual_data`, and
+  `results_data`.
 
 The intended Shiny flow is:
 
@@ -309,9 +313,11 @@ buffers in memory-constrained Shiny/Connect sessions. Set
 `extract_reference_ui_values()` derives compact status-quo values from filtered
 `reference_data`. The low-level function still returns a named `ui_updates`
 list for developer inspection and tests. The UI-facing R6 method is
-`Hub$build_reference_profile_defaults(profile)`: it runs the reference-data
-pipeline and writes all matching reference values into the profile's
-`default_value` fields.
+`Hub$build_reference_profile_defaults(profile)`: it runs the synthpop-only
+reference-default pipeline and writes all matching reference values into the
+profile's `default_value` fields. HM outcome data are not loaded for this step;
+health-model data are first needed when `build_results()` applies ref/cf health
+outcome calculations.
 
 The extraction and profile-write responsibilities are intentionally separated:
 
@@ -343,27 +349,29 @@ to MIAMA-UI.
 ### HUB session state and refresh behavior
 
 `Hub$new(cfg = hub_cfg)` creates a session-scoped object. Construction is light:
-it stores configuration only and does not load parquet data. Reference parquet
-data are first loaded when `build_reference_profile_defaults()` or another
-reference-data method calls `load_reference_sources()`.
+it stores configuration only and does not load parquet data. Synthpop reference
+default data are first loaded when `build_reference_profile_defaults()` calls
+`build_reference_default_data()`. HM outcome data are loaded later by
+`build_results()` / `build_counterfactual_health_outcomes()`.
 
 The object keeps intermediate reference objects in memory so repeated calls do
 not reload large files unnecessarily:
 
-- `reference_sources`: loaded HM and synthetic population source tables
-- `reference_data_raw`: joined, unfiltered reference data
-- `reference_data`: filtered reference data
-- `reference_ui_values`: compact extracted defaults for the active profile
+- `reference_default_data`: synthpop-only reference data for UI defaults and
+  counterfactual construction
+- `reference_default_ui_values`: compact extracted defaults for the active
+  profile
+- `reference_sources`, `reference_data_raw`, `reference_data`: legacy/developer
+  HM-joined reference objects used by lower-level workflow scripts
 
 When `build_reference_profile_defaults(profile)` receives a profile, HUB
 compares the new flattened input values with the previous request and
 invalidates cached state as needed:
 
-- Changes to `geo_level`, `geo_id`, or `res_aggregation` clear
-  `reference_sources`, `reference_data_raw`, `reference_data`, and
-  `reference_ui_values`, so the next call reloads/rebuilds reference data.
+- Changes to `geo_level`, `geo_id`, or `res_aggregation` clear reference data
+  caches, so the next call reloads/rebuilds reference data.
 - Lighter changes such as `modes`, `ui_version`, denominators, units, or
-  timeframes keep loaded reference data but clear `reference_ui_values`, so
+  timeframes keep loaded reference data but clear extracted default values, so
   defaults are recalculated from the same data.
 - Counterfactual and results objects are cleared whenever submitted profile
   values change.

@@ -5,11 +5,13 @@
 # Primary UI workflow:
 # 1. `get_appraisal_setup_inputs()` returns the setup subset of the active
 #    profile: UI mode, geography, modes, and intervention descriptors.
-# 2. `build_reference_profile_defaults()` loads/builds reference data as needed
-#    and writes derived reference values into matching `default_value` fields.
+# 2. `build_reference_profile_defaults()` loads/builds synthpop reference data
+#    as needed and writes derived reference values into matching
+#    `default_value` fields.
 # 3. `build_results()` receives the filled profile after UI counterfactual
-#    inputs have been collected, then runs the current end-to-end calculation
-#    and returns profile, data objects, result tables, and plot-ready data.
+#    inputs have been collected, builds counterfactual data from the synthpop
+#    reference data, applies HM health outcomes, and returns profile, data
+#    objects, result tables, and plot-ready data.
 #
 # Developer helpers remain available below the primary methods. They expose
 # intermediate objects for testing, debugging, and workflow scripts.
@@ -160,11 +162,14 @@ Hub <- R6::R6Class(
       }
       private$.require_request()
 
-      if (isTRUE(refresh) || is.null(self$reference_sources)) {
-        self$load_reference_sources()
+      if (isTRUE(refresh)) {
+        self$reference_default_data <- NULL
+        self$reference_default_ui_values <- NULL
+        self$counterfactual_data <- NULL
+        self$results_data <- NULL
       }
-      if (isTRUE(refresh) || is.null(self$reference_data)) {
-        self$build_reference_data()
+      if (is.null(self$reference_default_data) && is.null(self$reference_data)) {
+        self$build_reference_default_data()
       }
       if (isTRUE(refresh) || is.null(self$counterfactual_data)) {
         self$build_counterfactual_data(seed = seed)
@@ -177,7 +182,7 @@ Hub <- R6::R6Class(
 
       list(
         profile = self$appraisal_inputs,
-        reference_data = self$reference_data,
+        reference_data = private$.counterfactual_reference_data(),
         counterfactual_data = self$counterfactual_data,
         results_data = self$results_data
       )
@@ -351,13 +356,13 @@ Hub <- R6::R6Class(
 
     build_counterfactual_data = function(seed = 1L) {
       private$.require_request()
-      private$.require_reference_data()
+      reference_data <- private$.counterfactual_reference_data()
 
-      self$counterfactual_data <- init_counterfactual_data(self$reference_data)
+      self$counterfactual_data <- init_counterfactual_data(reference_data)
       self$counterfactual_data <- apply_counterfactual_ui_values(
         self$counterfactual_data,
         self$request$appraisal_input_values,
-        reference_data = self$reference_data,
+        reference_data = reference_data,
         seed = seed
       )
 
@@ -374,11 +379,11 @@ Hub <- R6::R6Class(
 
     build_counterfactual_health_outcomes = function(scheme_effect_duration = "longterm") {
       private$.require_counterfactual_data()
-      private$.require_reference_data()
+      reference_data <- private$.counterfactual_reference_data()
 
       self$counterfactual_data <- apply_counterfactual_health_outcomes(
         counterfactual_data = self$counterfactual_data,
-        reference_data = self$reference_data,
+        reference_data = reference_data,
         cfg = self$cfg,
         scheme_effect_duration = scheme_effect_duration
       )
@@ -388,12 +393,12 @@ Hub <- R6::R6Class(
 
     build_results_data = function() {
       private$.require_request()
-      private$.require_reference_data()
       private$.require_counterfactual_data()
+      reference_data <- private$.counterfactual_reference_data()
 
       self$results_data <- prepare_results_data(
         counterfactual_data = self$counterfactual_data,
-        reference_data = self$reference_data,
+        reference_data = reference_data,
         results_request = self$request$results_request,
         appraisal_input_values = self$request$appraisal_input_values
       )
@@ -455,6 +460,20 @@ Hub <- R6::R6Class(
       if (is.null(self$reference_data)) {
         stop("Reference data is not built. Call build_reference_data() first.", call. = FALSE)
       }
+    },
+
+    .counterfactual_reference_data = function() {
+      if (!is.null(self$reference_default_data)) {
+        return(self$reference_default_data)
+      }
+      if (!is.null(self$reference_data)) {
+        return(self$reference_data)
+      }
+      stop(
+        "Reference data are not available. Call build_reference_profile_defaults()",
+        " or build_reference_default_data() before building counterfactual/results.",
+        call. = FALSE
+      )
     },
 
     .require_counterfactual_data = function() {
