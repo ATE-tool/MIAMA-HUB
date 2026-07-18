@@ -57,6 +57,55 @@ load_reference_sources <- function(cfg = NULL, reference_request = list(), resul
   )
 }
 
+# Load only synthetic-population reference sources for UI default extraction.
+#
+# Reference defaults for Tab 2/3/4 are status-quo summaries of SP attributes and
+# trips. They should not be constrained by the HM outcome sample used later in
+# the health-impact pipeline.
+load_reference_default_sources <- function(cfg = NULL, reference_request = list()) {
+  cfg <- miama_resolve_config(cfg, validate_hm = FALSE)
+
+  source_data <- .with_miama_arrow_runtime(cfg, {
+    sp_attributes <- .load_synthpop_source(
+      cfg$sources$sp_attributes,
+      reference_request = reference_request
+    )
+
+    matched_ids <- unique(stats::na.omit(sp_attributes$census_id))
+    sp_trip_census_ids <- .synthpop_trip_census_ids_filter(
+      reference_request = reference_request,
+      matched_ids = matched_ids
+    )
+
+    sp_trips <- .load_synthpop_source(
+      cfg$sources$sp_trips,
+      reference_request = reference_request,
+      census_ids = sp_trip_census_ids
+    )
+
+    list(
+      sp_attributes = sp_attributes,
+      matched_ids = matched_ids,
+      sp_trips = sp_trips,
+      sp_trip_census_id_filter_applied = !is.null(sp_trip_census_ids)
+    )
+  })
+
+  list(
+    ind = source_data$sp_attributes,
+    trips = source_data$sp_trips,
+    source_report = list(
+      n_matched_ids = length(source_data$matched_ids),
+      geo_level = reference_request$geo_level %||% NULL,
+      geo_id = reference_request$geo_id %||% NULL,
+      arrow_cpu_count = cfg$arrow$cpu_count %||% NULL,
+      arrow_release_unused = isTRUE(cfg$arrow$release_unused),
+      sp_trip_census_id_filter_applied = source_data$sp_trip_census_id_filter_applied,
+      source_scope = "synthpop_only"
+    )
+  )
+}
+
 # Internal: map UI/request geo level to source column names.
 .miama_geo_column <- function(geo_level) {
   if (is.null(geo_level) || identical(geo_level, "eng")) {

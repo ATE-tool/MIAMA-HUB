@@ -56,6 +56,7 @@ extract_reference_ui_values <- function(
   report <- list(
     at_data_unit = context$at_data_unit,
     modes = context$modes,
+    calculation_modes = context$calculation_modes,
     base_timeframe = "week",
     notes = character(0),
     skipped_fields = character(0)
@@ -71,7 +72,7 @@ extract_reference_ui_values <- function(
     report$notes <- c(report$notes, "geo_name could not be derived from filtered reference data.")
   }
 
-  for (mode in context$modes) {
+  for (mode in context$calculation_modes) {
     if (!mode %in% names(.miama_tab2_mode_specs())) {
       report$notes <- c(report$notes, paste0("Unsupported mode ignored: ", mode))
       next
@@ -79,56 +80,47 @@ extract_reference_ui_values <- function(
 
     suffix <- .miama_mode_suffix(mode)
 
-    if (identical(context$at_data_unit, "users")) {
-      field <- paste0("users_count_ref_", suffix)
-      result <- .reference_users_count(ind, trips, mode)
-      ui_updates[[field]] <- result$value
-      report$notes <- c(report$notes, result$notes)
-    }
+    field <- paste0("users_count_ref_", suffix)
+    result <- .reference_users_count(ind, trips, mode)
+    ui_updates[[field]] <- result$value
+    report$notes <- c(report$notes, result$notes)
 
-    if (identical(context$at_data_unit, "trips")) {
-      field <- paste0("trips_count_ref_", suffix)
-      result <- .reference_trips_count(
-        trips = trips,
-        mode = mode,
-        timeframe = .ui_value(context$values, paste0("trips_timeframe_", suffix), "year"),
-        denominator = .ui_value(context$values, paste0("trips_denominator_", suffix), "total"),
-        population_size = population_size
-      )
-      ui_updates[[field]] <- result$value
-      report$notes <- c(report$notes, result$notes)
-    }
-
-    if (identical(context$at_data_unit, "distance")) {
-      field <- paste0("dist_dur_amount_ref_", suffix)
-      result <- .reference_dist_dur_amount(
-        ind = ind,
-        trips = trips,
-        mode = mode,
-        dist_dur_type = .ui_value(context$values, paste0("ui_dist_dur_type_", suffix), "distance"),
-        distance_unit = .ui_value(context$values, paste0("distance_unit_", suffix), "km"),
-        duration_unit = .ui_value(context$values, paste0("duration_unit_", suffix), "mins"),
-        denominator = .ui_value(context$values, paste0("dist_dur_denominator_", suffix), "total"),
-        timeframe = .ui_value(context$values, paste0("dist_dur_timeframe_", suffix), "year"),
-        population_size = population_size
-      )
-      ui_updates[[field]] <- result$value
-      report$notes <- c(report$notes, result$notes)
-    }
-  }
-
-  if (identical(context$at_data_unit, "mode_share") ||
-      identical(context$trips_refine_method, "trip_diversion")) {
-    result <- .reference_mode_share_values(
+    field <- paste0("trips_count_ref_", suffix)
+    result <- .reference_trips_count(
       trips = trips,
-      modes = context$mode_share_modes,
-      total_unit = .reference_mode_share_total_unit(context$values),
-      show_options = isTRUE(.ui_value(context$values, "ui_mode_share_show_options", FALSE)) ||
-        isTRUE(.ui_value(context$values, "ui_trips_diversion_show_options", FALSE))
+      mode = mode,
+      timeframe = .ui_value(context$values, paste0("trips_timeframe_", suffix), "week"),
+      denominator = .ui_value(context$values, paste0("trips_denominator_", suffix), "total"),
+      population_size = population_size
     )
-    ui_updates <- utils::modifyList(ui_updates, result$ui_updates)
+    ui_updates[[field]] <- result$value
+    report$notes <- c(report$notes, result$notes)
+
+    field <- paste0("dist_dur_amount_ref_", suffix)
+    result <- .reference_dist_dur_amount(
+      ind = ind,
+      trips = trips,
+      mode = mode,
+      dist_dur_type = .ui_value(context$values, paste0("ui_dist_dur_type_", suffix), "distance"),
+      distance_unit = .ui_value(context$values, paste0("distance_unit_", suffix), "km"),
+      duration_unit = .ui_value(context$values, paste0("duration_unit_", suffix), "mins"),
+      denominator = .ui_value(context$values, paste0("dist_dur_denominator_", suffix), "total"),
+      timeframe = .ui_value(context$values, paste0("dist_dur_timeframe_", suffix), "week"),
+      population_size = population_size
+    )
+    ui_updates[[field]] <- result$value
     report$notes <- c(report$notes, result$notes)
   }
+
+  result <- .reference_mode_share_values(
+    trips = trips,
+    modes = context$mode_share_modes,
+    total_unit = .reference_mode_share_total_unit(context$values),
+    show_options = isTRUE(.ui_value(context$values, "ui_mode_share_show_options", FALSE)) ||
+      isTRUE(.ui_value(context$values, "ui_trips_diversion_show_options", FALSE))
+  )
+  ui_updates <- utils::modifyList(ui_updates, result$ui_updates)
+  report$notes <- c(report$notes, result$notes)
 
   tab3_result <- .reference_tab3_population_values(ind, trips, context)
   ui_updates <- utils::modifyList(ui_updates, tab3_result$ui_updates)
@@ -156,10 +148,12 @@ extract_reference_ui_values <- function(
   if (length(modes) == 0) {
     modes <- c("walking", "cycling", "ebiking", "pt")
   }
+  calculation_modes <- names(.miama_tab2_mode_specs())
 
   list(
     values = appraisal_input_values,
     modes = modes,
+    calculation_modes = calculation_modes,
     mode_share_modes = names(.miama_tab2_mode_specs()),
     at_data_unit = .ui_value(appraisal_input_values, "at_data_unit", "trips"),
     trips_refine_method = .ui_value(appraisal_input_values, "trips_refine_method", NULL)
@@ -420,6 +414,9 @@ extract_reference_ui_values <- function(
       }
       ui_updates[[paste0("mode_share_ref_", .miama_mode_suffix(mode))]] <- NA_real_
     }
+    ui_updates$mode_share_ref_car <- NA_real_
+    ui_updates$mode_share_ref <- .mode_share_pie_default(ui_updates)
+
     return(list(
       ui_updates = ui_updates,
       notes = "Mode share reference values require trip-level reference data."
@@ -428,7 +425,7 @@ extract_reference_ui_values <- function(
 
   denominator <- .mode_share_denominator(trips, total_unit)
   ui_updates$mode_share_total_trips <- denominator$total_trips
-  ui_updates$mode_share_total_trips_2 <- denominator$total_trips
+  ui_updates$mode_share_total_trips_basic <- denominator$total_trips
   ui_updates$mode_share_total_dist <- denominator$total_distance
   ui_updates$mode_share_total_dur <- denominator$total_duration
 
@@ -454,6 +451,14 @@ extract_reference_ui_values <- function(
       notes <- c(notes, paste0(field, " could not be derived from available columns."))
     }
   }
+
+  car_value <- .mode_share_car_numerator(trips, total_unit)
+  ui_updates$mode_share_ref_car <- 100 * .divide_or_na(car_value, denom_value)
+  if (is.na(ui_updates$mode_share_ref_car)) {
+    notes <- c(notes, "mode_share_ref_car could not be derived from available columns.")
+  }
+
+  ui_updates$mode_share_ref <- .mode_share_pie_default(ui_updates)
 
   if (!isTRUE(show_options) && !identical(total_unit, "trips")) {
     notes <- c(notes, "Mode share advanced options are off; trips denominator is used by the simple UI branch.")
@@ -502,6 +507,50 @@ extract_reference_ui_values <- function(
   }
 
   .weighted_sum(rep(1, nrow(trips)), trips, keep)
+}
+
+.mode_share_car_numerator <- function(trips, total_unit) {
+  if (is.null(trips) || !"trip_mainmode" %in% names(trips)) {
+    return(NA_real_)
+  }
+
+  keep <- .car_trip_filter(trips) & !is.na(trips$nts_tripid)
+
+  if (identical(total_unit, "distance")) {
+    if (!"trip_distraw_km" %in% names(trips)) {
+      return(NA_real_)
+    }
+    return(.weighted_sum(trips$trip_distraw_km, trips, keep))
+  }
+
+  if (identical(total_unit, "duration")) {
+    if (!"trip_durationraw_min" %in% names(trips)) {
+      return(NA_real_)
+    }
+    return(.weighted_sum(trips$trip_durationraw_min, trips, keep))
+  }
+
+  .weighted_sum(rep(1, nrow(trips)), trips, keep)
+}
+
+.mode_share_pie_default <- function(ui_updates) {
+  mode_fields <- c(
+    car = "mode_share_ref_car",
+    bike = "mode_share_ref_bike",
+    walk = "mode_share_ref_walk",
+    pt = "mode_share_ref_pt"
+  )
+
+  stats::setNames(
+    lapply(mode_fields, function(field) {
+      value <- ui_updates[[field]]
+      if (is.null(value) || length(value) == 0 || is.na(value[1])) {
+        value <- 0
+      }
+      list(percent = as.numeric(value[1]))
+    }),
+    names(mode_fields)
+  )
 }
 
 .reference_mode_share_total_unit <- function(values) {
@@ -777,6 +826,17 @@ extract_reference_ui_values <- function(
 
   grepl(
     "public|bus|rail|train|tram|metro|underground|tube|coach",
+    tolower(as.character(trips$trip_mainmode))
+  )
+}
+
+.car_trip_filter <- function(trips) {
+  if (is.null(trips) || !"trip_mainmode" %in% names(trips)) {
+    return(rep(FALSE, if (is.null(trips)) 0 else nrow(trips)))
+  }
+
+  grepl(
+    "car|van|taxi|driver|passenger|motor",
     tolower(as.character(trips$trip_mainmode))
   )
 }

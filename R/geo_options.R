@@ -149,6 +149,9 @@ get_geo_details <- function(cfg = NULL, geo_id, geo_level = NULL, refresh = FALS
   out$location <- out$geo_name
   out$geographic_scale <- out$geo_label
   out$administrative_location_id <- out$geo_id
+  if ("population_size_synth_scaled" %in% names(out)) {
+    out$population_size <- out$population_size_synth_scaled
+  }
 
   row.names(out) <- NULL
   out

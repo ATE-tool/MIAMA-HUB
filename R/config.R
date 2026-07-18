@@ -53,7 +53,7 @@ miama_hm_suffix_from_request <- function(results_request = list()) {
 }
 
 # Validate that the resolved source paths actually exist on disk.
-miama_resolve_config <- function(cfg = NULL, results_request = list()) {
+miama_resolve_config <- function(cfg = NULL, results_request = list(), validate_hm = TRUE) {
   cfg <- cfg %||% miama_default_config()
 
   sp_path <- cfg$sources$sp_attributes$path
@@ -66,16 +66,18 @@ miama_resolve_config <- function(cfg = NULL, results_request = list()) {
     stop("Synthpop trips parquet directory not found: ", sp_trips_path, call. = FALSE)
   }
 
-  hm_suffix <- miama_hm_suffix_from_request(results_request)
-  hm_key <- paste0(
-    hm_suffix,
-    if (cfg$workflow$dataset_size == "sample") "_sample" else ""
-  )
-  hm_dir <- cfg$sources$hm_outcomes[[hm_key]]
-  hm_path <- .hm_source_path(hm_dir)
+  if (isTRUE(validate_hm)) {
+    hm_suffix <- miama_hm_suffix_from_request(results_request)
+    hm_key <- paste0(
+      hm_suffix,
+      if (cfg$workflow$dataset_size == "sample") "_sample" else ""
+    )
+    hm_dir <- cfg$sources$hm_outcomes[[hm_key]]
+    hm_path <- .hm_source_path(hm_dir)
 
-  if (!dir.exists(hm_path)) {
-    stop("HM outcomes directory not found: ", hm_path, call. = FALSE)
+    if (!dir.exists(hm_path)) {
+      stop("HM outcomes directory not found: ", hm_path, call. = FALSE)
+    }
   }
 
   cfg

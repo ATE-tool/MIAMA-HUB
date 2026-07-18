@@ -234,7 +234,7 @@ test_that("extract_reference_ui_values derives mode-share reference fields", {
   )
 
   expect_equal(values$ui_updates$mode_share_total_trips, 4)
-  expect_equal(values$ui_updates$mode_share_total_trips_2, 4)
+  expect_equal(values$ui_updates$mode_share_total_trips_basic, 4)
   expect_equal(values$ui_updates$mode_share_ref_walk, 25)
   expect_equal(values$ui_updates$mode_share_ref_bike, 75)
   expect_true(all(c("mode_share_ref_ebike", "mode_share_ref_pt") %in% names(values$ui_updates)))

@@ -53,6 +53,7 @@ test_that("get_geo_levels and get_geo_options build cached lookup from synthpop 
   expect_equal(leeds$administrative_location_id, "E08000035")
   expect_equal(leeds$n_individuals, 2L)
   expect_equal(leeds$population_size_synth_scaled, 40)
+  expect_equal(leeds$population_size, 40)
 
   london <- get_geo_details(cfg, "London", geo_level = "region")
   expect_equal(london$geo_level, "reg")

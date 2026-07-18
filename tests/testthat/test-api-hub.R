@@ -87,7 +87,7 @@ test_that("apply_reference_defaults_to_profile writes defaults without filling i
   expect_equal(report$skipped_fields, "missing_field")
 })
 
-test_that("apply_reference_defaults_to_profile filters defaults by UI version and selected modes", {
+test_that("apply_reference_defaults_to_profile writes all matching broad defaults", {
   profile <- list(
     ui_version = list(is_filled = TRUE, input_value = "basic"),
     at_data_unit = list(is_filled = TRUE, input_value = "users"),
@@ -113,13 +113,15 @@ test_that("apply_reference_defaults_to_profile filters defaults by UI version an
 
   expect_equal(out$pop_total_ref$default_value, 10)
   expect_equal(out$users_count_ref_walk$default_value, 4)
-  expect_null(out$users_count_ref_bike$default_value)
-  expect_null(out$trips_number_ref_walk$default_value)
-  expect_null(out$pop_number_ref_walk$default_value)
-  expect_true(all(c("users_count_ref_bike", "trips_number_ref_walk", "pop_number_ref_walk") %in% report$excluded_fields))
+  expect_equal(out$users_count_ref_bike$default_value, 5)
+  expect_equal(out$trips_number_ref_walk$default_value, 6)
+  expect_equal(out$pop_number_ref_walk$default_value, 7)
+  expect_equal(report$excluded_fields, character(0))
+  expect_false(report$default_context$conditional_filter_applied)
+  expect_equal(report$default_context$strategy, "broad_reference_defaults")
 })
 
-test_that("apply_reference_defaults_to_profile supports advanced tabs and all-mode exceptions", {
+test_that("apply_reference_defaults_to_profile writes aggregate and per-mode mode-share defaults", {
   advanced_profile <- list(
     ui_version = list(is_filled = TRUE, input_value = "advanced"),
     modes = list(is_filled = TRUE, input_value = "walk"),
@@ -129,6 +131,7 @@ test_that("apply_reference_defaults_to_profile supports advanced tabs and all-mo
     trips_number_ref_walk = list(is_filled = FALSE, input_value = NULL),
     trips_number_ref_bike = list(is_filled = FALSE, input_value = NULL),
     trips_diversion_total_trips = list(is_filled = FALSE, input_value = NULL),
+    mode_share_ref = list(is_filled = FALSE, input_value = NULL),
     mode_share_ref_walk = list(is_filled = FALSE, input_value = NULL),
     mode_share_ref_bike = list(is_filled = FALSE, input_value = NULL),
     users_count_ref_walk = list(is_filled = FALSE, input_value = NULL)
@@ -142,6 +145,12 @@ test_that("apply_reference_defaults_to_profile supports advanced tabs and all-mo
       trips_number_ref_walk = 3,
       trips_number_ref_bike = 4,
       trips_diversion_total_trips = 5,
+      mode_share_ref = list(
+        car = list(percent = 87),
+        bike = list(percent = 7),
+        walk = list(percent = 6),
+        pt = list(percent = 0)
+      ),
       mode_share_ref_walk = 6,
       mode_share_ref_bike = 7,
       users_count_ref_walk = 8
@@ -149,29 +158,15 @@ test_that("apply_reference_defaults_to_profile supports advanced tabs and all-mo
   )
 
   expect_equal(advanced$pop_number_ref_walk$default_value, 1)
-  expect_null(advanced$pop_number_ref_bike$default_value)
+  expect_equal(advanced$pop_number_ref_bike$default_value, 2)
   expect_equal(advanced$trips_number_ref_walk$default_value, 3)
-  expect_null(advanced$trips_number_ref_bike$default_value)
+  expect_equal(advanced$trips_number_ref_bike$default_value, 4)
   expect_equal(advanced$trips_diversion_total_trips$default_value, 5)
+  expect_equal(advanced$mode_share_ref$default_value$car$percent, 87)
   expect_equal(advanced$mode_share_ref_walk$default_value, 6)
   expect_equal(advanced$mode_share_ref_bike$default_value, 7)
-  expect_null(advanced$users_count_ref_walk$default_value)
-
-  mode_share_profile <- utils::modifyList(
-    advanced_profile,
-    list(
-      ui_version = list(is_filled = TRUE, input_value = "basic"),
-      at_data_unit = list(is_filled = TRUE, input_value = "mode_share"),
-      trips_refine_method = list(is_filled = FALSE, input_value = NULL)
-    )
-  )
-  mode_share <- apply_reference_defaults_to_profile(
-    mode_share_profile,
-    ui_updates = list(mode_share_ref_walk = 6, mode_share_ref_bike = 7)
-  )
-
-  expect_equal(mode_share$mode_share_ref_walk$default_value, 6)
-  expect_equal(mode_share$mode_share_ref_bike$default_value, 7)
+  expect_equal(advanced$users_count_ref_walk$default_value, 8)
+  expect_equal(attr(advanced, "reference_defaults_report")$excluded_fields, character(0))
 })
 
 test_that("Hub builds a profile with reference defaults in one UI-facing call", {
@@ -185,8 +180,7 @@ test_that("Hub builds a profile with reference defaults in one UI-facing call", 
     pop_number_ref_walk = list(is_filled = FALSE, input_value = NULL, description = "Advanced walking users")
   ))
   hub <- Hub$new(cfg = list())
-  hub$reference_sources <- list(source_report = list())
-  hub$reference_data <- list(
+  hub$reference_default_data <- list(
     ind = data.frame(
       census_id = 1:3,
       age1year = c(20, 30, 40),
@@ -201,7 +195,7 @@ test_that("Hub builds a profile with reference defaults in one UI-facing call", 
   expect_equal(updated$pop_total_ref$default_value, 3)
   expect_equal(updated$population_size$default_value, 3)
   expect_equal(updated$users_count_ref_walk$default_value, 2)
-  expect_null(updated$pop_number_ref_walk$default_value)
+  expect_equal(updated$pop_number_ref_walk$default_value, 2)
   expect_null(updated$pop_total_ref$input_value)
   expect_false(updated$pop_total_ref$is_filled)
   expect_true("pop_total_ref" %in% report$updated_fields)

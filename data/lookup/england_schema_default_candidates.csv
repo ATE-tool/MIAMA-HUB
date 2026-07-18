@@ -1,0 +1,3 @@
+"mode","n_week_users_ind","n_week_users_from_trips","total_week_trips_weighted","trips_per_week_user","mean_trip_distance_km","mean_trip_duration_min","mean_speed_kmh"
+"walk",1270461,1270461,13891901.6510464,10.9345360865437,1.14534199939978,16.8705872696252,4.07339228123463
+"bike",145723,145723,903710.473986952,6.20156374756869,5.33070295496327,22.6197163684136,14.1399729372569

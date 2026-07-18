@@ -31,6 +31,8 @@ Hub <- R6::R6Class(
     reference_data_raw = NULL,
     reference_data = NULL,
     reference_ui_values = NULL,
+    reference_default_data = NULL,
+    reference_default_ui_values = NULL,
     counterfactual_data = NULL,
     results_data = NULL,
 
@@ -57,6 +59,8 @@ Hub <- R6::R6Class(
             reference_data_raw = self$reference_data_raw,
             reference_data = self$reference_data,
             reference_ui_values = self$reference_ui_values,
+            reference_default_data = self$reference_default_data,
+            reference_default_ui_values = self$reference_default_ui_values,
             counterfactual_data = self$counterfactual_data,
             results_data = self$results_data
           ),
@@ -67,6 +71,8 @@ Hub <- R6::R6Class(
         self$reference_data_raw <- invalidation$state$reference_data_raw
         self$reference_data <- invalidation$state$reference_data
         self$reference_ui_values <- invalidation$state$reference_ui_values
+        self$reference_default_data <- invalidation$state$reference_default_data
+        self$reference_default_ui_values <- invalidation$state$reference_default_ui_values
         self$counterfactual_data <- invalidation$state$counterfactual_data
         self$results_data <- invalidation$state$results_data
       }
@@ -90,6 +96,8 @@ Hub <- R6::R6Class(
           reference_data_raw = self$reference_data_raw,
           reference_data = self$reference_data,
           reference_ui_values = self$reference_ui_values,
+          reference_default_data = self$reference_default_data,
+          reference_default_ui_values = self$reference_default_ui_values,
           counterfactual_data = self$counterfactual_data,
           results_data = self$results_data
         ),
@@ -102,6 +110,8 @@ Hub <- R6::R6Class(
       self$reference_data_raw <- invalidation$state$reference_data_raw
       self$reference_data <- invalidation$state$reference_data
       self$reference_ui_values <- invalidation$state$reference_ui_values
+      self$reference_default_data <- invalidation$state$reference_default_data
+      self$reference_default_ui_values <- invalidation$state$reference_default_ui_values
       self$counterfactual_data <- invalidation$state$counterfactual_data
       self$results_data <- invalidation$state$results_data
 
@@ -126,14 +136,11 @@ Hub <- R6::R6Class(
       }
       private$.require_request()
 
-      if (isTRUE(refresh) || is.null(self$reference_sources)) {
-        self$load_reference_sources()
-      }
-      if (isTRUE(refresh) || is.null(self$reference_data)) {
-        self$build_reference_data()
+      if (isTRUE(refresh) || is.null(self$reference_default_data)) {
+        self$build_reference_default_data()
       }
 
-      reference_ui_values <- self$build_reference_ui_values()
+      reference_ui_values <- self$build_reference_default_ui_values()
       updated_profile <- apply_reference_defaults_to_profile(
         profile = self$appraisal_inputs,
         ui_updates = reference_ui_values$ui_updates
@@ -268,6 +275,34 @@ Hub <- R6::R6Class(
       invisible(self$reference_data)
     },
 
+    build_reference_default_data = function() {
+      private$.require_request()
+      private$.require_reference_scope()
+
+      self$reference_default_data <- load_reference_default_sources(
+        cfg = self$cfg,
+        reference_request = self$request$reference_request
+      )
+
+      invisible(self$reference_default_data)
+    },
+
+    build_reference_default_ui_values = function() {
+      private$.require_request()
+      if (is.null(self$reference_default_data)) {
+        stop("Reference default data are not loaded. Call build_reference_default_data() first.", call. = FALSE)
+      }
+
+      self$reference_default_ui_values <- extract_reference_ui_values(
+        self$reference_default_data,
+        self$request$reference_request,
+        self$request$appraisal_input_values
+      )
+      self$reference_default_ui_values <- private$.apply_geo_lookup_defaults(self$reference_default_ui_values)
+
+      self$reference_default_ui_values
+    },
+
     build_reference_ui_values = function() {
       private$.require_request()
       private$.require_reference_data()
@@ -277,10 +312,7 @@ Hub <- R6::R6Class(
         self$request$reference_request,
         self$request$appraisal_input_values
       )
-      geo_name <- self$get_geo_name(default = self$reference_ui_values$ui_updates$geo_name %||% NA_character_)
-      if (!is.na(geo_name)) {
-        self$reference_ui_values$ui_updates$geo_name <- geo_name
-      }
+      self$reference_ui_values <- private$.apply_geo_lookup_defaults(self$reference_ui_values)
 
       self$reference_ui_values
     },
@@ -429,6 +461,33 @@ Hub <- R6::R6Class(
       if (is.null(self$counterfactual_data)) {
         stop("Counterfactual data is not built. Call build_counterfactual_data() first.", call. = FALSE)
       }
+    },
+
+    .apply_geo_lookup_defaults = function(reference_ui_values) {
+      geo_level <- self$request$reference_request$geo_level %||% "eng"
+      geo_id <- self$request$reference_request$geo_id %||% "eng"
+
+      geo_details <- tryCatch(
+        get_geo_details(
+          cfg = self$cfg,
+          geo_id = geo_id,
+          geo_level = geo_level
+        ),
+        error = function(e) data.frame()
+      )
+
+      if (nrow(geo_details) > 0) {
+        if (!is.na(geo_details$geo_name[1])) {
+          reference_ui_values$ui_updates$geo_name <- geo_details$geo_name[1]
+        }
+        if ("population_size_synth_scaled" %in% names(geo_details) &&
+            !is.na(geo_details$population_size_synth_scaled[1])) {
+          reference_ui_values$ui_updates$population_size <-
+            geo_details$population_size_synth_scaled[1]
+        }
+      }
+
+      reference_ui_values
     },
 
     .changed_input_fields = function(old_values, new_values) {

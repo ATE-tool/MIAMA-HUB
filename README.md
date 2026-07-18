@@ -318,8 +318,8 @@ The extraction and profile-write responsibilities are intentionally separated:
 - [reference_data_extract_reference_ui_values.R](R/reference_data_extract_reference_ui_values.R)
   derives all reference values that HUB currently knows how to calculate.
 - [api_reference_profile_defaults.R](R/api_reference_profile_defaults.R)
-  decides which derived values are relevant for the current profile and writes
-  them into `default_value`.
+  writes each derived value into `default_value` when the matching profile field
+  exists.
 
 Intended UI usage:
 
@@ -336,9 +336,9 @@ unscoped call can otherwise trigger a much larger parquet load than intended.
 
 The returned profile keeps `input_value` and `is_filled` unchanged. Fields that
 do not exist in the UI profile are skipped and listed in the
-`reference_defaults_report` attribute. Fields that exist but are not relevant
-for the current `ui_version`, selected `modes`, or refinement method are listed
-as `excluded_fields`.
+`reference_defaults_report` attribute. `excluded_fields` is currently empty by
+design because HUB writes broad defaults and leaves conditional display choices
+to MIAMA-UI.
 
 ### HUB session state and refresh behavior
 
@@ -375,28 +375,36 @@ location should not require `refresh = TRUE`; the geography change should
 invalidate and reload automatically.
 
 The extractor accepts the flattened submitted values from
-`receive_appraisal_inputs()` so it can honor Tab 2 UI choices such as selected
-`modes`, `at_data_unit`, denominators, units, and timeframes.
+`receive_appraisal_inputs()` so it can honor selected denominators, units, and
+timeframes. The default UI schema should use `week` as the baseline timeframe;
+year/day conversions are lightweight display recalculations and should not
+force a full reference-data reload.
 
-Conditional default-writing rules:
+Broad default-writing rules:
 
-- `ui_version = "basic"` writes only Tab 2 reference defaults plus always-useful
-  summary defaults (`geo_name`, `population_size`, `pop_total_ref`).
-- `ui_version = "advanced"` writes Tab 3 and Tab 4 reference defaults plus the
-  same summary defaults.
-- Mode-specific defaults are written only for selected `modes`, except
-  `at_data_unit = "mode_share"` writes all mode-share defaults because the mode
-  share denominator covers all modes.
-- `trips_refine_method = "trip_diversion"` keeps Tab 4 diversion denominator
-  defaults and also permits all mode-share defaults if the UI profile includes
-  the shared diversion/modal fields.
+- `build_reference_profile_defaults(profile)` calculates the available
+  reference defaults broadly and writes every matching field in the profile.
+- It does not filter default writes by `ui_version`, `at_data_unit`, selected
+  `modes`, or `trips_refine_method`; those profile fields control what the UI
+  displays, not what HUB is allowed to precompute.
+- All supported active modes are calculated where the required reference columns
+  exist. Unsupported or unavailable mode fields are returned as `NA` and listed
+  in the extraction report.
+- Mode share defaults include both scalar fields (`mode_share_ref_*`,
+  `mode_share_total_*`) and the aggregate `mode_share_ref` list used by the UI
+  pie-input schema.
+
+This broad-default approach minimizes UI/HUB round trips after Tab 1. Dedicated
+small methods can still be added for cheap recalculations, such as changing a
+trip count from week to year or day without reloading parquet data.
 
 The current extractor covers Tab 2 reference fields for:
 
 - user counts (`users_count_ref_*`)
 - trip counts (`trips_count_ref_*`)
 - distance/duration amounts (`dist_dur_amount_ref_*`)
-- mode shares and denominators (`mode_share_ref_*`, `mode_share_total_*`)
+- mode shares and denominators (`mode_share_ref`, `mode_share_ref_*`,
+  `mode_share_total_*`)
 
 It also covers advanced Tab 3 and Tab 4 reference fields:
 
@@ -454,7 +462,29 @@ For plausibility checks against the real MIAMA-UI profile object, use
 `inst/workflows/dev_profile_defaults_from_ui_default.R`. It loads
 `MIAMA-UI/schemes/default.R`, fills minimal Tab 1 setup inputs, runs
 `build_reference_profile_defaults()`, and shows fields populated in
-`default_value`.
+`default_value`. From a shell, run workflow scripts with `Rscript --vanilla` to
+avoid unrelated project startup/renv activation.
+
+To test reference defaults against the full synthpop source without editing the
+workflow script:
+
+```sh
+MIAMA_DEV_DATASET_SIZE=full \
+MIAMA_DEV_GEO_ID=E08000025 \
+Rscript --vanilla inst/workflows/dev_profile_defaults_from_ui_default.R
+```
+
+`build_reference_profile_defaults()` uses a synthpop-only reference-default path,
+so full-data Tab 2/3/4 defaults do not require full HM outcomes. `pop_total_ref`
+remains the filtered synthetic-population row count; `population_size` is
+overridden from the geography lookup's scaled population where available.
+
+For England-wide schema default review values, use
+`inst/workflows/dev_extract_england_schema_default_values.R`. It reads the full
+local synthpop parquet sources, summarizes candidate defaults such as active
+trip lengths and trips per active user, and writes the compact review CSV to
+`data/lookup/england_schema_default_candidates.csv`. Review the CSV before
+copying any values into MIAMA-UI schema defaults.
 
 The R6 `Hub` wrapper still exposes developer helpers
 `build_reference_ui_values()` / `get_reference_ui_values()` /
