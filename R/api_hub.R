@@ -179,12 +179,15 @@ Hub <- R6::R6Class(
       }
 
       self$build_results_data()
+      spread_data <- private$.build_spread_data()
+      self$results_data$plot_data$spreads <- spread_data
 
       list(
         profile = self$appraisal_inputs,
         reference_data = private$.counterfactual_reference_data(),
         counterfactual_data = self$counterfactual_data,
-        results_data = self$results_data
+        results_data = self$results_data,
+        spread_data = spread_data
       )
     },
 
@@ -301,7 +304,8 @@ Hub <- R6::R6Class(
       self$reference_default_ui_values <- extract_reference_ui_values(
         self$reference_default_data,
         self$request$reference_request,
-        self$request$appraisal_input_values
+        self$request$appraisal_input_values,
+        cfg = self$cfg
       )
       self$reference_default_ui_values <- private$.apply_geo_lookup_defaults(self$reference_default_ui_values)
 
@@ -315,7 +319,8 @@ Hub <- R6::R6Class(
       self$reference_ui_values <- extract_reference_ui_values(
         self$reference_data,
         self$request$reference_request,
-        self$request$appraisal_input_values
+        self$request$appraisal_input_values,
+        cfg = self$cfg
       )
       self$reference_ui_values <- private$.apply_geo_lookup_defaults(self$reference_ui_values)
 
@@ -348,6 +353,18 @@ Hub <- R6::R6Class(
 
     get_population_size = function() {
       self$get_reference_ui_value("population_size")
+    },
+
+    get_spread_bar_values = function(ref_bars,
+                                     target_mean = NULL,
+                                     target_prop = NULL,
+                                     topic = NULL) {
+      spread_bar_values_from_slider(
+        ref_bars = ref_bars,
+        target_mean = target_mean,
+        target_prop = target_prop,
+        topic = topic
+      )
     },
 
     # Developer Helpers: Counterfactual And Results Pipeline ------------------
@@ -507,6 +524,96 @@ Hub <- R6::R6Class(
       }
 
       reference_ui_values
+    },
+
+    .build_spread_data = function() {
+      if (is.null(self$reference_default_ui_values)) {
+        if (is.null(self$reference_default_data)) {
+          return(list())
+        }
+        self$build_reference_default_ui_values()
+      }
+
+      updates <- self$reference_default_ui_values$ui_updates
+      values <- self$request$appraisal_input_values
+      aggregate_specs <- list(
+        pop = list(
+          ref_field = "pop_spread_bars_ref",
+          mean_field = "pop_spread_age_mean_cf",
+          prop_field = "pop_spread_sex_prop_cf"
+        ),
+        pa = list(
+          ref_field = "pa_spread_bars_ref",
+          mean_field = "pop_spread_pa_mean_cf",
+          prop_field = "pop_spread_pa_sex_prop_cf"
+        ),
+        trips = list(
+          ref_field = "trips_spread_bars_ref",
+          mean_field = "trips_spread_mean_cf",
+          prop_field = "trips_spread_util_prop_cf"
+        )
+      )
+
+      build_one <- function(topic, spec) {
+        ref_bars <- updates[[spec$ref_field]]
+        if (!is.data.frame(ref_bars)) {
+          return(NULL)
+        }
+
+        cf_bars <- spread_bar_values_from_slider(
+          ref_bars = ref_bars,
+          target_mean = .ui_value(values, spec$mean_field, NULL),
+          target_prop = .ui_value(values, spec$prop_field, NULL),
+          topic = topic
+        )
+
+        list(
+          topic = topic,
+          ref = ref_bars,
+          cf = cf_bars,
+          target_mean_field = spec$mean_field,
+          target_prop_field = spec$prop_field
+        )
+      }
+
+      out <- lapply(names(aggregate_specs), function(topic) {
+        build_one(topic, aggregate_specs[[topic]])
+      })
+      names(out) <- names(aggregate_specs)
+
+      modes <- normalize_active_modes(.ui_value(values, "modes", character(0)))
+      mode_out <- list()
+      for (mode in modes) {
+        if (!mode %in% names(.miama_tab2_mode_specs())) {
+          next
+        }
+        suffix <- .miama_mode_suffix(mode)
+        mode_specs <- list(
+          pop = list(
+            ref_field = paste0("pop_spread_bars_ref_", suffix),
+            mean_field = paste0("pop_spread_age_mean_cf_", suffix),
+            prop_field = paste0("pop_spread_sex_prop_cf_", suffix)
+          ),
+          pa = list(
+            ref_field = paste0("pa_spread_bars_ref_", suffix),
+            mean_field = paste0("pop_spread_pa_mean_cf_", suffix),
+            prop_field = paste0("pop_spread_pa_sex_prop_cf_", suffix)
+          ),
+          trips = list(
+            ref_field = paste0("trips_spread_bars_ref_", suffix),
+            mean_field = paste0("trips_spread_mean_cf_", suffix),
+            prop_field = paste0("trips_spread_util_prop_cf_", suffix)
+          )
+        )
+        topic_out <- lapply(names(mode_specs), function(topic) {
+          build_one(topic, mode_specs[[topic]])
+        })
+        names(topic_out) <- names(mode_specs)
+        mode_out[[suffix]] <- topic_out[!vapply(topic_out, is.null, logical(1))]
+      }
+
+      out$by_mode <- mode_out
+      out[!vapply(out, is.null, logical(1))]
     },
 
     .changed_input_fields = function(old_values, new_values) {

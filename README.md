@@ -418,13 +418,17 @@ It also covers advanced Tab 3 and Tab 4 reference fields:
 
 - population totals and per-mode population counts (`pop_total_ref`,
   `population_size`, `pop_number_ref_*`)
-- population distribution anchors (`pop_spread_age_mean_ref`,
-  `pop_spread_sex_prop_ref`, `pop_spread_pa_mean_ref`,
-  `pop_spread_pa_sex_prop_ref`)
+- mode-specific population distribution anchors (`pop_spread_age_mean_ref_*`,
+  `pop_spread_sex_prop_ref_*`, `pop_spread_pa_mean_ref_*`,
+  `pop_spread_pa_sex_prop_ref_*`)
+- mode-specific compact population spread bars (`pop_spread_bars_ref_*`)
+- mode-specific compact PA spread bars (`pa_spread_bars_ref_*`, plus temporary
+  `pop_spread_pa_bars_ref_*` aliases while the UI field names settle)
 - trip totals and per-mode trip counts (`trips_number_total_ref`,
   `trips_number_ref_*`)
-- trip distribution anchors (`trips_spread_mean_ref`,
-  `trips_spread_util_prop_ref`)
+- mode-specific trip distribution anchors (`trips_spread_mean_ref_*`,
+  `trips_spread_util_prop_ref_*`)
+- mode-specific compact trip spread bars (`trips_spread_bars_ref_*`)
 - diversion denominators (`trips_diversion_total_trips`,
   `trips_diversion_trips_n`, `trips_diversion_distance_total`,
   `trips_diversion_duration_total`)
@@ -434,7 +438,9 @@ Individual-only values, such as walking and cycling user counts from
 alone. Trip counts, trip-level distance/duration values, and mode-share values
 require `reference_data$trips`. The returned `extraction_report` records skipped
 fields and notes when a requested UI value cannot be derived from the currently
-available columns.
+available columns. It also includes `spread_bar_values`, a flattened report
+table of every compact reference spread bar payload with its source profile
+field, category, plotted variable, percent, and proportion.
 
 Current data columns distinguish walking and cycling but do not expose a
 dedicated e-bike source. Walk-to-public-transport values are derived only when
@@ -453,18 +459,112 @@ Future refinements should make these thresholds mode-specific and configurable.
 Likely examples include defining walking users as `walktime_wkhr > 2`, or using
 minimum trip-count thresholds such as more than 10 trips.
 
-The Tab 3 distribution anchors currently use selected-mode current users for
-`pop_*_current` choices and selected-mode non-users for `pop_*_new` choices.
-If a selected group is empty, the extractor falls back to the filtered
-population to avoid returning unusable distribution anchors. One schema issue is
-currently unresolved: `pop_spread_pa_mean_ref` is named like a physical-activity
-distribution mean, but its UI description, label, and unit describe mean age in
-years. The extractor currently follows the UI text and returns mean age.
+### Spread plot payloads and slider redistribution
 
-The Tab 4 trip distribution anchors currently use all trips in the filtered
-reference geography. `trips_spread_util_prop_ref` classifies trips as
-utilitarian unless `trip_purpose` looks recreational, leisure, sport, exercise,
-holiday, visit, or social.
+MIAMA-UI still owns modal presentation and plotting. HUB owns the data
+calculation. The intended split is:
+
+- UI uses its plotting function, currently derived from the POC
+  `plot_dist_bars()` implementation.
+- HUB provides mode-specific reference slider anchors, such as
+  `pop_spread_age_mean_ref_bike` and `trips_spread_mean_ref_walk`.
+- HUB also provides compact reference bar values in profile `default_value`
+  fields.
+- UI can call `hub$get_spread_bar_values(...)` or
+  `MIAMAHUB::spread_bar_values_from_slider(...)` to update counterfactual bars
+  interactively when the user moves a slider.
+- `Hub$build_results()` also attaches the same ref/cf spread payloads at
+  `result$spread_data` and `result$results_data$plot_data$spreads`.
+
+The compact spread bar object is a 10-row data frame: five categories crossed
+with two plotted variables. It contains `topic`, `scenario`, `category_order`,
+`category`, `category_midpoint`, `variable_order`, `variable`, `percent`, and
+`proportion`. This object is intentionally small and independent of raw
+individual/trip rows, so Shiny can update plots without keeping the full
+synthpop in memory.
+
+Current reference spread topics:
+
+- `pop`: five configured age categories crossed with `male` / `female`, based
+  on selected-mode users. Defaults follow the POC labels: `18-29`, `30-39`,
+  `40-49`, `50-59`, `60+`.
+- `trips`: five configured trip-distance categories crossed with `utilitarian` /
+  `recreational`, based on selected active-mode trips. Defaults follow the POC
+  labels: `0-2km`, `2-5km`, `5-10km`, `10-30km`, `30+km`.
+- `pa`: five configured physical-activity categories crossed with `male` /
+  `female`, based on selected-mode users and available `mmets` / `mmet_wkhr`
+  values; if needed, HUB reconstructs a pragmatic MMET-like value from walking,
+  cycling, and sport hours. Defaults use the current POC category wording:
+  `sedentary`, `low`, `moderate`, `high`, `very_high`.
+
+Category labels, breaks, and slider midpoints live in `cfg$spread`, which is
+created by `miama_default_config()`. The current defaults are intentionally easy
+to override:
+
+- `cfg$spread$age`
+- `cfg$spread$trip_distance`
+- `cfg$spread$pa`
+
+The PA cutoffs are provisional weekly MMET-hour cutoffs:
+`(-Inf, 0]`, `(0, 10]`, `(10, 25]`, `(25, 50]`, and `(50, Inf]`. These should be
+reviewed against the intended PA exposure definition before production use.
+
+The slider redistribution helper uses exponential tilting for the five-category
+numeric marginal. When the target mean equals the reference mean, the category
+shape is unchanged; shifting the mean moves mass across categories while
+preserving a smooth version of the reference shape. The second slider sets the
+first plotted variable's proportion: male for `pop`/`pa`, utilitarian for
+`trips`.
+
+Mode-specific example:
+
+```r
+ref_bars <- profile$trips_spread_bars_ref_bike$default_value
+cf_bars <- hub$get_spread_bar_values(
+  ref_bars,
+  target_mean = input$trips_spread_mean_cf_bike,
+  target_prop = input$trips_spread_util_prop_cf_bike,
+  topic = "trips"
+)
+```
+
+If the current UI schema does not yet include one of these bar fields,
+`build_reference_profile_defaults()` reports it in
+`reference_defaults_report$skipped_fields`. That is expected during migration:
+HUB can calculate the value before MIAMA-UI has a place to store/display it.
+
+Applying these counterfactual spread percentages back to actual individual/trip
+rows is separate from plotting. As a first draft, the sampling code now treats
+saved compact bar payloads as higher-priority constraints:
+
+- `pop_spread_bars_cf_*` supplies the target age-category marginal and male
+  proportion for mode-specific individual sampling.
+- `trips_spread_bars_cf_*` supplies the target distance-category marginal and
+  utilitarian proportion for mode-specific trip-shift sampling.
+- If those compact payloads are absent, the older permissive hooks remain:
+  `agecat_1_prop_cf` ... `agecat_5_prop_cf` and `distcat_1_prop_cf` ...
+  `distcat_5_prop_cf`.
+
+This is still a sampling approximation: candidate rows remain real rows, and the
+category proportions are used as sampling weights rather than as exact integer
+constraints. A follow-up should decide whether we need exact quota sampling for
+large enough candidate pools.
+
+Remaining clarifications:
+
+- Final age, PA, and trip-distance category definitions can now be changed in
+  `cfg$spread`, but the production defaults still need review.
+- The PA modal now has a real PA-value basis in HUB, but the exact PA exposure
+  definition and cutoffs still need review.
+- Field names for the UI schema are mode-specific in both
+  `MIAMA-UI/schemes/default.R` and `MIAMA-UI/schemes/appraisal_inputs.R`.
+  Current suffixes are `_walk`, `_bike`, `_ebike`, and `_pt`. Aggregate
+  unsuffixed fields still exist as backward-compatible selected-mode summaries,
+  but mode-specific modals should read/write the suffixed fields.
+
+`trips_spread_util_prop_ref` classifies trips as utilitarian unless
+`trip_purpose` looks recreational, leisure, sport, exercise, holiday, visit, or
+social.
 
 For plausibility checks against the real MIAMA-UI profile object, use
 `inst/workflows/dev_profile_defaults_from_ui_default.R`. It loads

@@ -20,22 +20,23 @@
 #   include walking users with `walktime_wkhr > 2`, or active-travel users/trips
 #   meeting minimum trip-count thresholds such as > 10 trips.
 #
-# Distribution-anchor assumptions:
-# - Tab 3 current-user distributions use people with positive reference activity
-#   in any selected mode.
-# - Tab 3 new-user distributions use people without positive reference activity
-#   in the selected modes.
-# - `pop_spread_pa_mean_ref` currently follows the UI description/label and is
-#   returned as mean age, despite its PA-oriented field name.
-# - Tab 4 trip distribution anchors currently use all trips in the filtered
-#   reference geography.
-# TODO: Confirm whether `pop_spread_pa_mean_ref` should become a PA exposure
-#   anchor, such as mean MMETs or active-travel minutes, instead of mean age.
+# Spread-anchor assumptions:
+# - Tab 3 population spreads use people with positive reference activity in the
+#   selected mode(s); if no users are available, they fall back to the geography.
+# - Tab 3 PA spreads use available `mmets`/`mmet_wkhr` values, or reconstruct a
+#   pragmatic MMET-like value from walking, cycling, and sport hours.
+# - Tab 4 trip spreads use active-mode trips in the selected mode(s); if none
+#   are available, they fall back to all trips in the geography.
+# - Spread bar defaults are compact 10-row data frames: five categories crossed
+#   with two plotted variables.
+# TODO: Confirm final age, PA, and trip-distance category definitions once
+#   MIAMA-UI no longer treats them as provisional five-category spreads.
 
 extract_reference_ui_values <- function(
     reference_data,
     reference_request = list(),
-    appraisal_input_values = list()
+    appraisal_input_values = list(),
+    cfg = NULL
 ) {
   if (length(reference_request) == 0 && is.null(names(reference_request))) {
     names(reference_request) <- character(0)
@@ -122,14 +123,16 @@ extract_reference_ui_values <- function(
   ui_updates <- utils::modifyList(ui_updates, result$ui_updates)
   report$notes <- c(report$notes, result$notes)
 
-  tab3_result <- .reference_tab3_population_values(ind, trips, context)
+  tab3_result <- .reference_tab3_population_values(ind, trips, context, cfg = cfg)
   ui_updates <- utils::modifyList(ui_updates, tab3_result$ui_updates)
   report$notes <- c(report$notes, tab3_result$notes)
 
-  tab4_result <- .reference_tab4_trip_values(trips, context)
+  tab4_result <- .reference_tab4_trip_values(trips, context, cfg = cfg)
   ui_updates <- utils::modifyList(ui_updates, tab4_result$ui_updates)
   report$notes <- c(report$notes, tab4_result$notes)
 
+  report$spread_bar_values <- .reference_spread_bar_report(ui_updates)
+  report$spread_bar_fields <- unique(report$spread_bar_values$field)
   report$notes <- unique(report$notes[nzchar(report$notes)])
   report$skipped_fields <- names(ui_updates)[vapply(ui_updates, function(x) {
     length(x) == 1 && is.na(x)
@@ -141,6 +144,44 @@ extract_reference_ui_values <- function(
     ui_updates = ui_updates,
     extraction_report = report
   )
+}
+
+.reference_spread_bar_report <- function(ui_updates) {
+  spread_fields <- names(ui_updates)[vapply(ui_updates, is.data.frame, logical(1))]
+  spread_fields <- spread_fields[grepl("_spread_.*bars_ref", spread_fields)]
+
+  required_cols <- c(
+    "topic",
+    "scenario",
+    "category_order",
+    "category",
+    "category_midpoint",
+    "variable_order",
+    "variable",
+    "percent",
+    "proportion"
+  )
+
+  rows <- lapply(spread_fields, function(field) {
+    values <- ui_updates[[field]]
+    if (!all(required_cols %in% names(values))) {
+      return(NULL)
+    }
+
+    values <- values[, required_cols, drop = FALSE]
+    values$field <- field
+    values <- values[, c("field", required_cols), drop = FALSE]
+    values
+  })
+  rows <- rows[!vapply(rows, is.null, logical(1))]
+
+  if (length(rows) == 0) {
+    return(data.frame())
+  }
+
+  out <- do.call(rbind, rows)
+  rownames(out) <- NULL
+  out
 }
 
 .reference_ui_context <- function(appraisal_input_values) {
@@ -573,7 +614,7 @@ extract_reference_ui_values <- function(
   "trips"
 }
 
-.reference_tab3_population_values <- function(ind, trips, context) {
+.reference_tab3_population_values <- function(ind, trips, context, cfg = NULL) {
   ui_updates <- list()
   notes <- character(0)
 
@@ -607,8 +648,31 @@ extract_reference_ui_values <- function(
 
   ui_updates$pop_spread_age_mean_ref <- .mean_or_na(ind$age1year, pop_group)
   ui_updates$pop_spread_sex_prop_ref <- .male_prop_or_na(ind, pop_group)
-  ui_updates$pop_spread_pa_mean_ref <- .mean_or_na(ind$age1year, pop_group)
-  ui_updates$pop_spread_pa_sex_prop_ref <- .male_prop_or_na(ind, pop_group)
+
+  pop_bars <- reference_population_spread_bars(ind, trips, context$modes, fallback_all = TRUE, cfg = cfg)
+  pa_bars <- reference_pa_spread_bars(ind, trips, context$modes, fallback_all = TRUE, cfg = cfg)
+  ui_updates$pop_spread_bars_ref <- pop_bars
+  ui_updates$pa_spread_bars_ref <- pa_bars
+  ui_updates$pop_spread_pa_bars_ref <- pa_bars
+  ui_updates$pop_spread_pa_mean_ref <- spread_mean_from_bars(pa_bars)
+  ui_updates$pop_spread_pa_sex_prop_ref <- spread_first_variable_prop_from_bars(pa_bars)
+
+  for (mode in context$calculation_modes) {
+    if (!mode %in% names(.miama_tab2_mode_specs())) {
+      next
+    }
+    suffix <- .miama_mode_suffix(mode)
+    mode_pop_bars <- reference_population_spread_bars(ind, trips, mode, fallback_all = FALSE, cfg = cfg)
+    mode_pa_bars <- reference_pa_spread_bars(ind, trips, mode, fallback_all = FALSE, cfg = cfg)
+
+    ui_updates[[paste0("pop_spread_bars_ref_", suffix)]] <- mode_pop_bars
+    ui_updates[[paste0("pop_spread_age_mean_ref_", suffix)]] <- spread_mean_from_bars(mode_pop_bars)
+    ui_updates[[paste0("pop_spread_sex_prop_ref_", suffix)]] <- spread_first_variable_prop_from_bars(mode_pop_bars)
+    ui_updates[[paste0("pa_spread_bars_ref_", suffix)]] <- mode_pa_bars
+    ui_updates[[paste0("pop_spread_pa_bars_ref_", suffix)]] <- mode_pa_bars
+    ui_updates[[paste0("pop_spread_pa_mean_ref_", suffix)]] <- spread_mean_from_bars(mode_pa_bars)
+    ui_updates[[paste0("pop_spread_pa_sex_prop_ref_", suffix)]] <- spread_first_variable_prop_from_bars(mode_pa_bars)
+  }
 
   if (!"age1year" %in% names(ind)) {
     notes <- c(notes, "Population age distribution anchors require `age1year`.")
@@ -616,15 +680,14 @@ extract_reference_ui_values <- function(
   if (!"female" %in% names(ind)) {
     notes <- c(notes, "Population sex distribution anchors require `female`.")
   }
-  notes <- c(
-    notes,
-    "`pop_spread_pa_mean_ref` currently follows the UI label and returns mean age, not mean PA exposure."
-  )
+  if (is.null(.spread_pa_values(ind))) {
+    notes <- c(notes, "PA spread anchors require `mmets`, `mmet_wkhr`, or reconstructable activity-hour columns.")
+  }
 
   list(ui_updates = ui_updates, notes = notes)
 }
 
-.reference_tab4_trip_values <- function(trips, context) {
+.reference_tab4_trip_values <- function(trips, context, cfg = NULL) {
   ui_updates <- list()
   notes <- character(0)
 
@@ -670,26 +733,37 @@ extract_reference_ui_values <- function(
   }
 
   valid <- !is.na(trips$nts_tripid)
+  selected_active <- .selected_mode_trip_filter(trips, context$modes) & valid
+  if (!any(selected_active, na.rm = TRUE)) {
+    notes <- c(notes, "Trip spread anchors fell back to all trips because no selected active-mode trips were available.")
+  }
+
+  trips_bars <- reference_trip_spread_bars(trips, context$modes, fallback_all = TRUE, cfg = cfg)
+  ui_updates$trips_spread_bars_ref <- trips_bars
+
   if ("trip_distraw_km" %in% names(trips)) {
-    ui_updates$trips_spread_mean_ref <- .weighted_mean_or_na(
-      trips$trip_distraw_km,
-      .trip_weights(trips),
-      valid
-    )
+    ui_updates$trips_spread_mean_ref <- spread_mean_from_bars(trips_bars)
   } else {
     ui_updates$trips_spread_mean_ref <- NA_real_
     notes <- c(notes, "`trips_spread_mean_ref` requires `trip_distraw_km`.")
   }
 
   if ("trip_purpose" %in% names(trips)) {
-    util <- .utilitarian_trip_filter(trips$trip_purpose)
-    ui_updates$trips_spread_util_prop_ref <- .divide_or_na(
-      .weighted_sum(rep(1, nrow(trips)), trips, valid & util),
-      .weighted_sum(rep(1, nrow(trips)), trips, valid)
-    )
+    ui_updates$trips_spread_util_prop_ref <- spread_first_variable_prop_from_bars(trips_bars)
   } else {
     ui_updates$trips_spread_util_prop_ref <- NA_real_
     notes <- c(notes, "`trips_spread_util_prop_ref` requires `trip_purpose`.")
+  }
+
+  for (mode in context$calculation_modes) {
+    if (!mode %in% names(.miama_tab2_mode_specs())) {
+      next
+    }
+    suffix <- .miama_mode_suffix(mode)
+    mode_bars <- reference_trip_spread_bars(trips, mode, fallback_all = FALSE, cfg = cfg)
+    ui_updates[[paste0("trips_spread_bars_ref_", suffix)]] <- mode_bars
+    ui_updates[[paste0("trips_spread_mean_ref_", suffix)]] <- spread_mean_from_bars(mode_bars)
+    ui_updates[[paste0("trips_spread_util_prop_ref_", suffix)]] <- spread_first_variable_prop_from_bars(mode_bars)
   }
 
   ui_updates$trips_diversion_total_trips <- denominator$total_trips

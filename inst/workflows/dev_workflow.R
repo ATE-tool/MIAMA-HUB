@@ -173,19 +173,96 @@ dplyr::glimpse(reference_data$trips)
 reference_ui_values <- extract_reference_ui_values(
   reference_data,
   request$reference_request,
-  request$appraisal_input_values
+  request$appraisal_input_values,
+  cfg = cfg
 )
 
 ## 5.1 Inspect UI updates and extraction report ----
 str(reference_ui_values$ui_updates)
 str(reference_ui_values$extraction_report)
 
-# Development-only example target for Step 6. Real UI calls should provide
-# `users_count_cf_walk` or another supported `_cf_` value directly.
+## 5.2 Inspect spread bar defaults for selected development modes ----
+# These compact 10-row data frames are the reference bar values used by Tab 3/4
+# spread plots. They are mode-specific where the profile has mode-specific
+# fields, e.g. `pop_spread_bars_ref_walk` and `trips_spread_bars_ref_bike`.
+
+spread_bar_report <- reference_ui_values$extraction_report$spread_bar_values
+spread_bar_fields_to_print <- c(
+  "pop_spread_bars_ref_walk",
+  "pop_spread_bars_ref_bike",
+  "pa_spread_bars_ref_walk",
+  "pa_spread_bars_ref_bike",
+  "trips_spread_bars_ref_walk",
+  "trips_spread_bars_ref_bike"
+)
+
+spread_bar_report[
+  spread_bar_report$field %in% spread_bar_fields_to_print,
+  c("field", "topic", "category_order", "category", "variable", "percent"),
+  drop = FALSE
+] |>
+  utils::head(120) |>
+  as.data.frame() |>
+  print(row.names = FALSE)
+
+# Development-only example targets for Step 6. Real UI calls should provide
+# supported `_cf_` values directly. The spread examples mimic UI slider changes:
+# the slider-adjusted bar values become additional constraints for sampling
+# candidate users and shifted trips.
 request$appraisal_input_values$users_count_cf_walk <- min(
   reference_ui_values$ui_updates$pop_total_ref,
   reference_ui_values$ui_updates$pop_number_ref_walk + 10
 )
+
+pop_spread_bars_cf_walk <- spread_bar_values_from_slider(
+  reference_ui_values$ui_updates$pop_spread_bars_ref_walk,
+  target_mean = reference_ui_values$ui_updates$pop_spread_age_mean_ref_walk + 5,
+  target_prop = 0.55,
+  topic = "pop"
+)
+request$appraisal_input_values$pop_spread_bars_cf_walk <- pop_spread_bars_cf_walk
+request$appraisal_input_values$pop_spread_age_mean_cf_walk <- spread_mean_from_bars(pop_spread_bars_cf_walk)
+request$appraisal_input_values$pop_spread_sex_prop_cf_walk <- spread_first_variable_prop_from_bars(pop_spread_bars_cf_walk)
+
+pa_spread_bars_cf_walk <- spread_bar_values_from_slider(
+  reference_ui_values$ui_updates$pa_spread_bars_ref_walk,
+  target_mean = reference_ui_values$ui_updates$pop_spread_pa_mean_ref_walk + 5,
+  target_prop = reference_ui_values$ui_updates$pop_spread_pa_sex_prop_ref_walk,
+  topic = "pa"
+)
+request$appraisal_input_values$pa_spread_bars_cf_walk <- pa_spread_bars_cf_walk
+request$appraisal_input_values$pop_spread_pa_bars_cf_walk <- pa_spread_bars_cf_walk
+request$appraisal_input_values$pop_spread_pa_mean_cf_walk <- spread_mean_from_bars(pa_spread_bars_cf_walk)
+request$appraisal_input_values$pop_spread_pa_sex_prop_cf_walk <- spread_first_variable_prop_from_bars(pa_spread_bars_cf_walk)
+
+request$appraisal_input_values$trips_timeframe_bike <- "week"
+request$appraisal_input_values$trips_denominator_bike <- "total"
+request$appraisal_input_values$trips_count_cf_bike <- reference_ui_values$ui_updates$trips_count_ref_bike + 10
+
+trips_spread_bars_cf_bike <- spread_bar_values_from_slider(
+  reference_ui_values$ui_updates$trips_spread_bars_ref_bike,
+  target_mean = reference_ui_values$ui_updates$trips_spread_mean_ref_bike + 1,
+  target_prop = reference_ui_values$ui_updates$trips_spread_util_prop_ref_bike,
+  topic = "trips"
+)
+request$appraisal_input_values$trips_spread_bars_cf_bike <- trips_spread_bars_cf_bike
+request$appraisal_input_values$trips_spread_mean_cf_bike <- spread_mean_from_bars(trips_spread_bars_cf_bike)
+request$appraisal_input_values$trips_spread_util_prop_cf_bike <- spread_first_variable_prop_from_bars(trips_spread_bars_cf_bike)
+
+cf_spread_examples <- rbind(
+  pop_spread_bars_cf_walk,
+  pa_spread_bars_cf_walk,
+  trips_spread_bars_cf_bike
+)
+
+cf_spread_examples[
+  ,
+  c("topic", "scenario", "category_order", "category", "variable", "percent"),
+  drop = FALSE
+] |>
+  utils::head(120) |>
+  as.data.frame() |>
+  print(row.names = FALSE)
 
 
 # --- Full pipeline (commented out until modules are implemented) ----

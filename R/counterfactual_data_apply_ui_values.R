@@ -286,7 +286,7 @@ apply_counterfactual_ui_values <- function(
     constants = constants,
     seed = seed,
     sampling_strategy = sampling_strategy,
-    population_target = cf_population_sampling_target(appraisal_input_values)
+    population_target = cf_population_sampling_target(appraisal_input_values, spec$suffix)
   )
 
   counterfactual_data <- assignment$counterfactual_data
@@ -299,7 +299,7 @@ apply_counterfactual_ui_values <- function(
     role = assignment$role,
     constants = constants,
     seed = seed,
-    trip_target = cf_trip_sampling_target(appraisal_input_values),
+    trip_target = cf_trip_sampling_target(appraisal_input_values, spec$suffix),
     diversion_target = .cf_diversion_target(appraisal_input_values, constants)
   )
   counterfactual_data <- trip_effect$counterfactual_data
@@ -453,7 +453,7 @@ apply_counterfactual_ui_values <- function(
     delta = delta,
     seed = seed,
     sampling_strategy = sampling_strategy,
-    trip_target = cf_trip_sampling_target(appraisal_input_values),
+    trip_target = cf_trip_sampling_target(appraisal_input_values, spec$suffix),
     constants = constants,
     diversion_target = .cf_diversion_target(appraisal_input_values, constants)
   )

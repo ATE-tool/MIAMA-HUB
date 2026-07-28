@@ -299,24 +299,57 @@ cf_plausible_distance_candidates <- function(trips, candidate_rows, active_dista
 # Existing UI fields provide sex and mean-distance/purpose summaries. Quintile
 # hooks are intentionally permissive for upcoming Tab 3/4 controls.
 
-cf_population_sampling_target <- function(values) {
-  male_prop <- values[["pop_spread_sex_prop_cf"]]
+cf_population_sampling_target <- function(values, suffix = NULL) {
+  pop_bars_cf <- .cf_mode_value(values, "pop_spread_bars_cf", suffix)
+  male_prop <- if (is.data.frame(pop_bars_cf)) {
+    spread_first_variable_prop_from_bars(pop_bars_cf)
+  } else {
+    .cf_mode_value(values, "pop_spread_sex_prop_cf", suffix)
+  }
   if (is.null(male_prop)) {
-    male_prop <- values[["pop_spread_pa_sex_prop_cf"]]
+    male_prop <- .cf_mode_value(values, "pop_spread_pa_sex_prop_cf", suffix)
+  }
+
+  age_props <- if (is.data.frame(pop_bars_cf)) {
+    spread_category_props_from_bars(pop_bars_cf)
+  } else {
+    cf_ui_category_props(values, "agecat")
   }
 
   list(
     male_prop = .cf_clamp_prop(male_prop),
-    age_quintile_props = cf_ui_category_props(values, "agecat")
+    age_quintile_props = age_props
   )
 }
 
-cf_trip_sampling_target <- function(values) {
+cf_trip_sampling_target <- function(values, suffix = NULL) {
+  trip_bars_cf <- .cf_mode_value(values, "trips_spread_bars_cf", suffix)
+
   list(
-    distance_quintile_props = cf_ui_category_props(values, "distcat"),
-    target_mean_distance = values[["trips_spread_mean_cf"]],
-    target_utilitarian_prop = values[["trips_spread_util_prop_cf"]]
+    distance_quintile_props = if (is.data.frame(trip_bars_cf)) {
+      spread_category_props_from_bars(trip_bars_cf)
+    } else {
+      cf_ui_category_props(values, "distcat")
+    },
+    target_mean_distance = .cf_mode_value(values, "trips_spread_mean_cf", suffix),
+    target_utilitarian_prop = if (is.data.frame(trip_bars_cf)) {
+      spread_first_variable_prop_from_bars(trip_bars_cf)
+    } else {
+      .cf_mode_value(values, "trips_spread_util_prop_cf", suffix)
+    }
   )
+}
+
+.cf_mode_value <- function(values, field_stem, suffix = NULL) {
+  if (!is.null(suffix) && length(suffix) > 0 && !is.na(suffix[1])) {
+    mode_field <- paste0(field_stem, "_", suffix[1])
+    value <- values[[mode_field]]
+    if (!is.null(value)) {
+      return(value)
+    }
+  }
+
+  values[[field_stem]]
 }
 
 cf_ui_category_props <- function(values, prefix) {
