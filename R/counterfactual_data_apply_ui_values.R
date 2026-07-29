@@ -627,8 +627,8 @@ apply_counterfactual_ui_values <- function(
     "trips_dist_value",
     "trips_purpose_type",
     "trips_purpose_util_perc",
-    "trips_spread_mean_cf",
-    "trips_spread_util_prop_cf",
+    paste0("trips_spread_mean_cf_", suffix),
+    paste0("trips_spread_util_prop_cf_", suffix),
     "trips_diversion_car_perc",
     "trips_diversion_walk_perc",
     "trips_diversion_bike_perc",
@@ -642,8 +642,8 @@ apply_counterfactual_ui_values <- function(
     trip_distance_default = .ui_value(values, "trips_dist_value", NULL),
     purpose_type = .ui_value(values, "trips_purpose_type", NULL),
     utilitarian_percent = .ui_value(values, "trips_purpose_util_perc", NULL),
-    target_mean_distance = .ui_value(values, "trips_spread_mean_cf", NULL),
-    target_utilitarian_prop = .ui_value(values, "trips_spread_util_prop_cf", NULL),
+    target_mean_distance = .ui_value(values, paste0("trips_spread_mean_cf_", suffix), NULL),
+    target_utilitarian_prop = .ui_value(values, paste0("trips_spread_util_prop_cf_", suffix), NULL),
     diversion_car_percent = .ui_value(values, "trips_diversion_car_perc", NULL),
     advanced_fields_present = present
   )

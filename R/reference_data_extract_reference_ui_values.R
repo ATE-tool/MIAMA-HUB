@@ -620,21 +620,10 @@ extract_reference_ui_values <- function(
 
   if (is.null(ind)) {
     return(list(
-      ui_updates = list(
-        pop_spread_age_mean_ref = NA_real_,
-        pop_spread_sex_prop_ref = NA_real_,
-        pop_spread_pa_mean_ref = NA_real_,
-        pop_spread_pa_sex_prop_ref = NA_real_
-      ),
+      ui_updates = list(),
       notes = "Tab 3 population reference values require individual-level reference data."
     ))
   }
-
-  active <- .selected_mode_individual_filter(ind, trips, context$modes)
-  pop_group <- .population_distribution_filter(
-    active = active,
-    pop_refine_choice = .ui_value(context$values, "pop_refine_choice", "pop_age_current")
-  )
 
   for (mode in context$modes) {
     if (!mode %in% names(.miama_tab2_mode_specs())) {
@@ -645,17 +634,6 @@ extract_reference_ui_values <- function(
     ui_updates[[paste0("pop_number_ref_", suffix)]] <- result$value
     notes <- c(notes, result$notes)
   }
-
-  ui_updates$pop_spread_age_mean_ref <- .mean_or_na(ind$age1year, pop_group)
-  ui_updates$pop_spread_sex_prop_ref <- .male_prop_or_na(ind, pop_group)
-
-  pop_bars <- reference_population_spread_bars(ind, trips, context$modes, fallback_all = TRUE, cfg = cfg)
-  pa_bars <- reference_pa_spread_bars(ind, trips, context$modes, fallback_all = TRUE, cfg = cfg)
-  ui_updates$pop_spread_bars_ref <- pop_bars
-  ui_updates$pa_spread_bars_ref <- pa_bars
-  ui_updates$pop_spread_pa_bars_ref <- pa_bars
-  ui_updates$pop_spread_pa_mean_ref <- spread_mean_from_bars(pa_bars)
-  ui_updates$pop_spread_pa_sex_prop_ref <- spread_first_variable_prop_from_bars(pa_bars)
 
   for (mode in context$calculation_modes) {
     if (!mode %in% names(.miama_tab2_mode_specs())) {
@@ -693,8 +671,6 @@ extract_reference_ui_values <- function(
 
   if (is.null(trips) || !"nts_tripid" %in% names(trips)) {
     ui_updates$trips_number_total_ref <- NA_real_
-    ui_updates$trips_spread_mean_ref <- NA_real_
-    ui_updates$trips_spread_util_prop_ref <- NA_real_
     ui_updates$trips_diversion_total_trips <- NA_real_
     ui_updates$trips_diversion_trips_n <- NA_real_
     ui_updates$trips_diversion_distance_total <- NA_real_
@@ -736,23 +712,6 @@ extract_reference_ui_values <- function(
   selected_active <- .selected_mode_trip_filter(trips, context$modes) & valid
   if (!any(selected_active, na.rm = TRUE)) {
     notes <- c(notes, "Trip spread anchors fell back to all trips because no selected active-mode trips were available.")
-  }
-
-  trips_bars <- reference_trip_spread_bars(trips, context$modes, fallback_all = TRUE, cfg = cfg)
-  ui_updates$trips_spread_bars_ref <- trips_bars
-
-  if ("trip_distraw_km" %in% names(trips)) {
-    ui_updates$trips_spread_mean_ref <- spread_mean_from_bars(trips_bars)
-  } else {
-    ui_updates$trips_spread_mean_ref <- NA_real_
-    notes <- c(notes, "`trips_spread_mean_ref` requires `trip_distraw_km`.")
-  }
-
-  if ("trip_purpose" %in% names(trips)) {
-    ui_updates$trips_spread_util_prop_ref <- spread_first_variable_prop_from_bars(trips_bars)
-  } else {
-    ui_updates$trips_spread_util_prop_ref <- NA_real_
-    notes <- c(notes, "`trips_spread_util_prop_ref` requires `trip_purpose`.")
   }
 
   for (mode in context$calculation_modes) {

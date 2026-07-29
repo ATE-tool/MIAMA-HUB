@@ -171,6 +171,12 @@ Hub <- R6::R6Class(
       if (is.null(self$reference_default_data) && is.null(self$reference_data)) {
         self$build_reference_default_data()
       }
+      if (is.null(self$reference_data) ||
+          is.null(self$reference_data$ind) ||
+          !"mmets" %in% names(self$reference_data$ind)) {
+        self$load_reference_sources()
+        self$build_reference_data()
+      }
       if (isTRUE(refresh) || is.null(self$counterfactual_data)) {
         self$build_counterfactual_data(seed = seed)
       }
@@ -356,13 +362,13 @@ Hub <- R6::R6Class(
     },
 
     get_spread_bar_values = function(ref_bars,
-                                     target_mean = NULL,
-                                     target_prop = NULL,
+                                     cf_mean = NULL,
+                                     cf_prop = NULL,
                                      topic = NULL) {
       spread_bar_values_from_slider(
         ref_bars = ref_bars,
-        target_mean = target_mean,
-        target_prop = target_prop,
+        cf_mean = cf_mean,
+        cf_prop = cf_prop,
         topic = topic
       )
     },
@@ -376,9 +382,10 @@ Hub <- R6::R6Class(
       reference_data <- private$.counterfactual_reference_data()
 
       self$counterfactual_data <- init_counterfactual_data(reference_data)
+      appraisal_input_values <- private$.counterfactual_input_values()
       self$counterfactual_data <- apply_counterfactual_ui_values(
         self$counterfactual_data,
-        self$request$appraisal_input_values,
+        appraisal_input_values,
         reference_data = reference_data,
         seed = seed
       )
@@ -417,7 +424,7 @@ Hub <- R6::R6Class(
         counterfactual_data = self$counterfactual_data,
         reference_data = reference_data,
         results_request = self$request$results_request,
-        appraisal_input_values = self$request$appraisal_input_values
+        appraisal_input_values = private$.counterfactual_input_values()
       )
 
       self$results_data
@@ -480,6 +487,11 @@ Hub <- R6::R6Class(
     },
 
     .counterfactual_reference_data = function() {
+      if (!is.null(self$reference_data) &&
+          !is.null(self$reference_data$ind) &&
+          "mmets" %in% names(self$reference_data$ind)) {
+        return(self$reference_data)
+      }
       if (!is.null(self$reference_default_data)) {
         return(self$reference_default_data)
       }
@@ -497,6 +509,21 @@ Hub <- R6::R6Class(
       if (is.null(self$counterfactual_data)) {
         stop("Counterfactual data is not built. Call build_counterfactual_data() first.", call. = FALSE)
       }
+    },
+
+    .counterfactual_input_values = function() {
+      values <- self$request$appraisal_input_values
+      if (is.null(self$reference_default_ui_values)) {
+        if (is.null(self$reference_default_data)) {
+          return(values)
+        }
+        self$build_reference_default_ui_values()
+      }
+
+      derive_counterfactual_spread_values(
+        appraisal_input_values = values,
+        reference_ui_values = self$reference_default_ui_values
+      )
     },
 
     .apply_geo_lookup_defaults = function(reference_ui_values) {
@@ -536,23 +563,6 @@ Hub <- R6::R6Class(
 
       updates <- self$reference_default_ui_values$ui_updates
       values <- self$request$appraisal_input_values
-      aggregate_specs <- list(
-        pop = list(
-          ref_field = "pop_spread_bars_ref",
-          mean_field = "pop_spread_age_mean_cf",
-          prop_field = "pop_spread_sex_prop_cf"
-        ),
-        pa = list(
-          ref_field = "pa_spread_bars_ref",
-          mean_field = "pop_spread_pa_mean_cf",
-          prop_field = "pop_spread_pa_sex_prop_cf"
-        ),
-        trips = list(
-          ref_field = "trips_spread_bars_ref",
-          mean_field = "trips_spread_mean_cf",
-          prop_field = "trips_spread_util_prop_cf"
-        )
-      )
 
       build_one <- function(topic, spec) {
         ref_bars <- updates[[spec$ref_field]]
@@ -562,8 +572,8 @@ Hub <- R6::R6Class(
 
         cf_bars <- spread_bar_values_from_slider(
           ref_bars = ref_bars,
-          target_mean = .ui_value(values, spec$mean_field, NULL),
-          target_prop = .ui_value(values, spec$prop_field, NULL),
+          cf_mean = .ui_value(values, spec$mean_field, NULL),
+          cf_prop = .ui_value(values, spec$prop_field, NULL),
           topic = topic
         )
 
@@ -571,15 +581,10 @@ Hub <- R6::R6Class(
           topic = topic,
           ref = ref_bars,
           cf = cf_bars,
-          target_mean_field = spec$mean_field,
-          target_prop_field = spec$prop_field
+          cf_mean_field = spec$mean_field,
+          cf_prop_field = spec$prop_field
         )
       }
-
-      out <- lapply(names(aggregate_specs), function(topic) {
-        build_one(topic, aggregate_specs[[topic]])
-      })
-      names(out) <- names(aggregate_specs)
 
       modes <- normalize_active_modes(.ui_value(values, "modes", character(0)))
       mode_out <- list()
@@ -612,8 +617,7 @@ Hub <- R6::R6Class(
         mode_out[[suffix]] <- topic_out[!vapply(topic_out, is.null, logical(1))]
       }
 
-      out$by_mode <- mode_out
-      out[!vapply(out, is.null, logical(1))]
+      list(by_mode = mode_out)
     },
 
     .changed_input_fields = function(old_values, new_values) {

@@ -1,6 +1,6 @@
 # MIAMA-HUB Module: Reference Data / Spread Functions
 # Purpose: Build compact 5-category spread payloads for MIAMA-UI plots and
-#   derive counterfactual bar values from slider targets.
+#   derive counterfactual bar values from counterfactual slider values.
 #
 # Terminology:
 # - `spread` means a compact categorical distribution for plotting. We avoid
@@ -12,7 +12,7 @@
 # - Reference extraction returns small data frames, not raw individual/trip rows.
 # - Each spread data frame has 10 rows: five categories crossed with two series.
 # - Slider-driven counterfactual updates only need the reference spread data
-#   frame and target slider values. They do not need raw synthpop data.
+#   frame and counterfactual slider values. They do not need raw synthpop data.
 
 MIAMA_SPREAD_CATEGORY_COUNT <- 5L
 
@@ -21,28 +21,29 @@ miama_spread_topics <- function() {
 }
 
 # Public helper for MIAMA-UI ---------------------------------------------------
-# Recomputes plot bar values from a compact reference spread payload and slider
-# values. `target_mean` shifts the five-category marginal distribution;
-# `target_prop` sets the first plotted series, e.g. male or utilitarian.
+# Recomputes plot bar values from a compact reference spread payload and
+# counterfactual slider values. `cf_mean` shifts the five-category marginal
+# distribution; `cf_prop` sets the first plotted series, e.g. male or
+# utilitarian.
 
 #' Derive Counterfactual Spread Bar Values
 #'
 #' @param ref_bars A reference spread data frame returned by HUB in a profile
 #'   `default_value`, with columns `category`, `variable`, `percent`, and
 #'   `category_midpoint`.
-#' @param target_mean Numeric slider target for the category mean. When `NULL`,
-#'   the reference mean is reused.
-#' @param target_prop Numeric slider target for the first variable's proportion.
-#'   Values can be proportions (`0.55`) or percentages (`55`). When `NULL`, the
-#'   reference split is reused.
+#' @param cf_mean Numeric counterfactual slider value for the category mean.
+#'   When `NULL`, the reference mean is reused.
+#' @param cf_prop Numeric counterfactual slider value for the first variable's
+#'   proportion. Values can be proportions (`0.55`) or percentages (`55`). When
+#'   `NULL`, the reference split is reused.
 #' @param topic Optional spread topic label: `pop`, `trips`, or `pa`.
 #'
 #' @return A compact counterfactual spread data frame with the same schema as
 #'   `ref_bars`.
 #' @export
 spread_bar_values_from_slider <- function(ref_bars,
-                                          target_mean = NULL,
-                                          target_prop = NULL,
+                                          cf_mean = NULL,
+                                          cf_prop = NULL,
                                           topic = NULL) {
   ref_bars <- .spread_validate_bars(ref_bars)
   if (!is.null(topic) && !topic %in% miama_spread_topics()) {
@@ -60,20 +61,20 @@ spread_bar_values_from_slider <- function(ref_bars,
   category_marginal <- rowSums(ref_matrix)
   variable_marginal <- colSums(ref_matrix)
 
-  if (is.null(target_mean) || length(target_mean) == 0 || is.na(target_mean[1])) {
-    target_mean <- .spread_weighted_mean(category_marginal, category_midpoints)
+  if (is.null(cf_mean) || length(cf_mean) == 0 || is.na(cf_mean[1])) {
+    cf_mean <- .spread_weighted_mean(category_marginal, category_midpoints)
   }
-  if (is.null(target_prop) || length(target_prop) == 0 || is.na(target_prop[1])) {
-    target_prop <- variable_marginal[1] / 100
+  if (is.null(cf_prop) || length(cf_prop) == 0 || is.na(cf_prop[1])) {
+    cf_prop <- variable_marginal[1] / 100
   }
-  target_prop <- .spread_clamp_prop(target_prop)
+  cf_prop <- .spread_clamp_prop(cf_prop)
 
   cf_category <- .spread_redistribute_numeric_marginal(
     baseline_percent = category_marginal,
     category_midpoints = category_midpoints,
-    target_mean = as.numeric(target_mean[1])
+    cf_mean = as.numeric(cf_mean[1])
   )
-  cf_variable <- c(target_prop, 1 - target_prop) * 100
+  cf_variable <- c(cf_prop, 1 - cf_prop) * 100
   names(cf_variable) <- variables
 
   out_matrix <- outer(cf_category / 100, cf_variable / 100) * 100
@@ -244,6 +245,60 @@ spread_category_props_from_bars <- function(bars) {
     return(rep(NA_real_, MIAMA_SPREAD_CATEGORY_COUNT))
   }
   unname(props / sum(props, na.rm = TRUE))
+}
+
+derive_counterfactual_spread_values <- function(appraisal_input_values,
+                                                reference_ui_values) {
+  values <- appraisal_input_values
+  ui_updates <- if (!is.null(reference_ui_values$ui_updates)) {
+    reference_ui_values$ui_updates
+  } else {
+    reference_ui_values
+  }
+
+  add_one <- function(ref_field, cf_bars_field, cf_mean_field, cf_prop_field, topic) {
+    ref_bars <- ui_updates[[ref_field]]
+    if (!is.data.frame(ref_bars)) {
+      return()
+    }
+
+    values[[cf_bars_field]] <<- spread_bar_values_from_slider(
+      ref_bars = ref_bars,
+      cf_mean = .ui_value(values, cf_mean_field, NULL),
+      cf_prop = .ui_value(values, cf_prop_field, NULL),
+      topic = topic
+    )
+  }
+
+  for (mode in names(.miama_tab2_mode_specs())) {
+    suffix <- .miama_mode_suffix(mode)
+
+    add_one(
+      ref_field = paste0("pop_spread_bars_ref_", suffix),
+      cf_bars_field = paste0("pop_spread_bars_cf_", suffix),
+      cf_mean_field = paste0("pop_spread_age_mean_cf_", suffix),
+      cf_prop_field = paste0("pop_spread_sex_prop_cf_", suffix),
+      topic = "pop"
+    )
+    add_one(
+      ref_field = paste0("pa_spread_bars_ref_", suffix),
+      cf_bars_field = paste0("pa_spread_bars_cf_", suffix),
+      cf_mean_field = paste0("pop_spread_pa_mean_cf_", suffix),
+      cf_prop_field = paste0("pop_spread_pa_sex_prop_cf_", suffix),
+      topic = "pa"
+    )
+    values[[paste0("pop_spread_pa_bars_cf_", suffix)]] <-
+      values[[paste0("pa_spread_bars_cf_", suffix)]]
+    add_one(
+      ref_field = paste0("trips_spread_bars_ref_", suffix),
+      cf_bars_field = paste0("trips_spread_bars_cf_", suffix),
+      cf_mean_field = paste0("trips_spread_mean_cf_", suffix),
+      cf_prop_field = paste0("trips_spread_util_prop_cf_", suffix),
+      topic = "trips"
+    )
+  }
+
+  values
 }
 
 # Internals --------------------------------------------------------------------
@@ -483,9 +538,10 @@ spread_category_props_from_bars <- function(bars) {
 
 .spread_redistribute_numeric_marginal <- function(baseline_percent,
                                                   category_midpoints,
-                                                  target_mean) {
+                                                  cf_mean) {
   baseline_percent <- as.numeric(baseline_percent)
   category_midpoints <- as.numeric(category_midpoints)
+  cf_mean <- as.numeric(cf_mean[1])
 
   baseline_percent[is.na(baseline_percent) | baseline_percent < 0] <- 0
   if (sum(baseline_percent) <= 0) {
@@ -498,12 +554,15 @@ spread_category_props_from_bars <- function(bars) {
   if (!any(has_weight)) {
     return(baseline_percent)
   }
+  if (!is.finite(cf_mean)) {
+    return(baseline_percent)
+  }
 
   min_mean <- min(category_midpoints[has_weight], na.rm = TRUE)
   max_mean <- max(category_midpoints[has_weight], na.rm = TRUE)
-  target_mean <- max(min_mean, min(max_mean, target_mean))
+  cf_mean <- max(min_mean, min(max_mean, cf_mean))
   baseline_mean <- .spread_weighted_mean(baseline_percent, category_midpoints)
-  if (abs(target_mean - baseline_mean) < 1e-9) {
+  if (abs(cf_mean - baseline_mean) < 1e-9) {
     return(baseline_percent)
   }
 
@@ -515,7 +574,7 @@ spread_category_props_from_bars <- function(bars) {
   }
   tilted_mean <- function(lambda) {
     weights <- lse_weights(lambda)
-    sum(category_midpoints * weights, na.rm = TRUE) / sum(weights, na.rm = TRUE) - target_mean
+    sum(category_midpoints * weights, na.rm = TRUE) / sum(weights, na.rm = TRUE) - cf_mean
   }
 
   root <- tryCatch(

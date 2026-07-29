@@ -216,24 +216,25 @@ request$appraisal_input_values$users_count_cf_walk <- min(
 
 pop_spread_bars_cf_walk <- spread_bar_values_from_slider(
   reference_ui_values$ui_updates$pop_spread_bars_ref_walk,
-  target_mean = reference_ui_values$ui_updates$pop_spread_age_mean_ref_walk + 5,
-  target_prop = 0.55,
+  cf_mean = reference_ui_values$ui_updates$pop_spread_age_mean_ref_walk + 5,
+  cf_prop = 0.55,
   topic = "pop"
 )
-request$appraisal_input_values$pop_spread_bars_cf_walk <- pop_spread_bars_cf_walk
-request$appraisal_input_values$pop_spread_age_mean_cf_walk <- spread_mean_from_bars(pop_spread_bars_cf_walk)
-request$appraisal_input_values$pop_spread_sex_prop_cf_walk <- spread_first_variable_prop_from_bars(pop_spread_bars_cf_walk)
+request$appraisal_input_values$pop_spread_age_mean_cf_walk <-
+  spread_mean_from_bars(pop_spread_bars_cf_walk)
+request$appraisal_input_values$pop_spread_sex_prop_cf_walk <-
+  spread_first_variable_prop_from_bars(pop_spread_bars_cf_walk)
 
 pa_spread_bars_cf_walk <- spread_bar_values_from_slider(
   reference_ui_values$ui_updates$pa_spread_bars_ref_walk,
-  target_mean = reference_ui_values$ui_updates$pop_spread_pa_mean_ref_walk + 5,
-  target_prop = reference_ui_values$ui_updates$pop_spread_pa_sex_prop_ref_walk,
+  cf_mean = reference_ui_values$ui_updates$pop_spread_pa_mean_ref_walk + 5,
+  cf_prop = reference_ui_values$ui_updates$pop_spread_pa_sex_prop_ref_walk,
   topic = "pa"
 )
-request$appraisal_input_values$pa_spread_bars_cf_walk <- pa_spread_bars_cf_walk
-request$appraisal_input_values$pop_spread_pa_bars_cf_walk <- pa_spread_bars_cf_walk
-request$appraisal_input_values$pop_spread_pa_mean_cf_walk <- spread_mean_from_bars(pa_spread_bars_cf_walk)
-request$appraisal_input_values$pop_spread_pa_sex_prop_cf_walk <- spread_first_variable_prop_from_bars(pa_spread_bars_cf_walk)
+request$appraisal_input_values$pop_spread_pa_mean_cf_walk <-
+  spread_mean_from_bars(pa_spread_bars_cf_walk)
+request$appraisal_input_values$pop_spread_pa_sex_prop_cf_walk <-
+  spread_first_variable_prop_from_bars(pa_spread_bars_cf_walk)
 
 request$appraisal_input_values$trips_timeframe_bike <- "week"
 request$appraisal_input_values$trips_denominator_bike <- "total"
@@ -241,13 +242,14 @@ request$appraisal_input_values$trips_count_cf_bike <- reference_ui_values$ui_upd
 
 trips_spread_bars_cf_bike <- spread_bar_values_from_slider(
   reference_ui_values$ui_updates$trips_spread_bars_ref_bike,
-  target_mean = reference_ui_values$ui_updates$trips_spread_mean_ref_bike + 1,
-  target_prop = reference_ui_values$ui_updates$trips_spread_util_prop_ref_bike,
+  cf_mean = reference_ui_values$ui_updates$trips_spread_mean_ref_bike + 1,
+  cf_prop = reference_ui_values$ui_updates$trips_spread_util_prop_ref_bike,
   topic = "trips"
 )
-request$appraisal_input_values$trips_spread_bars_cf_bike <- trips_spread_bars_cf_bike
-request$appraisal_input_values$trips_spread_mean_cf_bike <- spread_mean_from_bars(trips_spread_bars_cf_bike)
-request$appraisal_input_values$trips_spread_util_prop_cf_bike <- spread_first_variable_prop_from_bars(trips_spread_bars_cf_bike)
+request$appraisal_input_values$trips_spread_mean_cf_bike <-
+  spread_mean_from_bars(trips_spread_bars_cf_bike)
+request$appraisal_input_values$trips_spread_util_prop_cf_bike <-
+  spread_first_variable_prop_from_bars(trips_spread_bars_cf_bike)
 
 cf_spread_examples <- rbind(
   pop_spread_bars_cf_walk,
@@ -264,6 +266,11 @@ cf_spread_examples[
   as.data.frame() |>
   print(row.names = FALSE)
 
+counterfactual_appraisal_input_values <- derive_counterfactual_spread_values(
+  request$appraisal_input_values,
+  reference_ui_values
+)
+
 
 # --- Full pipeline (commented out until modules are implemented) ----
 # -----------------------------------------------------------------------------#
@@ -277,7 +284,7 @@ cf_spread_examples[
 counterfactual_data <- init_counterfactual_data(reference_data)
 counterfactual_data <- apply_counterfactual_ui_values(
   counterfactual_data,
-  request$appraisal_input_values,
+  counterfactual_appraisal_input_values,
   reference_data = reference_data,
   seed = 1L
 )
@@ -323,7 +330,7 @@ results_data <- prepare_results_data(
   counterfactual_data = counterfactual_data,
   reference_data = reference_data,
   results_request = request$results_request,
-  appraisal_input_values = request$appraisal_input_values
+  appraisal_input_values = counterfactual_appraisal_input_values
 )
 
 ## 8.1 Inspect result summaries and tables ----

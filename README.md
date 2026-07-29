@@ -472,7 +472,8 @@ calculation. The intended split is:
   fields.
 - UI can call `hub$get_spread_bar_values(...)` or
   `MIAMAHUB::spread_bar_values_from_slider(...)` to update counterfactual bars
-  interactively when the user moves a slider.
+  interactively when the user moves a slider. These cf bars are for display;
+  UI only needs to submit the cf mean/proportion slider scalar fields.
 - `Hub$build_results()` also attaches the same ref/cf spread payloads at
   `result$spread_data` and `result$results_data$plot_data$spreads`.
 
@@ -510,7 +511,7 @@ The PA cutoffs are provisional weekly MMET-hour cutoffs:
 reviewed against the intended PA exposure definition before production use.
 
 The slider redistribution helper uses exponential tilting for the five-category
-numeric marginal. When the target mean equals the reference mean, the category
+numeric marginal. When the cf mean equals the reference mean, the category
 shape is unchanged; shifting the mean moves mass across categories while
 preserving a smooth version of the reference shape. The second slider sets the
 first plotted variable's proportion: male for `pop`/`pa`, utilitarian for
@@ -522,24 +523,27 @@ Mode-specific example:
 ref_bars <- profile$trips_spread_bars_ref_bike$default_value
 cf_bars <- hub$get_spread_bar_values(
   ref_bars,
-  target_mean = input$trips_spread_mean_cf_bike,
-  target_prop = input$trips_spread_util_prop_cf_bike,
+  cf_mean = input$trips_spread_mean_cf_bike,
+  cf_prop = input$trips_spread_util_prop_cf_bike,
   topic = "trips"
 )
 ```
 
-If the current UI schema does not yet include one of these bar fields,
+If the current UI schema does not yet include one of these ref bar fields,
 `build_reference_profile_defaults()` reports it in
 `reference_defaults_report$skipped_fields`. That is expected during migration:
 HUB can calculate the value before MIAMA-UI has a place to store/display it.
 
 Applying these counterfactual spread percentages back to actual individual/trip
-rows is separate from plotting. As a first draft, the sampling code now treats
-saved compact bar payloads as higher-priority constraints:
+rows is separate from plotting. The UI does not submit cf bar payloads. During
+counterfactual/result building, HUB reconstructs internal cf bars from the
+mode-specific ref bar defaults plus submitted cf mean/proportion scalar fields;
+the sampling code then treats those internal compact bar payloads as
+higher-priority constraints:
 
-- `pop_spread_bars_cf_*` supplies the target age-category marginal and male
+- `pop_spread_bars_cf_*` supplies the cf age-category marginal and male
   proportion for mode-specific individual sampling.
-- `trips_spread_bars_cf_*` supplies the target distance-category marginal and
+- `trips_spread_bars_cf_*` supplies the cf distance-category marginal and
   utilitarian proportion for mode-specific trip-shift sampling.
 - If those compact payloads are absent, the older permissive hooks remain:
   `agecat_1_prop_cf` ... `agecat_5_prop_cf` and `distcat_1_prop_cf` ...
