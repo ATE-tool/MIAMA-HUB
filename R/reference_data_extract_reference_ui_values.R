@@ -652,6 +652,11 @@ extract_reference_ui_values <- function(
     ui_updates[[paste0("pop_spread_pa_sex_prop_ref_", suffix)]] <- spread_first_variable_prop_from_bars(mode_pa_bars)
   }
 
+  category_values <- .reference_tab3_category_values(ind, trips, cfg = cfg)
+  ui_updates$pop_target_age_groups <- category_values$age
+  ui_updates$pop_target_pa_groups <- category_values$pa
+  notes <- c(notes, category_values$notes)
+
   if (!"age1year" %in% names(ind)) {
     notes <- c(notes, "Population age distribution anchors require `age1year`.")
   }
@@ -663,6 +668,95 @@ extract_reference_ui_values <- function(
   }
 
   list(ui_updates = ui_updates, notes = notes)
+}
+
+.reference_tab3_category_values <- function(ind, trips, cfg = NULL) {
+  mode_suffixes <- c(
+    walking = "walk",
+    cycling = "bike",
+    ebiking = "ebike",
+    pt = "pt"
+  )
+  mode_filters <- lapply(names(mode_suffixes), function(mode) {
+    spec <- .miama_tab2_mode_specs()[[mode]]
+    available <- (!is.na(spec$ind_duration_col) && spec$ind_duration_col %in% names(ind)) ||
+      (!is.null(trips) &&
+         all(c("census_id", "nts_tripid") %in% names(trips)) &&
+         "census_id" %in% names(ind) &&
+         .trip_evidence_available(trips, spec))
+
+    list(
+      available = available,
+      keep = if (available) {
+        .selected_mode_individual_filter(ind, trips, mode)
+      } else {
+        rep(FALSE, nrow(ind))
+      }
+    )
+  })
+  names(mode_filters) <- names(mode_suffixes)
+
+  category_counts <- function(categories, category_names) {
+    stats::setNames(lapply(seq_along(category_names), function(i) {
+      in_category <- !is.na(categories) & categories == i
+      values <- list(pop_tot = sum(in_category))
+
+      for (mode in names(mode_suffixes)) {
+        filter <- mode_filters[[mode]]
+        values[[paste0("pop_", mode_suffixes[[mode]])]] <-
+          if (filter$available) sum(in_category & filter$keep) else NA_integer_
+      }
+
+      values
+    }), category_names)
+  }
+
+  age_values <- if ("age1year" %in% names(ind)) {
+    age <- .as_plain_numeric(ind$age1year)
+    age_categories <- rep(NA_integer_, length(age))
+    age_categories[!is.na(age) & age >= 18 & age <= 29] <- 1L
+    age_categories[!is.na(age) & age >= 30 & age <= 39] <- 2L
+    age_categories[!is.na(age) & age >= 40 & age <= 49] <- 3L
+    age_categories[!is.na(age) & age >= 50 & age <= 59] <- 4L
+    age_categories[!is.na(age) & age >= 60] <- 5L
+    category_counts(
+      age_categories,
+      c("pop_age_18_29", "pop_age_30_39", "pop_age_40_49", "pop_age_50_59", "pop_age_60_plus")
+    )
+  } else {
+    .empty_tab3_category_values(
+      c("pop_age_18_29", "pop_age_30_39", "pop_age_40_49", "pop_age_50_59", "pop_age_60_plus")
+    )
+  }
+
+  pa_names <- c("sedentary", "low", "moderate", "high", "very_high")
+  pa <- .spread_pa_values(ind)
+  pa_values <- if (is.null(pa)) {
+    .empty_tab3_category_values(pa_names)
+  } else {
+    pa_spec <- .spread_category_spec(cfg, "pa") %||% miama_default_config()$spread$pa
+    category_counts(.spread_cut(pa, pa_spec$breaks), pa_names)
+  }
+
+  unavailable_modes <- names(mode_filters)[!vapply(mode_filters, `[[`, logical(1), "available")]
+  notes <- if (length(unavailable_modes) > 0) {
+    paste0(
+      "Tab 3 category-specific population values could not be derived for: ",
+      paste(unavailable_modes, collapse = ", "),
+      "."
+    )
+  } else {
+    character(0)
+  }
+
+  list(age = age_values, pa = pa_values, notes = notes)
+}
+
+.empty_tab3_category_values <- function(category_names) {
+  value_names <- c("pop_tot", "pop_walk", "pop_bike", "pop_ebike", "pop_pt")
+  stats::setNames(lapply(category_names, function(category) {
+    stats::setNames(as.list(rep(NA_integer_, length(value_names))), value_names)
+  }), category_names)
 }
 
 .reference_tab4_trip_values <- function(trips, context, cfg = NULL) {

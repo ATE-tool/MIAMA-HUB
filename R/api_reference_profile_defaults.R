@@ -5,6 +5,8 @@
 # User-entered values live in `input_value` when `is_filled = TRUE`. Reference
 # values that pre-populate UI fields should instead be written to
 # `default_value`, so they remain distinguishable from submitted user inputs.
+# Numeric category metadata for the basic population refinements is written to
+# `additional_data`, preserving the categorical `default_value` selections.
 
 apply_reference_defaults_to_profile <- function(profile, ui_updates) {
   assert_named_list(profile, "profile")
@@ -22,7 +24,11 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
       next
     }
 
-    out[[field_name]]$default_value <- ui_updates[[field_name]]
+    if (field_name %in% c("pop_target_age_groups", "pop_target_pa_groups")) {
+      out[[field_name]]$additional_data <- ui_updates[[field_name]]
+    } else {
+      out[[field_name]]$default_value <- ui_updates[[field_name]]
+    }
     updated <- c(updated, field_name)
   }
 

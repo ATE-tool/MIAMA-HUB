@@ -87,6 +87,58 @@ test_that("apply_reference_defaults_to_profile writes defaults without filling i
   expect_equal(report$skipped_fields, "missing_field")
 })
 
+test_that("category population defaults are written to additional data", {
+  age_data <- list(
+    pop_age_18_29 = list(
+      pop_tot = 10L,
+      pop_walk = 4L,
+      pop_bike = 2L,
+      pop_ebike = NA_integer_,
+      pop_pt = 1L
+    )
+  )
+  profile <- list(
+    pop_target_age_groups = list(
+      default_value = "pop_age_18_29",
+      additional_data = list(),
+      is_filled = FALSE,
+      input_value = NULL
+    )
+  )
+
+  out <- apply_reference_defaults_to_profile(
+    profile,
+    ui_updates = list(pop_target_age_groups = age_data)
+  )
+
+  expect_identical(out$pop_target_age_groups$additional_data, age_data)
+  expect_identical(out$pop_target_age_groups$default_value, "pop_age_18_29")
+})
+
+test_that("reference defaults include age and PA category population counts", {
+  hub <- Hub$new(cfg = list())
+  hub$set_appraisal_inputs(build_mock_appraisal_inputs())
+  hub$reference_default_data <- list(
+    ind = data.frame(
+      census_id = 1:4,
+      age1year = c(20, 35, 45, 70),
+      female = c(0, 1, 0, 1),
+      walktime_wkhr = c(1, 0, 2, 0),
+      cycletime_wkhr = c(0, 3, 0, 0),
+      mmets = c(0, 5, 20, 60)
+    )
+  )
+
+  updates <- hub$build_reference_default_ui_values()$ui_updates
+
+  expect_equal(updates$pop_target_age_groups$pop_age_18_29$pop_tot, 1)
+  expect_equal(updates$pop_target_age_groups$pop_age_40_49$pop_walk, 1)
+  expect_equal(updates$pop_target_age_groups$pop_age_30_39$pop_bike, 1)
+  expect_true(is.na(updates$pop_target_age_groups$pop_age_18_29$pop_ebike))
+  expect_equal(updates$pop_target_pa_groups$sedentary$pop_tot, 1)
+  expect_equal(updates$pop_target_pa_groups$very_high$pop_tot, 1)
+})
+
 test_that("apply_reference_defaults_to_profile writes all matching broad defaults", {
   profile <- list(
     ui_version = list(is_filled = TRUE, input_value = "basic"),
