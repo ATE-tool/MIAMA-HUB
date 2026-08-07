@@ -171,9 +171,12 @@ Hub <- R6::R6Class(
       if (is.null(self$reference_default_data) && is.null(self$reference_data)) {
         self$build_reference_default_data()
       }
-      if (is.null(self$reference_data) ||
-          is.null(self$reference_data$ind) ||
-          !"mmets" %in% names(self$reference_data$ind)) {
+      needs_health_pipeline <- is.null(self$counterfactual_data) ||
+        is.null(self$counterfactual_data$health_outcomes)
+      if (needs_health_pipeline &&
+          (is.null(self$reference_data) ||
+           is.null(self$reference_data$ind) ||
+           !"mmets" %in% names(self$reference_data$ind))) {
         self$load_reference_sources()
         self$build_reference_data()
       }

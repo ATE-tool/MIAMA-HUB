@@ -174,6 +174,62 @@ test_that("apply_counterfactual_ui_values increases walking trips by shifting mo
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$mode_shift_n, 2)
 })
 
+test_that("car diversion shares are specific to each active target mode", {
+  reference_data <- list(
+    ind = data.frame(census_id = 1:3),
+    trips = data.frame(
+      census_id = 1:3,
+      nts_tripid = c(10, 20, 30),
+      trip_mainmode = c("walking", "car driver", "bus"),
+      trip_distraw_km = c(1, 1, 1),
+      trip_durationraw_min = c(10, 10, 10),
+      trip_walkdist_km = c(1, 0, 0),
+      trip_walktime_min = c(10, 0, 0),
+      trip_purpose = rep("Commuting", 3)
+    )
+  )
+
+  from_car <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    appraisal_input_values = list(
+      modes = "walking",
+      trips_count_cf_walk = 2,
+      trips_timeframe_walk = "week",
+      trips_denominator_walk = "total",
+      trips_diversion_car_perc_walk = 100
+    ),
+    reference_data = reference_data,
+    seed = 21
+  )
+  from_other <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    appraisal_input_values = list(
+      modes = "walking",
+      trips_count_cf_walk = 2,
+      trips_timeframe_walk = "week",
+      trips_denominator_walk = "total",
+      trips_diversion_car_perc_walk = 0
+    ),
+    reference_data = reference_data,
+    seed = 21
+  )
+
+  expect_equal(from_car$trips$trip_mainmode[2], "walking")
+  expect_equal(from_car$trips$trip_mainmode[3], "bus")
+  expect_equal(from_other$trips$trip_mainmode[2], "car driver")
+  expect_equal(from_other$trips$trip_mainmode[3], "walking")
+  expect_equal(
+    from_car$counterfactual_report$changes[[1]]$car_diversion_field,
+    "trips_diversion_car_perc_walk"
+  )
+  expect_equal(
+    from_car$counterfactual_report$changes[[1]]$realized_car_diversion_percent,
+    100
+  )
+  expect_true("source_mode_car" %in%
+    from_car$counterfactual_report$changes[[1]]$sampling_constraints)
+})
+
 test_that("apply_counterfactual_ui_values converts mean trip targets to total base-week rows", {
   reference_data <- list(
     ind = data.frame(census_id = 1:3),

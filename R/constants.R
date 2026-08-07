@@ -38,3 +38,34 @@ MIAMA_SMALL_DATASET_MAX_ROWS <- 100000L
 # The full synthetic population is a random 5% Census 2021 sample.
 # Each synthetic individual therefore represents approximately 20 residents.
 MIAMA_SYNTHPOP_PERSON_WEIGHT <- 20
+
+# NTS MainMode_B04ID: publication-table breakdown used by `trip_mainmode` in
+# the synthetic-population parquet. The source contains numeric codes without
+# retained value labels, so HUB must classify both these codes and readable
+# labels introduced in tests or counterfactual rows.
+MIAMA_NTS_MAINMODE_B04 <- c(
+  walk = 1,
+  bicycle = 2,
+  car_driver = 3,
+  car_passenger = 4,
+  motorcycle = 5,
+  other_private = 6,
+  bus_london = 7,
+  bus_other_local = 8,
+  bus_nonlocal = 9,
+  underground = 10,
+  surface_rail = 11,
+  taxi_minicab = 12,
+  other_public = 13
+)
+
+# Broad four-mode presentation groups. The UI's aggregate mode-share control
+# has no separate motorcycle/taxi/other category, so these are retained in the
+# broad car/private-motor group, matching the prior text classifier.
+MIAMA_NTS_MAINMODE_CAR_CODES <- unname(MIAMA_NTS_MAINMODE_B04[c(
+  "car_driver", "car_passenger", "motorcycle", "other_private", "taxi_minicab"
+)])
+MIAMA_NTS_MAINMODE_PT_CODES <- unname(MIAMA_NTS_MAINMODE_B04[c(
+  "bus_london", "bus_other_local", "bus_nonlocal", "underground",
+  "surface_rail", "other_public"
+)])

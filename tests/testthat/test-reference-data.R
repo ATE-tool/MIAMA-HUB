@@ -242,6 +242,43 @@ test_that("extract_reference_ui_values derives mode-share reference fields", {
   expect_true(is.na(values$ui_updates$mode_share_ref_pt))
 })
 
+test_that("extract_reference_ui_values classifies numeric NTS main modes", {
+  reference_data <- list(
+    ind = data.frame(census_id = 1:13),
+    trips = data.frame(
+      census_id = 1:13,
+      nts_tripid = 101:113,
+      weight_tripXhh = rep(1, 13),
+      trip_mainmode = 1:13,
+      trip_distraw_km = rep(1, 13),
+      trip_durationraw_min = rep(10, 13),
+      trip_walkdist_km = c(1, rep(0, 12)),
+      trip_walktime_min = c(10, rep(0, 12)),
+      trip_cycledist_km = c(0, 1, rep(0, 11)),
+      trip_cycletime_min = c(0, 10, rep(0, 11))
+    )
+  )
+
+  values <- extract_reference_ui_values(
+    reference_data,
+    appraisal_input_values = list(at_data_unit = "mode_share")
+  )
+
+  expect_equal(values$ui_updates$mode_share_ref_walk, 100 / 13)
+  expect_equal(values$ui_updates$mode_share_ref_bike, 100 / 13)
+  expect_equal(values$ui_updates$mode_share_ref_car, 500 / 13)
+  expect_equal(values$ui_updates$mode_share_ref_pt, 600 / 13)
+  expect_equal(
+    sum(c(
+      values$ui_updates$mode_share_ref_walk,
+      values$ui_updates$mode_share_ref_bike,
+      values$ui_updates$mode_share_ref_car,
+      values$ui_updates$mode_share_ref_pt
+    )),
+    100
+  )
+})
+
 test_that("extract_reference_ui_values derives Tab 3 population reference fields", {
   reference_data <- list(
     ind = data.frame(
@@ -265,8 +302,10 @@ test_that("extract_reference_ui_values derives Tab 3 population reference fields
   expect_equal(current_values$ui_updates$pop_total_ref, 4)
   expect_equal(current_values$ui_updates$pop_number_ref_walk, 2)
   expect_equal(current_values$ui_updates$pop_number_ref_bike, 1)
-  expect_equal(current_values$ui_updates$pop_spread_age_mean_ref, mean(c(20, 30, 50)))
-  expect_equal(current_values$ui_updates$pop_spread_sex_prop_ref, 2 / 3)
+  expect_equal(current_values$ui_updates$pop_spread_age_mean_ref_walk, 34.5)
+  expect_equal(current_values$ui_updates$pop_spread_sex_prop_ref_walk, 1)
+  expect_equal(current_values$ui_updates$pop_spread_age_mean_ref_bike, 24)
+  expect_equal(current_values$ui_updates$pop_spread_sex_prop_ref_bike, 0)
 
   new_values <- extract_reference_ui_values(
     reference_data,
@@ -277,8 +316,8 @@ test_that("extract_reference_ui_values derives Tab 3 population reference fields
     )
   )
 
-  expect_equal(new_values$ui_updates$pop_spread_age_mean_ref, 40)
-  expect_equal(new_values$ui_updates$pop_spread_sex_prop_ref, 0)
+  expect_equal(new_values$ui_updates$pop_spread_age_mean_ref_walk, 34.5)
+  expect_equal(new_values$ui_updates$pop_spread_sex_prop_ref_walk, 1)
 })
 
 test_that("extract_reference_ui_values handles haven-labelled numeric columns", {
@@ -317,9 +356,9 @@ test_that("extract_reference_ui_values handles haven-labelled numeric columns", 
 
   expect_equal(values$ui_updates$pop_number_ref_walk, 2)
   expect_equal(values$ui_updates$trips_count_ref_walk, 2)
-  expect_equal(values$ui_updates$pop_spread_age_mean_ref, 30)
-  expect_equal(values$ui_updates$pop_spread_sex_prop_ref, 1)
-  expect_equal(values$ui_updates$trips_spread_mean_ref, 13 / 4)
+  expect_equal(values$ui_updates$pop_spread_age_mean_ref_walk, 29.5)
+  expect_equal(values$ui_updates$pop_spread_sex_prop_ref_walk, 1)
+  expect_equal(values$ui_updates$trips_spread_mean_ref_walk, 1)
 })
 
 test_that("extract_reference_ui_values derives Tab 4 trip reference fields", {
@@ -350,8 +389,10 @@ test_that("extract_reference_ui_values derives Tab 4 trip reference fields", {
   expect_equal(values$ui_updates$trips_number_total_ref, 4)
   expect_equal(values$ui_updates$trips_number_ref_walk, 1)
   expect_equal(values$ui_updates$trips_number_ref_bike, 3)
-  expect_equal(values$ui_updates$trips_spread_mean_ref, 19 / 4)
-  expect_equal(values$ui_updates$trips_spread_util_prop_ref, 3 / 4)
+  expect_equal(values$ui_updates$trips_spread_mean_ref_walk, 1)
+  expect_equal(values$ui_updates$trips_spread_util_prop_ref_walk, 1)
+  expect_equal(values$ui_updates$trips_spread_mean_ref_bike, 37 / 6)
+  expect_equal(values$ui_updates$trips_spread_util_prop_ref_bike, 2 / 3)
   expect_equal(values$ui_updates$trips_diversion_total_trips, 4)
   expect_equal(values$ui_updates$trips_diversion_trips_n, 4)
   expect_equal(values$ui_updates$trips_diversion_distance_total, 19)

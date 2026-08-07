@@ -484,7 +484,7 @@ extract_reference_ui_values <- function(
       next
     }
 
-    numerator <- .mode_share_numerator(trips, spec, total_unit)
+    numerator <- .mode_share_numerator(trips, mode, spec, total_unit)
     field <- paste0("mode_share_ref_", spec$suffix)
     ui_updates[[field]] <- 100 * .divide_or_na(numerator, denom_value)
 
@@ -526,25 +526,34 @@ extract_reference_ui_values <- function(
   )
 }
 
-.mode_share_numerator <- function(trips, spec, total_unit) {
-  if (!.trip_evidence_available(trips, spec)) {
-    return(NA_real_)
-  }
-
-  keep <- spec$trip_filter(trips) & !is.na(trips$nts_tripid)
-
-  if (identical(total_unit, "distance")) {
-    if (is.na(spec$trip_distance_col) || !spec$trip_distance_col %in% names(trips)) {
+.mode_share_numerator <- function(trips, mode, spec, total_unit) {
+  # Aggregate mode share is a partition by main mode. Active-component columns
+  # remain the fallback for compact/legacy inputs without `trip_mainmode`.
+  if ("trip_mainmode" %in% names(trips)) {
+    keep <- .mainmode_trip_filter(trips, mode) & !is.na(trips$nts_tripid)
+    distance_col <- "trip_distraw_km"
+    duration_col <- "trip_durationraw_min"
+  } else {
+    if (!.trip_evidence_available(trips, spec)) {
       return(NA_real_)
     }
-    return(.weighted_sum(trips[[spec$trip_distance_col]], trips, keep))
+    keep <- spec$trip_filter(trips) & !is.na(trips$nts_tripid)
+    distance_col <- spec$trip_distance_col
+    duration_col <- spec$trip_duration_col
+  }
+
+  if (identical(total_unit, "distance")) {
+    if (is.na(distance_col) || !distance_col %in% names(trips)) {
+      return(NA_real_)
+    }
+    return(.weighted_sum(trips[[distance_col]], trips, keep))
   }
 
   if (identical(total_unit, "duration")) {
-    if (is.na(spec$trip_duration_col) || !spec$trip_duration_col %in% names(trips)) {
+    if (is.na(duration_col) || !duration_col %in% names(trips)) {
       return(NA_real_)
     }
-    return(.weighted_sum(trips[[spec$trip_duration_col]], trips, keep))
+    return(.weighted_sum(trips[[duration_col]], trips, keep))
   }
 
   .weighted_sum(rep(1, nrow(trips)), trips, keep)
@@ -951,9 +960,35 @@ extract_reference_ui_values <- function(
     return(rep(FALSE, if (is.null(trips)) 0 else nrow(trips)))
   }
 
-  grepl(
+  values <- trips$trip_mainmode
+  numeric_values <- suppressWarnings(as.numeric(as.character(values)))
+  numeric_match <- !is.na(numeric_values) & numeric_values %in% MIAMA_NTS_MAINMODE_PT_CODES
+  text_match <- grepl(
     "public|bus|rail|train|tram|metro|underground|tube|coach",
-    tolower(as.character(trips$trip_mainmode))
+    tolower(as.character(values))
+  )
+  numeric_match | text_match
+}
+
+.mainmode_trip_filter <- function(trips, mode) {
+  if (is.null(trips) || !"trip_mainmode" %in% names(trips)) {
+    return(rep(FALSE, if (is.null(trips)) 0 else nrow(trips)))
+  }
+
+  values <- trips$trip_mainmode
+  numeric_values <- suppressWarnings(as.numeric(as.character(values)))
+  text_values <- tolower(as.character(values))
+
+  switch(
+    mode,
+    walking = (!is.na(numeric_values) & numeric_values == MIAMA_NTS_MAINMODE_B04[["walk"]]) |
+      grepl("walk", text_values),
+    cycling = (!is.na(numeric_values) & numeric_values == MIAMA_NTS_MAINMODE_B04[["bicycle"]]) |
+      grepl("bicy|cycl", text_values),
+    ebiking = grepl("e[- ]?bike|electric bicy|electric cycl", text_values),
+    pt = .pt_trip_filter(trips),
+    car = .car_trip_filter(trips),
+    rep(FALSE, nrow(trips))
   )
 }
 
@@ -962,10 +997,14 @@ extract_reference_ui_values <- function(
     return(rep(FALSE, if (is.null(trips)) 0 else nrow(trips)))
   }
 
-  grepl(
+  values <- trips$trip_mainmode
+  numeric_values <- suppressWarnings(as.numeric(as.character(values)))
+  numeric_match <- !is.na(numeric_values) & numeric_values %in% MIAMA_NTS_MAINMODE_CAR_CODES
+  text_match <- grepl(
     "car|van|taxi|driver|passenger|motor",
-    tolower(as.character(trips$trip_mainmode))
+    tolower(as.character(values))
   )
+  numeric_match | text_match
 }
 
 .weighted_sum <- function(values, trips, keep) {

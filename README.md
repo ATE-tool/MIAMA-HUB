@@ -543,6 +543,9 @@ higher-priority constraints:
 
 - `pop_spread_bars_cf_*` supplies the cf age-category marginal and male
   proportion for mode-specific individual sampling.
+- `pa_spread_bars_cf_*` supplies the cf PA-category marginal for
+  mode-specific individual sampling, while its male/female split is available
+  for display and reporting.
 - `trips_spread_bars_cf_*` supplies the cf distance-category marginal and
   utilitarian proportion for mode-specific trip-shift sampling.
 - If those compact payloads are absent, the older permissive hooks remain:
@@ -551,8 +554,15 @@ higher-priority constraints:
 
 This is still a sampling approximation: candidate rows remain real rows, and the
 category proportions are used as sampling weights rather than as exact integer
-constraints. A follow-up should decide whether we need exact quota sampling for
-large enough candidate pools.
+constraints. For large samples, weighted row sampling should usually move the
+selected-row distribution close to the target. Exact quota sampling would only
+become important if the UI/reporting contract requires the final sampled rows to
+match each five-category marginal exactly, or if small samples produce visibly
+unstable modal summaries.
+
+The counterfactual report records which sampling constraints were active for a
+change in `sampling_constraints`, e.g. `sex`, `age`, `pa`, `distance`, or
+`purpose`.
 
 Remaining clarifications:
 
@@ -593,10 +603,24 @@ overridden from the geography lookup's scaled population where available.
 
 For England-wide schema default review values, use
 `inst/workflows/dev_extract_england_schema_default_values.R`. It reads the full
-local synthpop parquet sources, summarizes candidate defaults such as active
-trip lengths and trips per active user, and writes the compact review CSV to
-`data/lookup/england_schema_default_candidates.csv`. Review the CSV before
-copying any values into MIAMA-UI schema defaults.
+local synthpop parquet sources and performs filtering and aggregation lazily in
+Arrow. It writes two compact review files:
+
+- `data/lookup/england_mode_default_candidates.csv` contains the underlying
+  England metrics by mode and measurement basis: trips per weekly user, trip
+  distance, trip duration, speed, and weekly distance/duration per user.
+- `data/lookup/england_schema_default_candidates.csv` maps those metrics to
+  current MIAMA-UI field names and labels each value as a review candidate,
+  unavailable, or requiring a schema decision.
+
+Walking and cycling use their active-trip component columns. Car and public
+transport use mutually exclusive numeric NTS main-mode codes and raw trip
+distance/duration. The available `MainMode_B04` field does not separate e-bike
+from bicycle, so e-bike candidates remain explicitly unavailable. The current
+`distdur_default_*` field is also ambiguous because it is used for either
+distance or duration; the output reports both candidates with
+`needs_schema_split` rather than selecting one silently. Review these CSVs
+before copying values into MIAMA-UI schema defaults.
 
 The R6 `Hub` wrapper still exposes developer helpers
 `build_reference_ui_values()` / `get_reference_ui_values()` /
@@ -652,12 +676,22 @@ values into a base-week trip count. Increases are split into two mechanisms:
   treated as newly induced discretionary trips and added as new trip rows with
   recreational purpose.
 
+For increases, Tab 4 may specify a small source-by-target diversion matrix using
+`trips_diversion_car_perc_walk` and `trips_diversion_car_perc_bike`. Each value
+is the expected percentage of mode-shift trips into that active target mode
+whose reference mode was car. The residual percentage is sampled from all
+other plausible non-target-mode trips. Distance, purpose, and car-source
+weights are combined when candidates are sampled, so realized percentages are
+approximate in finite samples. Each counterfactual change report records
+`car_diversion_field`, the requested `car_diversion_percent`, and the observed
+`realized_car_diversion_percent` among shifted trips.
+
 Decreases do not delete utilitarian travel demand. Instead, sampled active trips
-are shifted away from the active mode using the configured default diversion
-mode, currently `car`. If Tab 4 provides diversion percentages, the HUB parses
-the current simple `trips_diversion_car_perc` field and future mode-specific
-fields such as `trips_diversion_walk_perc`, `trips_diversion_bike_perc`,
-`trips_diversion_ebike_perc`, and `trips_diversion_pt_perc`.
+are shifted away from the active mode using the configured default destination,
+currently `car`. This reverse-direction assumption is deliberately separate
+from the car-to-active-mode percentages. A future full diversion matrix can add
+other source-by-target fields without changing the target-specific field
+convention.
 
 Returned trip data includes explicit `trip_activemode`, `trip_utilitarian`,
 `cf_trip_change`, `cf_mode_shift`, and `cf_induced` indicators. The change
@@ -666,12 +700,31 @@ report records actual `mode_shift_n` and `induced_n`, and
 trip rows.
 
 Advanced Tab 4 fields such as `trips_dist_value`, `trips_purpose_type`,
-`trips_spread_mean_cf`, `trips_spread_util_prop_cf`, and
-`trips_diversion_car_perc` are parsed and recorded. Distance-based candidate
-selection currently uses active-mode reference trip-distance quintiles; future
-UI category controls can plug into the `agecat_1_prop_cf` ...
-`agecat_5_prop_cf` and `distcat_1_prop_cf` ... `distcat_5_prop_cf` hooks, or
-the corresponding `_perc_cf` fields.
+`trips_spread_mean_cf`, `trips_spread_util_prop_cf`, and the diversion
+percentage fields are parsed and recorded. When compact cf spread bars are
+available, distance-based candidate selection uses the configured five-category
+distance distribution. Older direct category controls can still plug into the
+`agecat_1_prop_cf` ... `agecat_5_prop_cf` and `distcat_1_prop_cf` ...
+`distcat_5_prop_cf` hooks, or the corresponding `_perc_cf` fields.
+
+Basic Tab 2 currently has two additional target forms that are not yet applied
+to counterfactual rows:
+
+- `mode_share_cf` can be implemented as a thin conversion step: multiply each
+  requested share by the selected total-trip denominator, then pass the derived
+  per-mode counts to the existing trip sampling path. It does not require a new
+  sampling algorithm.
+- `dist_dur_amount_cf_*` is an exposure target rather than a row-count target.
+  Implementing it requires an allocation rule for the number of affected users
+  or trips and the distance/time assigned to each. With trip data, a defensible
+  first version can estimate a trip count from the target exposure and sampled
+  mode-specific trip distance/duration, then reuse the existing constrained
+  sampler. Individual-only appraisals need a separate activity-allocation rule.
+
+The UI presents count, distance/duration, and mode share as alternative input
+units, so no precedence rule is needed while exactly one branch is filled. The
+distance/duration allocation rule still requires an explicit modelling decision
+before it should affect health outcomes.
 
 TODO: Important limitation: the draft trip handler currently changes physical rows,
 not weighted `weight_tripXhh` totals. Existing shifted rows keep their existing

@@ -190,11 +190,12 @@ apply_counterfactual_ui_values <- function(
 # - `trips_count_cf_walk`, `trips_count_cf_bike`
 # - `trips_number_cf_walk`, `trips_number_cf_bike`
 #
-# Related refinement fields parsed into report metadata:
+# Related refinement fields used by sampling or recorded in report metadata:
 # - `trips_timeframe_*`, `trips_denominator_*`
 # - `pop_new_current_perc`
 # - `trips_dist_value`, `trips_purpose_type`, `trips_purpose_util_perc`
 # - `trips_spread_mean_cf`, `trips_spread_util_prop_cf`
+# - `trips_diversion_car_perc_walk`, `trips_diversion_car_perc_bike`
 #
 # Data manipulation, first-pass:
 # - Convert user-supplied trip target to a base-week count.
@@ -207,8 +208,8 @@ apply_counterfactual_ui_values <- function(
 # Key limitations:
 # - This currently manipulates physical rows, not weighted trip totals. If
 #   `weight_tripXhh` is present, the report flags this approximation.
-# - Advanced distribution controls are parsed and recorded but not yet used to
-#   reshape donor sampling or trip attributes.
+# - Some advanced controls still remain report-only; spread bars and the
+#   mode-specific car-source share are used as sampling constraints.
 .apply_cf_active_trip_count_handler <- function(counterfactual_data, context) {
   changes <- list()
   notes <- character(0)
@@ -291,6 +292,10 @@ apply_counterfactual_ui_values <- function(
 
   counterfactual_data <- assignment$counterfactual_data
   counterfactual_data <- .recalculate_counterfactual_mmets(counterfactual_data, constants)
+  car_diversion_target <- .cf_car_diversion_target(
+    appraisal_input_values,
+    spec$suffix
+  )
   trip_effect <- .apply_user_status_trip_effects(
     counterfactual_data = counterfactual_data,
     reference_data = reference_data,
@@ -300,7 +305,8 @@ apply_counterfactual_ui_values <- function(
     constants = constants,
     seed = seed,
     trip_target = cf_trip_sampling_target(appraisal_input_values, spec$suffix),
-    diversion_target = .cf_diversion_target(appraisal_input_values, constants)
+    car_diversion_target = car_diversion_target,
+    diversion_target = .cf_away_diversion_target(constants)
   )
   counterfactual_data <- trip_effect$counterfactual_data
   counterfactual_data <- cf_add_key_indicators(counterfactual_data, spec$mode)
@@ -322,8 +328,12 @@ apply_counterfactual_ui_values <- function(
   )
   change$sampling_strategy <- assignment$sampling_strategy
   change$relevant_attributes <- assignment$relevant_attributes
+  change$sampling_constraints <- assignment$sampling_constraints
   change$user_trip_shift_target_n <- trip_effect$trip_shift_target_n
   change$user_trip_shift_n <- trip_effect$trip_shift_n
+  change$car_diversion_percent <- car_diversion_target$percent
+  change$car_diversion_field <- car_diversion_target$field
+  change$realized_car_diversion_percent <- trip_effect$realized_car_diversion_percent
 
   list(
     counterfactual_data = counterfactual_data,
@@ -351,6 +361,7 @@ apply_counterfactual_ui_values <- function(
       role = "unchanged",
       donor_source = "reference_data",
       sampling_strategy = sampling_strategy,
+      sampling_constraints = population_target$constraints %||% character(0),
       relevant_attributes = cf_individual_sampling_columns(reference_data$ind, spec$mode)
     ))
   }
@@ -393,6 +404,7 @@ apply_counterfactual_ui_values <- function(
     role = role,
     donor_source = "reference_data",
     sampling_strategy = sampling_strategy,
+    sampling_constraints = population_target$constraints %||% character(0),
     relevant_attributes = cf_individual_sampling_columns(reference_data$ind, spec$mode)
   )
 }
@@ -436,6 +448,10 @@ apply_counterfactual_ui_values <- function(
   .require_cf_trip_count_columns(counterfactual_data, reference_data, spec)
 
   args <- .cf_trip_distribution_args(appraisal_input_values, spec$suffix)
+  car_diversion_target <- .cf_car_diversion_target(
+    appraisal_input_values,
+    spec$suffix
+  )
   target_base <- .validate_cf_trip_target(target, reference_data, spec)
 
   cf_active <- spec$trip_filter(counterfactual_data$trips) & !is.na(counterfactual_data$trips$nts_tripid)
@@ -455,7 +471,8 @@ apply_counterfactual_ui_values <- function(
     sampling_strategy = sampling_strategy,
     trip_target = cf_trip_sampling_target(appraisal_input_values, spec$suffix),
     constants = constants,
-    diversion_target = .cf_diversion_target(appraisal_input_values, constants)
+    car_diversion_target = car_diversion_target,
+    diversion_target = .cf_away_diversion_target(constants)
   )
 
   counterfactual_data <- assignment$counterfactual_data
@@ -482,8 +499,12 @@ apply_counterfactual_ui_values <- function(
   change$distribution_args <- args
   change$sampling_strategy <- assignment$sampling_strategy
   change$relevant_attributes <- assignment$relevant_attributes
+  change$sampling_constraints <- assignment$sampling_constraints
   change$mode_shift_n <- assignment$mode_shift_n
   change$induced_n <- assignment$induced_n
+  change$car_diversion_percent <- car_diversion_target$percent
+  change$car_diversion_field <- car_diversion_target$field
+  change$realized_car_diversion_percent <- assignment$realized_car_diversion_percent
 
   notes <- character(0)
   if ("weight_tripXhh" %in% names(reference_data$trips)) {
@@ -523,6 +544,7 @@ apply_counterfactual_ui_values <- function(
     sampling_strategy,
     trip_target,
     constants,
+    car_diversion_target,
     diversion_target
 ) {
   relevant_attributes <- cf_trip_sampling_columns(reference_data$trips, spec$mode)
@@ -533,9 +555,11 @@ apply_counterfactual_ui_values <- function(
       changed_rows = data.frame(),
       role = "unchanged",
       sampling_strategy = sampling_strategy,
+      sampling_constraints = .trip_sampling_constraints(trip_target, car_diversion_target),
       relevant_attributes = relevant_attributes,
       mode_shift_n = 0L,
-      induced_n = 0L
+      induced_n = 0L,
+      realized_car_diversion_percent = NA_real_
     ))
   }
 
@@ -547,6 +571,7 @@ apply_counterfactual_ui_values <- function(
       spec = spec,
       n = mechanisms$mode_shift_n,
       trip_target = trip_target,
+      car_diversion_target = car_diversion_target,
       constants = constants,
       seed = seed + spec$seed_offset + 3000L
     )
@@ -564,6 +589,7 @@ apply_counterfactual_ui_values <- function(
     role <- "mode_shift_and_induced_trips"
     mode_shift_n <- shifted$changed_n
     induced_n <- induced$changed_n
+    realized_car_diversion_percent <- shifted$realized_car_diversion_percent
   } else {
     remove_rows <- cf_sample_candidate_indices(which(cf_active), abs(delta), seed + spec$seed_offset + 4000L)
     changed_rows <- counterfactual_data$trips[
@@ -582,6 +608,7 @@ apply_counterfactual_ui_values <- function(
     role <- "shifted_away_trips"
     mode_shift_n <- -length(remove_rows)
     induced_n <- 0L
+    realized_car_diversion_percent <- NA_real_
   }
 
   counterfactual_data <- cf_add_key_indicators(counterfactual_data, spec$mode)
@@ -591,9 +618,11 @@ apply_counterfactual_ui_values <- function(
     changed_rows = changed_rows,
     role = role,
     sampling_strategy = sampling_strategy,
+    sampling_constraints = .trip_sampling_constraints(trip_target, car_diversion_target),
     relevant_attributes = relevant_attributes,
     mode_shift_n = mode_shift_n,
-    induced_n = induced_n
+    induced_n = induced_n,
+    realized_car_diversion_percent = realized_car_diversion_percent
   )
 }
 
@@ -622,20 +651,19 @@ apply_counterfactual_ui_values <- function(
 }
 
 .cf_trip_distribution_args <- function(values, suffix) {
-  fields <- c(
+  report_only_fields <- c(
     "pop_new_current_perc",
     "trips_dist_value",
     "trips_purpose_type",
     "trips_purpose_util_perc",
     paste0("trips_spread_mean_cf_", suffix),
-    paste0("trips_spread_util_prop_cf_", suffix),
-    "trips_diversion_car_perc",
-    "trips_diversion_walk_perc",
-    "trips_diversion_bike_perc",
-    "trips_diversion_ebike_perc",
-    "trips_diversion_pt_perc"
+    paste0("trips_spread_util_prop_cf_", suffix)
   )
-  present <- fields[!vapply(lapply(fields, function(field) .ui_value(values, field, NULL)), is.null, logical(1))]
+  present <- report_only_fields[!vapply(
+    lapply(report_only_fields, function(field) .ui_value(values, field, NULL)),
+    is.null,
+    logical(1)
+  )]
 
   list(
     new_user_percent = .ui_value(values, "pop_new_current_perc", NULL),
@@ -644,7 +672,11 @@ apply_counterfactual_ui_values <- function(
     utilitarian_percent = .ui_value(values, "trips_purpose_util_perc", NULL),
     target_mean_distance = .ui_value(values, paste0("trips_spread_mean_cf_", suffix), NULL),
     target_utilitarian_prop = .ui_value(values, paste0("trips_spread_util_prop_cf_", suffix), NULL),
-    diversion_car_percent = .ui_value(values, "trips_diversion_car_perc", NULL),
+    diversion_car_percent = .ui_value(
+      values,
+      paste0("trips_diversion_car_perc_", suffix),
+      NULL
+    ),
     advanced_fields_present = present
   )
 }
@@ -667,6 +699,7 @@ apply_counterfactual_ui_values <- function(
     constants,
     seed,
     trip_target,
+    car_diversion_target,
     diversion_target
 ) {
   notes <- character(0)
@@ -679,13 +712,15 @@ apply_counterfactual_ui_values <- function(
       counterfactual_data = counterfactual_data,
       notes = notes,
       trip_shift_target_n = 0L,
-      trip_shift_n = 0L
+      trip_shift_n = 0L,
+      realized_car_diversion_percent = NA_real_
     ))
   }
 
   changed_ids <- counterfactual_data$ind$census_id[changed_rows]
   trip_shift_target_n <- 0L
   trip_shift_n <- 0L
+  realized_car_diversion_percent <- NA_real_
   if (identical(role, "ex_users")) {
     active <- spec$trip_filter(counterfactual_data$trips)
     trip_rows <- which(counterfactual_data$trips$census_id %in% changed_ids & active)
@@ -701,7 +736,8 @@ apply_counterfactual_ui_values <- function(
       counterfactual_data = counterfactual_data,
       notes = notes,
       trip_shift_target_n = length(trip_rows),
-      trip_shift_n = length(trip_rows)
+      trip_shift_n = length(trip_rows),
+      realized_car_diversion_percent = NA_real_
     ))
   }
 
@@ -718,12 +754,14 @@ apply_counterfactual_ui_values <- function(
       spec = spec,
       n = trip_shift_target_n,
       trip_target = trip_target,
+      car_diversion_target = car_diversion_target,
       constants = constants,
       seed = seed + spec$seed_offset + 2500L,
       census_ids = changed_ids
     )
     counterfactual_data <- shifted$counterfactual_data
     trip_shift_n <- shifted$changed_n
+    realized_car_diversion_percent <- shifted$realized_car_diversion_percent
     if (shifted$changed_n < trip_shift_target_n) {
       notes <- c(
         notes,
@@ -739,7 +777,8 @@ apply_counterfactual_ui_values <- function(
     counterfactual_data = counterfactual_data,
     notes = notes,
     trip_shift_target_n = trip_shift_target_n,
-    trip_shift_n = trip_shift_n
+    trip_shift_n = trip_shift_n,
+    realized_car_diversion_percent = realized_car_diversion_percent
   )
 }
 
@@ -749,12 +788,18 @@ apply_counterfactual_ui_values <- function(
     spec,
     n,
     trip_target,
+    car_diversion_target,
     constants,
     seed,
     census_ids = NULL
 ) {
   if (n == 0 || is.null(counterfactual_data$trips)) {
-    return(list(counterfactual_data = counterfactual_data, changed_rows = .empty_changed_trip_rows(), changed_n = 0L))
+    return(list(
+      counterfactual_data = counterfactual_data,
+      changed_rows = .empty_changed_trip_rows(),
+      changed_n = 0L,
+      realized_car_diversion_percent = NA_real_
+    ))
   }
 
   trips <- counterfactual_data$trips
@@ -775,12 +820,28 @@ apply_counterfactual_ui_values <- function(
     max_multiplier = constants$plausible_distance_max_multiplier
   )
   if (length(candidates) == 0) {
-    return(list(counterfactual_data = counterfactual_data, changed_rows = .empty_changed_trip_rows(), changed_n = 0L))
+    return(list(
+      counterfactual_data = counterfactual_data,
+      changed_rows = .empty_changed_trip_rows(),
+      changed_n = 0L,
+      realized_car_diversion_percent = NA_real_
+    ))
   }
 
   shift_n <- min(n, length(candidates))
   weights <- cf_trip_candidate_weights(trips, candidates, active_distances, trip_target)
+  weights <- .car_diversion_candidate_weights(
+    trips,
+    candidates,
+    car_diversion_target,
+    base_weights = weights
+  )
   rows <- cf_sample_candidate_indices(candidates, shift_n, seed, weights = weights)
+  source_car <- .car_trip_filter(trips)[rows]
+  realized_car_diversion_percent <- 100 * mean(source_car, na.rm = TRUE)
+  if (!is.finite(realized_car_diversion_percent)) {
+    realized_car_diversion_percent <- NA_real_
+  }
 
   trips <- .switch_trips_to_active_mode(trips, rows, spec)
   trips$cf_trip_change[rows] <- "mode_shift_to_active"
@@ -788,7 +849,12 @@ apply_counterfactual_ui_values <- function(
   counterfactual_data$trips <- trips
 
   changed_rows <- trips[rows, intersect(c("census_id", "nts_tripid"), names(trips)), drop = FALSE]
-  list(counterfactual_data = counterfactual_data, changed_rows = changed_rows, changed_n = length(rows))
+  list(
+    counterfactual_data = counterfactual_data,
+    changed_rows = changed_rows,
+    changed_n = length(rows),
+    realized_car_diversion_percent = realized_car_diversion_percent
+  )
 }
 
 .add_induced_active_trips <- function(counterfactual_data, reference_data, spec, n, seed) {
@@ -897,37 +963,92 @@ apply_counterfactual_ui_values <- function(
   sum(observed_counts[sampled_pos])
 }
 
-.cf_diversion_target <- function(values, constants) {
-  mode_fields <- c(
-    car = "trips_diversion_car_perc",
-    walk = "trips_diversion_walk_perc",
-    bike = "trips_diversion_bike_perc",
-    ebike = "trips_diversion_ebike_perc",
-    pt = "trips_diversion_pt_perc"
-  )
+# Returns the car-source share for shifts into one active target mode. This is
+# the initial, small diversion matrix: source mode is fixed to car, while the
+# target mode is encoded by the field suffix (`_walk`, `_bike`, ...).
+#
+# TODO: If UI inputs later distinguish every source and target mode, replace
+# this scalar lookup with a source-by-target matrix and generalize the candidate
+# weighting helper below. Keep target mode explicit; do not return to one global
+# diversion vector shared by all active modes.
+.cf_car_diversion_target <- function(values, suffix) {
+  field <- paste0("trips_diversion_car_perc_", suffix)
+  raw <- .ui_value(values, field, NULL)
 
-  raw <- vapply(mode_fields, function(field) {
-    value <- .ui_value(values, field, NA_real_)
-    if (length(value) != 1 || is.null(value)) {
-      return(NA_real_)
-    }
-    as.numeric(value)
-  }, numeric(1))
-  raw <- raw[!is.na(raw) & raw > 0]
-
-  if (length(raw) == 0) {
-    return(list(
-      modes = constants$default_diversion_mode,
-      probs = 1,
-      source = "default"
-    ))
+  if (is.null(raw)) {
+    return(list(field = field, percent = NULL, proportion = NULL, source = "unspecified"))
+  }
+  if (length(raw) != 1 || !is.finite(suppressWarnings(as.numeric(raw)))) {
+    stop("`", field, "` must be one finite percentage.", call. = FALSE)
   }
 
-  probs <- raw / sum(raw)
+  percent <- as.numeric(raw)
+  if (percent < 0 || percent > 100) {
+    stop("`", field, "` must be between 0 and 100.", call. = FALSE)
+  }
+
   list(
-    modes = names(probs),
-    probs = as.numeric(probs),
+    field = field,
+    percent = percent,
+    proportion = percent / 100,
     source = "ui"
+  )
+}
+
+# Assigns candidate weights so car and non-car source pools have the requested
+# expected shares while preserving the distance/purpose weights applied by the
+# trip sampler. If either pool is absent, available candidates remain eligible
+# and the requested share cannot be matched exactly.
+.car_diversion_candidate_weights <- function(
+    trips,
+    candidates,
+    car_diversion_target,
+    base_weights = rep(1, length(candidates))
+) {
+  if (length(candidates) == 0 || is.null(car_diversion_target$proportion) ||
+      !"trip_mainmode" %in% names(trips)) {
+    return(base_weights)
+  }
+
+  is_car <- .car_trip_filter(trips)[candidates]
+  is_car[is.na(is_car)] <- FALSE
+  n_car <- sum(is_car)
+  n_other <- length(candidates) - n_car
+  target_car <- car_diversion_target$proportion
+
+  if (n_car == 0 || n_other == 0) {
+    return(base_weights)
+  }
+
+  base_weights[is.na(base_weights) | base_weights < 0] <- 0
+  car_total <- sum(base_weights[is_car])
+  other_total <- sum(base_weights[!is_car])
+  if (car_total == 0 || other_total == 0) {
+    return(base_weights)
+  }
+
+  weights <- base_weights
+  weights[is_car] <- weights[is_car] * target_car / car_total
+  weights[!is_car] <- weights[!is_car] * (1 - target_car) / other_total
+  weights
+}
+
+.trip_sampling_constraints <- function(trip_target, car_diversion_target) {
+  constraints <- trip_target$constraints %||% character(0)
+  if (!is.null(car_diversion_target$proportion)) {
+    constraints <- c(constraints, "source_mode_car")
+  }
+  unique(constraints)
+}
+
+# Active-trip decreases and ex-user changes need a destination mode. This is a
+# separate assumption from the car-source shares above; for now they use the
+# configured default destination (normally car).
+.cf_away_diversion_target <- function(constants) {
+  list(
+    modes = constants$default_diversion_mode,
+    probs = 1,
+    source = "default"
   )
 }
 
