@@ -560,6 +560,14 @@ become important if the UI/reporting contract requires the final sampled rows to
 match each five-category marginal exactly, or if small samples produce visibly
 unstable modal summaries.
 
+Combined constraints can assign zero probability to most candidates in a small
+sample. If fewer positive-weight candidates remain than requested rows, HUB
+selects all positive-weight candidates first and samples only the unavoidable
+remainder uniformly from the zero-weight pool. This prevents `sample()` failures
+without discarding the constraints entirely. The affected change records
+`sampling_fallback` or `trip_sampling_fallback`, and the counterfactual report
+notes the number of relaxed rows.
+
 The counterfactual report records which sampling constraints were active for a
 change in `sampling_constraints`, e.g. `sex`, `age`, `pa`, `distance`, or
 `purpose`.
@@ -814,6 +822,75 @@ The returned `counterfactual_data` gains:
 Future work: add `scheme_effect_duration = "shortterm"` and decide whether
 large production runs should keep all `*_cf` columns or compute them lazily for
 plotting to reduce data volume.
+
+## Results data and Tab 5 plots
+
+`prepare_results_data()` prepares compact Step 8 outputs for MIAMA-UI. The
+expensive reference, counterfactual, and HM steps run before this function;
+interactive Tab 5 filters operate on compact result tables and do not rerun the
+health model.
+
+The central plotting contract is `results_data$plot_data`:
+
+- `health_cube` is aggregated by outcome, model cycle, age group, and gender.
+  It supports outcome, age, gender, total/timeline, and impact-presentation
+  controls while remaining small enough for a Shiny session.
+- `trip_mode_distribution` contains reference and counterfactual weighted trip
+  totals and proportions for Walking, Cycling, Public transport, Driving, and
+  Other. Raw numeric NTS modes and readable counterfactual labels are normalized
+  into these stable categories.
+- `health_overview` and `health_timeline` remain convenience tables for current
+  request defaults and exports.
+
+`results_filter_health_data()` is the non-plot interface UI can use to obtain a
+filtered data frame. Its arguments mirror the Tab 5 controls:
+
+```r
+plot_df <- results_filter_health_data(
+  results_data,
+  outcomes = c("mortality", "ihd", "stroke"),
+  age_groups = c("age_50_64", "age_65_74", "age_75plus"),
+  gender = c("male", "female"),
+  aggregation = "timeline",
+  group_by = "age_group"
+)
+```
+
+Development plotting functions consume the same compact data. The intended
+Tab 5 structure is deliberately limited to two core and three advanced views:
+
+- Core 1, `results_plot_health_overview()`: cumulative health impact by outcome,
+  shown as prevented outcomes, percentage reduction, or reference versus
+  counterfactual totals.
+- Core 2, `results_plot_health_timeline()`: annual health impacts over model
+  cycles, shown as attributable impacts or both scenario trajectories.
+- Advanced 1 and 2, `results_plot_health_impacts()`: cumulative health impacts
+  split by age group or by gender and faceted by outcome.
+- Advanced 3, `results_plot_trip_mode_distribution()`: reference and
+  counterfactual weighted trip shares or weekly weighted totals by mode.
+
+Each function provides data-aware defaults for `title`, `subtitle`, `caption`,
+`x_label`, and `y_label`; callers can override any of them. `NULL` uses the
+semantic default and `NA_character_` suppresses the label. Units are selected
+from the plot request and data: health plots distinguish deaths, disease cases,
+and mixed health outcomes; total plots are cumulative across the available
+model cycles; timeline plots are per model year; trip shares are displayed as
+percentages; and trip totals are weighted trips per reference week. Label
+overrides change presentation only and never transform the numeric values.
+
+For attributable health plots, `prevented_value = reference - counterfactual`
+and `percent_reduction = 100 * (reference - counterfactual) / reference`.
+Positive values therefore indicate a health gain. Plot captions state this
+sign convention and define reference as without scheme and counterfactual as
+with scheme.
+
+These ggplot functions currently live in HUB so the result contract and example
+presentation can be developed together. MIAMA-UI can call them directly or
+reproduce their styling from the returned data frames. Health outcomes are not
+yet attributable to individual active modes: `res_modes_filter` can filter or
+describe travel results, but a health chart labelled "by mode" would currently
+be misleading. Health plots use `mode = "all_modes"` until the health-impact
+pipeline provides a defensible mode decomposition.
 
 ## Synthetic population parquet conversion
 

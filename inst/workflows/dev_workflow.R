@@ -341,13 +341,58 @@ results_data$results_table |>
   utils::head(30) |>
   print()
 
-## 8.2 Draft presentation plots ----
-plot_health_overview <- results_plot_health_overview(results_data, value = "delta")
-plot_trip_modes <- results_plot_trip_mode_distribution(results_data)
-plot_health_timeline <- results_plot_health_timeline(results_data)
+## 8.2 Core presentation plots ----
+# Core 1: cumulative percentage reduction by selected health outcome.
+plot_core_health_by_outcome <- results_plot_health_overview(
+  results_data,
+  outcomes = c("ihd", "stroke", "diabetes", "depression", "alzheimer", "cancers"),
+  impact_type = "attributable",
+  metric = "percent_reduction"
+)
 
-plot_health_overview
-plot_trip_modes
-plot_health_timeline
+# Core 2: annual prevented health outcomes over the modelled period.
+plot_core_health_timeline <- results_plot_health_timeline(
+  results_data,
+  outcomes = c("mortality", "ihd", "stroke"),
+  impact_type = "attributable",
+  metric = "prevented"
+)
+
+# Optional scenario form of Core 2: reference and counterfactual trajectories.
+plot_core_health_timeline_scenarios <- results_plot_health_timeline(
+  results_data,
+  outcomes = c("mortality", "ihd"),
+  impact_type = "cf_vs_ref"
+)
+
+## 8.3 Advanced presentation plots ----
+# Advanced 1: cumulative prevented health outcomes by age group.
+plot_advanced_health_by_age <- results_plot_health_impacts(
+  results_data,
+  outcomes = c("mortality", "ihd", "stroke", "diabetes"),
+  group_by = "age_group",
+  metric = "prevented"
+)
+
+# Advanced 2: cumulative prevented health outcomes by gender.
+plot_advanced_health_by_gender <- results_plot_health_impacts(
+  results_data,
+  outcomes = c("mortality", "ihd", "stroke", "diabetes"),
+  group_by = "gender",
+  metric = "prevented"
+)
+
+# Advanced 3: reference and counterfactual weighted trip shares by mode.
+plot_advanced_travel_by_mode <- results_plot_trip_mode_distribution(
+  results_data,
+  value = "proportion"
+)
+
+plot_core_health_by_outcome
+plot_core_health_timeline
+plot_core_health_timeline_scenarios
+plot_advanced_health_by_age
+plot_advanced_health_by_gender
+plot_advanced_travel_by_mode
 
 # Step X: comparison of reference vs counterfactual data

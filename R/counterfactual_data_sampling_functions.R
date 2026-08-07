@@ -180,17 +180,47 @@ cf_sample_candidate_indices <- function(candidate_rows, n, seed, weights = NULL,
     stop("Not enough candidate rows available for requested counterfactual change.", call. = FALSE)
   }
 
+  fallback <- NULL
   if (!is.null(weights)) {
     weights <- weights[seq_along(candidate_rows)]
-    weights[is.na(weights) | weights < 0] <- 0
+    weights[!is.finite(weights) | weights < 0] <- 0
     if (sum(weights) == 0) {
+      fallback <- list(
+        reason = "all_candidate_weights_zero",
+        requested_n = n,
+        positive_weight_candidates = 0L,
+        relaxed_n = n
+      )
       weights <- NULL
     }
   }
 
   set.seed(seed)
-  sampled_pos <- sample(seq_along(candidate_rows), size = n, replace = replace, prob = weights)
-  candidate_rows[sampled_pos]
+  if (!isTRUE(replace) && !is.null(weights) && sum(weights > 0) < n) {
+    positive_pos <- which(weights > 0)
+    zero_pos <- which(weights == 0)
+    relaxed_n <- n - length(positive_pos)
+
+    # All positive-weight rows are required to reach `n`; fill only the
+    # unavoidable remainder from rows excluded by the combined constraints.
+    sampled_pos <- c(
+      positive_pos,
+      sample(zero_pos, size = relaxed_n, replace = FALSE)
+    )
+    sampled_pos <- sample(sampled_pos, length(sampled_pos), replace = FALSE)
+    fallback <- list(
+      reason = "insufficient_positive_weight_candidates",
+      requested_n = n,
+      positive_weight_candidates = length(positive_pos),
+      relaxed_n = relaxed_n
+    )
+  } else {
+    sampled_pos <- sample(seq_along(candidate_rows), size = n, replace = replace, prob = weights)
+  }
+
+  out <- candidate_rows[sampled_pos]
+  attr(out, "sampling_fallback") <- fallback
+  out
 }
 
 cf_individual_candidate_weights <- function(ind, candidate_rows, target = list()) {

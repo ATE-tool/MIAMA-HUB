@@ -329,8 +329,11 @@ apply_counterfactual_ui_values <- function(
   change$sampling_strategy <- assignment$sampling_strategy
   change$relevant_attributes <- assignment$relevant_attributes
   change$sampling_constraints <- assignment$sampling_constraints
+  change$sampling_fallback <- assignment$sampling_fallback
+  change$sampling_fallback <- assignment$sampling_fallback
   change$user_trip_shift_target_n <- trip_effect$trip_shift_target_n
   change$user_trip_shift_n <- trip_effect$trip_shift_n
+  change$trip_sampling_fallback <- trip_effect$sampling_fallback
   change$car_diversion_percent <- car_diversion_target$percent
   change$car_diversion_field <- car_diversion_target$field
   change$realized_car_diversion_percent <- trip_effect$realized_car_diversion_percent
@@ -362,6 +365,7 @@ apply_counterfactual_ui_values <- function(
       donor_source = "reference_data",
       sampling_strategy = sampling_strategy,
       sampling_constraints = population_target$constraints %||% character(0),
+      sampling_fallback = NULL,
       relevant_attributes = cf_individual_sampling_columns(reference_data$ind, spec$mode)
     ))
   }
@@ -375,6 +379,7 @@ apply_counterfactual_ui_values <- function(
       seed + spec$seed_offset,
       weights = weights
     )
+    sampling_fallback <- attr(changed_rows, "sampling_fallback")
     replacement_values <- cf_sample_observed_values(
       values_ref = reference_data$ind[[spec$activity_col]][ref_users],
       n = length(changed_rows),
@@ -391,6 +396,7 @@ apply_counterfactual_ui_values <- function(
       seed + spec$seed_offset,
       weights = weights
     )
+    sampling_fallback <- attr(changed_rows, "sampling_fallback")
     replacement_values <- rep(constants[[spec$ex_user_default_col]], length(changed_rows))
     role <- "ex_users"
   }
@@ -405,6 +411,7 @@ apply_counterfactual_ui_values <- function(
     donor_source = "reference_data",
     sampling_strategy = sampling_strategy,
     sampling_constraints = population_target$constraints %||% character(0),
+    sampling_fallback = sampling_fallback,
     relevant_attributes = cf_individual_sampling_columns(reference_data$ind, spec$mode)
   )
 }
@@ -525,6 +532,9 @@ apply_counterfactual_ui_values <- function(
       )
     )
   }
+  if (!is.null(assignment$sampling_fallback)) {
+    notes <- c(notes, .sampling_fallback_note(assignment$sampling_fallback, paste0(mode, " trip")))
+  }
 
   list(
     counterfactual_data = counterfactual_data,
@@ -556,6 +566,7 @@ apply_counterfactual_ui_values <- function(
       role = "unchanged",
       sampling_strategy = sampling_strategy,
       sampling_constraints = .trip_sampling_constraints(trip_target, car_diversion_target),
+      sampling_fallback = NULL,
       relevant_attributes = relevant_attributes,
       mode_shift_n = 0L,
       induced_n = 0L,
@@ -589,6 +600,7 @@ apply_counterfactual_ui_values <- function(
     role <- "mode_shift_and_induced_trips"
     mode_shift_n <- shifted$changed_n
     induced_n <- induced$changed_n
+    sampling_fallback <- shifted$sampling_fallback
     realized_car_diversion_percent <- shifted$realized_car_diversion_percent
   } else {
     remove_rows <- cf_sample_candidate_indices(which(cf_active), abs(delta), seed + spec$seed_offset + 4000L)
@@ -608,6 +620,7 @@ apply_counterfactual_ui_values <- function(
     role <- "shifted_away_trips"
     mode_shift_n <- -length(remove_rows)
     induced_n <- 0L
+    sampling_fallback <- attr(remove_rows, "sampling_fallback")
     realized_car_diversion_percent <- NA_real_
   }
 
@@ -619,6 +632,7 @@ apply_counterfactual_ui_values <- function(
     role = role,
     sampling_strategy = sampling_strategy,
     sampling_constraints = .trip_sampling_constraints(trip_target, car_diversion_target),
+    sampling_fallback = sampling_fallback,
     relevant_attributes = relevant_attributes,
     mode_shift_n = mode_shift_n,
     induced_n = induced_n,
@@ -713,6 +727,7 @@ apply_counterfactual_ui_values <- function(
       notes = notes,
       trip_shift_target_n = 0L,
       trip_shift_n = 0L,
+      sampling_fallback = NULL,
       realized_car_diversion_percent = NA_real_
     ))
   }
@@ -720,6 +735,7 @@ apply_counterfactual_ui_values <- function(
   changed_ids <- counterfactual_data$ind$census_id[changed_rows]
   trip_shift_target_n <- 0L
   trip_shift_n <- 0L
+  sampling_fallback <- NULL
   realized_car_diversion_percent <- NA_real_
   if (identical(role, "ex_users")) {
     active <- spec$trip_filter(counterfactual_data$trips)
@@ -737,6 +753,7 @@ apply_counterfactual_ui_values <- function(
       notes = notes,
       trip_shift_target_n = length(trip_rows),
       trip_shift_n = length(trip_rows),
+      sampling_fallback = NULL,
       realized_car_diversion_percent = NA_real_
     ))
   }
@@ -761,7 +778,11 @@ apply_counterfactual_ui_values <- function(
     )
     counterfactual_data <- shifted$counterfactual_data
     trip_shift_n <- shifted$changed_n
+    sampling_fallback <- shifted$sampling_fallback
     realized_car_diversion_percent <- shifted$realized_car_diversion_percent
+    if (!is.null(sampling_fallback)) {
+      notes <- c(notes, .sampling_fallback_note(sampling_fallback, paste0(spec$mode, " trip")))
+    }
     if (shifted$changed_n < trip_shift_target_n) {
       notes <- c(
         notes,
@@ -778,6 +799,7 @@ apply_counterfactual_ui_values <- function(
     notes = notes,
     trip_shift_target_n = trip_shift_target_n,
     trip_shift_n = trip_shift_n,
+    sampling_fallback = sampling_fallback %||% NULL,
     realized_car_diversion_percent = realized_car_diversion_percent
   )
 }
@@ -798,6 +820,7 @@ apply_counterfactual_ui_values <- function(
       counterfactual_data = counterfactual_data,
       changed_rows = .empty_changed_trip_rows(),
       changed_n = 0L,
+      sampling_fallback = NULL,
       realized_car_diversion_percent = NA_real_
     ))
   }
@@ -824,6 +847,7 @@ apply_counterfactual_ui_values <- function(
       counterfactual_data = counterfactual_data,
       changed_rows = .empty_changed_trip_rows(),
       changed_n = 0L,
+      sampling_fallback = NULL,
       realized_car_diversion_percent = NA_real_
     ))
   }
@@ -837,6 +861,7 @@ apply_counterfactual_ui_values <- function(
     base_weights = weights
   )
   rows <- cf_sample_candidate_indices(candidates, shift_n, seed, weights = weights)
+  sampling_fallback <- attr(rows, "sampling_fallback")
   source_car <- .car_trip_filter(trips)[rows]
   realized_car_diversion_percent <- 100 * mean(source_car, na.rm = TRUE)
   if (!is.finite(realized_car_diversion_percent)) {
@@ -853,6 +878,7 @@ apply_counterfactual_ui_values <- function(
     counterfactual_data = counterfactual_data,
     changed_rows = changed_rows,
     changed_n = length(rows),
+    sampling_fallback = sampling_fallback,
     realized_car_diversion_percent = realized_car_diversion_percent
   )
 }
@@ -1531,6 +1557,17 @@ miama_counterfactual_defaults <- function() {
     counterfactual_data = counterfactual_data,
     changes = list(),
     notes = notes
+  )
+}
+
+.sampling_fallback_note <- function(fallback, subject = "candidate") {
+  if (is.null(fallback)) return(character(0))
+
+  paste0(
+    "Sampling constraints were relaxed for ", subject, " rows: ",
+    fallback$positive_weight_candidates, " positive-weight candidates were available for ",
+    fallback$requested_n, " requested rows; ", fallback$relaxed_n,
+    " row(s) were sampled uniformly from the remaining candidate pool."
   )
 }
 

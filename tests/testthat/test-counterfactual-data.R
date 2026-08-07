@@ -376,6 +376,34 @@ test_that("counterfactual sampling functions support status and candidate select
   expect_equal(length(values), 2)
 })
 
+test_that("candidate sampling relaxes zero weights only when required", {
+  sampled <- cf_sample_candidate_indices(
+    candidate_rows = 101:105,
+    n = 4,
+    seed = 9,
+    weights = c(0.7, 0.3, 0, 0, 0)
+  )
+  fallback <- attr(sampled, "sampling_fallback")
+
+  expect_equal(length(sampled), 4)
+  expect_true(all(c(101L, 102L) %in% sampled))
+  expect_equal(fallback$reason, "insufficient_positive_weight_candidates")
+  expect_equal(fallback$positive_weight_candidates, 2)
+  expect_equal(fallback$relaxed_n, 2)
+})
+
+test_that("candidate sampling falls back uniformly when all weights are zero", {
+  sampled <- cf_sample_candidate_indices(
+    candidate_rows = 1:4,
+    n = 2,
+    seed = 4,
+    weights = rep(0, 4)
+  )
+
+  expect_equal(length(sampled), 2)
+  expect_equal(attr(sampled, "sampling_fallback")$reason, "all_candidate_weights_zero")
+})
+
 test_that("apply_counterfactual_ui_values reports configured sampling strategy", {
   reference_data <- list(
     ind = data.frame(

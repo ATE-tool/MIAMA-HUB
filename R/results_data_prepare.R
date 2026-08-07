@@ -48,12 +48,14 @@ prepare_results_data <- function(
   outcome_specs <- .results_outcome_specs()
 
   long <- .results_health_long(health_outcomes, outcome_specs)
+  health_cube <- .results_health_cube(long)
   filtered <- .filter_results_health_long(long, request)
   results_table <- .aggregate_results_health(filtered, request)
 
   trip_distribution <- .results_trip_mode_distribution(reference_data, counterfactual_data)
   headline_metrics <- .results_headline_metrics(results_table)
   plot_data <- list(
+    health_cube = health_cube,
     health_overview = .results_plot_health_overview_data(results_table, request),
     health_timeline = .results_plot_timeline_data(filtered, request),
     trip_mode_distribution = trip_distribution
@@ -75,6 +77,29 @@ prepare_results_data <- function(
     results_table = results_table,
     plot_data = plot_data,
     results_report = report
+  )
+}
+
+.results_health_cube <- function(long) {
+  if (nrow(long) == 0) {
+    return(data.frame(
+      outcome = character(0), outcome_label = character(0),
+      outcome_type = character(0), mode = character(0), cycle = integer(0),
+      age_group = character(0), gender = character(0), ref_value = numeric(0),
+      cf_value = numeric(0), delta_value = numeric(0),
+      stringsAsFactors = FALSE
+    ))
+  }
+
+  keep <- !is.na(long$age_group) & !is.na(long$gender)
+  stats::aggregate(
+    long[keep, c("ref_value", "cf_value", "delta_value"), drop = FALSE],
+    by = long[keep, c(
+      "outcome", "outcome_label", "outcome_type", "mode", "cycle",
+      "age_group", "gender"
+    ), drop = FALSE],
+    FUN = sum,
+    na.rm = TRUE
   )
 }
 
@@ -332,7 +357,8 @@ prepare_results_data <- function(
   if (is.null(ref) || is.null(cf) || !"trip_mainmode" %in% names(ref) || !"trip_mainmode" %in% names(cf)) {
     return(data.frame(
       scenario = character(0),
-      trip_mainmode = character(0),
+      mode = character(0),
+      mode_label = character(0),
       trips = numeric(0),
       proportion = numeric(0)
     ))
@@ -348,13 +374,39 @@ prepare_results_data <- function(
 
 .trip_mode_distribution_one <- function(trips, scenario) {
   weights <- .trip_weights(trips)
-  mode <- as.character(trips$trip_mainmode)
-  mode[is.na(mode) | !nzchar(mode)] <- "Unknown"
-  totals <- stats::aggregate(weights, by = list(trip_mainmode = mode), FUN = sum, na.rm = TRUE)
+  mode <- .results_trip_mode_group(trips$trip_mainmode)
+  totals <- stats::aggregate(weights, by = list(mode = mode), FUN = sum, na.rm = TRUE)
   names(totals)[names(totals) == "x"] <- "trips"
   totals$scenario <- scenario
   totals$proportion <- .results_divide_or_na(totals$trips, sum(totals$trips, na.rm = TRUE))
-  totals[, c("scenario", "trip_mainmode", "trips", "proportion")]
+  labels <- c(
+    walking = "Walking", cycling = "Cycling", pt = "Public transport",
+    driving = "Driving", other = "Other"
+  )
+  totals$mode_label <- unname(labels[totals$mode])
+  totals[, c("scenario", "mode", "mode_label", "trips", "proportion")]
+}
+
+.results_trip_mode_group <- function(values) {
+  numeric_values <- suppressWarnings(as.numeric(as.character(values)))
+  text_values <- tolower(as.character(values))
+  out <- rep("other", length(values))
+
+  is_walk <- (!is.na(numeric_values) & numeric_values == MIAMA_NTS_MAINMODE_B04[["walk"]]) |
+    grepl("walk", text_values)
+  is_bike <- (!is.na(numeric_values) & numeric_values == MIAMA_NTS_MAINMODE_B04[["bicycle"]]) |
+    grepl("bicy|cycl|e[- ]?bike", text_values)
+  is_pt <- (!is.na(numeric_values) & numeric_values %in% MIAMA_NTS_MAINMODE_PT_CODES) |
+    grepl("public|bus|rail|train|tram|metro|underground|tube|coach", text_values)
+  is_driving <- (!is.na(numeric_values) & numeric_values %in% unname(MIAMA_NTS_MAINMODE_B04[c(
+    "car_driver", "car_passenger"
+  )])) | grepl("car|van|driver|passenger", text_values)
+
+  out[is_driving] <- "driving"
+  out[is_pt] <- "pt"
+  out[is_bike] <- "cycling"
+  out[is_walk] <- "walking"
+  out
 }
 
 # Report ---------------------------------------------------------------------
