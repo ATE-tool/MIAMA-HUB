@@ -196,6 +196,9 @@ Hub <- R6::R6Class(
         reference_data = private$.counterfactual_reference_data(),
         counterfactual_data = self$counterfactual_data,
         results_data = self$results_data,
+        # Compact UI contract. These are shared source tables for interactive
+        # filtering, not one pre-aggregated data frame per plot.
+        plot_data = self$results_data$plot_data,
         spread_data = spread_data
       )
     },

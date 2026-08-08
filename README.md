@@ -830,17 +830,60 @@ expensive reference, counterfactual, and HM steps run before this function;
 interactive Tab 5 filters operate on compact result tables and do not rerun the
 health model.
 
-The central plotting contract is `results_data$plot_data`:
+The central UI plotting contract is returned directly by `Hub$build_results()`
+as `result$plot_data` and is also available as
+`result$results_data$plot_data`. Both names refer to the same compact object in
+the R session; HUB does not recalculate or copy the underlying values.
+
+The payload intentionally contains shared source tables rather than one data
+frame per plot:
 
 - `health_cube` is aggregated by outcome, model cycle, age group, and gender.
-  It supports outcome, age, gender, total/timeline, and impact-presentation
-  controls while remaining small enough for a Shiny session.
+  It is the comprehensive source for the health overview, timeline, age, and
+  gender plots. UI filters and aggregates this table as users change outcome,
+  age, gender, and total/timeline selections.
 - `trip_mode_distribution` contains reference and counterfactual weighted trip
   totals and proportions for Walking, Cycling, Public transport, Driving, and
-  Other. Raw numeric NTS modes and readable counterfactual labels are normalized
-  into these stable categories.
+  Other. It remains separate because its rows represent travel modes and
+  scenarios, whereas `health_cube` rows represent health-model strata.
+- `spreads` contains compact reference/counterfactual spread-bar data produced
+  by `build_results()` for the population, trip, and physical-activity spread
+  views.
 - `health_overview` and `health_timeline` remain convenience tables for current
-  request defaults and exports.
+  request defaults and exports. UI does not need them for interactive plotting
+  when it uses `health_cube`.
+
+Combining health and trip data into one data frame would create sparse columns
+and ambiguous units. Producing one table per plot would repeat the same health
+values and allow the views to drift apart. Two canonical analytical tables,
+plus the distinct spread payload, preserve each table's grain while supporting
+all current Tab 5 interactions.
+
+```r
+result <- hub$build_results(profile)
+
+# Direct reactive filtering in UI.
+health_cube <- result$plot_data$health_cube
+trip_modes <- result$plot_data$trip_mode_distribution
+
+# Or use HUB's filter and plotting functions against the enclosing object.
+health_by_age <- results_filter_health_data(
+  result$results_data,
+  outcomes = c("mortality", "ihd", "stroke"),
+  aggregation = "total",
+  group_by = "age_group"
+)
+plot <- results_plot_health_impacts(
+  result$results_data,
+  outcomes = c("mortality", "ihd", "stroke"),
+  group_by = "age_group"
+)
+```
+
+For a lean Shiny reactive, UI can retain `result$results_data` (or only
+`result$plot_data` when it performs its own filtering) instead of retaining the
+large `reference_data` and `counterfactual_data` objects returned for current
+development inspection.
 
 `results_filter_health_data()` is the non-plot interface UI can use to obtain a
 filtered data frame. Its arguments mirror the Tab 5 controls:

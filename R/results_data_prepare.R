@@ -12,7 +12,9 @@
 # Outputs:
 # - `results_table`: filtered and aggregated health outcome table
 # - `headline_metrics`: first-pass values for the main results tiles
-# - `plot_data`: compact tables for the current draft plots
+# - `plot_data`: compact UI-facing source tables. `health_cube` drives all
+#   health plots; `trip_mode_distribution` drives the travel-mode plot. The
+#   overview/timeline tables are convenience views, not separate data contracts.
 # - `results_report`: assumptions, filters, and known limitations
 #
 # Current limitations:

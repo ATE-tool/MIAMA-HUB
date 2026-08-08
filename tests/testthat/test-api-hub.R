@@ -406,7 +406,11 @@ test_that("Hub builds results through high-level UI method when data are already
 
   out <- hub$build_results(profile)
 
-  expect_true(all(c("profile", "reference_data", "counterfactual_data", "results_data") %in% names(out)))
+  expect_true(all(c(
+    "profile", "reference_data", "counterfactual_data", "results_data", "plot_data"
+  ) %in% names(out)))
+  expect_identical(out$plot_data, out$results_data$plot_data)
+  expect_true(all(c("health_cube", "trip_mode_distribution", "spreads") %in% names(out$plot_data)))
   expect_equal(out$results_data$results_table$outcome, "mortality")
   expect_equal(out$results_data$headline_metrics$premature_deaths_prevented, 1)
 })
