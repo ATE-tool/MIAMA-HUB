@@ -2,3 +2,4 @@
 ^renv\.lock$
 ^MIAMA-HUB\.Rproj$
 ^\.Rproj\.user$
+^data$

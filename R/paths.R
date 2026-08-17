@@ -60,17 +60,27 @@ miama_path <- function(...) {
 }
 
 miama_runtime_data_dir <- function(project_root = miama_project_root()) {
-  source_data <- file.path(project_root, "data")
-  packaged_data <- system.file("extdata", "data", package = "MIAMAHUB")
-
-  if (dir.exists(source_data) && length(list.files(source_data, all.files = FALSE)) > 0) {
-    return(source_data)
+  external_data <- Sys.getenv("MIAMA_DATA_ROOT", unset = "")
+  if (nzchar(external_data)) {
+    return(normalizePath(external_data, winslash = "/", mustWork = FALSE))
   }
+
+  packaged_data <- system.file("extdata", "data", package = "MIAMAHUB")
   if (nzchar(packaged_data) && dir.exists(packaged_data)) {
     return(normalizePath(packaged_data, winslash = "/", mustWork = FALSE))
   }
 
-  source_data
+  # `system.file()` may be empty while the package is loaded from source with
+  # devtools. In that case, use the source copy of the same packaged samples.
+  source_packaged_data <- file.path(project_root, "inst", "extdata", "data")
+  if (dir.exists(source_packaged_data)) {
+    return(normalizePath(source_packaged_data, winslash = "/", mustWork = FALSE))
+  }
+
+  stop(
+    "Packaged sample data were not found. Set MIAMA_DATA_ROOT to the external data directory.",
+    call. = FALSE
+  )
 }
 
 miama_hm_root <- function() {

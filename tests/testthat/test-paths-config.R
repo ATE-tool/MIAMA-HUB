@@ -41,7 +41,8 @@ test_that("miama_hm_root_or_null() discovers sibling MIAMA-HM repo", {
 test_that("miama_paths() returns list with expected keys", {
   withr::with_envvar(list(
     MIAMA_PROJECT_ROOT = "/tmp/fake_project",
-    MIAMA_HM_ROOT      = "/tmp/fake_hm"
+    MIAMA_HM_ROOT      = "/tmp/fake_hm",
+    MIAMA_DATA_ROOT    = "/tmp/fake_data"
   ), {
     p <- miama_paths()
     expected_keys <- c(
@@ -60,7 +61,8 @@ test_that("miama_paths() returns list with expected keys", {
 test_that("miama_paths() sources are named parquet lists with path and format", {
   withr::with_envvar(list(
     MIAMA_PROJECT_ROOT = "/tmp/fake_project",
-    MIAMA_HM_ROOT      = "/tmp/fake_hm"
+    MIAMA_HM_ROOT      = "/tmp/fake_hm",
+    MIAMA_DATA_ROOT    = "/tmp/fake_data"
   ), {
     p <- miama_paths()
     expect_named(p$sp_attributes, c("path", "format"))
@@ -77,7 +79,8 @@ test_that("miama_paths() sp sources point to expected parquet paths when dirs ar
   tmp <- withr::local_tempdir()
   withr::with_envvar(list(
     MIAMA_PROJECT_ROOT = tmp,
-    MIAMA_HM_ROOT      = "/tmp/fake_hm"
+    MIAMA_HM_ROOT      = "/tmp/fake_hm",
+    MIAMA_DATA_ROOT    = tmp
   ), {
     p <- miama_paths()
     expect_equal(p$sp_attributes$format, "parquet")
@@ -87,7 +90,7 @@ test_that("miama_paths() sp sources point to expected parquet paths when dirs ar
   })
 })
 
-test_that("miama_runtime_data_dir() falls back to packaged extdata when source data is empty", {
+test_that("miama_runtime_data_dir() falls back to packaged extdata without external root", {
   project_root <- withr::local_tempdir()
   dir.create(file.path(project_root, "data"), recursive = TRUE)
 
@@ -106,9 +109,75 @@ test_that("miama_runtime_data_dir() falls back to packaged extdata when source d
     .env = environment(miama_runtime_data_dir)
   )
 
-  expect_equal(
-    miama_runtime_data_dir(project_root),
-    normalizePath(packaged_data, winslash = "/", mustWork = FALSE)
+  withr::with_envvar(list(MIAMA_DATA_ROOT = ""), {
+    expect_equal(
+      miama_runtime_data_dir(project_root),
+      normalizePath(packaged_data, winslash = "/", mustWork = FALSE)
+    )
+  })
+})
+
+test_that("miama_runtime_data_dir() uses explicit external root", {
+  external_data <- withr::local_tempdir()
+  withr::with_envvar(list(MIAMA_DATA_ROOT = external_data), {
+    expect_equal(
+      miama_runtime_data_dir(),
+      normalizePath(external_data, winslash = "/", mustWork = FALSE)
+    )
+  })
+})
+
+test_that("miama_runtime_data_dir() selects source packaged data, not project data", {
+  project_root <- withr::local_tempdir()
+  dir.create(file.path(project_root, "data", "synthetic_pop"), recursive = TRUE)
+  source_packaged_data <- file.path(project_root, "inst", "extdata", "data")
+  dir.create(source_packaged_data, recursive = TRUE)
+
+  local_mocked_bindings(
+    system.file = function(...) "",
+    .env = environment(miama_runtime_data_dir)
+  )
+
+  withr::with_envvar(list(MIAMA_DATA_ROOT = ""), {
+    expect_equal(
+      miama_runtime_data_dir(project_root),
+      normalizePath(source_packaged_data, winslash = "/", mustWork = FALSE)
+    )
+  })
+})
+
+test_that("full config rejects packaged sample synthpop sources", {
+  packaged_data <- withr::local_tempdir()
+  sp_attributes <- file.path(
+    packaged_data, "synthetic_pop", "SPindivid_CensusNTSALS_parquet"
+  )
+  sp_trips <- file.path(
+    packaged_data, "synthetic_pop", "SPtrip_CensusNTSALS_parquet"
+  )
+  dir.create(sp_attributes, recursive = TRUE)
+  dir.create(sp_trips, recursive = TRUE)
+
+  local_mocked_bindings(
+    system.file = function(..., package = NULL) {
+      args <- c(...)
+      if (identical(package, "MIAMAHUB") && identical(args, c("extdata", "data"))) {
+        return(packaged_data)
+      }
+      base::system.file(..., package = package)
+    },
+    .env = environment(miama_resolve_config)
+  )
+
+  cfg <- list(
+    workflow = list(dataset_size = "full"),
+    sources = list(
+      sp_attributes = list(path = sp_attributes, format = "parquet"),
+      sp_trips = list(path = sp_trips, format = "parquet")
+    )
+  )
+  expect_error(
+    miama_resolve_config(cfg, validate_hm = FALSE),
+    "cannot use packaged sample synthpop data"
   )
 })
 
@@ -119,7 +188,8 @@ test_that("miama_paths() selects HUB-local HM sample before external HM", {
 
   withr::with_envvar(list(
     MIAMA_PROJECT_ROOT = tmp,
-    MIAMA_HM_ROOT      = "/tmp/fake_hm"
+    MIAMA_HM_ROOT      = "/tmp/fake_hm",
+    MIAMA_DATA_ROOT    = file.path(tmp, "data")
   ), {
     p <- miama_paths()
     expect_equal(p$hm_sp_overall_sample$path, normalizePath(hub_dir, winslash = "/", mustWork = FALSE))
@@ -134,7 +204,8 @@ test_that("miama_paths() can resolve HUB-local HM sample without MIAMA_HM_ROOT",
 
   withr::with_envvar(list(
     MIAMA_PROJECT_ROOT = tmp,
-    MIAMA_HM_ROOT      = ""
+    MIAMA_HM_ROOT      = "",
+    MIAMA_DATA_ROOT    = file.path(tmp, "data")
   ), {
     p <- miama_paths()
     expect_null(p$hm_root)
@@ -150,7 +221,8 @@ test_that("miama_paths() selects dev_parquet when dev directory exists", {
 
   withr::with_envvar(list(
     MIAMA_PROJECT_ROOT = tmp,
-    MIAMA_HM_ROOT      = "/tmp/fake_hm"
+    MIAMA_HM_ROOT      = "/tmp/fake_hm",
+    MIAMA_DATA_ROOT    = file.path(tmp, "data")
   ), {
     p <- miama_paths()
     expect_equal(p$sp_attributes$path,   normalizePath(dev_dir, winslash = "/", mustWork = FALSE))
@@ -170,7 +242,8 @@ test_that("miama_resolve_config() errors when sp_attributes parquet path is miss
   tmp <- withr::local_tempdir()
   withr::with_envvar(list(
     MIAMA_PROJECT_ROOT = tmp,
-    MIAMA_HM_ROOT      = "/tmp/fake_hm"
+    MIAMA_HM_ROOT      = "/tmp/fake_hm",
+    MIAMA_DATA_ROOT    = tmp
   ), {
     cfg <- miama_default_config()
     expect_error(miama_resolve_config(cfg), "Synthpop attributes parquet directory not found")

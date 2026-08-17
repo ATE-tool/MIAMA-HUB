@@ -7,8 +7,5 @@ Thumbs.db
 .Ruser_profile
 .Renviron
 
-# Data files (too large for git; stored externally)
-data/cache
-data/synthetic_pop/SPtrip_CensusNTSALS_parquet
-data/synthetic_pop/SPindivid_CensusNTSALS.dta
-data/synthetic_pop/SPtrip_CensusNTSALS.dta
+# External/local runtime data. Package samples belong in inst/extdata/data.
+/data/

@@ -84,6 +84,15 @@ miama_resolve_config <- function(cfg = NULL, results_request = list(), validate_
     stop("Synthpop trips parquet directory not found: ", sp_trips_path, call. = FALSE)
   }
 
+  if (identical(cfg$workflow$dataset_size, "full") &&
+      .is_packaged_sample_path(sp_path)) {
+    stop(
+      "dataset_size = 'full' cannot use packaged sample synthpop data. ",
+      "Set MIAMA_DATA_ROOT or provide explicit cfg$sources paths to full parquet data.",
+      call. = FALSE
+    )
+  }
+
   if (isTRUE(validate_hm)) {
     hm_suffix <- miama_hm_suffix_from_request(results_request)
     hm_key <- paste0(
@@ -99,6 +108,20 @@ miama_resolve_config <- function(cfg = NULL, results_request = list(), validate_
   }
 
   cfg
+}
+
+.is_packaged_sample_path <- function(path) {
+  path <- normalizePath(path, winslash = "/", mustWork = FALSE)
+  packaged_roots <- c(
+    system.file("extdata", "data", package = "MIAMAHUB"),
+    file.path(miama_project_root(), "inst", "extdata", "data")
+  )
+  packaged_roots <- unique(packaged_roots[nzchar(packaged_roots)])
+  packaged_roots <- normalizePath(packaged_roots, winslash = "/", mustWork = FALSE)
+
+  any(vapply(packaged_roots, function(root) {
+    identical(path, root) || startsWith(path, paste0(root, "/"))
+  }, logical(1)))
 }
 
 # Load HM outcomes parquet with optional rds caching for faster future loads.

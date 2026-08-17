@@ -1,15 +1,16 @@
 # MIAMA-HUB Dev Workflow: England-Derived Assumption Candidates
 # -----------------------------------------------------------------------------
 # Purpose:
-#   Derive reviewable candidates for numeric MIAMA-UI defaults from the full
-#   England synthetic population. Outputs remain evidence tables: this workflow
-#   never edits the UI schema or silently promotes candidates to defaults.
+#   Derive stable, reviewable candidates for numeric MIAMA-UI defaults from the
+#   full England synthetic population. This workflow is run explicitly when the
+#   source data or assumptions change; app sessions only consume the packaged
+#   outputs and never recreate them.
 #
 # Outputs:
-#   - `data/lookup/england_mode_default_candidates.csv`: source metrics by mode
-#     and measurement basis.
-#   - `data/lookup/england_schema_default_candidates.csv`: candidate values
-#     mapped to current UI field names, with availability/review status.
+#   - `inst/extdata/data/lookup/england_mode_default_candidates.csv`: source
+#     metrics by mode and measurement basis.
+#   - `inst/extdata/data/lookup/england_schema_default_candidates.csv`:
+#     candidate values mapped to current UI field names, with review status.
 #
 # Important definitions:
 #   - Walking/cycling "active_component" metrics use the mode-specific distance
@@ -57,9 +58,18 @@ suppressPackageStartupMessages({
   library(dplyr)
 })
 
-sp_attributes_path <- file.path(hub_root, "data", "synthetic_pop", "SPindivid_CensusNTSALS_parquet")
-sp_trips_path <- file.path(hub_root, "data", "synthetic_pop", "SPtrip_CensusNTSALS_parquet")
-output_dir <- file.path(hub_root, "data", "lookup")
+external_data_root <- Sys.getenv("MIAMA_DATA_ROOT", unset = "")
+if (!nzchar(external_data_root)) {
+  stop(
+    "Set MIAMA_DATA_ROOT to the external directory containing full synthpop data.",
+    call. = FALSE
+  )
+}
+external_data_root <- normalizePath(external_data_root, winslash = "/", mustWork = FALSE)
+
+sp_attributes_path <- file.path(external_data_root, "synthetic_pop", "SPindivid_CensusNTSALS_parquet")
+sp_trips_path <- file.path(external_data_root, "synthetic_pop", "SPtrip_CensusNTSALS_parquet")
+output_dir <- file.path(hub_root, "inst", "extdata", "data", "lookup")
 
 if (!dir.exists(sp_attributes_path)) stop("Full SP attributes parquet not found: ", sp_attributes_path, call. = FALSE)
 if (!dir.exists(sp_trips_path)) stop("Full SP trips parquet not found: ", sp_trips_path, call. = FALSE)

@@ -5,9 +5,12 @@
 # Prerequisites: Set env vars in your project .Renviron (usethis::edit_r_environ("project")):
 #   MIAMA_PROJECT_ROOT=/path/to/MIAMA-HUB
 #   MIAMA_HM_ROOT=/path/to/MIAMA-HM
+#   MIAMA_DATA_ROOT=/path/to/external/miama-data
 # Then restart R so the vars are picked up before loading the package.
 # `MIAMA_HM_ROOT` is optional in the common dev layout where `MIAMA-HUB` and
 # `MIAMA-HM` are sibling repos; HUB will discover `../MIAMA-HM` automatically.
+# `MIAMA_DATA_ROOT` is optional for packaged sample runs and required for full
+# synthpop runs.
 
 # 0. Setup ----
 # -----------------------------------------------------------------------------#

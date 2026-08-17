@@ -639,14 +639,20 @@ overridden from the geography lookup's scaled population where available.
 For England-wide schema default review values, use
 `inst/workflows/dev_extract_england_schema_default_values.R`. It reads the full
 local synthpop parquet sources and performs filtering and aggregation lazily in
-Arrow. It writes two compact review files:
+Arrow. It writes two compact, package-bundled lookup files. This is an explicit
+developer regeneration step; app startup and appraisal sessions only read the
+resulting constants:
 
-- `data/lookup/england_mode_default_candidates.csv` contains the underlying
-  England metrics by mode and measurement basis: trips per weekly user, trip
-  distance, trip duration, speed, and weekly distance/duration per user.
-- `data/lookup/england_schema_default_candidates.csv` maps those metrics to
-  current MIAMA-UI field names and labels each value as a review candidate,
-  unavailable, or requiring a schema decision.
+- `inst/extdata/data/lookup/england_mode_default_candidates.csv` contains the
+  underlying England metrics by mode and measurement basis: trips per weekly
+  user, trip distance, trip duration, speed, and weekly distance/duration per
+  user.
+- `inst/extdata/data/lookup/england_schema_default_candidates.csv` maps those
+  metrics to current MIAMA-UI field names and labels each value as a review
+  candidate, unavailable, or requiring a schema decision.
+
+Installed-package code can resolve these files with
+`system.file("extdata", "data", "lookup", ..., package = "MIAMAHUB")`.
 
 Walking and cycling use their active-trip component columns. Car and public
 transport use mutually exclusive numeric NTS main-mode codes and raw trip
@@ -654,8 +660,8 @@ distance/duration. The available `MainMode_B04` field does not separate e-bike
 from bicycle, so e-bike candidates remain explicitly unavailable. The current
 `distdur_default_*` field is also ambiguous because it is used for either
 distance or duration; the output reports both candidates with
-`needs_schema_split` rather than selecting one silently. Review these CSVs
-before copying values into MIAMA-UI schema defaults.
+`needs_schema_split` rather than selecting one silently. Review these CSVs after
+regeneration before promoting values into MIAMA-UI schema defaults.
 
 The R6 `Hub` wrapper still exposes developer helpers
 `build_reference_ui_values()` / `get_reference_ui_values()` /
@@ -998,8 +1004,10 @@ Later work should:
 
 ## Data locations
 
-For local development, large data files should not be tracked in git.
-`data/` is git-ignored.
+For local development, large data files must not be tracked in git or included
+in package builds. Set `MIAMA_DATA_ROOT` to an external/local data directory.
+The legacy project-root `data/` path is ignored by both git and `R CMD build`,
+but is no longer selected implicitly.
 
 `inst/extdata/` is different: files under this directory are bundled when
 MIAMA-HUB is installed as an R package. To keep the package publishable, it
@@ -1008,21 +1016,37 @@ load without full data access.
 
 Current expected layout:
 
-- synthetic population files live in `MIAMA-HUB/data/synthetic_pop/`
+- full synthetic population files live under
+  `$MIAMA_DATA_ROOT/synthetic_pop/`
 - packaged sample synthetic population files live in
   `MIAMA-HUB/inst/extdata/data/synthetic_pop/`
 - the packaged `geo_options.rds` is intentionally full-derived because it is
   small and needed for complete UI geography dropdowns and population labels
-- HM sample processed outputs may live in `MIAMA-HUB/data/health_data/`
+- packaged HM sample processed outputs live under
+  `MIAMA-HUB/inst/extdata/data/health_data/`
 - full HM processed outputs are read from `MIAMA-HM` via `MIAMA_HM_ROOT`
 
 HM outcome loading follows this hierarchy:
 
-1. cached RDS files in `MIAMA-HUB/data/cache/` when cache is enabled and no
+1. cached RDS files in `cfg$cache$dir` when cache is enabled and no
    census-id prefilter is requested
-2. HUB-local sample parquet directories such as
-   `data/health_data/sp_overall_outcomes_sample/`
+2. packaged sample parquet directories such as
+   `inst/extdata/data/health_data/sp_overall_outcomes_sample/`
 3. external MIAMA-HM parquet directories under `MIAMA_HM_ROOT/health_data/processed/`
 
-This arrangement is temporary. Longer-term data storage will likely move to a
-VPS or another external location.
+Without `MIAMA_DATA_ROOT`, HUB deliberately uses the packaged sample data.
+`dataset_size = "full"` fails clearly when only packaged sample synthpop data
+are available. Callers can also provide explicit `cfg$sources` paths. Longer-
+term external storage may be a VPS or another managed data service.
+
+`inst/extdata/data/manifest.csv` inventories every packaged artifact with its
+source, source version, purpose, row count, schema, and checksum. Regenerate it
+after intentional packaged-data changes with:
+
+```sh
+Rscript --vanilla inst/workflows/dev_build_packaged_data_manifest.R
+```
+
+`source_version = "unrecorded"` identifies artifacts for which an authoritative
+upstream release identifier still needs to be supplied; it is not silently
+treated as a known version.
