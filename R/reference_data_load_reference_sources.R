@@ -1,12 +1,19 @@
 # MIAMA-HUB Module: Reference Data / Load Reference Sources
 # Purpose: Load the upstream data sources that feed `reference_data_raw`:
-#   HM outcomes and synthetic population (attributes + trips).
+#   one-row-per-person HM overall outcomes and synthetic population
+#   (attributes + trips).
 # Inputs: A resolved config plus request sections used for source selection and
 #   parquet pushdown filters.
 # Outputs: A named list with `hm_outcomes`, `sp_attributes`, `sp_trips`, `cfg`.
 
 load_reference_sources <- function(cfg = NULL, reference_request = list(), results_request = list()) {
-  cfg <- miama_resolve_config(cfg, results_request = results_request)
+  # Reference and counterfactual sampling require one row per individual. The
+  # requested results aggregation must not select cycle HM data here because
+  # joining person-cycle rows to trips creates a cycle-by-trip expansion.
+  # Timeline/death-share outcomes are loaded after counterfactual exposure has
+  # been created by `apply_counterfactual_health_outcomes()`.
+  reference_hm_request <- list(res_aggregation = "total")
+  cfg <- miama_resolve_config(cfg, results_request = reference_hm_request)
 
   source_data <- .with_miama_arrow_runtime(cfg, {
     sp_attributes <- .load_synthpop_source(
@@ -36,7 +43,7 @@ load_reference_sources <- function(cfg = NULL, reference_request = list(), resul
 
   hm_outcomes <- load_hm_outcomes(
     cfg,
-    results_request = results_request,
+    results_request = reference_hm_request,
     census_ids = source_data$matched_ids
   )
 
@@ -49,7 +56,8 @@ load_reference_sources <- function(cfg = NULL, reference_request = list(), resul
       n_matched_ids = length(source_data$matched_ids),
       geo_level = reference_request$geo_level %||% NULL,
       geo_id = reference_request$geo_id %||% NULL,
-      hm_suffix = miama_hm_suffix_from_request(results_request),
+      hm_suffix = "overall",
+      requested_results_hm_suffix = miama_hm_suffix_from_request(results_request),
       arrow_cpu_count = cfg$arrow$cpu_count %||% NULL,
       arrow_release_unused = isTRUE(cfg$arrow$release_unused),
       sp_trip_census_id_filter_applied = source_data$sp_trip_census_id_filter_applied

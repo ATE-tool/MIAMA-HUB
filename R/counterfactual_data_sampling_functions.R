@@ -147,7 +147,12 @@ cf_add_trip_indicators <- function(trips, modes = c("walking", "cycling")) {
   }
 
   trips$trip_activemode <- active
-  trips$trip_utilitarian <- cf_trip_utilitarian(trips, active)
+  utilitarian <- cf_trip_utilitarian(trips, active)
+  if ("cf_induced" %in% names(trips)) {
+    induced <- !is.na(trips$cf_induced) & trips$cf_induced
+    utilitarian[induced] <- FALSE
+  }
+  trips$trip_utilitarian <- utilitarian
   trips
 }
 

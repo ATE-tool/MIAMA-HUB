@@ -692,7 +692,10 @@ fixed:
 - returned individual data includes explicit `user_walk` / `user_bike`
   indicators and `cf_user_change`
 - `mmets` is recalculated when present using HM constants:
-  `walktime_wkhr * 2.5 + cycletime_wkhr * 5.8 + sport_wkhr * 7`
+  changes in `walktime_wkhr`, `cycletime_wkhr`, and `sport_wkhr` are converted
+  to MMET deltas using factors 2.5, 5.8, and 7 respectively. These deltas are
+  added to each individual's HM reference MMET value; unchanged individuals
+  retain their reference exposure.
 - if trip-level data is present, ex-users' active trips are shifted away from
   the active mode; new users trigger sampling of plausible non-active trips for
   mode shift where matching trip rows exist
@@ -1033,6 +1036,18 @@ HM outcome loading follows this hierarchy:
 2. packaged sample parquet directories such as
    `inst/extdata/data/health_data/sp_overall_outcomes_sample/`
 3. external MIAMA-HM parquet directories under `MIAMA_HM_ROOT/health_data/processed/`
+
+Reference and counterfactual individual/trip data use the HM `overall` table,
+which has one row per individual. A timeline results request does not join the
+cycle table to trips: death-share cycle outcomes are loaded and filtered by
+`census_id` only after counterfactual MMET exposure has been created. This
+avoids an invalid cycle-by-trip row expansion.
+
+During `Hub$build_results()`, source and pre-filter row tables are released once
+the filtered reference and counterfactual objects have been built. The
+death-share lookup is evaluated in bounded chunks with MMET-band overlap inside
+the join, preventing full-data scenarios from materializing all lookup bands
+for every changed person-cycle row.
 
 Without `MIAMA_DATA_ROOT`, HUB deliberately uses the packaged sample data.
 `dataset_size = "full"` fails clearly when only packaged sample synthpop data

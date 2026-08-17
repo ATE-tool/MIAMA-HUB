@@ -15,6 +15,17 @@ join_hm_and_synthpop <- function(reference_sources) {
   spa <- reference_sources$sp_attributes
   spt <- reference_sources$sp_trips
 
+  duplicated_hm_ids <- duplicated(hm$census_id) | duplicated(hm$census_id, fromLast = TRUE)
+  if (any(duplicated_hm_ids)) {
+    stop(
+      "HM reference outcomes must contain one row per `census_id`; found ",
+      length(unique(hm$census_id[duplicated_hm_ids])),
+      " duplicated IDs. Cycle-level HM outcomes must be joined after ",
+      "counterfactual exposure is built, not to individual/trip reference data.",
+      call. = FALSE
+    )
+  }
+
   # --- Individual-level join: hm_outcomes -> sp_attributes -----------------
   ind <- dplyr::left_join(hm, spa, by = "census_id")
 

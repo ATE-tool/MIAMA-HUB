@@ -183,6 +183,17 @@ Hub <- R6::R6Class(
       if (isTRUE(refresh) || is.null(self$counterfactual_data)) {
         self$build_counterfactual_data(seed = seed)
       }
+
+      # The joined/filtered reference data, compact reference defaults, and CF
+      # data are sufficient from this point. Release duplicate row-level source
+      # objects before loading the much larger death-share cycle table.
+      self$reference_sources <- NULL
+      self$reference_data_raw <- NULL
+      if (!is.null(self$reference_default_ui_values)) {
+        self$reference_default_data <- NULL
+      }
+      invisible(gc(verbose = FALSE))
+
       if (isTRUE(refresh) || is.null(self$counterfactual_data$health_outcomes)) {
         self$build_counterfactual_health_outcomes()
       }

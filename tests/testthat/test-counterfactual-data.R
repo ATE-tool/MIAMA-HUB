@@ -57,6 +57,39 @@ test_that("apply_counterfactual_ui_values increases walking users from non-users
   expect_true(nrow(counterfactual_data$counterfactual_report$comparison$changed_ind_rows) > 0)
 })
 
+test_that("counterfactual MMET calculation preserves unchanged HM exposure", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:3,
+      walktime_wkhr = c(1, 0, 0),
+      cycletime_wkhr = c(0, 0, 0),
+      sport_wkhr = c(0, 0, 0),
+      mmets = c(100, 200, 300)
+    )
+  )
+
+  counterfactual_data <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    appraisal_input_values = list(
+      modes = "walking",
+      users_count_cf_walk = 2
+    ),
+    reference_data = reference_data,
+    seed = 10
+  )
+
+  changed <- counterfactual_data$ind$walktime_wkhr != reference_data$ind$walktime_wkhr
+  expect_equal(sum(changed), 1)
+  expect_equal(
+    counterfactual_data$ind$mmets[!changed],
+    reference_data$ind$mmets[!changed]
+  )
+  expect_equal(
+    counterfactual_data$ind$mmets[changed] - reference_data$ind$mmets[changed],
+    counterfactual_data$ind$walktime_wkhr[changed] * 2.5
+  )
+})
+
 test_that("apply_counterfactual_ui_values decreases walking users to non-user activity", {
   reference_data <- list(
     ind = data.frame(
@@ -172,6 +205,48 @@ test_that("apply_counterfactual_ui_values increases walking trips by shifting mo
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$field, "trips_count_cf_walk")
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$role, "mode_shift_and_induced_trips")
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$mode_shift_n, 2)
+})
+
+test_that("induced trips preserve unlabeled numeric purpose and set recreational indicator", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:2,
+      walktime_wkhr = c(1, 0),
+      cycletime_wkhr = c(0, 0)
+    ),
+    trips = data.frame(
+      census_id = c(1, 2),
+      nts_tripid = c(11, 21),
+      trip_mainmode = c(1, 3),
+      trip_purpose = c(10, 5),
+      trip_distraw_km = c(1, 1),
+      trip_durationraw_min = c(10, 10),
+      trip_walkdist_km = c(1, 0),
+      trip_walktime_min = c(10, 0)
+    )
+  )
+
+  counterfactual_data <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    appraisal_input_values = list(
+      modes = "walking",
+      trips_count_cf_walk = 12,
+      trips_timeframe_walk = "week",
+      trips_denominator_walk = "total"
+    ),
+    reference_data = reference_data,
+    constants = utils::modifyList(
+      miama_counterfactual_defaults(),
+      list(induced_trip_percent_default = 100)
+    ),
+    seed = 20
+  )
+
+  induced <- counterfactual_data$trips$cf_induced
+  expect_true(any(induced))
+  expect_type(counterfactual_data$trips$trip_purpose, "double")
+  expect_false(anyNA(counterfactual_data$trips$trip_purpose[induced]))
+  expect_true(all(!counterfactual_data$trips$trip_utilitarian[induced]))
 })
 
 test_that("car diversion shares are specific to each active target mode", {

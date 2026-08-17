@@ -56,6 +56,13 @@ spread_bar_values_from_slider <- function(ref_bars,
     stop("`ref_bars` must contain five categories and two variables.", call. = FALSE)
   }
 
+  mean_unchanged <- is.null(cf_mean) || length(cf_mean) == 0 || is.na(cf_mean[1])
+  prop_unchanged <- is.null(cf_prop) || length(cf_prop) == 0 || is.na(cf_prop[1])
+  if (mean_unchanged && prop_unchanged) {
+    ref_bars$scenario <- "cf"
+    return(ref_bars)
+  }
+
   ref_matrix <- .spread_bars_to_matrix(ref_bars, categories, variables)
   category_midpoints <- .spread_category_midpoints(ref_bars, categories)
   category_marginal <- rowSums(ref_matrix)

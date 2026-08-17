@@ -227,7 +227,9 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL) {
   cycle_data[, setdiff(names(cycle_data), drop_cols), drop = FALSE]
 }
 
-.calculate_mmet_delta_wide <- function(changed_cycle_data, hm_cycle_lookup) {
+.calculate_mmet_delta_wide <- function(changed_cycle_data,
+                                       hm_cycle_lookup,
+                                       chunk_size = 25000L) {
   calc_columns <- c(
     "census_id", "cycle", "mmets_cycle", "mmets_new", "age1year",
     "female", "mr_decile", "mmets_min", "mmets_max"
@@ -249,26 +251,69 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL) {
     cycle = as.integer(cycle)
   )]
 
-  overlap <- DT_lookup[
-    DT_scen,
-    on = .(age1year, female, mr_decile, cycle),
-    allow.cartesian = TRUE
-  ][
-    mmets_min <= mmets_hi & mmets_max >= mmets_lo
-  ]
-
-  if (nrow(overlap) == 0) {
+  if (nrow(DT_scen) == 0) {
     return(data.frame(census_id = changed_cycle_data$census_id[0], cycle = changed_cycle_data$cycle[0]))
   }
 
-  overlap[, overlap := pmin(mmets_max, mmets_hi) - pmax(mmets_min, mmets_lo)]
-  overlap[, sign_change := ifelse(mmets_new < mmets_cycle, -1, 1)]
-  delta <- overlap[, .(delta = sum(slope * overlap * sign_change)), by = .(census_id, cycle, outcome)]
-  wide <- data.table::dcast(delta, census_id + cycle ~ outcome, value.var = "delta")
+  chunk_size <- max(1L, as.integer(chunk_size[1]))
+  chunk_id <- ceiling(seq_len(nrow(DT_scen)) / chunk_size)
+  wide_chunks <- lapply(split(seq_len(nrow(DT_scen)), chunk_id), function(rows) {
+    .calculate_mmet_delta_chunk(DT_scen[rows], DT_lookup)
+  })
+  wide_chunks <- Filter(function(x) nrow(x) > 0, wide_chunks)
+  if (length(wide_chunks) == 0) {
+    return(data.frame(census_id = changed_cycle_data$census_id[0], cycle = changed_cycle_data$cycle[0]))
+  }
+
+  wide <- data.table::rbindlist(wide_chunks, use.names = TRUE, fill = TRUE)
 
   delta_cols <- setdiff(names(wide), c("census_id", "cycle"))
   data.table::setnames(wide, delta_cols, sub("_per_mmet$", "", delta_cols))
   as.data.frame(wide)
+}
+
+.calculate_mmet_delta_chunk <- function(DT_scen, DT_lookup) {
+  # Include the MMET overlap predicates in the data.table join. The previous
+  # equality-only join materialized all five MMET bands for all 35 outcomes
+  # before filtering, which was prohibitive for full-data scenarios.
+  overlap <- DT_lookup[
+    DT_scen,
+    on = .(
+      age1year,
+      female,
+      mr_decile,
+      cycle,
+      mmets_hi >= mmets_min,
+      mmets_lo <= mmets_max
+    ),
+    nomatch = 0L,
+    allow.cartesian = TRUE,
+    .(
+      census_id = i.census_id,
+      cycle = i.cycle,
+      mmets_cycle = i.mmets_cycle,
+      mmets_new = i.mmets_new,
+      mmets_min = i.mmets_min,
+      mmets_max = i.mmets_max,
+      mmets_lo = x.mmets_lo,
+      mmets_hi = x.mmets_hi,
+      outcome = x.outcome,
+      slope = x.slope
+    )
+  ]
+
+  if (nrow(overlap) == 0) {
+    return(data.table::data.table(census_id = numeric(0), cycle = integer(0)))
+  }
+
+  overlap[, overlap_width := pmin(mmets_max, mmets_hi) - pmax(mmets_min, mmets_lo)]
+  overlap[, sign_change := ifelse(mmets_new < mmets_cycle, -1, 1)]
+  delta <- overlap[
+    overlap_width > 0,
+    .(delta = sum(slope * overlap_width * sign_change)),
+    by = .(census_id, cycle, outcome)
+  ]
+  data.table::dcast(delta, census_id + cycle ~ outcome, value.var = "delta")
 }
 
 .lookup_delta_columns <- function(hm_cycle_lookup) {

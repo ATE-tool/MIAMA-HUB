@@ -70,6 +70,23 @@ test_that("filter_reference_data leaves England-wide data unchanged", {
   expect_equal(nrow(filtered$trips), 3)
 })
 
+test_that("HM-to-synthpop join rejects cycle-expanded individual IDs", {
+  reference_sources <- list(
+    hm_outcomes = data.frame(
+      census_id = c(1, 1),
+      cycle = c(1, 2),
+      mmets = c(10, 10)
+    ),
+    sp_attributes = data.frame(census_id = 1, nts_id = 101),
+    sp_trips = data.frame(census_id = 1, nts_tripid = 1001)
+  )
+
+  expect_error(
+    join_hm_and_synthpop(reference_sources),
+    "must contain one row per `census_id`"
+  )
+})
+
 test_that("trip census-id parquet filter is skipped when geography pushdown is available", {
   matched_ids <- c(1, 2, 3)
 
@@ -407,4 +424,25 @@ test_that("extract_reference_ui_values derives Tab 4 trip reference fields", {
     )
   )
   expect_true(all(c("mode_share_ref_walk", "mode_share_ref_bike", "mode_share_ref_ebike", "mode_share_ref_pt") %in% names(diversion_values$ui_updates)))
+})
+
+test_that("unchanged spread sliders preserve reference joint bars", {
+  ref_matrix <- matrix(
+    c(5, 10, 15, 20, 0, 10, 5, 15, 10, 10),
+    nrow = 5,
+    ncol = 2,
+    dimnames = list(paste0("category_", 1:5), c("male", "female"))
+  )
+  ref_bars <- .spread_matrix_to_bars(
+    ref_matrix,
+    category_midpoints = 1:5,
+    topic = "pop",
+    scenario = "ref"
+  )
+
+  cf_bars <- spread_bar_values_from_slider(ref_bars)
+
+  expect_equal(cf_bars$percent, ref_bars$percent)
+  expect_equal(cf_bars$proportion, ref_bars$proportion)
+  expect_true(all(cf_bars$scenario == "cf"))
 })

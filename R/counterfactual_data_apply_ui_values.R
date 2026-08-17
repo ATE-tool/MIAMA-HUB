@@ -291,7 +291,11 @@ apply_counterfactual_ui_values <- function(
   )
 
   counterfactual_data <- assignment$counterfactual_data
-  counterfactual_data <- .recalculate_counterfactual_mmets(counterfactual_data, constants)
+  counterfactual_data <- .recalculate_counterfactual_mmets(
+    counterfactual_data,
+    reference_data,
+    constants
+  )
   car_diversion_target <- .cf_car_diversion_target(
     appraisal_input_values,
     spec$suffix
@@ -901,9 +905,13 @@ apply_counterfactual_ui_values <- function(
   if ("weight_tripXhh" %in% names(new_rows)) {
     new_rows$weight_tripXhh <- 1
   }
-  if ("trip_purpose" %in% names(new_rows)) {
+  if ("trip_purpose" %in% names(new_rows) &&
+      (is.character(new_rows$trip_purpose) || is.factor(new_rows$trip_purpose))) {
     new_rows$trip_purpose <- "Recreational"
   }
+  # Numeric NTS purpose codes in parquet have no retained value labels. Keep
+  # the donor code rather than inventing a recreational code; the explicit
+  # binary indicator below is authoritative for counterfactual classification.
   new_rows$trip_utilitarian <- FALSE
   new_rows$cf_trip_change <- "induced_recreational_active"
   new_rows$cf_mode_shift <- FALSE
@@ -1112,21 +1120,42 @@ apply_counterfactual_ui_values <- function(
 
 # 5. Shared Data-Manipulation Helpers ----
 
-.recalculate_counterfactual_mmets <- function(counterfactual_data, constants) {
+.recalculate_counterfactual_mmets <- function(counterfactual_data,
+                                              reference_data,
+                                              constants) {
   if (is.null(counterfactual_data$ind) || !"mmets" %in% names(counterfactual_data$ind)) {
     return(counterfactual_data)
   }
+  if (is.null(reference_data$ind) || !"mmets" %in% names(reference_data$ind)) {
+    return(counterfactual_data)
+  }
 
-  ind <- counterfactual_data$ind
-  walk <- if ("walktime_wkhr" %in% names(ind)) ind$walktime_wkhr else 0
-  cycle <- if ("cycletime_wkhr" %in% names(ind)) ind$cycletime_wkhr else 0
-  sport <- if ("sport_wkhr" %in% names(ind)) ind$sport_wkhr else 0
-  sport[is.na(sport) | sport < 0] <- 0
+  cf_ind <- counterfactual_data$ind
+  ref_ind <- reference_data$ind
+  matched <- match(cf_ind$census_id, ref_ind$census_id)
+  if (anyNA(matched)) {
+    stop("Counterfactual individuals could not all be matched to reference MMET rows.", call. = FALSE)
+  }
 
+  activity_delta <- function(column) {
+    if (!column %in% names(cf_ind) || !column %in% names(ref_ind)) {
+      return(0)
+    }
+    cf_value <- as.numeric(cf_ind[[column]])
+    ref_value <- as.numeric(ref_ind[[column]][matched])
+    cf_value[is.na(cf_value) | cf_value < 0] <- 0
+    ref_value[is.na(ref_value) | ref_value < 0] <- 0
+    cf_value - ref_value
+  }
+
+  # Preserve the HM reference exposure and add only exposure caused by changed
+  # activity. Reconstructing MMETs for every person from SP activity columns
+  # would incorrectly mark unchanged individuals as counterfactual changes.
   counterfactual_data$ind$mmets <-
-    walk * constants$mmet_walking +
-    cycle * constants$mmet_cycling +
-    sport * constants$mmet_vigorous
+    as.numeric(ref_ind$mmets[matched]) +
+    activity_delta("walktime_wkhr") * constants$mmet_walking +
+    activity_delta("cycletime_wkhr") * constants$mmet_cycling +
+    activity_delta("sport_wkhr") * constants$mmet_vigorous
 
   counterfactual_data
 }
