@@ -234,6 +234,22 @@ Hub <- R6::R6Class(
       value[1]
     },
 
+    # Stateless UI Conversion Helpers ---------------------------------------
+    # Thin wrappers around exported helpers; no profile or reference data are
+    # needed for these calculations.
+
+    convert_timeframe_value = function(old_timeframe,
+                                       old_value,
+                                       new_timeframe,
+                                       datatype = c("trips", "users")) {
+      convert_timeframe_value(
+        old_timeframe = old_timeframe,
+        old_value = old_value,
+        new_timeframe = new_timeframe,
+        datatype = datatype
+      )
+    },
+
     # Developer Helpers: Request/Profile Inspection --------------------------
     # These are useful for testing and debugging. UI code should usually pass
     # around the profile object instead of using the internal request directly.

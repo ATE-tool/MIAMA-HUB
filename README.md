@@ -233,6 +233,33 @@ geo_details$administrative_location_id
 geo_details$population_size_synth_scaled
 ```
 
+## Timeframe value conversion
+
+`convert_timeframe_value()` is the shared HUB/UI converter for values expressed
+per day, week, or year. It is exported and does not require a `Hub` object or
+loaded reference data:
+
+```r
+annual_trips <- MIAMAHUB::convert_timeframe_value(
+  old_timeframe = "week",
+  old_value = 100,
+  new_timeframe = "year",
+  datatype = "trips"
+)
+```
+
+The equivalent session method is `hub$convert_timeframe_value(...)`. Both use
+the same implementation. For `datatype = "trips"`, the factors are day =
+`1 / 7` week, week = `1`, and year = `52.1775` weeks. This datatype is also used
+for total distance and total duration, which accumulate linearly over time.
+
+For `datatype = "users"`, the current conversion factor is `1` for every
+day/week/year combination. This is a documented provisional assumption because
+distinct people do not scale linearly with the observation period. The API lets
+us replace those factors later without changing UI call sites. HUB reference
+extraction and counterfactual normalization call the same function, preventing
+UI display conversions from diverging from calculation conversions.
+
 ## Tab 1 appraisal summary values
 
 The Tab 1 summary should reuse canonical user-selected fields where they already

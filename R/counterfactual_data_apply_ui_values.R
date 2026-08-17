@@ -1237,22 +1237,13 @@ apply_counterfactual_ui_values <- function(
     count <- count * pop_total_ref
   }
 
-  count <- count / .counterfactual_timeframe_factor(target$timeframe)
+  count <- convert_timeframe_value(
+    target$timeframe, count, "week", datatype = "trips"
+  )
   count <- as.integer(round(count))
 
   list(count = count)
 }
-
-.counterfactual_timeframe_factor <- function(timeframe) {
-  switch(
-    timeframe,
-    day = 1 / 7,
-    week = 1,
-    year = 52.1775,
-    1
-  )
-}
-
 
 # 7. Constants And Mode Specs ----
 

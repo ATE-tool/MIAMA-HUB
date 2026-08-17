@@ -314,7 +314,7 @@ extract_reference_ui_values <- function(
 
   keep <- spec$trip_filter(trips) & !is.na(trips$nts_tripid)
   total <- .weighted_sum(rep(1, nrow(trips)), trips, keep)
-  total <- total * .timeframe_factor(timeframe)
+  total <- convert_timeframe_value("week", total, timeframe, datatype = "trips")
 
   if (identical(denominator, "mean")) {
     total <- .divide_or_na(total, population_size)
@@ -378,7 +378,12 @@ extract_reference_ui_values <- function(
 
   if (!is.na(spec$ind_duration_col) && !is.null(ind) && spec$ind_duration_col %in% names(ind)) {
     duration_values <- .as_plain_numeric(ind[[spec$ind_duration_col]])
-    total_minutes <- sum(duration_values, na.rm = TRUE) * 60 * .timeframe_factor(timeframe)
+    total_minutes <- convert_timeframe_value(
+      "week",
+      sum(duration_values, na.rm = TRUE) * 60,
+      timeframe,
+      datatype = "trips"
+    )
     if (identical(denominator, "average_per_person")) {
       total_minutes <- .divide_or_na(total_minutes, population_size)
     }
@@ -432,13 +437,21 @@ extract_reference_ui_values <- function(
   }
 
   keep <- spec$trip_filter(trips)
-  total <- .weighted_sum(trips[[value_col]], trips, keep) * .timeframe_factor(timeframe)
+  total <- convert_timeframe_value(
+    "week",
+    .weighted_sum(trips[[value_col]], trips, keep),
+    timeframe,
+    datatype = "trips"
+  )
 
   if (identical(denominator, "average_per_person")) {
     total <- .divide_or_na(total, population_size)
   } else if (identical(denominator, "average_per_trip")) {
     trip_count <- .weighted_sum(rep(1, nrow(trips)), trips, keep)
-    total <- .divide_or_na(total, trip_count * .timeframe_factor(timeframe))
+    converted_trip_count <- convert_timeframe_value(
+      "week", trip_count, timeframe, datatype = "trips"
+    )
+    total <- .divide_or_na(total, converted_trip_count)
   }
 
   list(value = total, notes = character(0))
@@ -1032,16 +1045,6 @@ extract_reference_ui_values <- function(
   }
 
   as.numeric(values)
-}
-
-.timeframe_factor <- function(timeframe) {
-  switch(
-    timeframe,
-    day = 1 / 7,
-    week = 1,
-    year = 52.1775,
-    1
-  )
 }
 
 .divide_or_na <- function(numerator, denominator) {
