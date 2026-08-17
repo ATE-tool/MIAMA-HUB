@@ -39,6 +39,16 @@ MIAMA_SMALL_DATASET_MAX_ROWS <- 100000L
 # Each synthetic individual therefore represents approximately 20 residents.
 MIAMA_SYNTHPOP_PERSON_WEIGHT <- 20
 
+# Physical-activity intensities used by MIAMA-HM to convert weekly activity
+# hours into MMET-hours. Counterfactual exposure calculations use the same
+# constants so trip and individual activity changes enter the HM lookup on a
+# common scale.
+MIAMA_MMET_PER_HOUR <- c(
+  walking = 2.5,
+  cycling = 5.8,
+  vigorous = 7
+)
+
 # NTS MainMode_B04ID: publication-table breakdown used by `trip_mainmode` in
 # the synthetic-population parquet. The source contains numeric codes without
 # retained value labels, so HUB must classify both these codes and readable

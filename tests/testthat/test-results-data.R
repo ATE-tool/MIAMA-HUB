@@ -2,7 +2,7 @@ test_that("prepare_results_data aggregates filtered health outcomes", {
   counterfactual_data <- list(
     health_outcomes = data.frame(
       census_id = c(1, 2),
-      cycle = c(0L, 0L),
+      cycle = c(1L, 1L),
       age1year = c(30, 60),
       female = c(0, 1),
       dead = c(10, 20),
@@ -39,7 +39,8 @@ test_that("prepare_results_data aggregates filtered health outcomes", {
       res_modes_filter = c("walking", "cycling"),
       res_aggregation = "total",
       res_impact_type = "attributable"
-    )
+    ),
+    cfg = utils::modifyList(miama_default_config(), list(population = list(person_weight = 1)))
   )
 
   expect_equal(sort(out$results_table$outcome), c("diabetes", "mortality"))
@@ -72,12 +73,14 @@ test_that("prepare_results_data supports timeline and population aggregation", {
       res_outcomes = "mortality",
       res_aggregation = "timeline",
       res_pop_aggregation = "gender"
-    )
+    ),
+    cfg = utils::modifyList(miama_default_config(), list(population = list(person_weight = 1)))
   )
 
   expect_true("cycle" %in% names(out$results_table))
   expect_true("gender" %in% names(out$results_table))
-  expect_equal(nrow(out$results_table), 4)
+  expect_equal(nrow(out$results_table), 2)
+  expect_equal(out$results_report$cycle_zero_rows_excluded, 2)
 })
 
 test_that("result plotting functions return ggplot objects", {
@@ -95,7 +98,10 @@ test_that("result plotting functions return ggplot objects", {
     )
   )
 
-  results_data <- prepare_results_data(counterfactual_data)
+  results_data <- prepare_results_data(
+    counterfactual_data,
+    cfg = utils::modifyList(miama_default_config(), list(population = list(person_weight = 1)))
+  )
   results_data$plot_data$trip_mode_distribution <- data.frame(
     mode = rep(c("walking", "cycling"), each = 2),
     mode_label = rep(c("Walking", "Cycling"), each = 2),
@@ -141,7 +147,10 @@ test_that("results_filter_health_data supports interactive Tab 5 filters", {
       diabetes_cf = c(1.9, 1.9, 3.8, 3.8)
     )
   )
-  results_data <- prepare_results_data(counterfactual_data)
+  results_data <- prepare_results_data(
+    counterfactual_data,
+    cfg = utils::modifyList(miama_default_config(), list(population = list(person_weight = 1)))
+  )
 
   filtered <- results_filter_health_data(
     results_data,
@@ -154,8 +163,8 @@ test_that("results_filter_health_data supports interactive Tab 5 filters", {
 
   expect_equal(unique(filtered$outcome), "mortality")
   expect_equal(unique(filtered$gender), "male")
-  expect_equal(filtered$cycle, c(0L, 1L))
-  expect_equal(filtered$prevented_value, c(1, 1))
+  expect_equal(filtered$cycle, 1L)
+  expect_equal(filtered$prevented_value, 1)
 })
 
 test_that("trip plot data groups numeric NTS main modes for presentation", {
@@ -185,7 +194,7 @@ test_that("Hub builds results data from counterfactual health outcomes", {
   hub$counterfactual_data <- list(
     health_outcomes = data.frame(
       census_id = 1,
-      cycle = 0L,
+      cycle = 1L,
       age1year = 30,
       female = 0,
       dead = 10,
@@ -198,4 +207,26 @@ test_that("Hub builds results data from counterfactual health outcomes", {
 
   expect_equal(out$results_table$outcome, "mortality")
   expect_equal(hub$get_results_data(), out)
+})
+
+test_that("results scale synthetic-person outcomes to represented population", {
+  counterfactual_data <- list(
+    health_outcomes = data.frame(
+      census_id = 1,
+      cycle = 1L,
+      age1year = 30,
+      female = 0,
+      dead = 0.01,
+      d_dead = -0.002,
+      dead_cf = 0.008
+    )
+  )
+
+  out <- prepare_results_data(counterfactual_data)
+
+  expect_equal(out$results_table$ref_value, 0.2)
+  expect_equal(out$results_table$prevented_value, 0.04)
+  expect_equal(out$results_table$population, 20)
+  expect_equal(out$results_table$prevented_per_100000, 200)
+  expect_equal(out$results_report$population_person_weight, 20)
 })

@@ -121,6 +121,9 @@ cf_add_key_indicators <- function(counterfactual_data, modes = c("walking", "cyc
     if (!"cf_induced" %in% names(counterfactual_data$trips)) {
       counterfactual_data$trips$cf_induced <- FALSE
     }
+    if (!"cf_trip_exposure_source" %in% names(counterfactual_data$trips)) {
+      counterfactual_data$trips$cf_trip_exposure_source <- "unchanged"
+    }
   }
 
   counterfactual_data

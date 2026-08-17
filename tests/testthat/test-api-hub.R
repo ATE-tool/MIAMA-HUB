@@ -383,7 +383,7 @@ test_that("Hub builds counterfactual data from appraisal input values", {
 })
 
 test_that("Hub builds results through high-level UI method when data are already available", {
-  hub <- Hub$new(cfg = list())
+  hub <- Hub$new(cfg = list(population = list(person_weight = 1)))
   profile <- build_mock_appraisal_inputs(
     overrides = list(
       res_outcomes = list(input_value = "mortality", is_filled = TRUE),
@@ -395,7 +395,7 @@ test_that("Hub builds results through high-level UI method when data are already
   hub$counterfactual_data <- list(
     health_outcomes = data.frame(
       census_id = 1,
-      cycle = 0L,
+      cycle = 1L,
       age1year = 30,
       female = 0,
       dead = 10,

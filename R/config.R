@@ -14,6 +14,14 @@ miama_default_config <- function() {
       cpu_count      = 1L,
       release_unused = TRUE
     ),
+    population = list(
+      person_weight = MIAMA_SYNTHPOP_PERSON_WEIGHT,
+      source = "Census 2021 synthetic population (5% sample)"
+    ),
+    physical_activity = list(
+      base_timeframe = "week",
+      mmet_per_hour = MIAMA_MMET_PER_HOUR
+    ),
     spread = list(
       age = list(
         labels = c("18-29", "30-39", "40-49", "50-59", "60+"),

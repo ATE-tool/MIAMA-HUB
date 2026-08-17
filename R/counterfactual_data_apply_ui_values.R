@@ -84,6 +84,16 @@ apply_counterfactual_ui_values <- function(
     report$notes <- c(report$notes, result$notes)
   }
 
+  # Recalculate once after every individual and trip handler has run. User-count
+  # changes use individual weekly activity; independent trip targets contribute
+  # their active minutes. Trip changes made only to mirror user status are
+  # excluded from the trip component to avoid counting the same exposure twice.
+  counterfactual_data <- .recalculate_counterfactual_mmets(
+    counterfactual_data,
+    context$reference_data,
+    context$constants
+  )
+
   counterfactual_data$counterfactual_report <- .counterfactual_report_finalize(
     report,
     counterfactual_data,
@@ -291,11 +301,6 @@ apply_counterfactual_ui_values <- function(
   )
 
   counterfactual_data <- assignment$counterfactual_data
-  counterfactual_data <- .recalculate_counterfactual_mmets(
-    counterfactual_data,
-    reference_data,
-    constants
-  )
   car_diversion_target <- .cf_car_diversion_target(
     appraisal_input_values,
     spec$suffix
@@ -588,7 +593,8 @@ apply_counterfactual_ui_values <- function(
       trip_target = trip_target,
       car_diversion_target = car_diversion_target,
       constants = constants,
-      seed = seed + spec$seed_offset + 3000L
+      seed = seed + spec$seed_offset + 3000L,
+      exposure_source = "trip_target"
     )
     counterfactual_data <- shifted$counterfactual_data
     induced_n <- mechanisms$induced_n + max(0L, mechanisms$mode_shift_n - shifted$changed_n)
@@ -619,7 +625,8 @@ apply_counterfactual_ui_values <- function(
       spec = spec,
       constants = constants,
       diversion_target = diversion_target,
-      seed = seed + spec$seed_offset + 4500L
+      seed = seed + spec$seed_offset + 4500L,
+      exposure_source = "trip_target"
     )
     role <- "shifted_away_trips"
     mode_shift_n <- -length(remove_rows)
@@ -750,7 +757,8 @@ apply_counterfactual_ui_values <- function(
       spec = spec,
       constants = constants,
       diversion_target = diversion_target,
-      seed = seed + spec$seed_offset + 2400L
+      seed = seed + spec$seed_offset + 2400L,
+      exposure_source = "user_status"
     )
     return(list(
       counterfactual_data = counterfactual_data,
@@ -778,7 +786,8 @@ apply_counterfactual_ui_values <- function(
       car_diversion_target = car_diversion_target,
       constants = constants,
       seed = seed + spec$seed_offset + 2500L,
-      census_ids = changed_ids
+      census_ids = changed_ids,
+      exposure_source = "user_status"
     )
     counterfactual_data <- shifted$counterfactual_data
     trip_shift_n <- shifted$changed_n
@@ -817,7 +826,8 @@ apply_counterfactual_ui_values <- function(
     car_diversion_target,
     constants,
     seed,
-    census_ids = NULL
+    census_ids = NULL,
+    exposure_source = "trip_target"
 ) {
   if (n == 0 || is.null(counterfactual_data$trips)) {
     return(list(
@@ -875,6 +885,7 @@ apply_counterfactual_ui_values <- function(
   trips <- .switch_trips_to_active_mode(trips, rows, spec)
   trips$cf_trip_change[rows] <- "mode_shift_to_active"
   trips$cf_mode_shift[rows] <- TRUE
+  trips$cf_trip_exposure_source[rows] <- exposure_source
   counterfactual_data$trips <- trips
 
   changed_rows <- trips[rows, intersect(c("census_id", "nts_tripid"), names(trips)), drop = FALSE]
@@ -916,6 +927,7 @@ apply_counterfactual_ui_values <- function(
   new_rows$cf_trip_change <- "induced_recreational_active"
   new_rows$cf_mode_shift <- FALSE
   new_rows$cf_induced <- TRUE
+  new_rows$cf_trip_exposure_source <- "trip_target"
 
   counterfactual_data$trips <- rbind(counterfactual_data$trips, new_rows)
   changed_rows <- new_rows[, intersect(c("census_id", "nts_tripid"), names(new_rows)), drop = FALSE]
@@ -950,7 +962,13 @@ apply_counterfactual_ui_values <- function(
   trips
 }
 
-.switch_trips_away_from_active <- function(trips, rows, spec, constants, diversion_target, seed) {
+.switch_trips_away_from_active <- function(trips,
+                                           rows,
+                                           spec,
+                                           constants,
+                                           diversion_target,
+                                           seed,
+                                           exposure_source = "trip_target") {
   if (length(rows) == 0) {
     return(trips)
   }
@@ -964,6 +982,7 @@ apply_counterfactual_ui_values <- function(
   }
   trips$cf_trip_change[rows] <- "mode_shift_away_from_active"
   trips$cf_mode_shift[rows] <- TRUE
+  trips$cf_trip_exposure_source[rows] <- exposure_source
   trips
 }
 
@@ -1148,16 +1167,83 @@ apply_counterfactual_ui_values <- function(
     cf_value - ref_value
   }
 
-  # Preserve the HM reference exposure and add only exposure caused by changed
-  # activity. Reconstructing MMETs for every person from SP activity columns
-  # would incorrectly mark unchanged individuals as counterfactual changes.
-  counterfactual_data$ind$mmets <-
-    as.numeric(ref_ind$mmets[matched]) +
+  user_delta <-
     activity_delta("walktime_wkhr") * constants$mmet_walking +
     activity_delta("cycletime_wkhr") * constants$mmet_cycling +
     activity_delta("sport_wkhr") * constants$mmet_vigorous
 
+  trip_delta <- .counterfactual_trip_mmet_delta(
+    counterfactual_data$trips,
+    reference_data$trips,
+    cf_ind$census_id,
+    constants
+  )
+
+  # Preserve the HM reference exposure and add only exposure caused by changed
+  # activity. Reconstructing MMETs for every person from SP activity columns
+  # would incorrectly mark unchanged individuals as counterfactual changes.
+  counterfactual_data$ind$cf_user_mmet_delta <- user_delta
+  counterfactual_data$ind$cf_trip_mmet_delta <- trip_delta
+  counterfactual_data$ind$cf_mmet_delta <- user_delta + trip_delta
+  counterfactual_data$ind$mmets <-
+    as.numeric(ref_ind$mmets[matched]) + counterfactual_data$ind$cf_mmet_delta
+
   counterfactual_data
+}
+
+.counterfactual_trip_mmet_delta <- function(cf_trips,
+                                            ref_trips,
+                                            census_ids,
+                                            constants) {
+  out <- numeric(length(census_ids))
+  if (is.null(cf_trips) || is.null(ref_trips) ||
+      !all(c("census_id", "nts_tripid") %in% names(cf_trips)) ||
+      !all(c("census_id", "nts_tripid") %in% names(ref_trips)) ||
+      !"cf_trip_exposure_source" %in% names(cf_trips)) {
+    return(out)
+  }
+
+  include <- cf_trips$cf_trip_exposure_source == "trip_target"
+  include[is.na(include)] <- FALSE
+  if (!any(include)) {
+    return(out)
+  }
+
+  active_minutes <- function(trips, mode) {
+    spec <- .counterfactual_mode_spec(mode)
+    values <- numeric(nrow(trips))
+    if (!is.na(spec$trip_duration_col) && spec$trip_duration_col %in% names(trips)) {
+      values <- suppressWarnings(as.numeric(trips[[spec$trip_duration_col]]))
+    } else if ("trip_durationraw_min" %in% names(trips)) {
+      values <- suppressWarnings(as.numeric(trips$trip_durationraw_min))
+      values[!spec$trip_filter(trips)] <- 0
+    }
+    values[!is.finite(values) | values < 0] <- 0
+    values
+  }
+
+  cf_trip_key <- paste(cf_trips$census_id, cf_trips$nts_tripid, sep = "\r")
+  ref_trip_key <- paste(ref_trips$census_id, ref_trips$nts_tripid, sep = "\r")
+  ref_match <- match(cf_trip_key, ref_trip_key)
+  delta <- numeric(nrow(cf_trips))
+  for (mode in c("walking", "cycling")) {
+    intensity <- constants[[paste0("mmet_", mode)]]
+    cf_minutes <- active_minutes(cf_trips, mode)
+    ref_minutes <- numeric(nrow(cf_trips))
+    matched_rows <- !is.na(ref_match)
+    ref_minutes[matched_rows] <- active_minutes(ref_trips, mode)[ref_match[matched_rows]]
+    delta <- delta + (cf_minutes - ref_minutes) * intensity / 60
+  }
+
+  per_person <- stats::aggregate(
+    delta[include],
+    by = list(census_id = cf_trips$census_id[include]),
+    FUN = sum,
+    na.rm = TRUE
+  )
+  matched_people <- match(census_ids, per_person$census_id)
+  out[!is.na(matched_people)] <- per_person$x[matched_people[!is.na(matched_people)]]
+  out
 }
 
 .mirror_ind_activity_to_trips <- function(counterfactual_data, activity_col) {
@@ -1276,11 +1362,20 @@ apply_counterfactual_ui_values <- function(
 
 # 7. Constants And Mode Specs ----
 
-miama_counterfactual_defaults <- function() {
+miama_counterfactual_defaults <- function(cfg = NULL) {
+  intensities <- cfg$physical_activity$mmet_per_hour %||% MIAMA_MMET_PER_HOUR
+  required_intensities <- c("walking", "cycling", "vigorous")
+  if (!all(required_intensities %in% names(intensities)) ||
+      any(!is.finite(as.numeric(intensities[required_intensities])))) {
+    stop(
+      "Configured MMET intensities must contain finite walking, cycling, and vigorous values.",
+      call. = FALSE
+    )
+  }
   list(
-    mmet_walking = 2.5,
-    mmet_cycling = 5.8,
-    mmet_vigorous = 7,
+    mmet_walking = unname(intensities[["walking"]]),
+    mmet_cycling = unname(intensities[["cycling"]]),
+    mmet_vigorous = unname(intensities[["vigorous"]]),
     walktime_wkhr_default = 1,
     cycletime_wkhr_default = 1,
     walktime_wkhr_ex_user_default = 0,
@@ -1370,8 +1465,30 @@ miama_counterfactual_defaults <- function() {
   report$notes <- unique(report$notes[nzchar(report$notes)])
   report$n_ind <- if (!is.null(counterfactual_data$ind)) nrow(counterfactual_data$ind) else NA_integer_
   report$n_trips <- if (!is.null(counterfactual_data$trips)) nrow(counterfactual_data$trips) else NA_integer_
+  report$mmet_exposure <- .counterfactual_mmet_exposure_report(counterfactual_data$ind)
   report$comparison <- .counterfactual_comparison_report(reference_data, counterfactual_data)
   report
+}
+
+.counterfactual_mmet_exposure_report <- function(ind) {
+  columns <- c("cf_user_mmet_delta", "cf_trip_mmet_delta", "cf_mmet_delta")
+  if (is.null(ind) || !all(columns %in% names(ind))) {
+    return(data.frame(
+      component = character(0), changed_individuals = integer(0),
+      total_mmet_wkhr_delta = numeric(0), stringsAsFactors = FALSE
+    ))
+  }
+
+  data.frame(
+    component = c("individual_activity", "trip_activity", "total"),
+    changed_individuals = vapply(columns, function(column) {
+      sum(is.finite(ind[[column]]) & ind[[column]] != 0)
+    }, integer(1)),
+    total_mmet_wkhr_delta = vapply(columns, function(column) {
+      sum(ind[[column]], na.rm = TRUE)
+    }, numeric(1)),
+    stringsAsFactors = FALSE
+  )
 }
 
 .counterfactual_comparison_report <- function(reference_data, counterfactual_data) {

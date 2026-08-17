@@ -17,6 +17,11 @@
 #   overview/timeline tables are convenience views, not separate data contracts.
 # - `results_report`: assumptions, filters, and known limitations
 #
+# Results semantics:
+# - Cycle 0 is baseline state and is excluded; cycle 1 is the first result year.
+# - Raw `d_*` values remain `cf - ref`; presentation impacts use `ref - cf`.
+# - Expected outcomes are multiplied by `cfg$population$person_weight`.
+#
 # Current limitations:
 # - Health impacts are not yet attributable to individual active modes. Results
 #   therefore use `mode = "all_modes"` and record a report note when mode
@@ -28,8 +33,10 @@ prepare_results_data <- function(
     counterfactual_data,
     reference_data = NULL,
     results_request = list(),
-    appraisal_input_values = list()
+    appraisal_input_values = list(),
+    cfg = NULL
 ) {
+  cfg <- cfg %||% miama_default_config()
   if (length(results_request) == 0 && is.null(names(results_request))) {
     names(results_request) <- character(0)
   }
@@ -45,11 +52,22 @@ prepare_results_data <- function(
     stop("Step 8 requires `counterfactual_data$health_outcomes`. Run Step 7 first.", call. = FALSE)
   }
 
-  health_outcomes <- as.data.frame(counterfactual_data$health_outcomes)
+  health_outcomes_all <- as.data.frame(counterfactual_data$health_outcomes)
+  cycle_zero_rows <- if ("cycle" %in% names(health_outcomes_all)) {
+    sum(health_outcomes_all$cycle == 0, na.rm = TRUE)
+  } else {
+    0L
+  }
+  health_outcomes <- if ("cycle" %in% names(health_outcomes_all)) {
+    health_outcomes_all[is.na(health_outcomes_all$cycle) | health_outcomes_all$cycle != 0, , drop = FALSE]
+  } else {
+    health_outcomes_all
+  }
   request <- .results_request_defaults(results_request, appraisal_input_values)
   outcome_specs <- .results_outcome_specs()
+  person_weight <- .results_person_weight(cfg)
 
-  long <- .results_health_long(health_outcomes, outcome_specs)
+  long <- .results_health_long(health_outcomes, outcome_specs, person_weight)
   health_cube <- .results_health_cube(long)
   filtered <- .filter_results_health_long(long, request)
   results_table <- .aggregate_results_health(filtered, request)
@@ -70,7 +88,10 @@ prepare_results_data <- function(
     results_table = results_table,
     request = request,
     outcome_specs = outcome_specs,
-    trip_distribution = trip_distribution
+    trip_distribution = trip_distribution,
+    person_weight = person_weight,
+    population_source = cfg$population$source %||% "Configured synthetic-population scale",
+    cycle_zero_rows = cycle_zero_rows
   )
 
   list(
@@ -88,14 +109,14 @@ prepare_results_data <- function(
       outcome = character(0), outcome_label = character(0),
       outcome_type = character(0), mode = character(0), cycle = integer(0),
       age_group = character(0), gender = character(0), ref_value = numeric(0),
-      cf_value = numeric(0), delta_value = numeric(0),
+      cf_value = numeric(0), delta_value = numeric(0), population = numeric(0),
       stringsAsFactors = FALSE
     ))
   }
 
   keep <- !is.na(long$age_group) & !is.na(long$gender)
   stats::aggregate(
-    long[keep, c("ref_value", "cf_value", "delta_value"), drop = FALSE],
+    long[keep, c("ref_value", "cf_value", "delta_value", "population"), drop = FALSE],
     by = long[keep, c(
       "outcome", "outcome_label", "outcome_type", "mode", "cycle",
       "age_group", "gender"
@@ -158,7 +179,11 @@ prepare_results_data <- function(
   )
 }
 
-.results_health_long <- function(health_outcomes, outcome_specs) {
+.results_health_long <- function(health_outcomes, outcome_specs, person_weight = 1) {
+  if (nrow(health_outcomes) == 0) {
+    return(.empty_results_long())
+  }
+
   required <- c("census_id", "cycle", "age1year", "female")
   missing <- setdiff(required, names(health_outcomes))
   if (length(missing) > 0) {
@@ -200,9 +225,10 @@ prepare_results_data <- function(
       outcome = outcome_id,
       outcome_label = spec$label,
       outcome_type = spec$type,
-      ref_value = ref_value,
-      cf_value = cf_value,
-      delta_value = delta_value,
+      ref_value = ref_value * person_weight,
+      cf_value = cf_value * person_weight,
+      delta_value = delta_value * person_weight,
+      population = person_weight,
       stringsAsFactors = FALSE
     )
   })
@@ -228,7 +254,8 @@ prepare_results_data <- function(
     outcome_type = character(0),
     ref_value = numeric(0),
     cf_value = numeric(0),
-    delta_value = numeric(0)
+    delta_value = numeric(0),
+    population = numeric(0)
   )
 }
 
@@ -273,9 +300,16 @@ prepare_results_data <- function(
     FUN = sum,
     na.rm = TRUE
   )
+  aggregated$population <- .results_population_by_group(filtered, group_cols, aggregated)
   aggregated$percent_change <- 100 * .results_divide_or_na(aggregated$delta_value, aggregated$ref_value)
+  aggregated$prevented_value <- -aggregated$delta_value
+  aggregated$percent_reduction <- -aggregated$percent_change
+  aggregated$prevented_per_100000 <- 100000 * .results_divide_or_na(
+    aggregated$prevented_value,
+    aggregated$population
+  )
   aggregated$impact_value <- if (identical(request$res_impact_type, "attributable")) {
-    aggregated$delta_value
+    aggregated$prevented_value
   } else {
     aggregated$cf_value
   }
@@ -303,7 +337,11 @@ prepare_results_data <- function(
   cols$ref_value <- numeric(0)
   cols$cf_value <- numeric(0)
   cols$delta_value <- numeric(0)
+  cols$population <- numeric(0)
   cols$percent_change <- numeric(0)
+  cols$prevented_value <- numeric(0)
+  cols$percent_reduction <- numeric(0)
+  cols$prevented_per_100000 <- numeric(0)
   cols$impact_value <- numeric(0)
   as.data.frame(cols, stringsAsFactors = FALSE)
 }
@@ -335,7 +373,7 @@ prepare_results_data <- function(
 .results_plot_health_overview_data <- function(results_table, request) {
   out <- results_table
   if (!"cycle" %in% names(out)) {
-    out$cycle <- NA_integer_
+    out$cycle <- rep(NA_integer_, nrow(out))
   }
   out
 }
@@ -345,12 +383,18 @@ prepare_results_data <- function(
     return(.empty_results_table(list(res_aggregation = "timeline", res_pop_aggregation = "total")))
   }
 
-  stats::aggregate(
+  out <- stats::aggregate(
     filtered[, c("ref_value", "cf_value", "delta_value"), drop = FALSE],
     by = filtered[, c("outcome", "outcome_label", "outcome_type", "mode", "cycle"), drop = FALSE],
     FUN = sum,
     na.rm = TRUE
   )
+  group_cols <- c("outcome", "outcome_label", "outcome_type", "mode", "cycle")
+  out$population <- .results_population_by_group(filtered, group_cols, out)
+  out$prevented_value <- -out$delta_value
+  out$percent_reduction <- -100 * .results_divide_or_na(out$delta_value, out$ref_value)
+  out$prevented_per_100000 <- 100000 * .results_divide_or_na(out$prevented_value, out$population)
+  out
 }
 
 .results_trip_mode_distribution <- function(reference_data, counterfactual_data) {
@@ -422,7 +466,10 @@ prepare_results_data <- function(
     results_table,
     request,
     outcome_specs,
-    trip_distribution
+    trip_distribution,
+    person_weight,
+    population_source,
+    cycle_zero_rows
 ) {
   available_outcomes <- unique(long$outcome)
   requested_outcomes <- request$res_outcomes
@@ -441,6 +488,9 @@ prepare_results_data <- function(
 
   list(
     n_health_rows = nrow(health_outcomes),
+    cycle_zero_rows_excluded = cycle_zero_rows,
+    population_person_weight = person_weight,
+    population_scaling_source = population_source,
     n_long_rows = nrow(long),
     n_filtered_rows = nrow(filtered),
     n_results_rows = nrow(results_table),
@@ -476,4 +526,27 @@ prepare_results_data <- function(
   out <- numerator / denominator
   out[is.na(denominator) | denominator == 0] <- NA_real_
   out
+}
+
+.results_person_weight <- function(cfg) {
+  value <- cfg$population$person_weight %||% MIAMA_SYNTHPOP_PERSON_WEIGHT
+  value <- suppressWarnings(as.numeric(value))
+  if (length(value) != 1 || !is.finite(value) || value <= 0) {
+    stop("cfg$population$person_weight must be one positive finite number.", call. = FALSE)
+  }
+  value
+}
+
+.results_population_by_group <- function(data, group_cols, grouped_result) {
+  keys <- unique(data[, unique(c(group_cols, "census_id", "population")), drop = FALSE])
+  population <- stats::aggregate(
+    keys$population,
+    by = keys[, group_cols, drop = FALSE],
+    FUN = sum,
+    na.rm = TRUE
+  )
+  names(population)[ncol(population)] <- "population"
+  group_key <- function(x) do.call(paste, c(lapply(x[, group_cols, drop = FALSE], as.character), sep = "\r"))
+  matched <- match(group_key(grouped_result), group_key(population))
+  population$population[matched]
 }

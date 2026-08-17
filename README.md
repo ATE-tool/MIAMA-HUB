@@ -743,6 +743,17 @@ report records actual `mode_shift_n` and `induced_n`, and
 `counterfactual_report$comparison$changed_trip_rows` lists switched or induced
 trip rows.
 
+Active-trip changes feed the physical-activity exposure used by the health
+model. For independent trip-count targets, HUB compares reference and
+counterfactual active minutes by `(census_id, nts_tripid)`, converts the weekly
+minute difference to hours, and applies the configured MMET intensity (walking
+2.5; cycling 5.8). Induced trips contribute their full active duration. Trip
+changes made only to mirror a new-user or ex-user status are excluded from this
+trip component because changed individual weekly activity already represents
+that exposure. The individual table exposes `cf_user_mmet_delta`,
+`cf_trip_mmet_delta`, and `cf_mmet_delta`; the report summarizes them under
+`counterfactual_report$mmet_exposure`.
+
 Advanced Tab 4 fields such as `trips_dist_value`, `trips_purpose_type`,
 `trips_spread_mean_cf`, `trips_spread_util_prop_cf`, and the diversion
 percentage fields are parsed and recorded. When compact cf spread bars are
@@ -779,9 +790,9 @@ calculations.
 
 Parameter naming follows the same distinction used elsewhere in the package:
 `*_ref` values are measured from filtered reference data, while `*_default`
-values come from internal constants. Those constants are currently returned by
-`miama_counterfactual_defaults()` and should be externalized once the defaults
-are agreed.
+values come from configured constants. `miama_default_config()` records the
+weekly activity timeframe, MMET intensities, and synthetic-population person
+weight; `miama_counterfactual_defaults()` exposes the counterfactual subset.
 
 Sampling is centralized in `R/counterfactual_data_sampling_functions.R`.
 Sampling now means selecting existing candidate rows "as is"; the previous
@@ -866,6 +877,19 @@ expensive reference, counterfactual, and HM steps run before this function;
 interactive Tab 5 filters operate on compact result tables and do not rerun the
 health model.
 
+Cycle 0 is the without-scheme baseline state and is excluded from presented
+impact totals and timelines. Cycle 1 is the first modelled year. Raw HM `d_*`
+columns retain the technical convention `counterfactual - reference`; UI-facing
+`prevented_value`, `prevented_per_100000`, and `percent_reduction` use
+`reference - counterfactual`, so positive values consistently indicate a
+health gain.
+
+Expected health outcomes are scaled from synthetic rows to represented
+residents using `cfg$population$person_weight` (default 20 for the 5% Census
+synthetic population). The factor and source are recorded in `results_report`.
+Packaged development samples remain partial subsets and therefore do not yield
+location-wide absolute totals; use full location data for those totals.
+
 The central UI plotting contract is returned directly by `Hub$build_results()`
 as `result$plot_data` and is also available as
 `result$results_data$plot_data`. Both names refer to the same compact object in
@@ -931,7 +955,8 @@ plot_df <- results_filter_health_data(
   age_groups = c("age_50_64", "age_65_74", "age_75plus"),
   gender = c("male", "female"),
   aggregation = "timeline",
-  group_by = "age_group"
+  group_by = "age_group",
+  timeline_type = "cumulative"
 )
 ```
 
@@ -939,10 +964,11 @@ Development plotting functions consume the same compact data. The intended
 Tab 5 structure is deliberately limited to two core and three advanced views:
 
 - Core 1, `results_plot_health_overview()`: cumulative health impact by outcome,
-  shown as prevented outcomes, percentage reduction, or reference versus
-  counterfactual totals.
-- Core 2, `results_plot_health_timeline()`: annual health impacts over model
-  cycles, shown as attributable impacts or both scenario trajectories.
+  shown as prevented outcomes, prevented outcomes per 100,000 residents, or
+  percentage reduction. Direct reference/counterfactual totals remain an
+  optional diagnostic because their lines often overlap at realistic effects.
+- Core 2, `results_plot_health_timeline()`: cumulative impact from cycle 1 by
+  default, with annual impact available through `timeline_type = "annual"`.
 - Advanced 1 and 2, `results_plot_health_impacts()`: cumulative health impacts
   split by age group or by gender and faceted by outcome.
 - Advanced 3, `results_plot_trip_mode_distribution()`: reference and
@@ -953,15 +979,17 @@ Each function provides data-aware defaults for `title`, `subtitle`, `caption`,
 semantic default and `NA_character_` suppresses the label. Units are selected
 from the plot request and data: health plots distinguish deaths, disease cases,
 and mixed health outcomes; total plots are cumulative across the available
-model cycles; timeline plots are per model year; trip shares are displayed as
+model cycles; timeline plots are annual or cumulative according to
+`timeline_type`; trip shares are displayed as
 percentages; and trip totals are weighted trips per reference week. Label
 overrides change presentation only and never transform the numeric values.
 
 For attributable health plots, `prevented_value = reference - counterfactual`
 and `percent_reduction = 100 * (reference - counterfactual) / reference`.
-Positive values therefore indicate a health gain. Plot captions state this
-sign convention and define reference as without scheme and counterfactual as
-with scheme.
+`prevented_per_100000` divides prevented outcomes by the represented population.
+Positive values therefore indicate a health gain. Plot captions state this sign
+convention and define reference as without scheme and counterfactual as with
+scheme.
 
 These ggplot functions currently live in HUB so the result contract and example
 presentation can be developed together. MIAMA-UI can call them directly or

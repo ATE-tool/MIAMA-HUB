@@ -505,6 +505,79 @@ test_that("apply_counterfactual_ui_values reports configured sampling strategy",
   expect_equal(sum(counterfactual_data$ind$walktime_wkhr > 0), 3)
 })
 
+test_that("independent active-trip shifts add weekly MMET exposure", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:2,
+      walktime_wkhr = c(1, 0),
+      cycletime_wkhr = c(0, 0),
+      sport_wkhr = c(0, 0),
+      mmets = c(10, 20)
+    ),
+    trips = data.frame(
+      census_id = 1:2,
+      nts_tripid = c(11, 21),
+      trip_mainmode = c("walking", "car"),
+      trip_distraw_km = c(1, 1),
+      trip_durationraw_min = c(10, 10),
+      trip_walkdist_km = c(1, 0),
+      trip_walktime_min = c(10, 0)
+    )
+  )
+
+  counterfactual_data <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    appraisal_input_values = list(
+      modes = "walking",
+      trips_count_cf_walk = 2,
+      trips_timeframe_walk = "week",
+      trips_denominator_walk = "total"
+    ),
+    reference_data = reference_data,
+    seed = 24
+  )
+
+  expected_delta <- 10 / 60 * MIAMA_MMET_PER_HOUR[["walking"]]
+  expect_equal(sum(counterfactual_data$ind$cf_trip_mmet_delta), expected_delta)
+  expect_equal(sum(counterfactual_data$ind$cf_user_mmet_delta), 0)
+  expect_equal(
+    counterfactual_data$ind$mmets - reference_data$ind$mmets,
+    counterfactual_data$ind$cf_mmet_delta
+  )
+})
+
+test_that("trips mirroring a user-status change do not double count MMET exposure", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:2,
+      walktime_wkhr = c(1, 0),
+      cycletime_wkhr = c(0, 0),
+      sport_wkhr = c(0, 0),
+      mmets = c(10, 20)
+    ),
+    trips = data.frame(
+      census_id = c(1, 2),
+      nts_tripid = c(11, 21),
+      trip_mainmode = c("walking", "car"),
+      trip_distraw_km = c(1, 1),
+      trip_durationraw_min = c(10, 10),
+      trip_walkdist_km = c(1, 0),
+      trip_walktime_min = c(10, 0)
+    )
+  )
+
+  counterfactual_data <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    appraisal_input_values = list(modes = "walking", users_count_cf_walk = 2),
+    reference_data = reference_data,
+    seed = 25
+  )
+
+  expect_equal(sum(counterfactual_data$ind$cf_trip_mmet_delta), 0)
+  expect_equal(sum(counterfactual_data$ind$cf_user_mmet_delta), 2.5)
+  expect_equal(sum(counterfactual_data$ind$cf_mmet_delta), 2.5)
+})
+
 test_that("legacy split counterfactual functions preserve data shape", {
   counterfactual_data <- list(ind = data.frame(census_id = 1))
 

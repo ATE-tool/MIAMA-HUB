@@ -8,8 +8,8 @@
 #   outcomes/percentage reduction or side-by-side reference and counterfactual.
 #
 # Core 2 -- Health impacts over time
-#   One line per selected health outcome, or faceted reference/counterfactual
-#   lines. The x-axis is the health-model cycle, interpreted as model year.
+#   One cumulative line per selected health outcome by default. Annual impact
+#   and faceted reference/counterfactual lines remain diagnostic options.
 #
 # Advanced 1 -- Health impact by age
 #   Cumulative health impacts split across the five configured age groups and
@@ -31,6 +31,8 @@
 #   label. Changing a label does not transform the underlying numeric values.
 # - `prevented_value = reference - counterfactual`; positive values are a health
 #   gain. `percent_reduction = 100 * (reference - counterfactual) / reference`.
+# - `prevented_per_100000` uses the represented population attached to each
+#   result group. Cycle 0 is excluded before plot data are constructed.
 # - Reference/counterfactual health values are modelled deaths, disease cases,
 #   or the generic "health outcomes" when both types occur in one plot.
 # - Trip shares are proportions (displayed as percentages); trip counts are sums
@@ -53,10 +55,12 @@ results_filter_health_data <- function(
     age_groups = NULL,
     gender = NULL,
     aggregation = c("total", "timeline"),
-    group_by = c("outcome", "age_group", "gender", "none")
+    group_by = c("outcome", "age_group", "gender", "none"),
+    timeline_type = c("annual", "cumulative")
 ) {
   aggregation <- match.arg(aggregation)
   group_by <- match.arg(group_by)
+  timeline_type <- match.arg(timeline_type)
   cube <- .results_get_plot_data(results_data, "health_cube")
   if (nrow(cube) == 0) return(cube)
 
@@ -81,9 +85,23 @@ results_filter_health_data <- function(
     FUN = sum,
     na.rm = TRUE
   )
+  out$population <- .results_cube_population(cube, group_cols, out)
+
+  if (identical(aggregation, "timeline") && identical(timeline_type, "cumulative")) {
+    series_cols <- setdiff(group_cols, "cycle")
+    series_key <- do.call(paste, c(lapply(out[, series_cols, drop = FALSE], as.character), sep = "\r"))
+    ordering <- order(series_key, out$cycle)
+    out <- out[ordering, , drop = FALSE]
+    series_key <- series_key[ordering]
+    for (column in c("ref_value", "cf_value", "delta_value")) {
+      out[[column]] <- stats::ave(out[[column]], series_key, FUN = cumsum)
+    }
+  }
+
   out$percent_change <- 100 * .results_divide_or_na(out$delta_value, out$ref_value)
   out$prevented_value <- -out$delta_value
   out$percent_reduction <- -out$percent_change
+  out$prevented_per_100000 <- 100000 * .results_divide_or_na(out$prevented_value, out$population)
 
   if ("age_group" %in% names(out)) {
     age_labels <- stats::setNames(.results_age_group_levels()$label, .results_age_group_levels()$id)
@@ -107,7 +125,7 @@ results_plot_health_overview <- function(
     age_groups = NULL,
     gender = NULL,
     impact_type = c("attributable", "cf_vs_ref"),
-    metric = c("percent_reduction", "prevented"),
+    metric = c("percent_reduction", "prevented", "prevented_per_100000"),
     title = NULL,
     subtitle = NULL,
     caption = NULL,
@@ -164,7 +182,12 @@ results_plot_health_overview <- function(
     )
   }
 
-  y_col <- if (identical(metric, "percent_reduction")) "percent_reduction" else "prevented_value"
+  y_col <- switch(
+    metric,
+    percent_reduction = "percent_reduction",
+    prevented_per_100000 = "prevented_per_100000",
+    "prevented_value"
+  )
   plot_data$direction <- ifelse(plot_data[[y_col]] >= 0, "Health gain", "Health loss")
 
   ggplot2::ggplot(
@@ -191,7 +214,7 @@ results_plot_health_impacts <- function(
     age_groups = NULL,
     gender = NULL,
     group_by = c("age_group", "gender"),
-    metric = c("prevented", "percent_reduction"),
+    metric = c("prevented", "percent_reduction", "prevented_per_100000"),
     title = NULL,
     subtitle = NULL,
     caption = NULL,
@@ -207,7 +230,12 @@ results_plot_health_impacts <- function(
   )
   if (nrow(plot_data) == 0) return(.results_empty_plot("No detailed health-impact data available"))
 
-  y_col <- if (identical(metric, "prevented")) "prevented_value" else "percent_reduction"
+  y_col <- switch(
+    metric,
+    percent_reduction = "percent_reduction",
+    prevented_per_100000 = "prevented_per_100000",
+    "prevented_value"
+  )
   labels <- .results_health_plot_labels(
     results_data = results_data,
     plot_data = plot_data,
@@ -246,7 +274,8 @@ results_plot_health_timeline <- function(
     age_groups = NULL,
     gender = NULL,
     impact_type = c("attributable", "cf_vs_ref"),
-    metric = c("prevented", "percent_reduction"),
+    metric = c("prevented_per_100000", "prevented", "percent_reduction"),
+    timeline_type = c("cumulative", "annual"),
     title = NULL,
     subtitle = NULL,
     caption = NULL,
@@ -256,9 +285,10 @@ results_plot_health_timeline <- function(
   .require_ggplot2()
   impact_type <- match.arg(.results_plot_impact_type(impact_type), c("attributable", "cf_vs_ref"))
   metric <- match.arg(metric)
+  timeline_type <- match.arg(timeline_type)
   plot_data <- results_filter_health_data(
     results_data, outcomes, age_groups, gender,
-    aggregation = "timeline", group_by = "outcome"
+    aggregation = "timeline", group_by = "outcome", timeline_type = timeline_type
   )
   if (nrow(plot_data) == 0 || !"cycle" %in% names(plot_data)) {
     return(.results_empty_plot("No timeline data available"))
@@ -270,6 +300,7 @@ results_plot_health_timeline <- function(
     plot = "timeline",
     impact_type = impact_type,
     metric = metric,
+    timeline_type = timeline_type,
     title = title,
     subtitle = subtitle,
     caption = caption,
@@ -296,7 +327,12 @@ results_plot_health_timeline <- function(
     )
   }
 
-  y_col <- if (identical(metric, "prevented")) "prevented_value" else "percent_reduction"
+  y_col <- switch(
+    metric,
+    percent_reduction = "percent_reduction",
+    prevented_per_100000 = "prevented_per_100000",
+    "prevented_value"
+  )
   ggplot2::ggplot(plot_data, ggplot2::aes(x = cycle, y = .data[[y_col]], color = outcome_label)) +
     ggplot2::geom_hline(yintercept = 0, color = "grey75", linewidth = 0.3) +
     ggplot2::geom_line(linewidth = 0.85) +
@@ -368,6 +404,7 @@ results_plot_trip_mode_distribution <- function(
                                         plot,
                                         impact_type,
                                         metric,
+                                        timeline_type = "total",
                                         title,
                                         subtitle,
                                         caption,
@@ -376,6 +413,7 @@ results_plot_trip_mode_distribution <- function(
   unit <- .results_health_outcome_unit(plot_data)
   cycle_span <- .results_cycle_span(results_data)
   is_timeline <- identical(plot, "timeline")
+  is_cumulative <- is_timeline && identical(timeline_type, "cumulative")
 
   default_title <- switch(
     plot,
@@ -386,7 +424,7 @@ results_plot_trip_mode_distribution <- function(
   )
 
   if (identical(impact_type, "cf_vs_ref")) {
-    default_y <- if (is_timeline) {
+    default_y <- if (is_timeline && !is_cumulative) {
       paste0("Modelled ", unit, " per model year")
     } else {
       paste0("Cumulative modelled ", unit)
@@ -403,15 +441,17 @@ results_plot_trip_mode_distribution <- function(
   } else {
     default_y <- if (identical(metric, "percent_reduction")) {
       "Reduction from reference (%)"
-    } else if (is_timeline) {
+    } else if (identical(metric, "prevented_per_100000")) {
+      paste0(if (is_cumulative || !is_timeline) "Cumulative prevented " else "Prevented ", unit, " per 100,000 residents")
+    } else if (is_timeline && !is_cumulative) {
       paste0("Prevented ", unit, " per model year")
     } else {
       paste0("Cumulative prevented ", unit)
     }
     default_subtitle <- if (is_timeline) {
-      paste0("Counterfactual impact by year across ", cycle_span)
+      paste0(if (is_cumulative) "Cumulative" else "Annual", " scheme impact across ", cycle_span)
     } else {
-      paste0("Cumulative counterfactual impact across ", cycle_span)
+      paste0("Cumulative scheme impact across ", cycle_span)
     }
     default_caption <- if (identical(metric, "percent_reduction")) {
       paste(
@@ -433,12 +473,32 @@ results_plot_trip_mode_distribution <- function(
     x = .results_resolve_plot_label(x_label, switch(
       plot,
       overview = "Health outcome",
-      timeline = "Model year (cycle 0 = first modelled year)",
+      timeline = "Model year (cycle 1 = first modelled year)",
       age_group = "Age group",
       gender = "Gender"
     )),
     y = .results_resolve_plot_label(y_label, default_y)
   )
+}
+
+.results_cube_population <- function(cube, group_cols, grouped_result) {
+  strata_cols <- unique(c(group_cols, "age_group", "gender"))
+  strata <- stats::aggregate(
+    cube$population,
+    by = cube[, strata_cols, drop = FALSE],
+    FUN = max,
+    na.rm = TRUE
+  )
+  names(strata)[ncol(strata)] <- "population"
+  population <- stats::aggregate(
+    strata$population,
+    by = strata[, group_cols, drop = FALSE],
+    FUN = sum,
+    na.rm = TRUE
+  )
+  names(population)[ncol(population)] <- "population"
+  group_key <- function(x) do.call(paste, c(lapply(x[, group_cols, drop = FALSE], as.character), sep = "\r"))
+  population$population[match(group_key(grouped_result), group_key(population))]
 }
 
 .results_trip_plot_labels <- function(value,

@@ -420,6 +420,7 @@ Hub <- R6::R6Class(
         self$counterfactual_data,
         appraisal_input_values,
         reference_data = reference_data,
+        constants = miama_counterfactual_defaults(self$cfg),
         seed = seed
       )
 
@@ -457,7 +458,8 @@ Hub <- R6::R6Class(
         counterfactual_data = self$counterfactual_data,
         reference_data = reference_data,
         results_request = self$request$results_request,
-        appraisal_input_values = private$.counterfactual_input_values()
+        appraisal_input_values = private$.counterfactual_input_values(),
+        cfg = self$cfg
       )
 
       self$results_data

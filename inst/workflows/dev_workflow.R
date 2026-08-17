@@ -458,6 +458,7 @@ str(counterfactual_data$counterfactual_report)
 counterfactual_data$counterfactual_report$comparison$ind
 counterfactual_data$counterfactual_report$comparison$trips
 counterfactual_data$counterfactual_report$comparison$changed_ind_rows
+counterfactual_data$counterfactual_report$mmet_exposure
 glimpse_head(counterfactual_data$ind)
 glimpse_head(counterfactual_data$trips)
 
@@ -502,12 +503,15 @@ results_data <- prepare_results_data(
   counterfactual_data = counterfactual_data,
   reference_data = reference_data,
   results_request = request$results_request,
-  appraisal_input_values = counterfactual_appraisal_input_values
+  appraisal_input_values = counterfactual_appraisal_input_values,
+  cfg = cfg
 )
 
 ## 8.1 Inspect result summaries and tables ----
 str(results_data$headline_metrics)
 str(results_data$results_report)
+# `delta_value` retains HM's technical cf-ref sign. Presentation columns use
+# ref-cf: positive `prevented_value` and `prevented_per_100000` are health gains.
 results_data$results_table |>
   dplyr::arrange(dplyr::desc(abs(delta_value))) |>
   utils::head(30) |>
@@ -522,19 +526,24 @@ plot_core_health_by_outcome <- results_plot_health_overview(
   metric = "percent_reduction"
 )
 
-# Core 2: annual prevented health outcomes over the modelled period.
+# Core 2: cumulative prevented health outcomes per 100,000 residents. Cycle 0
+# is the baseline state and is excluded; cycle 1 is the first modelled year.
 plot_core_health_timeline <- results_plot_health_timeline(
   results_data,
   outcomes = c("mortality", "ihd", "stroke"),
   impact_type = "attributable",
-  metric = "prevented"
+  metric = "prevented_per_100000",
+  timeline_type = "cumulative"
 )
 
-# Optional scenario form of Core 2: reference and counterfactual trajectories.
-plot_core_health_timeline_scenarios <- results_plot_health_timeline(
+# Diagnostic companion: annual prevented outcomes. Annual HM results can vary
+# between cycles; use the cumulative plot above for the primary presentation.
+plot_diagnostic_health_timeline_annual <- results_plot_health_timeline(
   results_data,
-  outcomes = c("mortality", "ihd"),
-  impact_type = "cf_vs_ref"
+  outcomes = c("mortality", "ihd", "stroke"),
+  impact_type = "attributable",
+  metric = "prevented_per_100000",
+  timeline_type = "annual"
 )
 
 ## 8.3 Advanced presentation plots ----
@@ -562,7 +571,7 @@ plot_advanced_travel_by_mode <- results_plot_trip_mode_distribution(
 
 plot_core_health_by_outcome
 plot_core_health_timeline
-plot_core_health_timeline_scenarios
+plot_diagnostic_health_timeline_annual
 plot_advanced_health_by_age
 plot_advanced_health_by_gender
 plot_advanced_travel_by_mode
