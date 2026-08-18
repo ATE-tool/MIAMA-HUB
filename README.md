@@ -1025,6 +1025,169 @@ synthetic population). The factor and source are recorded in `results_report`.
 Packaged development samples remain partial subsets and therefore do not yield
 location-wide absolute totals; use full location data for those totals.
 
+### Tab 5 UI integration lifecycle
+
+Tab 5 has one expensive calculation boundary and a separate lightweight
+presentation layer. UI should call `Hub$build_results(profile)` once after all
+counterfactual inputs have been submitted. That method builds counterfactual
+rows, converts changed weekly activity to MMET exposure, applies the HM cycle
+lookup, and prepares compact result tables:
+
+```r
+mdata[["result"]] <- mdata[["hub"]]$build_results(
+  profile = mdata[["profile"]],
+  seed = 1L
+)
+```
+
+Do not call `build_results()` again when a user changes only a Tab 5 display
+control. Keep `mdata[["result"]]$results_data` in session state and filter that
+compact object reactively. The large synthetic-population and HM calculations
+do not need to rerun.
+
+The primary returned objects are:
+
+| Object | Purpose |
+|---|---|
+| `result$results_data$headline_metrics` | Compact values for headline result tiles, including deaths and disease cases prevented. |
+| `result$results_data$results_table` | Table aggregated according to the profile's initial Tab 5 selections. Useful for exports and initial tables. |
+| `result$plot_data$health_cube` | Canonical interactive health source, grouped by outcome, cycle, age group, and gender. |
+| `result$plot_data$trip_mode_distribution` | Reference/counterfactual weighted trip totals and shares by broad mode. |
+| `result$plot_data$spreads` | Reference/counterfactual spread payloads described in the Tab 3/4 section. |
+
+`result$plot_data` and `result$results_data$plot_data` refer to the same compact
+plot payload. HUB plotting and filtering functions expect the enclosing
+`result$results_data` object, not the bare `health_cube` data frame.
+
+#### Tab 5 profile fields and function arguments
+
+| Profile/UI field | HUB plotting argument or behavior |
+|---|---|
+| `res_outcomes` | `outcomes`; filters health outcome IDs. |
+| `res_age_groups` | `age_groups`; filters the five result age strata. |
+| `res_gender` | `gender`; filters `male` / `female`. |
+| `res_temp_aggregation` | Selects total versus timeline presentation. `res_aggregation` is accepted as a legacy/internal alias. |
+| `res_pop_aggregation` | Selects `group_by = "none"`, `"age_group"`, or `"gender"`. |
+| `res_impact_type` | `impact_type = "attributable"` or `"cf_vs_ref"`. |
+| `res_modes_filter` | `modes` for the trip-mode plot only. Health impacts are currently `all_modes` and cannot yet be attributed to one active mode. |
+
+Two useful presentation choices are not currently separate profile fields:
+
+- `metric`: `"prevented"`, `"prevented_per_100000"`, or
+  `"percent_reduction"`; each plot function has a documented default.
+- `timeline_type`: `"cumulative"` (default in the timeline plot) or
+  `"annual"`. A future UI toggle can pass this directly without rebuilding
+  results.
+
+The current `res_impact_type` UI label still describes attributable cases as
+counterfactual minus reference. Internally, raw `delta_value` retains that
+technical `cf - ref` convention, but all user-facing attributable metrics use
+`ref - cf`: positive `prevented_value`, `prevented_per_100000`, and
+`percent_reduction` mean a health gain. UI labels should follow the latter
+presentation convention.
+
+#### Recommended reactive plot calls
+
+For a simple outcome overview, call the HUB plotting function inside
+`renderPlot()`. It returns a ggplot object:
+
+```r
+output[["results_health_overview"]] <- shiny::renderPlot({
+  shiny::req(mdata[["result"]])
+
+  MIAMAHUB::results_plot_health_overview(
+    results_data = mdata[["result"]]$results_data,
+    outcomes = input[["res_outcomes"]],
+    age_groups = input[["res_age_groups"]],
+    gender = input[["res_gender"]],
+    impact_type = input[["res_impact_type"]],
+    metric = "percent_reduction"
+  )
+})
+```
+
+For the primary cumulative timeline:
+
+```r
+output[["results_health_timeline"]] <- shiny::renderPlot({
+  shiny::req(mdata[["result"]])
+
+  MIAMAHUB::results_plot_health_timeline(
+    results_data = mdata[["result"]]$results_data,
+    outcomes = input[["res_outcomes"]],
+    age_groups = input[["res_age_groups"]],
+    gender = input[["res_gender"]],
+    impact_type = "attributable",
+    metric = "prevented_per_100000",
+    timeline_type = "cumulative"
+  )
+})
+```
+
+For advanced age or gender views, use the detailed plot only when
+`res_pop_aggregation` requests a stratum; use the overview plot for `"total"`:
+
+```r
+shiny::req(input[["res_pop_aggregation"]] %in% c("age_group", "gender"))
+group_by <- switch(
+  input[["res_pop_aggregation"]],
+  age_group = "age_group",
+  gender = "gender"
+)
+
+MIAMAHUB::results_plot_health_impacts(
+  results_data = mdata[["result"]]$results_data,
+  outcomes = input[["res_outcomes"]],
+  age_groups = input[["res_age_groups"]],
+  gender = input[["res_gender"]],
+  group_by = group_by,
+  metric = "prevented_per_100000"
+)
+```
+
+For weighted trip-mode shares:
+
+```r
+MIAMAHUB::results_plot_trip_mode_distribution(
+  results_data = mdata[["result"]]$results_data,
+  modes = input[["res_modes_filter"]],
+  value = "proportion"
+)
+```
+
+Use `plotly::ggplotly(plot)` if Tab 5 requires Plotly interaction. HUB does not
+require Plotly and returns ordinary ggplot objects so UI controls the rendering
+technology.
+
+#### UI-owned plotting alternative
+
+MIAMA-UI may reproduce the plots rather than call HUB's ggplot functions. In
+that case, use the exported filtering function so aggregation and sign
+conventions remain identical:
+
+```r
+plot_df <- MIAMAHUB::results_filter_health_data(
+  results_data = mdata[["result"]]$results_data,
+  outcomes = input[["res_outcomes"]],
+  age_groups = input[["res_age_groups"]],
+  gender = input[["res_gender"]],
+  aggregation = "timeline",
+  group_by = "outcome",
+  timeline_type = "cumulative"
+)
+```
+
+The returned data include `ref_value`, `cf_value`, internal `delta_value`,
+`population`, `prevented_value`, `prevented_per_100000`,
+`percent_reduction`, and display labels. UI should plot the benefit-oriented
+columns unless it is explicitly presenting both reference and counterfactual
+levels.
+
+Plot/filter calls do not modify the profile and return no profile fields. The
+UI may store Tab 5 selections in their existing profile `input_value` fields,
+but changing those display controls does not require a HUB round trip or a new
+health-model run.
+
 The central UI plotting contract is returned directly by `Hub$build_results()`
 as `result$plot_data` and is also available as
 `result$results_data$plot_data`. Both names refer to the same compact object in
