@@ -87,6 +87,56 @@ test_that("apply_reference_defaults_to_profile writes defaults without filling i
   expect_equal(report$skipped_fields, "missing_field")
 })
 
+test_that("reference spread defaults initialise matching counterfactual sliders", {
+  profile <- list(
+    pop_spread_age_mean_ref_bike = list(is_filled = FALSE, input_value = NULL),
+    pop_spread_age_mean_cf_bike = list(
+      is_filled = TRUE,
+      input_value = 42,
+      default_value = NULL
+    ),
+    pop_spread_sex_prop_ref_bike = list(is_filled = FALSE, input_value = NULL),
+    pop_spread_sex_prop_cf_bike = list(is_filled = FALSE, input_value = NULL),
+    trips_spread_mean_ref_walk = list(is_filled = FALSE, input_value = NULL),
+    trips_spread_mean_cf_walk = list(is_filled = FALSE, input_value = NULL),
+    pop_spread_bars_ref_bike = list(is_filled = FALSE, input_value = NULL)
+  )
+
+  out <- apply_reference_defaults_to_profile(
+    profile,
+    ui_updates = list(
+      pop_spread_age_mean_ref_bike = 36.5,
+      pop_spread_sex_prop_ref_bike = 0.44,
+      trips_spread_mean_ref_walk = 3.2,
+      pop_spread_bars_ref_bike = data.frame(category = "18-29", value = 1)
+    )
+  )
+  report <- attr(out, "reference_defaults_report")
+
+  expect_equal(out$pop_spread_age_mean_cf_bike$default_value, 36.5)
+  expect_equal(out$pop_spread_sex_prop_cf_bike$default_value, 0.44)
+  expect_equal(out$trips_spread_mean_cf_walk$default_value, 3.2)
+  expect_equal(out$pop_spread_age_mean_cf_bike$input_value, 42)
+  expect_true(out$pop_spread_age_mean_cf_bike$is_filled)
+  expect_false(out$pop_spread_sex_prop_cf_bike$is_filled)
+  expect_equal(
+    report$mirrored_cf_fields,
+    c(
+      "pop_spread_age_mean_cf_bike",
+      "pop_spread_sex_prop_cf_bike",
+      "trips_spread_mean_cf_walk"
+    )
+  )
+  expect_equal(
+    unname(report$mirrored_cf_sources),
+    c(
+      "pop_spread_age_mean_ref_bike",
+      "pop_spread_sex_prop_ref_bike",
+      "trips_spread_mean_ref_walk"
+    )
+  )
+})
+
 test_that("category population defaults are written to additional data", {
   age_data <- list(
     pop_age_18_29 = list(

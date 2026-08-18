@@ -594,6 +594,14 @@ The submitted counterfactual sliders constrain which non-users are sampled as
 new users. A separate empirical reference distribution of prospective new
 users is not currently available.
 
+When `Hub$build_reference_profile_defaults(profile)` writes a mode-specific
+spread slider's observed `_ref_` value, it also writes that value to the paired
+`_cf_` field's `default_value`. The counterfactual slider therefore starts at
+the no-change reference position. HUB does not set `input_value` or
+`is_filled`, and an existing user-submitted counterfactual value is preserved.
+This applies to age mean, sex proportion, PA mean, PA sex proportion, trip
+distance mean, and trip utilitarian proportion for each supported mode.
+
 #### Slider redistribution logic
 
 `spread_bar_values_from_slider()` receives only the compact reference bars and

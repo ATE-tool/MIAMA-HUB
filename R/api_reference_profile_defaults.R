@@ -5,6 +5,10 @@
 # User-entered values live in `input_value` when `is_filled = TRUE`. Reference
 # values that pre-populate UI fields should instead be written to
 # `default_value`, so they remain distinguishable from submitted user inputs.
+# Mode-specific spread sliders are paired: HUB writes the observed value to the
+# `_ref_` field and mirrors it to the corresponding `_cf_` field's
+# `default_value`. This gives the counterfactual slider a no-change starting
+# point without marking it as user-filled or overwriting a submitted value.
 # Numeric category metadata for the basic population refinements is written to
 # `additional_data`, preserving the categorical `default_value` selections.
 
@@ -32,8 +36,14 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
     updated <- c(updated, field_name)
   }
 
+  mirrored <- .apply_reference_spread_defaults_to_cf(out, ui_updates)
+  out <- mirrored$profile
+  updated <- unique(c(updated, mirrored$updated_fields))
+
   attr(out, "reference_defaults_report") <- list(
     updated_fields = updated,
+    mirrored_cf_fields = mirrored$updated_fields,
+    mirrored_cf_sources = mirrored$sources,
     skipped_fields = skipped,
     excluded_fields = filtered_updates$excluded_fields,
     n_updated = length(updated),
@@ -42,6 +52,44 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
     default_context = filtered_updates$context
   )
 
+  out
+}
+
+.apply_reference_spread_defaults_to_cf <- function(profile, ui_updates) {
+  out <- profile
+  ref_fields <- names(ui_updates)
+  cf_fields <- .reference_spread_cf_field(ref_fields)
+  matched <- !is.na(cf_fields) & cf_fields %in% names(out)
+
+  updated <- character(0)
+  sources <- stats::setNames(character(0), character(0))
+  for (index in which(matched)) {
+    cf_field <- cf_fields[[index]]
+    ref_field <- ref_fields[[index]]
+    if (!is_input_field(out[[cf_field]])) {
+      next
+    }
+
+    out[[cf_field]]$default_value <- ui_updates[[ref_field]]
+    updated <- c(updated, cf_field)
+    sources[[cf_field]] <- ref_field
+  }
+
+  list(
+    profile = out,
+    updated_fields = updated,
+    sources = sources
+  )
+}
+
+.reference_spread_cf_field <- function(field_name) {
+  supported <- paste0(
+    "^(pop_spread_(age_mean|sex_prop|pa_mean|pa_sex_prop)|",
+    "trips_spread_(mean|util_prop))_ref_(walk|bike|ebike|pt)$"
+  )
+  matched <- grepl(supported, field_name)
+  out <- rep(NA_character_, length(field_name))
+  out[matched] <- sub("_ref_", "_cf_", field_name[matched], fixed = TRUE)
   out
 }
 
