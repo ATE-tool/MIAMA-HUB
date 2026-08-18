@@ -310,6 +310,22 @@ to:
 The intent is to expand this mock incrementally as new modules are implemented,
 rather than copying the full UI schema into `MIAMA-HUB`.
 
+## Configuration orientation
+
+`miama_default_config()` is the main developer-facing index of configurable
+HUB behavior. Its top-level sections distinguish workflow controls (`workflow`,
+`arrow`), model assumptions (`population`, `physical_activity`, `spread`),
+stable presentation metadata (`results`), and infrastructure (`sources`,
+`cache`, `output`). Override individual leaf values rather than replacing the
+whole config wherever possible.
+
+Tab 5 health outcome definitions live in `cfg$results$outcomes`. Each named
+definition records its UI label, outcome type, category, reference HM source
+columns, and whether it is selected by default. Composite outcomes such as CVD
+and all cancers explicitly list all columns that are summed. Results
+preparation consumes this same catalogue, so UI choices and calculations do
+not maintain separate hard-coded mappings.
+
 ## Request-driven source loading
 
 `load_reference_sources()` now accepts both config and request sections.
@@ -1024,6 +1040,39 @@ residents using `cfg$population$person_weight` (default 20 for the 5% Census
 synthetic population). The factor and source are recorded in `results_report`.
 Packaged development samples remain partial subsets and therefore do not yield
 location-wide absolute totals; use full location data for those totals.
+
+### Tab 5 health outcome choices
+
+The exported helper returns the stable configured choices without loading HM
+data:
+
+```r
+outcome_options <- MIAMAHUB::get_health_outcome_options(hub_cfg)
+
+# Named vector suitable for a Shiny checkbox/select control.
+outcome_choices <- stats::setNames(
+  outcome_options$outcome,
+  outcome_options$label
+)
+default_outcomes <- outcome_options$outcome[outcome_options$default]
+```
+
+For development or source validation, pass a health data frame, Arrow dataset,
+parquet directory, or character vector of column names. Parquet inspection
+reads only the schema and does not collect rows:
+
+```r
+checked_options <- MIAMAHUB::get_health_outcome_options(
+  cfg = hub_cfg,
+  health_data = health_outcomes,
+  available_only = TRUE
+)
+```
+
+`available` confirms that all configured reference columns exist.
+`delta_available` and `counterfactual_available` separately report whether the
+matching `d_*` and `*_cf` columns have already been produced. The equivalent
+R6 call is `hub$get_health_outcome_options()`.
 
 ### Tab 5 UI integration lifecycle
 

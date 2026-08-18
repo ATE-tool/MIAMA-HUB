@@ -1,27 +1,102 @@
-# Workflow configuration object, validator, and HM data loaders
+# MIAMA-HUB Configuration ----------------------------------------------------
+#
+# `miama_default_config()` is the single orientation point for runtime choices,
+# model assumptions, UI metadata, data locations, and operational settings.
+# Most callers should create the defaults once and override only the relevant
+# leaf values, for example `cfg$workflow$dataset_size <- "full"`.
+#
+# Top-level sections:
+# - workflow: dataset scope and row limits.
+# - arrow: Arrow execution and memory controls.
+# - population: synthetic-population scaling assumptions.
+# - physical_activity: common timeframe and MMET conversion constants.
+# - spread: category definitions used by Tab 3/4 spread controls.
+# - results: stable Tab 5 metadata, including filterable health outcomes.
+# - sources: resolved external or packaged data locations.
+# - cache: optional runtime cache behavior.
+# - output: generated artifact locations.
 
 `%||%` <- function(x, y) if (is.null(x)) y else x
+
+# Stable Tab 5 outcome definitions. `columns` are reference HM columns; the
+# counterfactual health step adds matching `d_*` and `*_cf` columns. Composite
+# outcomes deliberately list every component so their meaning is transparent.
+.miama_default_health_outcomes <- function() {
+  cancer_cols <- c(
+    "bladder_cancer", "breast_cancer", "colon_cancer", "endometrial_cancer",
+    "esophageal_cancer", "gastric_cardia_cancer", "head_and_neck_cancer",
+    "liver_cancer", "lung_cancer", "myeloid_leukemia"
+  )
+
+  list(
+    mortality = list(
+      label = "All-cause mortality", type = "mortality", category = "Mortality",
+      columns = "dead", default = TRUE
+    ),
+    cvd = list(
+      label = "Cardiovascular disease", type = "disease", category = "Cardiovascular",
+      columns = c("coronary_heart_disease", "stroke"), default = TRUE
+    ),
+    ihd = list(
+      label = "Ischaemic heart disease", type = "disease", category = "Cardiovascular",
+      columns = "coronary_heart_disease", default = TRUE
+    ),
+    stroke = list(
+      label = "Stroke", type = "disease", category = "Cardiovascular",
+      columns = "stroke", default = TRUE
+    ),
+    diabetes = list(
+      label = "Diabetes type 2", type = "disease", category = "Metabolic",
+      columns = "diabetes", default = TRUE
+    ),
+    depression = list(
+      label = "Depression", type = "disease", category = "Mental health",
+      columns = "depression", default = TRUE
+    ),
+    alzheimer = list(
+      label = "Alzheimer's & dementias", type = "disease", category = "Neurological",
+      columns = "all_cause_dementia", default = TRUE
+    ),
+    cancers = list(
+      label = "All cancers", type = "disease", category = "Cancer",
+      columns = cancer_cols, default = TRUE
+    ),
+    breast_cancer = list(
+      label = "Breast cancer", type = "disease", category = "Cancer",
+      columns = "breast_cancer", default = FALSE
+    ),
+    colon_cancer = list(
+      label = "Colon cancer", type = "disease", category = "Cancer",
+      columns = "colon_cancer", default = FALSE
+    )
+  )
+}
 
 miama_default_config <- function() {
   p <- miama_paths()
 
   list(
+    # 1. Workflow scope ------------------------------------------------------
     workflow = list(
       dataset_size = "sample",    # options: "sample", "full"
       max_rows     = MIAMA_DEFAULT_MAX_ROWS
     ),
+    # 2. Arrow runtime controls ---------------------------------------------
     arrow = list(
       cpu_count      = 1L,
       release_unused = TRUE
     ),
+    # 3. Population representation -----------------------------------------
     population = list(
       person_weight = MIAMA_SYNTHPOP_PERSON_WEIGHT,
       source = "Census 2021 synthetic population (5% sample)"
     ),
+    # 4. Physical-activity model constants ---------------------------------
     physical_activity = list(
       base_timeframe = "week",
       mmet_per_hour = MIAMA_MMET_PER_HOUR
     ),
+    # 5. Tab 3/4 spread category definitions -------------------------------
     spread = list(
       age = list(
         labels = c("18-29", "30-39", "40-49", "50-59", "60+"),
@@ -40,6 +115,14 @@ miama_default_config <- function() {
         unit = "mmet_wkhr"
       )
     ),
+    # 6. Tab 5 results metadata ---------------------------------------------
+    # This catalogue is stable and available before health data are loaded.
+    # Use `get_health_outcome_options()` to turn it into a UI-ready table or
+    # validate it against the columns of a particular HM outcome source.
+    results = list(
+      outcomes = .miama_default_health_outcomes()
+    ),
+    # 7. Data sources --------------------------------------------------------
     sources = list(
       sp_attributes = p$sp_attributes,
       sp_trips      = p$sp_trips,
@@ -54,11 +137,13 @@ miama_default_config <- function() {
         cycle   = p$hm_lookup_cycle
       )
     ),
+    # 8. Runtime cache -------------------------------------------------------
     cache = list(
       enabled = TRUE,
       refresh = FALSE,
       dir     = p$cache_dir
     ),
+    # 9. Generated output locations ----------------------------------------
     output = list(
       root      = p$output_root,
       lookup    = p$output_lookup,

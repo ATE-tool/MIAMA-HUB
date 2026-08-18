@@ -64,7 +64,7 @@ prepare_results_data <- function(
     health_outcomes_all
   }
   request <- .results_request_defaults(results_request, appraisal_input_values)
-  outcome_specs <- .results_outcome_specs()
+  outcome_specs <- .results_outcome_specs(cfg)
   person_weight <- .results_person_weight(cfg)
 
   long <- .results_health_long(health_outcomes, outcome_specs, person_weight)
@@ -158,25 +158,8 @@ prepare_results_data <- function(
 # Map UI outcome IDs to one or more HM outcome columns. Composite outcomes are
 # summed over their component columns.
 
-.results_outcome_specs <- function() {
-  cancer_cols <- c(
-    "bladder_cancer", "breast_cancer", "colon_cancer", "endometrial_cancer",
-    "esophageal_cancer", "gastric_cardia_cancer", "head_and_neck_cancer",
-    "liver_cancer", "lung_cancer", "myeloid_leukemia"
-  )
-
-  list(
-    mortality = list(label = "All-cause mortality", columns = "dead", type = "mortality"),
-    cvd = list(label = "Cardiovascular disease", columns = c("coronary_heart_disease", "stroke"), type = "disease"),
-    ihd = list(label = "Ischaemic heart disease", columns = "coronary_heart_disease", type = "disease"),
-    stroke = list(label = "Stroke", columns = "stroke", type = "disease"),
-    diabetes = list(label = "Diabetes type 2", columns = "diabetes", type = "disease"),
-    depression = list(label = "Depression", columns = "depression", type = "disease"),
-    alzheimer = list(label = "Alzheimer's & dementias", columns = "all_cause_dementia", type = "disease"),
-    cancers = list(label = "All cancers", columns = cancer_cols, type = "disease"),
-    breast_cancer = list(label = "Breast cancer", columns = "breast_cancer", type = "disease"),
-    colon_cancer = list(label = "Colon cancer", columns = "colon_cancer", type = "disease")
-  )
+.results_outcome_specs <- function(cfg = NULL) {
+  .miama_health_outcome_specs(cfg)
 }
 
 .results_health_long <- function(health_outcomes, outcome_specs, person_weight = 1) {
@@ -193,23 +176,21 @@ prepare_results_data <- function(
 
   rows <- lapply(names(outcome_specs), function(outcome_id) {
     spec <- outcome_specs[[outcome_id]]
-    raw_cols <- spec$columns[spec$columns %in% names(health_outcomes)]
-    if (length(raw_cols) == 0) {
+    raw_cols <- as.character(spec$columns)
+    if (!all(raw_cols %in% names(health_outcomes))) {
       return(NULL)
     }
 
     delta_cols <- paste0("d_", raw_cols)
-    delta_cols <- delta_cols[delta_cols %in% names(health_outcomes)]
-    if (length(delta_cols) == 0) {
+    if (!all(delta_cols %in% names(health_outcomes))) {
       return(NULL)
     }
 
     cf_cols <- paste0(raw_cols, "_cf")
-    cf_cols <- cf_cols[cf_cols %in% names(health_outcomes)]
 
     ref_value <- rowSums(health_outcomes[, raw_cols, drop = FALSE], na.rm = TRUE)
     delta_value <- rowSums(health_outcomes[, delta_cols, drop = FALSE], na.rm = TRUE)
-    cf_value <- if (length(cf_cols) > 0) {
+    cf_value <- if (all(cf_cols %in% names(health_outcomes))) {
       rowSums(health_outcomes[, cf_cols, drop = FALSE], na.rm = TRUE)
     } else {
       ref_value + delta_value

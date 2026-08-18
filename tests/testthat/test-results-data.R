@@ -1,3 +1,59 @@
+test_that("health outcome options expose configured Tab 5 metadata", {
+  options <- get_health_outcome_options()
+
+  expect_equal(
+    options$outcome,
+    c(
+      "mortality", "cvd", "ihd", "stroke", "diabetes", "depression",
+      "alzheimer", "cancers", "breast_cancer", "colon_cancer"
+    )
+  )
+  expect_equal(options$label[options$outcome == "mortality"], "All-cause mortality")
+  expect_true(options$default[options$outcome == "ihd"])
+  expect_false(options$default[options$outcome == "breast_cancer"])
+  expect_true(all(options$available))
+})
+
+test_that("health outcome options can verify a health data schema", {
+  columns <- c(
+    "dead", "d_dead", "dead_cf",
+    "diabetes", "d_diabetes"
+  )
+  options <- get_health_outcome_options(health_data = columns)
+
+  expect_true(options$available[options$outcome == "mortality"])
+  expect_true(options$delta_available[options$outcome == "mortality"])
+  expect_true(options$counterfactual_available[options$outcome == "mortality"])
+  expect_true(options$available[options$outcome == "diabetes"])
+  expect_true(options$delta_available[options$outcome == "diabetes"])
+  expect_false(options$counterfactual_available[options$outcome == "diabetes"])
+  expect_false(options$available[options$outcome == "cvd"])
+  expect_equal(get_health_outcome_options(health_data = columns, available_only = TRUE)$outcome,
+               c("mortality", "diabetes"))
+})
+
+test_that("composite outcomes require every configured component", {
+  counterfactual_data <- list(
+    health_outcomes = data.frame(
+      census_id = 1,
+      cycle = 1L,
+      age1year = 50,
+      female = 0,
+      stroke = 2,
+      d_stroke = -0.1,
+      stroke_cf = 1.9
+    )
+  )
+
+  out <- prepare_results_data(
+    counterfactual_data,
+    results_request = list(res_outcomes = "cvd")
+  )
+
+  expect_equal(nrow(out$results_table), 0)
+  expect_equal(out$results_report$missing_requested_outcomes, "cvd")
+})
+
 test_that("prepare_results_data aggregates filtered health outcomes", {
   counterfactual_data <- list(
     health_outcomes = data.frame(

@@ -394,6 +394,15 @@ Hub <- R6::R6Class(
       self$get_reference_ui_value("population_size")
     },
 
+    get_health_outcome_options = function(health_data = NULL,
+                                          available_only = FALSE) {
+      get_health_outcome_options(
+        cfg = self$cfg,
+        health_data = health_data,
+        available_only = available_only
+      )
+    },
+
     get_spread_bar_values = function(ref_bars,
                                      cf_mean = NULL,
                                      cf_prop = NULL,
