@@ -525,6 +525,86 @@ Current reference spread topics:
   cycling, and sport hours. Defaults use the current POC category wording:
   `sedentary`, `low`, `moderate`, `high`, `very_high`.
 
+#### Tab 3 population and PA spread lifecycle
+
+Tab 3 spread controls are mode-specific. Profile field suffixes follow the UI
+mode naming convention: `walking -> walk`, `cycling -> bike`, `ebiking ->
+ebike`, and public transport/walking-to-PT -> `pt`. Walking and cycling are the
+currently supported production paths; other modes are populated only when the
+required source columns are available.
+
+At the end of Tab 1, UI calls:
+
+```r
+mdata[["profile"]] <- mdata[["hub"]]$build_reference_profile_defaults(
+  mdata[["profile"]]
+)
+```
+
+That call loads the location-specific synthetic population once, derives all
+supported reference spreads, and writes them into matching profile
+`default_value` fields. The Tab 3 UI then reads the following fields for each
+mode suffix:
+
+| Topic | Reference bars | Reference mean slider | Reference proportion slider | Counterfactual mean input | Counterfactual proportion input |
+|---|---|---|---|---|---|
+| Age and gender | `pop_spread_bars_ref_{mode}` | `pop_spread_age_mean_ref_{mode}` | `pop_spread_sex_prop_ref_{mode}` | `pop_spread_age_mean_cf_{mode}` | `pop_spread_sex_prop_cf_{mode}` |
+| PA and gender | `pa_spread_bars_ref_{mode}` | `pop_spread_pa_mean_ref_{mode}` | `pop_spread_pa_sex_prop_ref_{mode}` | `pop_spread_pa_mean_cf_{mode}` | `pop_spread_pa_sex_prop_cf_{mode}` |
+
+`pop_spread_pa_bars_ref_{mode}` is a temporary alias for
+`pa_spread_bars_ref_{mode}`. New UI code should use the shorter canonical
+`pa_spread_bars_ref_{mode}` name.
+
+Reference population bars are calculated from current users of the selected
+mode. A user is identified from the positive mode-specific weekly activity
+column, or from linked mode-specific trips when that individual column is not
+available. The population spread uses one unweighted row per synthetic person.
+The PA spread uses the same mode-user filter and the individual's total weekly
+MMET exposure. If joined HM `mmets` are unavailable during reference-default
+extraction, HUB reconstructs the exposure from walking, cycling, and sport
+hours using the configured activity intensities.
+
+Each reference bar payload is a joint distribution that totals 100 percent.
+The reference mean slider is derived from the five category totals and their
+configured midpoints, so it is a grouped-data approximation rather than the
+raw arithmetic mean. The reference proportion slider is the total share of the
+first variable (`male`).
+
+The current profile distinguishes modal choices for distributions among
+current users versus new users, but HUB currently has one reference spread per
+mode and that spread describes current mode users. For a new-user modal, it is
+therefore the observed current-user pattern used as the starting assumption.
+The submitted counterfactual sliders constrain which non-users are sampled as
+new users. A separate empirical reference distribution of prospective new
+users is not currently available.
+
+#### Slider redistribution logic
+
+`spread_bar_values_from_slider()` receives only the compact reference bars and
+the two counterfactual slider values. It does not load or retain raw synthetic
+population data.
+
+1. HUB sums the 10 reference cells into a five-category marginal and a
+   two-variable marginal.
+2. The five-category marginal is exponentially tilted until its midpoint-based
+   mean matches `cf_mean`. This preserves the reference shape as far as the
+   requested mean allows and avoids generating one artificial average category.
+3. `cf_prop` sets the first variable's share exactly; the second share is
+   `1 - cf_prop`. Values may be supplied as `0-1` proportions or `0-100`
+   percentages and are clamped to the valid range.
+4. HUB combines the two counterfactual marginals with an outer product. The
+   counterfactual joint bars therefore assume independence between age and sex,
+   or between PA category and sex.
+5. The function returns the same 10-row schema as the reference bars, with
+   `scenario = "cf"`.
+
+If one slider argument is `NULL`, its reference marginal is retained. If both
+are `NULL`, the exact reference joint cells are returned with only the scenario
+label changed. If both reference slider values are passed explicitly, the
+marginals remain unchanged but the returned joint cells still apply the stated
+independence assumption; this can differ slightly from the reference joint
+bars when age/PA and sex are associated.
+
 Category labels, breaks, and slider midpoints live in `cfg$spread`, which is
 created by `miama_default_config()`. The current defaults are intentionally easy
 to override:
@@ -544,16 +624,71 @@ preserving a smooth version of the reference shape. The second slider sets the
 first plotted variable's proportion: male for `pop`/`pa`, utilitarian for
 `trips`.
 
-Mode-specific example:
+#### Concise MIAMA-UI implementation
+
+The recommended UI call is the exported stateless function. The R6 method
+`hub$get_spread_bar_values()` delegates to the same function and is equivalent,
+but no Hub state is needed for a slider-only recalculation.
+
+Age/gender example for cycling (`mode_suffix = "bike"`):
 
 ```r
-ref_bars <- profile$trips_spread_bars_ref_bike$default_value
-cf_bars <- hub$get_spread_bar_values(
-  ref_bars,
-  cf_mean = input$trips_spread_mean_cf_bike,
-  cf_prop = input$trips_spread_util_prop_cf_bike,
-  topic = "trips"
+pop_cf_bars <- shiny::reactive({
+  ref_bars <- mdata[["profile"]][["pop_spread_bars_ref_bike"]]$default_value
+  cf_mean <- input[["pop_spread_age_mean_cf_bike"]]
+  cf_prop <- input[["pop_spread_sex_prop_cf_bike"]]
+  if (is.null(cf_mean)) {
+    cf_mean <- mdata[["profile"]][["pop_spread_age_mean_ref_bike"]]$default_value
+  }
+  if (is.null(cf_prop)) {
+    cf_prop <- mdata[["profile"]][["pop_spread_sex_prop_ref_bike"]]$default_value
+  }
+
+  MIAMAHUB::spread_bar_values_from_slider(
+    ref_bars = ref_bars,
+    cf_mean = cf_mean,
+    cf_prop = cf_prop,
+    topic = "pop"
+  )
+})
+
+output[["pop_cf_plot_bike"]] <- plotly::renderPlotly({
+  plot_dist_bars(pop_cf_bars())
+})
+```
+
+PA/gender uses the same pattern with these substitutions:
+
+```r
+ref_bars <- mdata[["profile"]][["pa_spread_bars_ref_bike"]]$default_value
+cf_mean  <- input[["pop_spread_pa_mean_cf_bike"]]
+cf_prop  <- input[["pop_spread_pa_sex_prop_cf_bike"]]
+
+pa_cf_bars <- MIAMAHUB::spread_bar_values_from_slider(
+  ref_bars = ref_bars,
+  cf_mean = cf_mean,
+  cf_prop = cf_prop,
+  topic = "pa"
 )
+```
+
+The exact plotting call depends on the UI-owned `plot_dist_bars()` signature.
+HUB returns long-format data with `category`, `variable`, `percent`, and ordering
+columns; UI should use `category_order` and `variable_order` rather than relying
+on alphabetical order.
+
+Counterfactual bar data are display-only and are not written to a profile
+field. UI stores/submits only the mode-specific counterfactual mean and
+proportion fields by setting their `input_value` and `is_filled` values. During
+`Hub$build_results(profile)`, HUB calls the same redistribution function again,
+uses the reconstructed bars as sampling constraints, and returns the compact
+reference/counterfactual pairs at:
+
+```r
+result$spread_data$by_mode$bike$pop$ref
+result$spread_data$by_mode$bike$pop$cf
+result$spread_data$by_mode$bike$pa$ref
+result$spread_data$by_mode$bike$pa$cf
 ```
 
 If the current UI schema does not yet include one of these ref bar fields,

@@ -627,13 +627,13 @@ derive_counterfactual_spread_values <- function(appraisal_input_values,
 
   pieces <- list()
   if ("walktime_wkhr" %in% names(ind)) {
-    pieces$walk <- .as_plain_numeric(ind$walktime_wkhr) * 2.5
+    pieces$walk <- .as_plain_numeric(ind$walktime_wkhr) * MIAMA_MMET_PER_HOUR[["walking"]]
   }
   if ("cycletime_wkhr" %in% names(ind)) {
-    pieces$cycle <- .as_plain_numeric(ind$cycletime_wkhr) * 5.8
+    pieces$cycle <- .as_plain_numeric(ind$cycletime_wkhr) * MIAMA_MMET_PER_HOUR[["cycling"]]
   }
   if ("sport_wkhr" %in% names(ind)) {
-    pieces$sport <- .as_plain_numeric(ind$sport_wkhr) * 7
+    pieces$sport <- .as_plain_numeric(ind$sport_wkhr) * MIAMA_MMET_PER_HOUR[["vigorous"]]
   }
   if (length(pieces) == 0) {
     return(NULL)
