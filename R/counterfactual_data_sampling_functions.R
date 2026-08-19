@@ -162,10 +162,7 @@ cf_add_trip_indicators <- function(trips, modes = c("walking", "cycling")) {
 cf_trip_utilitarian <- function(trips, active = rep(FALSE, nrow(trips))) {
   util <- rep(TRUE, nrow(trips))
   if ("trip_purpose" %in% names(trips)) {
-    purpose <- tolower(as.character(trips$trip_purpose))
-    recreational <- grepl("leisure|holiday|sport|exercise|recreation|visit|social", purpose)
-    known <- !is.na(purpose) & nzchar(purpose)
-    util[known] <- !recreational[known]
+    util <- .utilitarian_trip_filter(trips$trip_purpose)
   }
 
   util[!active] <- TRUE
@@ -244,7 +241,13 @@ cf_individual_candidate_weights <- function(ind, candidate_rows, target = list()
   }
 
   if ("age1year" %in% names(ind) && !is.null(target$age_category_props)) {
-    category <- if (!is.null(target$age_category_midpoints)) {
+    category <- if (!is.null(target$age_category_breaks)) {
+      cf_numeric_quintile(
+        ind$age1year,
+        breaks = target$age_category_breaks,
+        right = target$age_category_right
+      )
+    } else if (!is.null(target$age_category_midpoints)) {
       cf_numeric_category_from_midpoints(ind$age1year, target$age_category_midpoints)
     } else {
       cf_numeric_quintile(ind$age1year)
@@ -258,7 +261,13 @@ cf_individual_candidate_weights <- function(ind, candidate_rows, target = list()
   if (!is.null(target$pa_category_props)) {
     pa <- .spread_pa_values(ind)
     if (!is.null(pa) && !all(is.na(pa))) {
-      category <- if (!is.null(target$pa_category_midpoints)) {
+      category <- if (!is.null(target$pa_category_breaks)) {
+        cf_numeric_quintile(
+          pa,
+          breaks = target$pa_category_breaks,
+          right = target$pa_category_right
+        )
+      } else if (!is.null(target$pa_category_midpoints)) {
         cf_numeric_category_from_midpoints(pa, target$pa_category_midpoints)
       } else {
         cf_numeric_quintile(pa)
@@ -280,7 +289,13 @@ cf_trip_candidate_weights <- function(trips, candidate_rows, active_distances, t
   }
 
   if (!is.null(target$distance_category_props)) {
-    category <- if (!is.null(target$distance_category_midpoints)) {
+    category <- if (!is.null(target$distance_category_breaks)) {
+      cf_numeric_quintile(
+        trips$trip_distraw_km,
+        breaks = target$distance_category_breaks,
+        right = target$distance_category_right
+      )
+    } else if (!is.null(target$distance_category_midpoints)) {
       cf_numeric_category_from_midpoints(trips$trip_distraw_km, target$distance_category_midpoints)
     } else {
       cf_distance_quintile(trips$trip_distraw_km, active_distances)
@@ -297,7 +312,7 @@ cf_trip_candidate_weights <- function(trips, candidate_rows, active_distances, t
   weights * cf_quintile_weights(category[candidate_rows], props)
 }
 
-cf_numeric_quintile <- function(values, breaks = NULL) {
+cf_numeric_quintile <- function(values, breaks = NULL, right = TRUE) {
   values <- as.numeric(values)
   if (is.null(breaks)) {
     observed <- values[!is.na(values)]
@@ -310,7 +325,13 @@ cf_numeric_quintile <- function(values, breaks = NULL) {
     return(rep(1L, length(values)))
   }
 
-  as.integer(cut(values, breaks = breaks, include.lowest = TRUE, labels = FALSE))
+  as.integer(cut(
+    values,
+    breaks = breaks,
+    include.lowest = TRUE,
+    right = isTRUE(right),
+    labels = FALSE
+  ))
 }
 
 cf_numeric_category_from_midpoints <- function(values, midpoints) {
@@ -380,7 +401,7 @@ cf_plausible_distance_candidates <- function(trips, candidate_rows, active_dista
 # Existing UI fields provide sex and mean-distance/purpose summaries. Quintile
 # hooks are intentionally permissive for upcoming Tab 3/4 controls.
 
-cf_population_sampling_target <- function(values, suffix = NULL) {
+cf_population_sampling_target <- function(values, suffix = NULL, spread = NULL) {
   pop_bars_cf <- .cf_mode_value(values, "pop_spread_bars_cf", suffix)
   pa_bars_cf <- .cf_mode_value(values, "pa_spread_bars_cf", suffix)
   if (is.null(pa_bars_cf)) {
@@ -415,6 +436,8 @@ cf_population_sampling_target <- function(values, suffix = NULL) {
     } else {
       NULL
     },
+    age_category_breaks = spread$age$breaks %||% NULL,
+    age_category_right = spread$age$right %||% TRUE,
     age_quintile_props = age_props,
     pa_category_props = pa_props,
     pa_category_midpoints = if (is.data.frame(pa_bars_cf)) {
@@ -422,6 +445,8 @@ cf_population_sampling_target <- function(values, suffix = NULL) {
     } else {
       NULL
     },
+    pa_category_breaks = spread$pa$breaks %||% NULL,
+    pa_category_right = spread$pa$right %||% TRUE,
     constraints = c(
       if (!is.null(male_prop)) "sex",
       if (!is.null(age_props)) "age",
@@ -430,7 +455,7 @@ cf_population_sampling_target <- function(values, suffix = NULL) {
   )
 }
 
-cf_trip_sampling_target <- function(values, suffix = NULL) {
+cf_trip_sampling_target <- function(values, suffix = NULL, spread = NULL) {
   trip_bars_cf <- .cf_mode_value(values, "trips_spread_bars_cf", suffix)
   distance_props <- if (is.data.frame(trip_bars_cf)) {
     spread_category_props_from_bars(trip_bars_cf)
@@ -450,6 +475,8 @@ cf_trip_sampling_target <- function(values, suffix = NULL) {
     } else {
       NULL
     },
+    distance_category_breaks = spread$trip_distance$breaks %||% NULL,
+    distance_category_right = spread$trip_distance$right %||% TRUE,
     distance_quintile_props = distance_props,
     target_mean_distance = .cf_mode_value(values, "trips_spread_mean_cf", suffix),
     target_utilitarian_prop = util_prop,

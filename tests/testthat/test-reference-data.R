@@ -319,9 +319,9 @@ test_that("extract_reference_ui_values derives Tab 3 population reference fields
   expect_equal(current_values$ui_updates$pop_total_ref, 4)
   expect_equal(current_values$ui_updates$pop_number_ref_walk, 2)
   expect_equal(current_values$ui_updates$pop_number_ref_bike, 1)
-  expect_equal(current_values$ui_updates$pop_spread_age_mean_ref_walk, 34.5)
+  expect_equal(current_values$ui_updates$pop_spread_age_mean_ref_walk, 39.5)
   expect_equal(current_values$ui_updates$pop_spread_sex_prop_ref_walk, 1)
-  expect_equal(current_values$ui_updates$pop_spread_age_mean_ref_bike, 24)
+  expect_equal(current_values$ui_updates$pop_spread_age_mean_ref_bike, 35)
   expect_equal(current_values$ui_updates$pop_spread_sex_prop_ref_bike, 0)
 
   new_values <- extract_reference_ui_values(
@@ -333,7 +333,7 @@ test_that("extract_reference_ui_values derives Tab 3 population reference fields
     )
   )
 
-  expect_equal(new_values$ui_updates$pop_spread_age_mean_ref_walk, 34.5)
+  expect_equal(new_values$ui_updates$pop_spread_age_mean_ref_walk, 39.5)
   expect_equal(new_values$ui_updates$pop_spread_sex_prop_ref_walk, 1)
 })
 
@@ -373,9 +373,35 @@ test_that("extract_reference_ui_values handles haven-labelled numeric columns", 
 
   expect_equal(values$ui_updates$pop_number_ref_walk, 2)
   expect_equal(values$ui_updates$trips_count_ref_walk, 2)
-  expect_equal(values$ui_updates$pop_spread_age_mean_ref_walk, 29.5)
+  expect_equal(values$ui_updates$pop_spread_age_mean_ref_walk, 34.5)
   expect_equal(values$ui_updates$pop_spread_sex_prop_ref_walk, 1)
-  expect_equal(values$ui_updates$trips_spread_mean_ref_walk, 1)
+  expect_equal(values$ui_updates$trips_spread_mean_ref_walk, 2.25)
+})
+
+test_that("spread categories respect configured interval boundaries", {
+  cfg <- miama_default_config()
+
+  expect_identical(
+    .spread_cut(c(17, 18, 29, 30, 59, 60), cfg$spread$age$breaks, cfg$spread$age$right),
+    c(NA_integer_, 1L, 1L, 2L, 4L, 5L)
+  )
+  expect_identical(
+    .spread_cut(c(0, 0.1, 10, 25, 50, 51), cfg$spread$pa$breaks, cfg$spread$pa$right),
+    c(1L, 2L, 2L, 3L, 4L, 5L)
+  )
+})
+
+test_that("trip purpose categories use one utilitarian default rule", {
+  purpose <- c("Commuting", "Leisure", NA, "")
+
+  expect_identical(
+    .utilitarian_trip_filter(purpose),
+    c(TRUE, FALSE, TRUE, TRUE)
+  )
+  expect_identical(
+    cf_trip_utilitarian(data.frame(trip_purpose = purpose), active = rep(TRUE, 4)),
+    c(TRUE, FALSE, TRUE, TRUE)
+  )
 })
 
 test_that("extract_reference_ui_values derives Tab 4 trip reference fields", {
@@ -406,9 +432,9 @@ test_that("extract_reference_ui_values derives Tab 4 trip reference fields", {
   expect_equal(values$ui_updates$trips_number_total_ref, 4)
   expect_equal(values$ui_updates$trips_number_ref_walk, 1)
   expect_equal(values$ui_updates$trips_number_ref_bike, 3)
-  expect_equal(values$ui_updates$trips_spread_mean_ref_walk, 1)
+  expect_equal(values$ui_updates$trips_spread_mean_ref_walk, 3.5)
   expect_equal(values$ui_updates$trips_spread_util_prop_ref_walk, 1)
-  expect_equal(values$ui_updates$trips_spread_mean_ref_bike, 37 / 6)
+  expect_equal(values$ui_updates$trips_spread_mean_ref_bike, 7.5)
   expect_equal(values$ui_updates$trips_spread_util_prop_ref_bike, 2 / 3)
   expect_equal(values$ui_updates$trips_diversion_total_trips, 4)
   expect_equal(values$ui_updates$trips_diversion_trips_n, 4)

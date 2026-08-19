@@ -104,7 +104,8 @@ results_filter_health_data <- function(
   out$prevented_per_100000 <- 100000 * .results_divide_or_na(out$prevented_value, out$population)
 
   if ("age_group" %in% names(out)) {
-    age_labels <- stats::setNames(.results_age_group_levels()$label, .results_age_group_levels()$id)
+    age_levels <- .results_plot_age_group_levels(results_data)
+    age_labels <- stats::setNames(age_levels$label, age_levels$id)
     out$group_label <- unname(age_labels[out$age_group])
   } else if ("gender" %in% names(out)) {
     out$group_label <- ifelse(out$gender == "female", "Female", "Male")
@@ -249,7 +250,11 @@ results_plot_health_impacts <- function(
     y_label = y_label
   )
 
-  group_levels <- if (identical(group_by, "age_group")) .results_age_group_levels()$label else c("Male", "Female")
+  group_levels <- if (identical(group_by, "age_group")) {
+    .results_plot_age_group_levels(results_data)$label
+  } else {
+    c("Male", "Female")
+  }
   plot_data$group_label <- factor(plot_data$group_label, levels = group_levels)
   p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = group_label, y = .data[[y_col]], fill = group_label)) +
     ggplot2::facet_wrap(~outcome_label, scales = "free_y") +
@@ -588,6 +593,14 @@ results_plot_trip_mode_distribution <- function(
       axis.text = ggplot2::element_text(color = "#36454F"),
       strip.text = ggplot2::element_text(face = "bold", color = "#263238")
     )
+}
+
+.results_plot_age_group_levels <- function(results_data) {
+  levels <- .results_get_plot_data(results_data, "age_group_levels")
+  if (!all(c("id", "label") %in% names(levels)) || nrow(levels) == 0) {
+    return(.results_age_group_levels())
+  }
+  levels
 }
 
 .results_get_plot_data <- function(results_data, name) {

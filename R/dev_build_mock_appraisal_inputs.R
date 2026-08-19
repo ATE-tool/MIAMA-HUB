@@ -146,7 +146,7 @@ build_mock_appraisal_inputs <- function(overrides = list()) {
     res_age_groups = list(
       is_filled = TRUE,
       description = "Age groups included in result summaries.",
-      input_value = c("age_20_34", "age_35_49", "age_50_64", "age_65_74", "age_75plus")
+      input_value = c("age_18_29", "age_30_39", "age_40_49", "age_50_59", "age_60_plus")
     ),
     res_gender = list(
       is_filled = TRUE,

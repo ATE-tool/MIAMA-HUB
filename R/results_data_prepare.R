@@ -63,11 +63,12 @@ prepare_results_data <- function(
   } else {
     health_outcomes_all
   }
-  request <- .results_request_defaults(results_request, appraisal_input_values)
+  age_group_levels <- .results_age_group_levels(cfg)
+  request <- .results_request_defaults(results_request, appraisal_input_values, cfg)
   outcome_specs <- .results_outcome_specs(cfg)
   person_weight <- .results_person_weight(cfg)
 
-  long <- .results_health_long(health_outcomes, outcome_specs, person_weight)
+  long <- .results_health_long(health_outcomes, outcome_specs, person_weight, cfg)
   health_cube <- .results_health_cube(long)
   filtered <- .filter_results_health_long(long, request)
   results_table <- .aggregate_results_health(filtered, request)
@@ -76,6 +77,7 @@ prepare_results_data <- function(
   headline_metrics <- .results_headline_metrics(results_table)
   plot_data <- list(
     health_cube = health_cube,
+    age_group_levels = age_group_levels,
     health_overview = .results_plot_health_overview_data(results_table, request),
     health_timeline = .results_plot_timeline_data(filtered, request),
     trip_mode_distribution = trip_distribution
@@ -130,14 +132,14 @@ prepare_results_data <- function(
 # Tab 5 names are still settling. This helper accepts both the current UI
 # `res_aggregation` field and the schema's `res_temp_aggregation` alias.
 
-.results_request_defaults <- function(results_request, appraisal_input_values = list()) {
+.results_request_defaults <- function(results_request, appraisal_input_values = list(), cfg = NULL) {
   values <- utils::modifyList(appraisal_input_values, results_request)
   aggregation <- .ui_value(values, "res_aggregation", NULL) %||%
     .ui_value(values, "res_temp_aggregation", "total")
 
   list(
     res_outcomes = .ui_value(values, "res_outcomes", character(0)),
-    res_age_groups = .ui_value(values, "res_age_groups", .results_age_group_levels()$id),
+    res_age_groups = .ui_value(values, "res_age_groups", .results_age_group_levels(cfg)$id),
     res_gender = .ui_value(values, "res_gender", c("male", "female")),
     res_modes_filter = normalize_active_modes(.ui_value(values, "res_modes_filter", .ui_value(values, "modes", character(0)))),
     res_aggregation = aggregation,
@@ -162,7 +164,7 @@ prepare_results_data <- function(
   .miama_health_outcome_specs(cfg)
 }
 
-.results_health_long <- function(health_outcomes, outcome_specs, person_weight = 1) {
+.results_health_long <- function(health_outcomes, outcome_specs, person_weight = 1, cfg = NULL) {
   if (nrow(health_outcomes) == 0) {
     return(.empty_results_long())
   }
@@ -200,7 +202,7 @@ prepare_results_data <- function(
       census_id = health_outcomes$census_id,
       cycle = health_outcomes$cycle,
       age1year = health_outcomes$age1year,
-      age_group = .results_age_group(health_outcomes$age1year),
+      age_group = .results_age_group(health_outcomes$age1year, cfg),
       gender = ifelse(health_outcomes$female == 1, "female", "male"),
       mode = "all_modes",
       outcome = outcome_id,
@@ -425,9 +427,8 @@ prepare_results_data <- function(
     grepl("bicy|cycl|e[- ]?bike", text_values)
   is_pt <- (!is.na(numeric_values) & numeric_values %in% MIAMA_NTS_MAINMODE_PT_CODES) |
     grepl("public|bus|rail|train|tram|metro|underground|tube|coach", text_values)
-  is_driving <- (!is.na(numeric_values) & numeric_values %in% unname(MIAMA_NTS_MAINMODE_B04[c(
-    "car_driver", "car_passenger"
-  )])) | grepl("car|van|driver|passenger", text_values)
+  is_driving <- (!is.na(numeric_values) & numeric_values %in% MIAMA_NTS_MAINMODE_CAR_CODES) |
+    grepl("car|van|driver|passenger|motorcycle|taxi|private", text_values)
 
   out[is_driving] <- "driving"
   out[is_pt] <- "pt"
@@ -485,21 +486,25 @@ prepare_results_data <- function(
 
 # Small Helpers --------------------------------------------------------------
 
-.results_age_group_levels <- function() {
+.results_age_group_levels <- function(cfg = NULL) {
+  cfg <- cfg %||% miama_default_config()
+  spec <- cfg$spread$age %||% miama_default_config()$spread$age
   data.frame(
-    id = c("age_20_34", "age_35_49", "age_50_64", "age_65_74", "age_75plus"),
-    label = c("20-34", "35-49", "50-64", "65-74", "75+"),
+    id = as.character(spec$ids),
+    label = as.character(spec$labels),
+    lower = as.numeric(spec$breaks[-length(spec$breaks)]),
+    upper = as.numeric(spec$breaks[-1]),
     stringsAsFactors = FALSE
   )
 }
 
-.results_age_group <- function(age) {
-  out <- rep(NA_character_, length(age))
-  out[!is.na(age) & age >= 20 & age <= 34] <- "age_20_34"
-  out[!is.na(age) & age >= 35 & age <= 49] <- "age_35_49"
-  out[!is.na(age) & age >= 50 & age <= 64] <- "age_50_64"
-  out[!is.na(age) & age >= 65 & age <= 74] <- "age_65_74"
-  out[!is.na(age) & age >= 75] <- "age_75plus"
+.results_age_group <- function(age, cfg = NULL) {
+  cfg <- cfg %||% miama_default_config()
+  spec <- cfg$spread$age %||% miama_default_config()$spread$age
+  category <- .spread_cut(age, spec$breaks, right = spec$right)
+  out <- rep(NA_character_, length(category))
+  keep <- !is.na(category)
+  out[keep] <- spec$ids[category[keep]]
   out
 }
 

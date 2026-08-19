@@ -637,6 +637,33 @@ to override:
 - `cfg$spread$trip_distance`
 - `cfg$spread$pa`
 
+The synthetic population stores single-year age (`age1year`), not a native age
+group. HUB therefore derives one canonical set of adult appraisal groups from
+`cfg$spread$age`: `18-29`, `30-39`, `40-49`, `50-59`, and `60+` (IDs
+`age_18_29` through `age_60_plus`). These same definitions drive Tab 3 counts
+and spread bars, counterfactual sampling constraints, the Tab 5 health cube,
+plot labels, and the static `res_age_groups` options in MIAMA-UI `default.R`.
+Ages below 18 remain outside these adult groups; they are not folded into the
+`18-29` category.
+
+Other shared category contracts are:
+
+- trip distance: `[0,2)`, `[2,5)`, `[5,10)`, `[10,30)`, and `30+` km
+- weekly PA: `(-Inf,0]`, `(0,10]`, `(10,25]`, `(25,50]`, and `(50,Inf]`
+  MMET-hours, labelled `sedentary`, `low`, `moderate`, `high`, and `very_high`
+- sex/gender: source `female = 0/1`, presented as `male` / `female`
+- trip purpose: `utilitarian` / `recreational`; `mixed` is a UI input option
+  that resolves to proportions of those two categories
+- source trip modes: NTS codes are mapped through the constants in
+  `R/constants.R`; walking, cycling, public transport, and car/private motor are
+  the broad presentation groups, with unrecognised values retained as `other`
+- setup-mode UI IDs are `walk`, `bike`, `ebike`, and `pt`; HUB normalizes these
+  to `walking`, `cycling`, `ebiking`, and `pt` at the API boundary
+
+The UI schema is intentionally static, so changes to configured IDs or labels
+must be mirrored in `MIAMA-UI/schemes/default.R`. Tests assert the current age
+boundaries to prevent Tab 3 and Tab 5 from drifting apart again.
+
 The PA cutoffs are provisional weekly MMET-hour cutoffs:
 `(-Inf, 0]`, `(0, 10]`, `(10, 25]`, `(25, 50]`, and `(50, Inf]`. These should be
 reviewed against the intended PA exposure definition before production use.
@@ -1414,7 +1441,7 @@ filtered data frame. Its arguments mirror the Tab 5 controls:
 plot_df <- results_filter_health_data(
   results_data,
   outcomes = c("mortality", "ihd", "stroke"),
-  age_groups = c("age_50_64", "age_65_74", "age_75plus"),
+  age_groups = c("age_40_49", "age_50_59", "age_60_plus"),
   gender = c("male", "female"),
   aggregation = "timeline",
   group_by = "age_group",

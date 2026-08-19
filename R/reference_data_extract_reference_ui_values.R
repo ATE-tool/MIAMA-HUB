@@ -735,19 +735,17 @@ extract_reference_ui_values <- function(
 
   age_values <- if ("age1year" %in% names(ind)) {
     age <- .as_plain_numeric(ind$age1year)
-    age_categories <- rep(NA_integer_, length(age))
-    age_categories[!is.na(age) & age >= 18 & age <= 29] <- 1L
-    age_categories[!is.na(age) & age >= 30 & age <= 39] <- 2L
-    age_categories[!is.na(age) & age >= 40 & age <= 49] <- 3L
-    age_categories[!is.na(age) & age >= 50 & age <= 59] <- 4L
-    age_categories[!is.na(age) & age >= 60] <- 5L
+    age_spec <- .spread_category_spec(cfg, "age") %||% miama_default_config()$spread$age
+    age_categories <- .spread_cut(age, age_spec$breaks, right = age_spec$right)
+    age_names <- paste0("pop_", age_spec$ids)
     category_counts(
       age_categories,
-      c("pop_age_18_29", "pop_age_30_39", "pop_age_40_49", "pop_age_50_59", "pop_age_60_plus")
+      age_names
     )
   } else {
+    age_spec <- .spread_category_spec(cfg, "age") %||% miama_default_config()$spread$age
     .empty_tab3_category_values(
-      c("pop_age_18_29", "pop_age_30_39", "pop_age_40_49", "pop_age_50_59", "pop_age_60_plus")
+      paste0("pop_", age_spec$ids)
     )
   }
 
@@ -757,7 +755,7 @@ extract_reference_ui_values <- function(
     .empty_tab3_category_values(pa_names)
   } else {
     pa_spec <- .spread_category_spec(cfg, "pa") %||% miama_default_config()$spread$pa
-    category_counts(.spread_cut(pa, pa_spec$breaks), pa_names)
+    category_counts(.spread_cut(pa, pa_spec$breaks, right = pa_spec$right), pa_names)
   }
 
   unavailable_modes <- names(mode_filters)[!vapply(mode_filters, `[[`, logical(1), "available")]
@@ -935,8 +933,9 @@ extract_reference_ui_values <- function(
   purpose <- tolower(as.character(trip_purpose))
   recreational <- grepl("leisure|holiday|sport|exercise|recreation|visit|social", purpose)
   known <- !is.na(purpose) & nzchar(purpose)
-
-  known & !recreational
+  utilitarian <- rep(TRUE, length(purpose))
+  utilitarian[known] <- !recreational[known]
+  utilitarian
 }
 
 .ui_value <- function(values, field_name, default = NULL) {

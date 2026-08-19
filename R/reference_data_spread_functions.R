@@ -123,7 +123,7 @@ reference_population_spread_bars <- function(ind,
     prefix = "agecat",
     category_spec = .spread_category_spec(cfg, "age")
   )
-  category <- .spread_cut(age, categories$breaks)
+  category <- .spread_cut(age, categories$breaks, right = categories$right)
 
   .spread_joint_bars(
     category = category[keep],
@@ -164,7 +164,7 @@ reference_pa_spread_bars <- function(ind,
     prefix = "pacat",
     category_spec = .spread_category_spec(cfg, "pa")
   )
-  category <- .spread_cut(pa, categories$breaks)
+  category <- .spread_cut(pa, categories$breaks, right = categories$right)
 
   .spread_joint_bars(
     category = category[keep],
@@ -199,7 +199,7 @@ reference_trip_spread_bars <- function(trips,
     prefix = "distcat",
     category_spec = .spread_category_spec(cfg, "trip_distance")
   )
-  category <- .spread_cut(distance, categories$breaks)
+  category <- .spread_cut(distance, categories$breaks, right = categories$right)
   util <- if ("trip_purpose" %in% names(trips)) {
     .utilitarian_trip_filter(trips$trip_purpose)
   } else {
@@ -363,7 +363,8 @@ derive_counterfactual_spread_values <- function(appraisal_input_values,
   list(
     breaks = breaks,
     labels = paste0(prefix, "_", seq_len(MIAMA_SPREAD_CATEGORY_COUNT)),
-    midpoints = midpoints
+    midpoints = midpoints,
+    right = TRUE
   )
 }
 
@@ -393,21 +394,26 @@ derive_counterfactual_spread_values <- function(appraisal_input_values,
   list(
     breaks = breaks,
     labels = labels %||% paste0(prefix, "_", seq_len(MIAMA_SPREAD_CATEGORY_COUNT)),
-    midpoints = midpoints
+    midpoints = midpoints,
+    right = isTRUE(category_spec$right)
   )
 }
 
-.spread_cut <- function(values, breaks) {
+.spread_cut <- function(values, breaks, right = TRUE) {
   values <- as.numeric(values)
   if (length(breaks) < 2L) {
     return(rep(1L, length(values)))
   }
 
-  raw <- cut(values, breaks = breaks, include.lowest = TRUE, labels = FALSE)
+  raw <- cut(
+    values,
+    breaks = breaks,
+    include.lowest = TRUE,
+    right = isTRUE(right),
+    labels = FALSE
+  )
   raw <- as.integer(raw)
-  raw[is.na(raw) & !is.na(values) & values < min(breaks, na.rm = TRUE)] <- 1L
-  raw[is.na(raw) & !is.na(values) & values > max(breaks, na.rm = TRUE)] <- MIAMA_SPREAD_CATEGORY_COUNT
-  pmin(MIAMA_SPREAD_CATEGORY_COUNT, pmax(1L, raw))
+  raw
 }
 
 .spread_joint_bars <- function(category, variable, weights, categories, variables, topic, scenario) {

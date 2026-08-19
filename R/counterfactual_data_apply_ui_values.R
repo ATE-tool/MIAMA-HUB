@@ -297,7 +297,11 @@ apply_counterfactual_ui_values <- function(
     constants = constants,
     seed = seed,
     sampling_strategy = sampling_strategy,
-    population_target = cf_population_sampling_target(appraisal_input_values, spec$suffix)
+    population_target = cf_population_sampling_target(
+      appraisal_input_values,
+      spec$suffix,
+      spread = constants$spread
+    )
   )
 
   counterfactual_data <- assignment$counterfactual_data
@@ -313,7 +317,11 @@ apply_counterfactual_ui_values <- function(
     role = assignment$role,
     constants = constants,
     seed = seed,
-    trip_target = cf_trip_sampling_target(appraisal_input_values, spec$suffix),
+    trip_target = cf_trip_sampling_target(
+      appraisal_input_values,
+      spec$suffix,
+      spread = constants$spread
+    ),
     car_diversion_target = car_diversion_target,
     diversion_target = .cf_away_diversion_target(constants)
   )
@@ -485,7 +493,11 @@ apply_counterfactual_ui_values <- function(
     delta = delta,
     seed = seed,
     sampling_strategy = sampling_strategy,
-    trip_target = cf_trip_sampling_target(appraisal_input_values, spec$suffix),
+    trip_target = cf_trip_sampling_target(
+      appraisal_input_values,
+      spec$suffix,
+      spread = constants$spread
+    ),
     constants = constants,
     car_diversion_target = car_diversion_target,
     diversion_target = .cf_away_diversion_target(constants)
@@ -1363,6 +1375,7 @@ apply_counterfactual_ui_values <- function(
 # 7. Constants And Mode Specs ----
 
 miama_counterfactual_defaults <- function(cfg = NULL) {
+  cfg <- cfg %||% miama_default_config()
   intensities <- cfg$physical_activity$mmet_per_hour %||% MIAMA_MMET_PER_HOUR
   required_intensities <- c("walking", "cycling", "vigorous")
   if (!all(required_intensities %in% names(intensities)) ||
@@ -1383,7 +1396,8 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
     induced_trip_percent_default = 10,
     default_diversion_mode = "car",
     plausible_distance_max_multiplier = 1.2,
-    unsupported_mode_policy = "skip"
+    unsupported_mode_policy = "skip",
+    spread = cfg$spread
   )
 }
 

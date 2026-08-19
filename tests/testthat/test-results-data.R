@@ -90,7 +90,7 @@ test_that("prepare_results_data aggregates filtered health outcomes", {
     reference_data = reference_data,
     results_request = list(
       res_outcomes = c("mortality", "diabetes"),
-      res_age_groups = c("age_20_34", "age_50_64"),
+      res_age_groups = c("age_30_39", "age_60_plus"),
       res_gender = c("male", "female"),
       res_modes_filter = c("walking", "cycling"),
       res_aggregation = "total",
@@ -108,6 +108,22 @@ test_that("prepare_results_data aggregates filtered health outcomes", {
   expect_true(all(c("mode", "mode_label", "scenario", "proportion") %in%
                     names(out$plot_data$trip_mode_distribution)))
   expect_true("Mode-specific health impact attribution is not implemented yet; health results use `mode = all_modes`." %in% out$results_report$notes)
+  expect_identical(
+    out$plot_data$age_group_levels$id,
+    c("age_18_29", "age_30_39", "age_40_49", "age_50_59", "age_60_plus")
+  )
+})
+
+test_that("results age groups use the configured Tab 3 boundaries", {
+  cfg <- miama_default_config()
+
+  expect_identical(
+    .results_age_group(c(17, 18, 29, 30, 39, 40, 49, 50, 59, 60, 90), cfg),
+    c(NA, "age_18_29", "age_18_29", "age_30_39", "age_30_39",
+      "age_40_49", "age_40_49", "age_50_59", "age_50_59",
+      "age_60_plus", "age_60_plus")
+  )
+  expect_identical(.results_age_group_levels(cfg)$label, cfg$spread$age$labels)
 })
 
 test_that("prepare_results_data supports timeline and population aggregation", {
@@ -211,7 +227,7 @@ test_that("results_filter_health_data supports interactive Tab 5 filters", {
   filtered <- results_filter_health_data(
     results_data,
     outcomes = "mortality",
-    age_groups = "age_20_34",
+    age_groups = "age_30_39",
     gender = "male",
     aggregation = "timeline",
     group_by = "gender"
@@ -233,7 +249,9 @@ test_that("trip plot data groups numeric NTS main modes for presentation", {
     counterfactual_data = list(trips = trips)
   )
 
-  expect_equal(sort(unique(out$mode)), sort(c("walking", "cycling", "driving", "pt", "other")))
+  expect_equal(sort(unique(out$mode)), sort(c("walking", "cycling", "driving", "pt")))
+  expect_equal(out$trips[out$scenario == "Reference" & out$mode == "driving"], 5)
+  expect_equal(out$trips[out$scenario == "Reference" & out$mode == "pt"], 6)
   expect_equal(sum(out$proportion[out$scenario == "Reference"]), 1)
 })
 
@@ -298,7 +316,7 @@ test_that("results exports assemble filtered tables, metadata, plots, and drafts
     reference_data,
     results_request = list(
       res_outcomes = c("mortality", "diabetes", "stroke"),
-      res_age_groups = c("age_35_49", "age_65_74"),
+      res_age_groups = c("age_40_49", "age_60_plus"),
       res_gender = c("male", "female"),
       res_aggregation = "total",
       res_pop_aggregation = "total",

@@ -131,20 +131,24 @@ miama_default_config <- function(dataset_size = NULL) {
     # 5. Tab 3/4 spread category definitions -------------------------------
     spread = list(
       age = list(
+        ids = c("age_18_29", "age_30_39", "age_40_49", "age_50_59", "age_60_plus"),
         labels = c("18-29", "30-39", "40-49", "50-59", "60+"),
         breaks = c(18, 30, 40, 50, 60, Inf),
-        midpoints = c(24, 35, 45, 55, 70)
+        midpoints = c(24, 35, 45, 55, 70),
+        right = FALSE
       ),
       trip_distance = list(
         labels = c("0-2km", "2-5km", "5-10km", "10-30km", "30+km"),
         breaks = c(0, 2, 5, 10, 30, Inf),
-        midpoints = c(1, 3.5, 7.5, 20, 40)
+        midpoints = c(1, 3.5, 7.5, 20, 40),
+        right = FALSE
       ),
       pa = list(
         labels = c("sedentary", "low", "moderate", "high", "very_high"),
         breaks = c(-Inf, 0, 10, 25, 50, Inf),
         midpoints = c(0, 5, 17.5, 37.5, 65),
-        unit = "mmet_wkhr"
+        unit = "mmet_wkhr",
+        right = TRUE
       )
     ),
     # 6. Tab 5 results metadata ---------------------------------------------
