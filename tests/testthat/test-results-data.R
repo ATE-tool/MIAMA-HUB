@@ -14,6 +14,26 @@ test_that("health outcome options expose configured Tab 5 metadata", {
   expect_true(all(options$available))
 })
 
+test_that("assessment period and UI option catalogues come from config", {
+  cfg <- miama_default_config()
+
+  expect_equal(get_assessment_period(cfg), 40L)
+  expect_true(all(c(
+    "age_groups", "pa_categories", "trip_distance_categories", "gender",
+    "results_modes", "temporal_aggregation", "population_aggregation",
+    "impact_type", "metric", "timeline_type", "timeframe"
+  ) %in% get_ui_options(cfg = cfg)))
+  expect_identical(get_ui_options("age_groups", cfg)$value, cfg$spread$age$ids)
+  expect_identical(get_ui_options("pa_categories", cfg)$value, cfg$spread$pa$ids)
+  expect_true(all(get_ui_options("gender", cfg)$default))
+
+  results_options <- get_results_options(cfg)
+  expect_equal(results_options$assessment_period_years, 40L)
+  expect_identical(results_options$age_groups$value, cfg$spread$age$ids)
+  expect_true(all(c("attributable", "cf_vs_ref") %in% results_options$impact_type$value))
+  expect_true("prevented_per_100000" %in% results_options$metric$value)
+})
+
 test_that("health outcome options can verify a health data schema", {
   columns <- c(
     "dead", "d_dead", "dead_cf",
@@ -102,7 +122,14 @@ test_that("prepare_results_data aggregates filtered health outcomes", {
   expect_equal(sort(out$results_table$outcome), c("diabetes", "mortality"))
   expect_equal(out$results_table$delta_value[out$results_table$outcome == "mortality"], -3)
   expect_equal(out$headline_metrics$premature_deaths_prevented, 3)
-  expect_equal(out$headline_metrics$disease_cases_prevented, 0.75)
+  # Diabetes and stroke are separate underlying incidence streams and are each
+  # counted once, irrespective of which outcomes are selected for plotting.
+  expect_equal(out$headline_metrics$disease_cases_prevented, 1.05)
+  highlights <- get_results_highlights(out)
+  expect_equal(highlights$metric, c(
+    "premature_deaths_prevented", "life_years_saved", "disease_cases_prevented"
+  ))
+  expect_true(all(highlights$assessment_period_years == 40L))
   expect_true(nrow(out$plot_data$trip_mode_distribution) > 0)
   expect_true(nrow(out$plot_data$health_cube) > 0)
   expect_true(all(c("mode", "mode_label", "scenario", "proportion") %in%
@@ -172,7 +199,7 @@ test_that("AMAT outputs contain annual and cumulative LY, HLY, and incidence imp
   )
   cfg <- utils::modifyList(
     miama_default_config(),
-    list(population = list(person_weight = 20), results = list(amat_horizon_years = 40L))
+    list(population = list(person_weight = 20), results = list(assessment_period_years = 40L))
   )
   results_data <- prepare_results_data(counterfactual_data, cfg = cfg)
   amat <- prepare_results_amat_outputs(results_data, horizon_years = 40)
@@ -389,12 +416,12 @@ test_that("results exports assemble filtered tables, metadata, plots, and drafts
                     names(exports$amat_health_timeline)))
   expect_true(all(exports$amat_health_summary$cycle <= 40))
   expect_match(exports$amat_inputs$value[exports$amat_inputs$field == "schema_version"], "draft")
-  expect_true(is.na(exports$headline_metrics$value[
+  expect_equal(exports$headline_metrics$value[
     exports$headline_metrics$metric == "disease_cases_prevented"
-  ]))
+  ], 1.6)
   expect_equal(exports$headline_metrics$status[
     exports$headline_metrics$metric == "disease_cases_prevented"
-  ], "not_aggregated")
+  ], "partial")
 })
 
 test_that("results export writers create usable files", {

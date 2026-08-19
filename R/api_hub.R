@@ -207,6 +207,7 @@ Hub <- R6::R6Class(
         reference_data = private$.counterfactual_reference_data(),
         counterfactual_data = self$counterfactual_data,
         results_data = self$results_data,
+        highlights = get_results_highlights(self$results_data),
         # Compact UI contract. These are shared source tables for interactive
         # filtering, not one pre-aggregated data frame per plot.
         plot_data = self$results_data$plot_data,
@@ -432,6 +433,25 @@ Hub <- R6::R6Class(
         health_data = health_data,
         available_only = available_only
       )
+    },
+
+    get_assessment_period = function() {
+      get_assessment_period(self$cfg)
+    },
+
+    get_ui_options = function(option = NULL) {
+      get_ui_options(option = option, cfg = self$cfg)
+    },
+
+    get_results_options = function() {
+      get_results_options(self$cfg)
+    },
+
+    get_results_highlights = function() {
+      if (is.null(self$results_data)) {
+        stop("Results are not built. Call build_results(profile) first.", call. = FALSE)
+      }
+      get_results_highlights(self$results_data)
     },
 
     get_spread_bar_values = function(ref_bars,

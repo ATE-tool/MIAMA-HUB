@@ -60,14 +60,6 @@ prepare_results_exports <- function(
     group_by = group_by,
     timeline_type = timeline_type
   )
-  headline_source <- results_filter_health_data(
-    results_data = results_data,
-    outcomes = outcomes,
-    age_groups = age_groups,
-    gender = gender,
-    aggregation = "total",
-    group_by = "outcome"
-  )
   timeline_annual <- results_filter_health_data(
     results_data = results_data,
     outcomes = outcomes,
@@ -87,10 +79,7 @@ prepare_results_exports <- function(
     timeline_type = "cumulative"
   )
   trip_modes <- .results_export_trip_modes(results_data, modes)
-  headline_metrics <- .results_export_headline_metrics(
-    headline_source,
-    results_data$plot_data$amat_health_timeline
-  )
+  headline_metrics <- get_results_highlights(results_data)
   metadata <- .results_export_metadata(profile, cfg, aggregation, group_by, timeline_type)
   filters <- .results_export_filters(
     outcomes, age_groups, gender, modes, aggregation, group_by,
@@ -99,7 +88,7 @@ prepare_results_exports <- function(
   assumptions <- .results_export_assumptions(results_data, cfg)
   amat_outputs <- prepare_results_amat_outputs(
     results_data = results_data,
-    horizon_years = cfg$results$amat_horizon_years %||% 40L,
+    horizon_years = get_assessment_period(cfg),
     outcomes = outcomes
   )
   amat_inputs <- .results_export_amat_inputs(
@@ -270,19 +259,21 @@ write_results_plots_zip <- function(exports,
 #' incidence outcomes and counterfactual minus reference for LY/HLY.
 #'
 #' @param results_data Object returned by [prepare_results_data()].
-#' @param horizon_years Positive whole-number assessment horizon. Defaults to
-#'   40 years, based on the current provisional AMAT requirement.
+#' @param horizon_years Optional positive whole-number assessment horizon.
+#'   Defaults to the canonical period stored in `results_data`.
 #' @param outcomes Optional health-outcome IDs to retain. Life years and healthy
 #'   life years are always retained.
 #' @return A list containing `timeline`, `summary`, `horizon_years`, and a draft
 #'   schema version.
 #' @export
 prepare_results_amat_outputs <- function(results_data,
-                                         horizon_years = 40L,
+                                         horizon_years = NULL,
                                          outcomes = NULL) {
   if (!is.list(results_data) || is.null(results_data$plot_data)) {
     stop("results_data must be the object returned by prepare_results_data().", call. = FALSE)
   }
+  horizon_years <- horizon_years %||%
+    results_data$headline_metrics$assessment_period_years %||% 40L
   horizon_years <- .results_validate_horizon(horizon_years)
   timeline <- as.data.frame(
     results_data$plot_data$amat_health_timeline %||% .empty_amat_health_timeline()
@@ -367,60 +358,6 @@ write_results_report <- function(exports,
   out[out$mode %in% mode_ids, , drop = FALSE]
 }
 
-.results_export_headline_metrics <- function(data, amat_health_timeline = NULL) {
-  mortality <- data[data$outcome == "mortality", , drop = FALSE]
-  disease <- data[data$outcome_type == "disease", , drop = FALSE]
-  disease_outcomes <- unique(disease$outcome)
-  mortality_available <- nrow(mortality) > 0
-  disease_available <- length(disease_outcomes) == 1
-
-  mortality_delta <- if (mortality_available) sum(mortality$delta_value, na.rm = TRUE) else NA_real_
-  disease_delta <- if (disease_available) sum(disease$delta_value, na.rm = TRUE) else NA_real_
-  ly <- if (is.null(amat_health_timeline) || nrow(amat_health_timeline) == 0) {
-    data.frame()
-  } else {
-    amat_health_timeline[amat_health_timeline$measure == "life_years", , drop = FALSE]
-  }
-  life_years_saved <- if (nrow(ly) == 0) NA_real_ else {
-    ly$cumulative_benefit[[which.max(ly$cycle)]]
-  }
-  values <- c(
-    premature_deaths_prevented = -mortality_delta,
-    life_years_saved = life_years_saved,
-    disease_cases_prevented = -disease_delta,
-    mortality_delta = mortality_delta,
-    disease_cases_delta = disease_delta
-  )
-  disease_note <- if (length(disease_outcomes) > 1) {
-    "Not summed: multiple disease outcomes may overlap or represent unlike case streams."
-  } else if (length(disease_outcomes) == 0) {
-    "No disease outcome selected."
-  } else {
-    paste0("Calculated for selected outcome: ", disease_outcomes[[1]], ".")
-  }
-
-  data.frame(
-    metric = names(values),
-    value = unname(values),
-    unit = c("deaths", "life years", "disease cases", "deaths", "disease cases"),
-    status = c(
-      if (mortality_available) "available" else "not_selected",
-      if (is.na(life_years_saved)) "not_available" else "available",
-      if (disease_available) "available" else "not_aggregated",
-      if (mortality_available) "available" else "not_selected",
-      if (disease_available) "available" else "not_aggregated"
-    ),
-    note = c(
-      "Reference minus counterfactual all-cause mortality.",
-      "Counterfactual minus reference life years, accumulated over the configured AMAT horizon.",
-      disease_note,
-      "Technical counterfactual minus reference mortality delta.",
-      disease_note
-    ),
-    stringsAsFactors = FALSE
-  )
-}
-
 .results_export_metadata <- function(profile, cfg, aggregation, group_by, timeline_type) {
   keys <- c(
     "appraisal_name", "geo_name", "geo_level", "geo_id", "ui_version",
@@ -433,10 +370,12 @@ write_results_report <- function(exports,
   data.frame(
     field = c(
       keys, "result_aggregation", "result_group_by", "timeline_type",
-      "person_weight", "population_scaling_source", "impact_sign_convention"
+      "assessment_period_years", "person_weight", "population_scaling_source",
+      "impact_sign_convention"
     ),
     value = c(
       values, aggregation, group_by, timeline_type,
+      .results_export_text(get_assessment_period(cfg)),
       .results_export_text(cfg$population$person_weight %||% MIAMA_SYNTHPOP_PERSON_WEIGHT),
       .results_export_text(cfg$population$source),
       "Positive prevented values equal reference minus counterfactual"

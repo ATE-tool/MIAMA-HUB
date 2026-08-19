@@ -79,9 +79,14 @@ prepare_results_data <- function(
     health_outcomes = health_outcomes,
     health_long = long,
     person_weight = person_weight,
-    horizon_years = cfg$results$amat_horizon_years %||% 40L
+    horizon_years = get_assessment_period(cfg)
   )
-  headline_metrics <- .results_headline_metrics(results_table, amat_health_timeline)
+  headline_metrics <- .results_headline_metrics(
+    health_outcomes = health_outcomes,
+    amat_health_timeline = amat_health_timeline,
+    cfg = cfg,
+    person_weight = person_weight
+  )
   plot_data <- list(
     health_cube = health_cube,
     age_group_levels = age_group_levels,
@@ -102,7 +107,8 @@ prepare_results_data <- function(
     person_weight = person_weight,
     population_source = cfg$population$source %||% "Configured synthetic-population scale",
     cycle_zero_rows = cycle_zero_rows,
-    amat_health_timeline = amat_health_timeline
+    amat_health_timeline = amat_health_timeline,
+    assessment_period_years = get_assessment_period(cfg)
   )
 
   list(
@@ -523,27 +529,45 @@ prepare_results_data <- function(
 # Headline tile values follow the Tab 5 draft labels. "Prevented" values are
 # represented as `-delta`, so negative deltas become positive prevented counts.
 
-.results_headline_metrics <- function(results_table, amat_health_timeline = NULL) {
-  mortality <- results_table[results_table$outcome == "mortality", , drop = FALSE]
-  disease <- results_table[results_table$outcome_type == "disease", , drop = FALSE]
+.results_headline_metrics <- function(health_outcomes,
+                                      amat_health_timeline,
+                                      cfg,
+                                      person_weight) {
+  period <- cfg$results$assessment_period_years %||% 40L
+  benefit <- function(measure) {
+    rows <- amat_health_timeline[amat_health_timeline$measure == measure, , drop = FALSE]
+    if (nrow(rows) == 0) return(NA_real_)
+    rows$cumulative_benefit[[which.max(rows$cycle)]]
+  }
 
-  mortality_delta <- sum(mortality$delta_value, na.rm = TRUE)
-  disease_delta <- sum(disease$delta_value, na.rm = TRUE)
-  ly <- if (is.null(amat_health_timeline) || nrow(amat_health_timeline) == 0) {
-    data.frame()
+  configured_diseases <- as.character(
+    cfg$results$headline_disease_columns %||% .miama_default_disease_incidence_columns()
+  )
+  available_diseases <- configured_diseases[
+    configured_diseases %in% names(health_outcomes) &
+      paste0("d_", configured_diseases) %in% names(health_outcomes)
+  ]
+  keep <- !is.na(health_outcomes$cycle) & health_outcomes$cycle > 0 &
+    health_outcomes$cycle <= period
+  disease_delta <- if (length(available_diseases) == 0 || !any(keep)) {
+    NA_real_
   } else {
-    amat_health_timeline[amat_health_timeline$measure == "life_years", , drop = FALSE]
-  }
-  life_years_saved <- if (nrow(ly) == 0) NA_real_ else {
-    ly$cumulative_benefit[[which.max(ly$cycle)]]
+    sum(
+      as.matrix(health_outcomes[keep, paste0("d_", available_diseases), drop = FALSE]),
+      na.rm = TRUE
+    ) * person_weight
   }
 
+  mortality_prevented <- benefit("mortality")
   list(
-    premature_deaths_prevented = -mortality_delta,
-    life_years_saved = life_years_saved,
-    disease_cases_prevented = -disease_delta,
-    mortality_delta = mortality_delta,
-    disease_cases_delta = disease_delta
+    premature_deaths_prevented = mortality_prevented,
+    life_years_saved = benefit("life_years"),
+    disease_cases_prevented = if (is.na(disease_delta)) NA_real_ else -disease_delta,
+    mortality_delta = if (is.na(mortality_prevented)) NA_real_ else -mortality_prevented,
+    disease_cases_delta = disease_delta,
+    assessment_period_years = as.integer(period),
+    disease_columns_used = available_diseases,
+    disease_columns_missing = setdiff(configured_diseases, available_diseases)
   )
 }
 
@@ -650,7 +674,8 @@ prepare_results_data <- function(
     person_weight,
     population_source,
     cycle_zero_rows,
-    amat_health_timeline
+    amat_health_timeline,
+    assessment_period_years
 ) {
   available_outcomes <- unique(long$outcome)
   requested_outcomes <- request$res_outcomes
@@ -663,7 +688,7 @@ prepare_results_data <- function(
   if (length(missing_requested) > 0) {
     notes <- c(notes, paste0("Requested outcomes not available in current health outputs: ", paste(missing_requested, collapse = ", ")))
   }
-  if (is.na(.results_headline_metrics(results_table, amat_health_timeline)$life_years_saved)) {
+  if (!"life_years" %in% amat_health_timeline$measure) {
     notes <- c(notes, "Life years are unavailable because required cycle death columns were not present.")
   }
   notes <- c(notes, "HALYs are not yet calculated; they require prevalence and disability-weight inputs beyond LY/HLY.")
@@ -673,6 +698,7 @@ prepare_results_data <- function(
     cycle_zero_rows_excluded = cycle_zero_rows,
     population_person_weight = person_weight,
     population_scaling_source = population_source,
+    assessment_period_years = assessment_period_years,
     n_long_rows = nrow(long),
     n_filtered_rows = nrow(filtered),
     n_results_rows = nrow(results_table),

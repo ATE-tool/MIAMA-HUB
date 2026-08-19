@@ -14,6 +14,7 @@
 # - physical_activity: common timeframe and MMET conversion constants.
 # - spread: category definitions used by Tab 3/4 spread controls.
 # - results: stable Tab 5 metadata, including filterable health outcomes.
+# - options: stable IDs, labels, and defaults for shared UI controls.
 # - sources: resolved external or packaged data locations.
 # - cache: optional runtime cache behavior.
 # - output: generated artifact locations.
@@ -70,6 +71,74 @@
     colon_cancer = list(
       label = "Colon cancer", type = "disease", category = "Cancer",
       columns = "colon_cancer", default = FALSE
+    )
+  )
+}
+
+# Underlying HM incidence streams counted once for the headline total. These
+# are deliberately raw model columns, not UI composites such as CVD or all
+# cancers, because combining composites and subtypes would double-count cases.
+.miama_default_disease_incidence_columns <- function() {
+  c(
+    "all_cause_dementia",
+    "bladder_cancer", "breast_cancer", "colon_cancer", "endometrial_cancer",
+    "esophageal_cancer", "gastric_cardia_cancer", "head_and_neck_cancer",
+    "liver_cancer", "lung_cancer", "myeloid_leukemia",
+    "coronary_heart_disease", "depression", "diabetes",
+    "parkinson.s_disease", "stroke"
+  )
+}
+
+.miama_default_ui_options <- function() {
+  list(
+    gender = list(values = c("Male" = "male", "Female" = "female"), default = c("male", "female")),
+    trip_purpose_categories = list(
+      values = c("Utilitarian" = "utilitarian", "Recreational" = "recreational"),
+      default = c("utilitarian", "recreational")
+    ),
+    trip_purpose_input = list(
+      values = c(
+        "Utilitarian (commuting, errands)" = "utilitarian",
+        "Recreational (leisure, exercise)" = "recreational",
+        "Mixed - specify split" = "mixed"
+      ),
+      default = character(0)
+    ),
+    setup_modes = list(
+      values = c("Walking" = "walk", "Cycling" = "bike", "E-biking" = "ebike", "Walking as part of PT" = "pt"),
+      default = c("walk", "bike")
+    ),
+    results_modes = list(
+      values = c("Walking" = "walking", "Cycling" = "cycling", "E-biking" = "ebiking", "Walking as part of PT" = "pt"),
+      default = c("walking", "cycling")
+    ),
+    temporal_aggregation = list(
+      values = c("Total (all assessment years)" = "total", "Timeline (year by year)" = "timeline"),
+      default = "total"
+    ),
+    population_aggregation = list(
+      values = c("Total" = "total", "By age group" = "age_group", "By gender" = "gender"),
+      default = "total"
+    ),
+    impact_type = list(
+      values = c("Attributable cases" = "attributable", "Counterfactual vs. reference" = "cf_vs_ref"),
+      default = "attributable"
+    ),
+    metric = list(
+      values = c(
+        "Prevented cases per 100,000" = "prevented_per_100000",
+        "Prevented cases" = "prevented",
+        "Percent reduction" = "percent_reduction"
+      ),
+      default = "prevented_per_100000"
+    ),
+    timeline_type = list(
+      values = c("Annual difference" = "annual", "Cumulative difference" = "cumulative"),
+      default = "cumulative"
+    ),
+    timeframe = list(
+      values = c("Per day" = "day", "Per week" = "week", "Per year" = "year"),
+      default = "week"
     )
   )
 }
@@ -138,12 +207,14 @@ miama_default_config <- function(dataset_size = NULL) {
         right = FALSE
       ),
       trip_distance = list(
+        ids = c("dist_0_2", "dist_2_5", "dist_5_10", "dist_10_30", "dist_30_plus"),
         labels = c("0-2km", "2-5km", "5-10km", "10-30km", "30+km"),
         breaks = c(0, 2, 5, 10, 30, Inf),
         midpoints = c(1, 3.5, 7.5, 20, 40),
         right = FALSE
       ),
       pa = list(
+        ids = c("sedentary", "low", "moderate", "high", "very_high"),
         labels = c("sedentary", "low", "moderate", "high", "very_high"),
         breaks = c(-Inf, 0, 10, 25, 50, Inf),
         midpoints = c(0, 5, 17.5, 37.5, 65),
@@ -157,11 +228,14 @@ miama_default_config <- function(dataset_size = NULL) {
     # validate it against the columns of a particular HM outcome source.
     results = list(
       outcomes = .miama_default_health_outcomes(),
-      # AMAT currently requests annual and cumulative impacts over 40 years.
-      # Keep this explicit until a formal AMAT schema confirms the horizon.
-      amat_horizon_years = 40L
+      assessment_period_years = 40L,
+      headline_disease_columns = .miama_default_disease_incidence_columns()
     ),
-    # 7. Data sources --------------------------------------------------------
+    # 7. Stable UI option metadata ------------------------------------------
+    # Data-derived reference values remain elsewhere; these are only the
+    # canonical IDs, labels, and defaults used to construct controls.
+    options = .miama_default_ui_options(),
+    # 8. Data sources --------------------------------------------------------
     sources = list(
       sp_attributes = p$sp_attributes,
       sp_trips      = p$sp_trips,
@@ -181,13 +255,13 @@ miama_default_config <- function(dataset_size = NULL) {
         lookup_cycle = p$hm_lookup_cycle_death_share
       )
     ),
-    # 8. Runtime cache -------------------------------------------------------
+    # 9. Runtime cache -------------------------------------------------------
     cache = list(
       enabled = TRUE,
       refresh = FALSE,
       dir     = p$cache_dir
     ),
-    # 9. Generated output locations ----------------------------------------
+    # 10. Generated output locations ---------------------------------------
     output = list(
       root      = p$output_root,
       lookup    = p$output_lookup,

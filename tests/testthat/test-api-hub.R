@@ -457,10 +457,21 @@ test_that("Hub builds results through high-level UI method when data are already
   out <- hub$build_results(profile)
 
   expect_true(all(c(
-    "profile", "reference_data", "counterfactual_data", "results_data", "plot_data"
+    "profile", "reference_data", "counterfactual_data", "results_data", "highlights", "plot_data"
   ) %in% names(out)))
   expect_identical(out$plot_data, out$results_data$plot_data)
   expect_true(all(c("health_cube", "trip_mode_distribution", "spreads") %in% names(out$plot_data)))
   expect_equal(out$results_data$results_table$outcome, "mortality")
   expect_equal(out$results_data$headline_metrics$premature_deaths_prevented, 1)
+  expect_identical(out$highlights, hub$get_results_highlights())
+  expect_equal(hub$get_results_highlights()$value[[1]], 1)
+})
+
+test_that("Hub exposes lightweight assessment and option metadata", {
+  hub <- Hub$new(cfg = miama_default_config())
+
+  expect_equal(hub$get_assessment_period(), 40L)
+  expect_true("age_groups" %in% hub$get_ui_options())
+  expect_identical(hub$get_ui_options("age_groups")$value, hub$cfg$spread$age$ids)
+  expect_true("metric" %in% names(hub$get_results_options()))
 })

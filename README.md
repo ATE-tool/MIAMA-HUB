@@ -115,6 +115,12 @@ Primary UI-facing methods:
   death-share cycle lookup to ref/cf physical-activity exposure, and returns
   the updated `profile`, `reference_data`, `counterfactual_data`, and
   `results_data`.
+- `get_results_highlights()`: after `build_results()`, returns the three
+  assessment-period totals for prevented deaths, saved life-years, and
+  prevented disease cases.
+- `get_results_options()` / `get_ui_options(option)`: return lightweight,
+  configured IDs and labels for UI controls without loading appraisal data.
+- `get_assessment_period()`: returns the canonical model/result horizon.
 
 The intended Shiny flow is:
 
@@ -1109,6 +1115,35 @@ checked_options <- MIAMAHUB::get_health_outcome_options(
 matching `d_*` and `*_cf` columns have already been produced. The equivalent
 R6 call is `hub$get_health_outcome_options()`.
 
+### Shared UI option catalogues
+
+Stable control IDs and labels live in `miama_default_config()`, rather than in
+plot functions or server conditionals. The catalogues cover age groups, gender,
+PA and trip-distance categories, trip purpose, setup/result modes, timeframes,
+temporal and population aggregation, impact presentation, plot metric, and
+annual versus cumulative timelines.
+
+```r
+MIAMAHUB::get_ui_options() # discover available catalogues
+age_choices <- MIAMAHUB::get_ui_options("age_groups", hub_cfg)
+metric_choices <- MIAMAHUB::get_ui_options("metric", hub_cfg)
+
+result_options <- MIAMAHUB::get_results_options(hub_cfg)
+result_options$assessment_period_years
+result_options$impact_type
+```
+
+Each option table has `value`, `label`, `order`, and `default` columns. UI can
+construct a named Shiny choices vector with
+`setNames(options$value, options$label)`. Equivalent R6 methods are
+`hub$get_ui_options()` and `hub$get_results_options()`.
+
+The canonical assessment period is
+`cfg$results$assessment_period_years` (currently 40 years), available through
+`get_assessment_period(cfg)` or `hub$get_assessment_period()`. UI titles,
+summary cards, total aggregation labels, AMAT exports, and report text should
+all use this value rather than embedding a number.
+
 ### Tab 5 UI integration lifecycle
 
 Tab 5 has one expensive calculation boundary and a separate lightweight
@@ -1133,7 +1168,8 @@ The primary returned objects are:
 
 | Object | Purpose |
 |---|---|
-| `result$results_data$headline_metrics` | Compact values for headline result tiles, including deaths and disease cases prevented. |
+| `result$highlights` | Three-row, display-ready headline table for the Highlights Card. |
+| `result$results_data$headline_metrics` | Internal named values supporting the three unfiltered assessment-period highlights. |
 | `result$results_data$results_table` | Table aggregated according to the profile's initial Tab 5 selections. Useful for exports and initial tables. |
 | `result$plot_data$health_cube` | Canonical interactive health source, grouped by outcome, cycle, age group, and gender. |
 | `result$plot_data$trip_mode_distribution` | Reference/counterfactual weighted trip totals and shares by broad mode. |
@@ -1142,6 +1178,24 @@ The primary returned objects are:
 `result$plot_data` and `result$results_data$plot_data` refer to the same compact
 plot payload. HUB plotting and filtering functions expect the enclosing
 `result$results_data` object, not the bare `health_cube` data frame.
+
+#### Headline health outcomes
+
+After `build_results()`, UI can populate the three highlight figures with one
+method call:
+
+```r
+highlights <- mdata[["hub"]]$get_results_highlights()
+# The same table is returned directly as mdata[["result"]]$highlights.
+# Stateless equivalent: get_results_highlights(mdata[["result"]]$results_data)
+```
+
+The returned rows are `premature_deaths_prevented`, `life_years_saved`, and
+`disease_cases_prevented`, with display labels, units, assessment period, and
+availability status. These totals intentionally ignore interactive Tab 5
+filters. The disease total sums each underlying HM incidence stream once;
+presentation composites such as CVD/all cancers and their subtypes are not
+double-counted. It is a total of prevented disease events, not unique people.
 
 #### Tab 5 profile fields and function arguments
 
@@ -1155,7 +1209,8 @@ plot payload. HUB plotting and filtering functions expect the enclosing
 | `res_impact_type` | `impact_type = "attributable"` or `"cf_vs_ref"`. |
 | `res_modes_filter` | `modes` for the trip-mode plot only. Health impacts are currently `all_modes` and cannot yet be attributed to one active mode. |
 
-Two useful presentation choices are not currently separate profile fields:
+Two useful presentation choices are not currently separate profile fields,
+but their canonical values and labels are exposed by `get_ui_options()`:
 
 - `metric`: `"prevented"`, `"prevented_per_100000"`, or
   `"percent_reduction"`; each plot function has a documented default.
@@ -1398,7 +1453,8 @@ or handle that download gracefully until Connect has been verified. The first
 report draft includes pre-filled text and tables; plot embedding and final
 branding remain report-template work.
 
-The AMAT health timeline defaults to 40 years (`cfg$results$amat_horizon_years`).
+The AMAT health timeline uses the canonical assessment period configured at
+`cfg$results$assessment_period_years` (currently 40 years).
 It implements the MIAMA-HM definitions `LY[t] = 1 - cumulative deaths[t]` and
 `HLY[t] = 1 - cumulative unhealth incidence[t]`. For every measure it exposes
 both `annual_delta_cf_minus_ref` and `cumulative_delta_cf_minus_ref`, plus
