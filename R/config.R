@@ -74,8 +74,11 @@
   )
 }
 
-.miama_dataset_size_from_env <- function() {
-  dataset_size <- tolower(trimws(Sys.getenv("MIAMA_DATASET_SIZE", unset = "sample")))
+.miama_dataset_size <- function(dataset_size = NULL) {
+  if (is.null(dataset_size)) {
+    dataset_size <- Sys.getenv("MIAMA_DATASET_SIZE", unset = "sample")
+  }
+  dataset_size <- tolower(trimws(dataset_size))
   valid_sizes <- c("sample", "full")
 
   if (!dataset_size %in% valid_sizes) {
@@ -92,18 +95,22 @@
 #' Build the MIAMA-HUB runtime configuration
 #'
 #' `MIAMA_DATASET_SIZE` controls whether the default configuration uses the
-#' packaged sample data or externally configured full data. Callers may still
-#' override individual fields after creating the configuration.
+#' packaged sample data or externally configured full data. The explicit
+#' `dataset_size` argument takes precedence and should be used by development
+#' workflows that switch between sample and full sources.
 #'
+#' @param dataset_size Optional `"sample"` or `"full"`. Defaults to the
+#'   `MIAMA_DATASET_SIZE` environment variable, or `"sample"` when unset.
 #' @return A nested MIAMA-HUB configuration list.
 #' @export
-miama_default_config <- function() {
-  p <- miama_paths()
+miama_default_config <- function(dataset_size = NULL) {
+  dataset_size <- .miama_dataset_size(dataset_size)
+  p <- miama_paths(dataset_size = dataset_size)
 
   list(
     # 1. Workflow scope ------------------------------------------------------
     workflow = list(
-      dataset_size = .miama_dataset_size_from_env(), # options: "sample", "full"
+      dataset_size = dataset_size, # options: "sample", "full"
       max_rows     = MIAMA_DEFAULT_MAX_ROWS
     ),
     # 2. Arrow runtime controls ---------------------------------------------

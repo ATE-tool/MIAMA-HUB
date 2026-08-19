@@ -30,6 +30,40 @@ test_that("miama_default_config() reads and validates MIAMA_DATASET_SIZE", {
   withr::with_envvar(list(MIAMA_DATASET_SIZE = "invalid"), {
     expect_error(miama_default_config(), "MIAMA_DATASET_SIZE must be one of")
   })
+
+  withr::with_envvar(list(MIAMA_DATASET_SIZE = "full"), {
+    expect_equal(miama_default_config(dataset_size = "sample")$workflow$dataset_size, "sample")
+  })
+})
+
+test_that("sample config uses packaged data even when MIAMA_DATA_ROOT is set", {
+  external_data <- withr::local_tempdir()
+
+  withr::with_envvar(list(
+    MIAMA_DATASET_SIZE = "sample",
+    MIAMA_DATA_ROOT = external_data
+  ), {
+    cfg <- miama_default_config()
+    expect_equal(cfg$workflow$dataset_size, "sample")
+    expect_true(.is_packaged_sample_path(cfg$sources$sp_attributes$path))
+    expect_false(startsWith(cfg$sources$sp_attributes$path, external_data))
+  })
+})
+
+test_that("full config uses MIAMA_DATA_ROOT", {
+  external_data <- withr::local_tempdir()
+
+  withr::with_envvar(list(
+    MIAMA_DATASET_SIZE = "full",
+    MIAMA_DATA_ROOT = external_data
+  ), {
+    cfg <- miama_default_config()
+    expect_equal(cfg$workflow$dataset_size, "full")
+    expect_true(startsWith(
+      cfg$sources$sp_attributes$path,
+      normalizePath(external_data, winslash = "/", mustWork = FALSE)
+    ))
+  })
 })
 
 test_that("miama_hm_root_or_null() discovers sibling MIAMA-HM repo", {
@@ -257,7 +291,7 @@ test_that("miama_resolve_config() errors when sp_attributes parquet path is miss
     MIAMA_HM_ROOT      = "/tmp/fake_hm",
     MIAMA_DATA_ROOT    = tmp
   ), {
-    cfg <- miama_default_config()
+    cfg <- miama_default_config(dataset_size = "full")
     expect_error(miama_resolve_config(cfg), "Synthpop attributes parquet directory not found")
   })
 })

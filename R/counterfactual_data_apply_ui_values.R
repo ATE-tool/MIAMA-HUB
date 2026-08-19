@@ -1323,8 +1323,8 @@ apply_counterfactual_ui_values <- function(
   }
   if (target > pop_total_ref) {
     stop(
-      "Counterfactual target for mode `", spec$mode,
-      "` cannot exceed filtered reference population size (", pop_total_ref, ").",
+      "Counterfactual target for mode `", spec$mode, "` (", target,
+      ") cannot exceed filtered reference population size (", pop_total_ref, ").",
       call. = FALSE
     )
   }

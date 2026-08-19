@@ -65,6 +65,11 @@ miama_runtime_data_dir <- function(project_root = miama_project_root()) {
     return(normalizePath(external_data, winslash = "/", mustWork = FALSE))
   }
 
+  miama_packaged_data_dir(project_root)
+}
+
+miama_packaged_data_dir <- function(project_root = miama_project_root()) {
+
   packaged_data <- system.file("extdata", "data", package = "MIAMAHUB")
   if (nzchar(packaged_data) && dir.exists(packaged_data)) {
     return(normalizePath(packaged_data, winslash = "/", mustWork = FALSE))
@@ -142,10 +147,17 @@ miama_pick_hm_source <- function(data_dir, hm_processed, dataset_name) {
   )
 }
 
-miama_paths <- function() {
+miama_paths <- function(dataset_size = NULL) {
   project_root <- miama_project_root()
   hm_root      <- miama_hm_root_or_null()
-  data_dir     <- miama_runtime_data_dir(project_root)
+  data_dir <- if (identical(dataset_size, "sample")) {
+    # Sample mode must use a coherent packaged SP/HM sample. Allowing an
+    # existing MIAMA_DATA_ROOT to replace only the SP side creates targets from
+    # full SP rows that cannot be applied to the much smaller sample HM join.
+    miama_packaged_data_dir(project_root)
+  } else {
+    miama_runtime_data_dir(project_root)
+  }
   hm_processed <- if (is.null(hm_root)) NULL else file.path(hm_root, "health_data", "processed")
 
   sp_attributes <- miama_pick_synthpop_source(data_dir, "SPindivid_CensusNTSALS")

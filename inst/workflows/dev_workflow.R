@@ -45,10 +45,24 @@ devtools::load_all(hub_root)
 ## 0.2 Configure run ----
 # Config is for runtime/data-source concerns, not appraisal logic.
 # Appraisal-driven source selection (e.g. total vs timeline) comes from request.
-cfg <- miama_default_config()
-cfg$workflow$dataset_size <- "full"   # "sample" or "full"
+# Pass dataset size at construction time because it determines which source
+# paths are resolved. Changing only `cfg$workflow$dataset_size` afterward can
+# leave full synthpop paths paired with sample HM paths (or vice versa).
+cfg <- miama_default_config(dataset_size = "sample") # "sample" or "full"
 cfg$cache$enabled         <- TRUE
 cfg$cache$refresh         <- FALSE
+
+# Confirm the complete source set before loading. Step 5 uses the one-row-per-
+# person overall HM table to obtain reference MMETs; Step 7 separately uses the
+# cycle death-share table and MMET lookup to calculate counterfactual outcomes.
+message("Dataset size:          ", cfg$workflow$dataset_size)
+message("Synthpop individuals:  ", cfg$sources$sp_attributes$path)
+message("Synthpop trips:        ", cfg$sources$sp_trips$path)
+hm_overall_key <- if (identical(cfg$workflow$dataset_size, "sample")) "overall_sample" else "overall"
+hm_cycle_key <- if (identical(cfg$workflow$dataset_size, "sample")) "cycle_sample" else "cycle"
+message("HM overall reference:  ", .hm_source_path(cfg$sources$hm_outcomes[[hm_overall_key]]))
+message("HM death-share cycles: ", .hm_source_path(cfg$sources$hm_death_share[[hm_cycle_key]]))
+message("HM MMET lookup:        ", .hm_source_path(cfg$sources$hm_death_share$lookup_cycle))
 
 # Inspect only a small row subset. `dplyr::glimpse()` dispatches through
 # `as.data.frame.data.table()`, which can copy a complete large table.

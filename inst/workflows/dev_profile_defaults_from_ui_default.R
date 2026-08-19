@@ -63,8 +63,9 @@ ui_root <- find_miama_ui_root(hub_root)
 
 devtools::load_all(hub_root)
 
-cfg <- miama_default_config()
-cfg$workflow$dataset_size <- Sys.getenv("MIAMA_DEV_DATASET_SIZE", "sample")
+cfg <- miama_default_config(
+  dataset_size = Sys.getenv("MIAMA_DEV_DATASET_SIZE", "sample")
+)
 cfg$cache$enabled <- TRUE
 cfg$cache$refresh <- FALSE
 

@@ -1507,7 +1507,10 @@ MIAMA_DATASET_SIZE=sample
 
 `MIAMA_DATASET_SIZE=sample` is the default. It uses the packaged synthetic
 population sample and packaged HM sample/death-share artifacts, so a developer
-does not need a local MIAMA-HM checkout to test the complete UI workflow.
+does not need a local MIAMA-HM checkout to test the complete UI workflow. Sample
+mode deliberately ignores `MIAMA_DATA_ROOT`; this prevents a full external
+synthpop from being combined with packaged sample HM outcomes. Explicit
+`cfg$sources` overrides remain available for controlled development tests.
 
 Full-data testing requires external data that are deliberately excluded from
 the package and git repository:
@@ -1529,6 +1532,13 @@ The UI should construct its shared config once with
 `cfg$workflow$dataset_size`. This lets local `.Renviron` files and deployment
 environment variables select sample or full data without exposing that
 operational choice in the appraisal profile.
+
+Development scripts that intentionally choose the scope should pass it while
+constructing the configuration, because source paths are resolved at that time:
+
+```r
+cfg <- MIAMAHUB::miama_default_config(dataset_size = "sample")
+```
 
 For local development, large data files must not be tracked in git or included
 in package builds. Set `MIAMA_DATA_ROOT` to an external/local data directory.
