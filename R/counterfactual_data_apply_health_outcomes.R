@@ -155,9 +155,25 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL) {
 # The long-term effect assumes the individual-level MMET delta applies to every
 # HM cycle. Cycle-specific reference MMETs still come from the HM joined table.
 
+.health_plain_numeric_columns <- function(data, columns, integer_columns = character()) {
+  data <- as.data.frame(data)
+  for (col in intersect(columns, names(data))) {
+    values <- .as_plain_numeric(data[[col]])
+    if (col %in% integer_columns) {
+      values <- as.integer(values)
+    }
+    data[[col]] <- values
+  }
+  data
+}
+
 .counterfactual_health_exposure <- function(reference_ind, counterfactual_ind) {
-  reference_ind <- as.data.frame(reference_ind)
-  counterfactual_ind <- as.data.frame(counterfactual_ind)
+  reference_ind <- .health_plain_numeric_columns(
+    reference_ind,
+    c("age1year", "female", "mmets"),
+    integer_columns = "age1year"
+  )
+  counterfactual_ind <- .health_plain_numeric_columns(counterfactual_ind, "mmets")
 
   required <- c("census_id", "age1year", "female", "mmets")
   missing_ref <- setdiff(required, names(reference_ind))
@@ -187,8 +203,16 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL) {
 # return reference, delta, and counterfactual outcome values by cycle.
 
 .apply_mmet_delta_lookup <- function(hm_cycle_outcomes, hm_cycle_lookup, exposure, include_cf_columns) {
-  hm_cycle_outcomes <- as.data.frame(hm_cycle_outcomes)
-  hm_cycle_lookup <- as.data.frame(hm_cycle_lookup)
+  hm_cycle_outcomes <- .health_plain_numeric_columns(
+    hm_cycle_outcomes,
+    c("mr_decile", "cycle", "mmets_cycle"),
+    integer_columns = c("mr_decile", "cycle")
+  )
+  hm_cycle_lookup <- .health_plain_numeric_columns(
+    hm_cycle_lookup,
+    c("age1year", "female", "mr_decile", "cycle", "mmets_lo", "mmets_hi", "slope"),
+    integer_columns = c("age1year", "mr_decile", "cycle")
+  )
   exposure <- as.data.frame(exposure)
 
   required_cycle <- c("census_id", "mr_decile", "cycle", "mmets_cycle")
@@ -250,19 +274,6 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL) {
   changed_cycle_data <- as.data.frame(changed_cycle_data)
   DT_scen <- data.table::as.data.table(changed_cycle_data[, calc_columns, drop = FALSE])
   DT_lookup <- data.table::as.data.table(hm_cycle_lookup)
-
-  DT_scen[, `:=`(
-    age1year = as.integer(age1year),
-    female = as.numeric(female),
-    mr_decile = as.integer(mr_decile),
-    cycle = as.integer(cycle)
-  )]
-  DT_lookup[, `:=`(
-    age1year = as.integer(age1year),
-    female = as.numeric(female),
-    mr_decile = as.integer(mr_decile),
-    cycle = as.integer(cycle)
-  )]
 
   if (nrow(DT_scen) == 0) {
     return(data.frame(census_id = changed_cycle_data$census_id[0], cycle = changed_cycle_data$cycle[0]))

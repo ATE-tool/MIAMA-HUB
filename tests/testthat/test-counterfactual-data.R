@@ -451,6 +451,26 @@ test_that("counterfactual sampling functions support status and candidate select
   expect_equal(length(values), 2)
 })
 
+test_that("individual candidate weights support haven-labelled sex values", {
+  skip_if_not_installed("haven")
+  skip_if_not_installed("vctrs")
+
+  rows <- data.frame(census_id = 1:3)
+  rows$female <- vctrs::new_vctr(
+    c(0, 1, NA),
+    class = "haven_labelled",
+    labels = c(male = 0, female = 1)
+  )
+
+  weights <- cf_individual_candidate_weights(
+    rows,
+    1:3,
+    list(male_prop = 0.75)
+  )
+
+  expect_equal(weights, c(0.75, 0.25, 0.25))
+})
+
 test_that("candidate sampling relaxes zero weights only when required", {
   sampled <- cf_sample_candidate_indices(
     candidate_rows = 101:105,

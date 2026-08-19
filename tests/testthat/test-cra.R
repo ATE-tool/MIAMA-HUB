@@ -147,6 +147,46 @@ test_that("apply_counterfactual_health_outcomes accepts data.table inputs from w
   expect_equal(out$health_outcomes$dead_cf, 10.3)
 })
 
+test_that("apply_counterfactual_health_outcomes accepts labelled numeric inputs", {
+  skip_if_not_installed("vctrs")
+
+  labelled <- function(x) {
+    vctrs::new_vctr(x, class = "haven_labelled", labels = c(example = 0))
+  }
+
+  reference_data <- list(ind = data.frame(census_id = 1))
+  reference_data$ind$age1year <- labelled(30)
+  reference_data$ind$female <- labelled(0)
+  reference_data$ind$mmets <- labelled(1)
+
+  counterfactual_data <- list(ind = data.frame(census_id = 1))
+  counterfactual_data$ind$mmets <- labelled(3)
+
+  hm_cycle_outcomes <- data.frame(census_id = 1, dead = 10)
+  hm_cycle_outcomes$mr_decile <- labelled(4)
+  hm_cycle_outcomes$cycle <- labelled(0)
+  hm_cycle_outcomes$mmets_cycle <- labelled(1)
+
+  hm_cycle_lookup <- data.frame(outcome = c("d_dead_per_mmet", "d_dead_per_mmet"))
+  hm_cycle_lookup$age1year <- labelled(c(30, 30))
+  hm_cycle_lookup$female <- labelled(c(0, 0))
+  hm_cycle_lookup$mr_decile <- labelled(c(4, 4))
+  hm_cycle_lookup$cycle <- labelled(c(0, 0))
+  hm_cycle_lookup$mmets_lo <- labelled(c(0, 2))
+  hm_cycle_lookup$mmets_hi <- labelled(c(2, 4))
+  hm_cycle_lookup$slope <- labelled(c(0.1, 0.2))
+
+  out <- apply_counterfactual_health_outcomes(
+    counterfactual_data,
+    reference_data,
+    hm_cycle_outcomes = hm_cycle_outcomes,
+    hm_cycle_lookup = hm_cycle_lookup
+  )
+
+  expect_equal(out$health_outcomes$d_dead, 0.3)
+  expect_equal(out$health_outcomes$dead_cf, 10.3)
+})
+
 test_that("apply_counterfactual_health_outcomes handles reduced mmets with negative deltas", {
   reference_data <- list(
     ind = data.frame(census_id = 1, age1year = 30L, female = 0, mmets = 3)

@@ -238,7 +238,7 @@ cf_individual_candidate_weights <- function(ind, candidate_rows, target = list()
   }
 
   if ("female" %in% names(ind) && !is.null(target$male_prop)) {
-    female <- ind$female[candidate_rows]
+    female <- .as_plain_numeric(ind$female[candidate_rows])
     male <- !is.na(female) & female == 0
     weights <- weights * ifelse(male, target$male_prop, 1 - target$male_prop)
   }
