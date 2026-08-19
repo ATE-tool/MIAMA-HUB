@@ -16,6 +16,8 @@ Imports:
     dplyr,
     ggplot2,
     haven,
+    openxlsx,
+    rmarkdown,
     R6
 Suggests:
     testthat (>= 3.0.0),

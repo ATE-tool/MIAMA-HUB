@@ -3,7 +3,9 @@
 # `miama_default_config()` is the single orientation point for runtime choices,
 # model assumptions, UI metadata, data locations, and operational settings.
 # Most callers should create the defaults once and override only the relevant
-# leaf values, for example `cfg$workflow$dataset_size <- "full"`.
+# leaf values. `MIAMA_DATASET_SIZE` selects `"sample"` or `"full"` at process
+# startup, while an explicit `cfg$workflow$dataset_size` assignment can still
+# override it for an individual development run.
 #
 # Top-level sections:
 # - workflow: dataset scope and row limits.
@@ -72,13 +74,36 @@
   )
 }
 
+.miama_dataset_size_from_env <- function() {
+  dataset_size <- tolower(trimws(Sys.getenv("MIAMA_DATASET_SIZE", unset = "sample")))
+  valid_sizes <- c("sample", "full")
+
+  if (!dataset_size %in% valid_sizes) {
+    stop(
+      "MIAMA_DATASET_SIZE must be one of: ",
+      paste(valid_sizes, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  dataset_size
+}
+
+#' Build the MIAMA-HUB runtime configuration
+#'
+#' `MIAMA_DATASET_SIZE` controls whether the default configuration uses the
+#' packaged sample data or externally configured full data. Callers may still
+#' override individual fields after creating the configuration.
+#'
+#' @return A nested MIAMA-HUB configuration list.
+#' @export
 miama_default_config <- function() {
   p <- miama_paths()
 
   list(
     # 1. Workflow scope ------------------------------------------------------
     workflow = list(
-      dataset_size = "sample",    # options: "sample", "full"
+      dataset_size = .miama_dataset_size_from_env(), # options: "sample", "full"
       max_rows     = MIAMA_DEFAULT_MAX_ROWS
     ),
     # 2. Arrow runtime controls ---------------------------------------------
@@ -135,6 +160,11 @@ miama_default_config <- function() {
       hm_lookup = list(
         overall = p$hm_lookup_overall,
         cycle   = p$hm_lookup_cycle
+      ),
+      hm_death_share = list(
+        cycle        = p$hm_cycle_death_share,
+        cycle_sample = p$hm_cycle_sample_death_share,
+        lookup_cycle = p$hm_lookup_cycle_death_share
       )
     ),
     # 8. Runtime cache -------------------------------------------------------

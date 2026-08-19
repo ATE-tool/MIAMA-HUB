@@ -50,22 +50,29 @@ artifacts <- data.frame(
     "synthetic_pop/SPtrip_CensusNTSALS_parquet",
     "health_data/sp_overall_outcomes_sample",
     "health_data/sp_cycle_outcomes_sample",
+    "health_data/sp_cycle_outcomes_sample_death_share",
+    "health_data/mmet_d_cycle_lookup_death_share",
     "lookup/geo_options.rds",
     "lookup/england_mode_default_candidates.csv",
     "lookup/england_schema_default_candidates.csv"
   ),
-  format = c("parquet", "parquet", "parquet", "parquet", "rds", "csv", "csv"),
+  format = c(
+    "parquet", "parquet", "parquet", "parquet", "parquet", "parquet",
+    "rds", "csv", "csv"
+  ),
   source = c(
     "MIAMA synthetic population: Census/NTS/ALS",
     "MIAMA synthetic population: Census/NTS/ALS",
     "MIAMA-HM sample output",
     "MIAMA-HM sample output",
+    "MIAMA-HM death-share sample output",
+    "MIAMA-HM death-share MMET lookup",
     "Derived from full MIAMA synthetic population",
     "Derived from full MIAMA synthetic population",
     "Derived from full MIAMA synthetic population"
   ),
   source_version = c(
-    "unrecorded", "unrecorded", "unrecorded", "unrecorded",
+    "unrecorded", "unrecorded", "unrecorded", "unrecorded", "unrecorded", "unrecorded",
     "Census 2021 5% synthpop scale", "unrecorded", "unrecorded"
   ),
   purpose = c(
@@ -73,6 +80,8 @@ artifacts <- data.frame(
     "Packaged sample trip records",
     "Packaged sample overall health outcomes",
     "Packaged sample cycle health outcomes",
+    "Packaged sample cycle outcomes used for counterfactual health recalculation",
+    "MMET-delta lookup used for sample counterfactual health recalculation",
     "Full-derived geography options and scaled population labels",
     "England-wide mode assumption evidence",
     "England-wide UI schema default candidates"
@@ -82,6 +91,8 @@ artifacts <- data.frame(
     "upstream sample extraction",
     "MIAMA-HM sample export",
     "MIAMA-HM sample export",
+    "MIAMA-HM sample death-share export",
+    "MIAMA-HM death-share lookup export",
     "build_geo_lookup()",
     "inst/workflows/dev_extract_england_schema_default_values.R",
     "inst/workflows/dev_extract_england_schema_default_values.R"

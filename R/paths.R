@@ -154,6 +154,17 @@ miama_paths <- function() {
   hm_sp_cycle <- miama_pick_hm_source(data_dir, hm_processed, "sp_cycle_outcomes")
   hm_sp_overall_sample <- miama_pick_hm_source(data_dir, hm_processed, "sp_overall_outcomes_sample")
   hm_sp_cycle_sample <- miama_pick_hm_source(data_dir, hm_processed, "sp_cycle_outcomes_sample")
+  hm_cycle_death_share <- miama_pick_hm_source(data_dir, hm_processed, "sp_cycle_outcomes_death_share")
+  hm_cycle_sample_death_share <- miama_pick_hm_source(
+    data_dir,
+    hm_processed,
+    "sp_cycle_outcomes_sample_death_share"
+  )
+  hm_lookup_cycle_death_share <- miama_pick_hm_source(
+    data_dir,
+    hm_processed,
+    "mmet_d_cycle_lookup_death_share"
+  )
 
   list(
     project_root      = project_root,
@@ -175,6 +186,9 @@ miama_paths <- function() {
     hm_sp_cycle           = hm_sp_cycle,
     hm_sp_overall_sample  = hm_sp_overall_sample,
     hm_sp_cycle_sample    = hm_sp_cycle_sample,
+    hm_cycle_death_share  = hm_cycle_death_share,
+    hm_cycle_sample_death_share = hm_cycle_sample_death_share,
+    hm_lookup_cycle_death_share = hm_lookup_cycle_death_share,
     hm_lookup_overall     = if (is.null(hm_processed)) NULL else file.path(hm_processed, "mmet_d_overall_lookup"),
     hm_lookup_cycle       = if (is.null(hm_processed)) NULL else file.path(hm_processed, "mmet_d_cycle_lookup")
   )

@@ -29,15 +29,16 @@ small update lists to HUB.
 
 ## Environment Setup
 
-For local development, these environment variables must be set before loading
-the package:
+Dataset scope is deployment configuration, not an appraisal-profile field.
+Sample mode is self-contained and needs no external data roots:
 
 ```r
-Sys.setenv(MIAMA_PROJECT_ROOT = "/path/to/MIAMA-HUB")
-Sys.setenv(MIAMA_HM_ROOT = "/path/to/MIAMA-HM")
+Sys.setenv(MIAMA_DATASET_SIZE = "sample")
 ```
 
-In normal project use, put them in the project `.Renviron`.
+Full mode additionally requires `MIAMA_DATA_ROOT` for full synthpop parquet and
+`MIAMA_HM_ROOT` for full processed HM outputs. In normal project use, put these
+values in the project `.Renviron` and restart R before creating `hub_cfg`.
 
 ## Example 1: Stateless Functional Pipeline
 
@@ -47,7 +48,6 @@ This is useful for tests, scripts, and debugging.
 library(MIAMAHUB)
 
 cfg <- miama_default_config()
-cfg$workflow$dataset_size <- "sample"  # "sample" or "full"
 cfg$cache$enabled <- TRUE
 cfg$cache$refresh <- FALSE
 
@@ -94,7 +94,6 @@ This is the preferred UI integration shape.
 library(MIAMAHUB)
 
 cfg <- miama_default_config()
-cfg$workflow$dataset_size <- "sample"
 
 # In Shiny, create one Hub per user session, then attach the active profile.
 hub <- Hub$new(cfg = cfg)
@@ -240,7 +239,6 @@ server <- function(input, output, session) {
 
   observeEvent(TRUE, {
     cfg <- MIAMAHUB::miama_default_config()
-    cfg$workflow$dataset_size <- "sample"
 
     h <- MIAMAHUB::Hub$new(cfg = cfg)
     h$set_appraisal_inputs(appraisal_inputs)

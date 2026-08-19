@@ -265,6 +265,134 @@ test_that("Hub builds results data from counterfactual health outcomes", {
   expect_equal(hub$get_results_data(), out)
 })
 
+test_that("results exports assemble filtered tables, metadata, plots, and drafts", {
+  counterfactual_data <- list(
+    health_outcomes = data.frame(
+      census_id = rep(1:2, each = 2),
+      cycle = rep(1:2, 2),
+      age1year = c(40, 41, 70, 71),
+      female = c(0, 0, 1, 1),
+      dead = c(10, 11, 20, 21),
+      d_dead = c(-1, -1.1, -2, -2.1),
+      dead_cf = c(9, 9.9, 18, 18.9),
+      diabetes = c(3, 3.2, 5, 5.2),
+      d_diabetes = c(-0.2, -0.2, -0.3, -0.3),
+      diabetes_cf = c(2.8, 3, 4.7, 4.9),
+      stroke = c(1, 1.1, 2, 2.1),
+      d_stroke = c(-0.1, -0.1, -0.2, -0.2),
+      stroke_cf = c(0.9, 1, 1.8, 1.9)
+    ),
+    trips = data.frame(
+      trip_mainmode = c("Walk", "Bicycle", "Car"),
+      weight_tripXhh = c(5, 3, 12)
+    )
+  )
+  reference_data <- list(
+    trips = data.frame(
+      trip_mainmode = c("Walk", "Bicycle", "Car"),
+      weight_tripXhh = c(4, 2, 14)
+    )
+  )
+  results_data <- prepare_results_data(
+    counterfactual_data,
+    reference_data,
+    results_request = list(
+      res_outcomes = c("mortality", "diabetes", "stroke"),
+      res_age_groups = c("age_35_49", "age_65_74"),
+      res_gender = c("male", "female"),
+      res_aggregation = "total",
+      res_pop_aggregation = "total",
+      res_impact_type = "attributable"
+    ),
+    cfg = utils::modifyList(miama_default_config(), list(population = list(person_weight = 1)))
+  )
+  profile <- list(
+    appraisal_name = list(is_filled = TRUE, input_value = "Test scheme"),
+    geo_id = list(is_filled = TRUE, input_value = "E00000001"),
+    geo_name = list(is_filled = FALSE, input_value = NULL, default_value = "Test place"),
+    modes = list(is_filled = TRUE, input_value = c("walking", "cycling"))
+  )
+
+  exports <- prepare_results_exports(
+    results_data,
+    profile = profile,
+    cfg = utils::modifyList(miama_default_config(), list(population = list(person_weight = 1))),
+    metric = "prevented"
+  )
+
+  expect_s3_class(exports, "miama_results_exports")
+  expect_equal(sort(unique(exports$results_table$outcome)), c("diabetes", "mortality", "stroke"))
+  expect_equal(exports$metadata$value[exports$metadata$field == "appraisal_name"], "Test scheme")
+  expect_equal(exports$metadata$value[exports$metadata$field == "geo_name"], "Test place")
+  expect_equal(length(exports$plots), 5)
+  expect_true(all(vapply(exports$plots, inherits, logical(1), what = "ggplot")))
+  expect_true(all(c("field", "value", "unit", "mapping_status") %in% names(exports$amat_inputs)))
+  expect_match(exports$amat_inputs$value[exports$amat_inputs$field == "schema_version"], "draft")
+  expect_true(is.na(exports$headline_metrics$value[
+    exports$headline_metrics$metric == "disease_cases_prevented"
+  ]))
+  expect_equal(exports$headline_metrics$status[
+    exports$headline_metrics$metric == "disease_cases_prevented"
+  ], "not_aggregated")
+})
+
+test_that("results export writers create usable files", {
+  counterfactual_data <- list(
+    health_outcomes = data.frame(
+      census_id = 1,
+      cycle = 1L,
+      age1year = 50,
+      female = 0,
+      dead = 10,
+      d_dead = -1,
+      dead_cf = 9
+    ),
+    trips = data.frame(trip_mainmode = "Walk", weight_tripXhh = 1)
+  )
+  results_data <- prepare_results_data(
+    counterfactual_data,
+    reference_data = list(trips = counterfactual_data$trips),
+    results_request = list(res_outcomes = "mortality"),
+    cfg = utils::modifyList(miama_default_config(), list(population = list(person_weight = 1)))
+  )
+  exports <- prepare_results_exports(
+    results_data,
+    cfg = utils::modifyList(miama_default_config(), list(population = list(person_weight = 1))),
+    metric = "prevented"
+  )
+  directory <- withr::local_tempdir()
+
+  csv_file <- file.path(directory, "results.csv")
+  xlsx_file <- file.path(directory, "results.xlsx")
+  amat_file <- file.path(directory, "amat.csv")
+  report_file <- file.path(directory, "report.md")
+  report_docx <- file.path(directory, "report.docx")
+  plots_dir <- file.path(directory, "plots")
+  zip_file <- file.path(directory, "plots.zip")
+
+  write_results_csv(exports, csv_file)
+  write_results_xlsx(exports, xlsx_file)
+  write_results_amat_csv(exports, amat_file)
+  write_results_report(exports, report_file, format = "markdown")
+  if (rmarkdown::pandoc_available()) {
+    write_results_report(exports, report_docx, format = "docx")
+  }
+  png_files <- write_results_plot_pngs(exports, plots_dir, width = 4, height = 3, dpi = 72)
+  write_results_plots_zip(exports, zip_file, width = 4, height = 3, dpi = 72)
+
+  expect_true(all(file.exists(c(csv_file, xlsx_file, amat_file, report_file, zip_file))))
+  expect_true(all(file.info(c(csv_file, xlsx_file, amat_file, report_file, zip_file))$size > 0))
+  if (rmarkdown::pandoc_available()) {
+    expect_true(file.exists(report_docx))
+    expect_gt(file.info(report_docx)$size, 0)
+  }
+  expect_true(all(file.exists(png_files)))
+  expect_true(all(file.info(png_files)$size > 0))
+  expect_true("Results" %in% openxlsx::getSheetNames(xlsx_file))
+  expect_true("health_overview.png" %in% utils::unzip(zip_file, list = TRUE)$Name)
+  expect_match(paste(readLines(report_file), collapse = "\n"), "# MIAMA appraisal results")
+})
+
 test_that("results scale synthetic-person outcomes to represented population", {
   counterfactual_data <- list(
     health_outcomes = data.frame(

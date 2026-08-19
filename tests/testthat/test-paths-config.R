@@ -22,6 +22,16 @@ test_that("miama_hm_root() returns normalised path when env var is set", {
   })
 })
 
+test_that("miama_default_config() reads and validates MIAMA_DATASET_SIZE", {
+  withr::with_envvar(list(MIAMA_DATASET_SIZE = "full"), {
+    expect_equal(miama_default_config()$workflow$dataset_size, "full")
+  })
+
+  withr::with_envvar(list(MIAMA_DATASET_SIZE = "invalid"), {
+    expect_error(miama_default_config(), "MIAMA_DATASET_SIZE must be one of")
+  })
+})
+
 test_that("miama_hm_root_or_null() discovers sibling MIAMA-HM repo", {
   tmp <- withr::local_tempdir()
   hub_root <- file.path(tmp, "MIAMA-HUB")
@@ -52,6 +62,8 @@ test_that("miama_paths() returns list with expected keys", {
       "sp_attributes", "sp_trips",
       "hm_sp_overall", "hm_sp_cycle",
       "hm_sp_overall_sample", "hm_sp_cycle_sample",
+      "hm_cycle_death_share", "hm_cycle_sample_death_share",
+      "hm_lookup_cycle_death_share",
       "hm_lookup_overall", "hm_lookup_cycle"
     )
     expect_true(all(expected_keys %in% names(p)))

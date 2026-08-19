@@ -214,6 +214,37 @@ Hub <- R6::R6Class(
       )
     },
 
+    build_results_exports = function(outcomes = NULL,
+                                     age_groups = NULL,
+                                     gender = NULL,
+                                     modes = NULL,
+                                     aggregation = NULL,
+                                     group_by = NULL,
+                                     timeline_type = "cumulative",
+                                     impact_type = NULL,
+                                     metric = "prevented_per_100000",
+                                     include_plots = TRUE) {
+      if (is.null(self$results_data)) {
+        stop("Results are not built. Call build_results(profile) first.", call. = FALSE)
+      }
+
+      prepare_results_exports(
+        results_data = self$results_data,
+        profile = self$appraisal_inputs,
+        cfg = self$cfg,
+        outcomes = outcomes,
+        age_groups = age_groups,
+        gender = gender,
+        modes = modes,
+        aggregation = aggregation,
+        group_by = group_by,
+        timeline_type = timeline_type,
+        impact_type = impact_type,
+        metric = metric,
+        include_plots = include_plots
+      )
+    },
+
     # Geography Helpers ------------------------------------------------------
     # Lightweight helpers for geography select controls and summary labels.
 

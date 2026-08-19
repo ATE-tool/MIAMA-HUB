@@ -102,7 +102,20 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL) {
   cfg <- cfg %||% miama_default_config()
   dataset_candidates <- .hm_death_share_dataset_candidates(cfg, dataset_name)
 
-  hub_paths <- file.path(miama_project_root(), "data", "health_data", dataset_candidates)
+  configured_key <- if (identical(dataset_name, "mmet_d_cycle_lookup_death_share")) {
+    "lookup_cycle"
+  } else if (identical(cfg$workflow$dataset_size, "sample")) {
+    "cycle_sample"
+  } else {
+    "cycle"
+  }
+  configured_source <- cfg$sources$hm_death_share[[configured_key]]
+  configured_path <- if (is.null(configured_source)) NULL else .hm_source_path(configured_source)
+  if (!is.null(configured_path) && dir.exists(configured_path)) {
+    return(normalizePath(configured_path, winslash = "/", mustWork = FALSE))
+  }
+
+  hub_paths <- file.path(miama_runtime_data_dir(), "health_data", dataset_candidates)
   for (path in hub_paths) {
     if (dir.exists(path)) {
       return(normalizePath(path, winslash = "/", mustWork = FALSE))
@@ -114,7 +127,7 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL) {
     stop(
       "Death-share HM data was not found locally and MIAMA_HM_ROOT is not set. ",
       "Set MIAMA_HM_ROOT to the MIAMA-HM repo, place death-share data under ",
-      "`data/health_data`, or keep MIAMA-HM as a sibling repo.",
+      "`MIAMA_DATA_ROOT/health_data`, or keep MIAMA-HM as a sibling repo.",
       call. = FALSE
     )
   }

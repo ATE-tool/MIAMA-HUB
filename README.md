@@ -1300,6 +1300,113 @@ For a lean Shiny reactive, UI can retain `result$results_data` (or only
 large `reference_data` and `counterfactual_data` objects returned for current
 development inspection.
 
+### Tab 5 result exports
+
+The export buttons currently drafted in MIAMA-UI are presentation stubs. HUB
+now provides one filtered export bundle and file writers so UI does not need to
+reimplement result semantics. Build the bundle after `build_results()` and
+whenever a Tab 5 filter changes; this filters compact result data and does not
+rerun the counterfactual or health model:
+
+```r
+results_exports <- hub$build_results_exports(
+  outcomes = input[["res_outcomes"]],
+  age_groups = input[["res_age_groups"]],
+  gender = input[["res_gender"]],
+  modes = input[["res_modes_filter"]],
+  aggregation = input[["res_temp_aggregation"]],
+  group_by = switch(
+    input[["res_pop_aggregation"]],
+    age_group = "age_group",
+    gender = "gender",
+    "outcome"
+  ),
+  timeline_type = "cumulative",
+  impact_type = input[["res_impact_type"]],
+  metric = "prevented_per_100000"
+)
+```
+
+The equivalent stateless function is `prepare_results_exports(results_data,
+profile, cfg, ...)`. Its return value contains:
+
+| Object | Draft export content |
+|---|---|
+| `metadata` | Appraisal name, geography, modes, UI version, population scaling, and result conventions. |
+| `filters` | Exact Tab 5 selections applied to every exported product. |
+| `headline_metrics` | Mortality, disease, and currently unavailable life-year headline fields. |
+| `results_table` | The currently filtered/grouped health result table. |
+| `timeline_annual` / `timeline_cumulative` | Both timeline representations, independent of the displayed table. |
+| `trip_mode_distribution` | Reference/counterfactual weighted trips and mode shares. |
+| `assumptions` | Sign conventions, population scaling, cycle handling, and current limitations. |
+| `amat_inputs` | Explicitly provisional field/value mapping pending the agreed AMAT schema. |
+| `report` | Report-ready title, summary text, methods, metadata, tables, and assumptions. |
+| `plots` | Five ggplot objects built from the same filters. |
+
+Available writers are:
+
+```r
+write_results_csv(results_exports, "results.csv")
+write_results_xlsx(results_exports, "results.xlsx")
+write_results_plot_pngs(results_exports, "plots", dpi = 300)
+write_results_plots_zip(results_exports, "plots.zip", dpi = 300)
+write_results_amat_csv(results_exports, "amat_inputs_DRAFT.csv")
+write_results_report(results_exports, "report.md", format = "markdown")
+write_results_report(results_exports, "report.docx", format = "docx")
+write_results_report(results_exports, "report.pdf", format = "pdf")
+```
+
+The Excel workbook contains separate sheets for the displayed results,
+headline metrics, annual and cumulative timelines, trip modes, metadata,
+filters, assumptions, and the AMAT draft. The plot package contains 300-dpi PNG
+files for health overview, health timeline, health by age, health by gender,
+and trip mode distribution, plus `plot_manifest.csv`.
+
+Word report generation requires Pandoc. PDF additionally requires a working
+PDF engine/LaTeX installation in the deployment environment; UI should disable
+or handle that download gracefully until Connect has been verified. The first
+report draft includes pre-filled text and tables; plot embedding and final
+branding remain report-template work.
+
+The AMAT table currently includes appraisal/geography metadata, reference and
+counterfactual walking/cycling weighted trips, and headline health impacts.
+Every proposed AMAT field is marked `requires AMAT field confirmation`; field
+names, units, time horizons, and required intermediate calculations must be
+replaced once the formal AMAT specification is supplied.
+
+Minimal Shiny handlers can delegate directly to HUB:
+
+```r
+output[["download_results_csv"]] <- shiny::downloadHandler(
+  filename = function() "miama-results.csv",
+  content = function(file) write_results_csv(results_exports(), file)
+)
+
+output[["download_results_xlsx"]] <- shiny::downloadHandler(
+  filename = function() "miama-results.xlsx",
+  content = function(file) write_results_xlsx(results_exports(), file)
+)
+
+output[["download_plots"]] <- shiny::downloadHandler(
+  filename = function() "miama-plots.zip",
+  content = function(file) write_results_plots_zip(results_exports(), file)
+)
+
+output[["download_amat"]] <- shiny::downloadHandler(
+  filename = function() "miama-amat-inputs-DRAFT.csv",
+  content = function(file) write_results_amat_csv(results_exports(), file)
+)
+
+output[["download_report_docx"]] <- shiny::downloadHandler(
+  filename = function() "miama-report.docx",
+  content = function(file) write_results_report(results_exports(), file, "docx")
+)
+```
+
+Run [inst/workflows/dev_results_exports.R](inst/workflows/dev_results_exports.R)
+after Step 8 of the main development workflow to generate and inspect all draft
+artifacts locally.
+
 `results_filter_health_data()` is the non-plot interface UI can use to obtain a
 filtered data frame. Its arguments mirror the Tab 5 controls:
 
@@ -1390,6 +1497,39 @@ Later work should:
 
 ## Data locations
 
+Dataset scope is a runtime/deployment setting, not an appraisal input. Set it
+before creating the HUB configuration:
+
+```r
+# Project .Renviron (restart R after editing)
+MIAMA_DATASET_SIZE=sample
+```
+
+`MIAMA_DATASET_SIZE=sample` is the default. It uses the packaged synthetic
+population sample and packaged HM sample/death-share artifacts, so a developer
+does not need a local MIAMA-HM checkout to test the complete UI workflow.
+
+Full-data testing requires external data that are deliberately excluded from
+the package and git repository:
+
+```r
+MIAMA_DATASET_SIZE=full
+MIAMA_DATA_ROOT=/absolute/path/to/miama-runtime-data
+MIAMA_HM_ROOT=/absolute/path/to/MIAMA-HM
+```
+
+`MIAMA_DATA_ROOT` must contain the full synthpop parquet directories under
+`synthetic_pop/`. `MIAMA_HM_ROOT` must contain
+`health_data/processed/sp_cycle_outcomes_death_share/`. The common death-share
+MMET lookup is packaged with HUB and may also be supplied from MIAMA-HM. Setting
+a root only points HUB at existing files; it does not download them.
+
+The UI should construct its shared config once with
+`MIAMAHUB::miama_default_config()` and should not subsequently hard-code
+`cfg$workflow$dataset_size`. This lets local `.Renviron` files and deployment
+environment variables select sample or full data without exposing that
+operational choice in the appraisal profile.
+
 For local development, large data files must not be tracked in git or included
 in package builds. Set `MIAMA_DATA_ROOT` to an external/local data directory.
 The legacy project-root `data/` path is ignored by both git and `R CMD build`,
@@ -1410,6 +1550,9 @@ Current expected layout:
   small and needed for complete UI geography dropdowns and population labels
 - packaged HM sample processed outputs live under
   `MIAMA-HUB/inst/extdata/data/health_data/`
+- packaged HM sample results support includes
+  `sp_cycle_outcomes_sample_death_share/` and
+  `mmet_d_cycle_lookup_death_share/`
 - full HM processed outputs are read from `MIAMA-HM` via `MIAMA_HM_ROOT`
 
 HM outcome loading follows this hierarchy:
