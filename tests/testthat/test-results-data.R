@@ -155,6 +155,46 @@ test_that("prepare_results_data supports timeline and population aggregation", {
   expect_equal(out$results_report$cycle_zero_rows_excluded, 2)
 })
 
+test_that("AMAT outputs contain annual and cumulative LY, HLY, and incidence impacts", {
+  counterfactual_data <- list(
+    health_outcomes = data.frame(
+      census_id = c(1, 1),
+      cycle = c(1L, 2L),
+      age1year = c(40, 41),
+      female = c(0, 0),
+      dead = c(0.10, 0.10),
+      d_dead = c(-0.02, -0.02),
+      dead_cf = c(0.08, 0.08),
+      unhealthy = c(0.20, 0.10),
+      d_unhealthy = c(-0.05, -0.02),
+      unhealthy_cf = c(0.15, 0.08)
+    )
+  )
+  cfg <- utils::modifyList(
+    miama_default_config(),
+    list(population = list(person_weight = 20), results = list(amat_horizon_years = 40L))
+  )
+  results_data <- prepare_results_data(counterfactual_data, cfg = cfg)
+  amat <- prepare_results_amat_outputs(results_data, horizon_years = 40)
+
+  expect_true(all(c("life_years", "healthy_life_years", "mortality") %in% amat$timeline$measure))
+  life_years <- amat$timeline[amat$timeline$measure == "life_years", ]
+  healthy_life_years <- amat$timeline[amat$timeline$measure == "healthy_life_years", ]
+  mortality <- amat$timeline[amat$timeline$measure == "mortality", ]
+
+  expect_equal(life_years$annual_benefit, c(0.4, 0.8))
+  expect_equal(life_years$cumulative_benefit, c(0.4, 1.2))
+  expect_equal(healthy_life_years$annual_benefit, c(1, 1.4))
+  expect_equal(healthy_life_years$cumulative_benefit, c(1, 2.4))
+  expect_equal(mortality$annual_delta_cf_minus_ref, c(-0.4, -0.4))
+  expect_equal(mortality$cumulative_benefit, c(0.4, 0.8))
+  expect_equal(results_data$headline_metrics$life_years_saved, 1.2)
+
+  first_year <- prepare_results_amat_outputs(results_data, horizon_years = 1)
+  expect_equal(unique(first_year$timeline$cycle), 1L)
+  expect_true(all(first_year$summary$cycle == 1L))
+})
+
 test_that("result plotting functions return ggplot objects", {
   skip_if_not_installed("ggplot2")
 
@@ -345,6 +385,9 @@ test_that("results exports assemble filtered tables, metadata, plots, and drafts
   expect_equal(length(exports$plots), 5)
   expect_true(all(vapply(exports$plots, inherits, logical(1), what = "ggplot")))
   expect_true(all(c("field", "value", "unit", "mapping_status") %in% names(exports$amat_inputs)))
+  expect_true(all(c("annual_delta_cf_minus_ref", "cumulative_benefit") %in%
+                    names(exports$amat_health_timeline)))
+  expect_true(all(exports$amat_health_summary$cycle <= 40))
   expect_match(exports$amat_inputs$value[exports$amat_inputs$field == "schema_version"], "draft")
   expect_true(is.na(exports$headline_metrics$value[
     exports$headline_metrics$metric == "disease_cases_prevented"
@@ -407,6 +450,8 @@ test_that("results export writers create usable files", {
   expect_true(all(file.exists(png_files)))
   expect_true(all(file.info(png_files)$size > 0))
   expect_true("Results" %in% openxlsx::getSheetNames(xlsx_file))
+  expect_true("AMAT_health_timeline" %in% openxlsx::getSheetNames(xlsx_file))
+  expect_true("annual_benefit" %in% names(utils::read.csv(amat_file)))
   expect_true("health_overview.png" %in% utils::unzip(zip_file, list = TRUE)$Name)
   expect_match(paste(readLines(report_file), collapse = "\n"), "# MIAMA appraisal results")
 })

@@ -5,7 +5,8 @@
 # Export products:
 # - Results table: filtered CSV or multi-sheet Excel workbook.
 # - Plots package: five standard high-resolution PNG files plus a manifest.
-# - AMAT inputs: provisional field/value table pending the final AMAT schema.
+# - AMAT outputs: yearly and cumulative deaths, disease incidence, life years,
+#   and healthy life years over the configured assessment horizon.
 # - Report: pre-filled Markdown, Word, or PDF generated from the same bundle.
 #
 # The export bundle is intentionally data-first. UI can inspect or amend its
@@ -86,13 +87,21 @@ prepare_results_exports <- function(
     timeline_type = "cumulative"
   )
   trip_modes <- .results_export_trip_modes(results_data, modes)
-  headline_metrics <- .results_export_headline_metrics(headline_source)
+  headline_metrics <- .results_export_headline_metrics(
+    headline_source,
+    results_data$plot_data$amat_health_timeline
+  )
   metadata <- .results_export_metadata(profile, cfg, aggregation, group_by, timeline_type)
   filters <- .results_export_filters(
     outcomes, age_groups, gender, modes, aggregation, group_by,
     timeline_type, impact_type, metric
   )
   assumptions <- .results_export_assumptions(results_data, cfg)
+  amat_outputs <- prepare_results_amat_outputs(
+    results_data = results_data,
+    horizon_years = cfg$results$amat_horizon_years %||% 40L,
+    outcomes = outcomes
+  )
   amat_inputs <- .results_export_amat_inputs(
     metadata = metadata,
     headline_metrics = headline_metrics,
@@ -134,6 +143,8 @@ prepare_results_exports <- function(
       trip_mode_distribution = trip_modes,
       assumptions = assumptions,
       amat_inputs = amat_inputs,
+      amat_health_timeline = amat_outputs$timeline,
+      amat_health_summary = amat_outputs$summary,
       report = report,
       plots = plots
     ),
@@ -167,7 +178,9 @@ write_results_xlsx <- function(exports, file) {
     Metadata = exports$metadata,
     Filters = exports$filters,
     Assumptions = exports$assumptions,
-    AMAT_draft = exports$amat_inputs
+    AMAT_metadata = exports$amat_inputs,
+    AMAT_health_timeline = exports$amat_health_timeline,
+    AMAT_health_summary = exports$amat_health_summary
   )
   openxlsx::write.xlsx(sheets, file = file, overwrite = TRUE, asTable = TRUE)
   invisible(normalizePath(file, winslash = "/", mustWork = FALSE))
@@ -248,10 +261,62 @@ write_results_plots_zip <- function(exports,
 
 # AMAT draft ---------------------------------------------------------------
 
+#' Prepare health outputs for the Active Mode Appraisal Toolkit
+#'
+#' Returns annual and cumulative differences for deaths, disease incidence,
+#' life years, and healthy life years. `annual_delta_cf_minus_ref` always uses
+#' the technical counterfactual-minus-reference sign. `annual_benefit` uses a
+#' positive-is-beneficial sign: reference minus counterfactual for adverse
+#' incidence outcomes and counterfactual minus reference for LY/HLY.
+#'
+#' @param results_data Object returned by [prepare_results_data()].
+#' @param horizon_years Positive whole-number assessment horizon. Defaults to
+#'   40 years, based on the current provisional AMAT requirement.
+#' @param outcomes Optional health-outcome IDs to retain. Life years and healthy
+#'   life years are always retained.
+#' @return A list containing `timeline`, `summary`, `horizon_years`, and a draft
+#'   schema version.
+#' @export
+prepare_results_amat_outputs <- function(results_data,
+                                         horizon_years = 40L,
+                                         outcomes = NULL) {
+  if (!is.list(results_data) || is.null(results_data$plot_data)) {
+    stop("results_data must be the object returned by prepare_results_data().", call. = FALSE)
+  }
+  horizon_years <- .results_validate_horizon(horizon_years)
+  timeline <- as.data.frame(
+    results_data$plot_data$amat_health_timeline %||% .empty_amat_health_timeline()
+  )
+  if (nrow(timeline) > 0) {
+    timeline <- timeline[timeline$cycle <= horizon_years, , drop = FALSE]
+    if (!is.null(outcomes) && length(outcomes) > 0) {
+      always <- c("life_years", "healthy_life_years")
+      timeline <- timeline[timeline$measure %in% c(always, as.character(outcomes)), , drop = FALSE]
+    }
+  }
+
+  if (nrow(timeline) == 0) {
+    summary <- timeline
+  } else {
+    groups <- split(timeline, timeline$measure)
+    summary <- do.call(rbind, lapply(groups, function(group) {
+      group[which.max(group$cycle), , drop = FALSE]
+    }))
+    rownames(summary) <- NULL
+  }
+
+  list(
+    schema_version = "miama-amat-health-draft-1",
+    horizon_years = horizon_years,
+    timeline = timeline,
+    summary = summary
+  )
+}
+
 write_results_amat_csv <- function(exports, file, na = "") {
   .validate_results_exports(exports)
   .ensure_export_parent(file)
-  utils::write.csv(exports$amat_inputs, file = file, row.names = FALSE, na = na)
+  utils::write.csv(exports$amat_health_timeline, file = file, row.names = FALSE, na = na)
   invisible(normalizePath(file, winslash = "/", mustWork = FALSE))
 }
 
@@ -302,7 +367,7 @@ write_results_report <- function(exports,
   out[out$mode %in% mode_ids, , drop = FALSE]
 }
 
-.results_export_headline_metrics <- function(data) {
+.results_export_headline_metrics <- function(data, amat_health_timeline = NULL) {
   mortality <- data[data$outcome == "mortality", , drop = FALSE]
   disease <- data[data$outcome_type == "disease", , drop = FALSE]
   disease_outcomes <- unique(disease$outcome)
@@ -311,9 +376,17 @@ write_results_report <- function(exports,
 
   mortality_delta <- if (mortality_available) sum(mortality$delta_value, na.rm = TRUE) else NA_real_
   disease_delta <- if (disease_available) sum(disease$delta_value, na.rm = TRUE) else NA_real_
+  ly <- if (is.null(amat_health_timeline) || nrow(amat_health_timeline) == 0) {
+    data.frame()
+  } else {
+    amat_health_timeline[amat_health_timeline$measure == "life_years", , drop = FALSE]
+  }
+  life_years_saved <- if (nrow(ly) == 0) NA_real_ else {
+    ly$cumulative_benefit[[which.max(ly$cycle)]]
+  }
   values <- c(
     premature_deaths_prevented = -mortality_delta,
-    life_years_saved = NA_real_,
+    life_years_saved = life_years_saved,
     disease_cases_prevented = -disease_delta,
     mortality_delta = mortality_delta,
     disease_cases_delta = disease_delta
@@ -332,14 +405,14 @@ write_results_report <- function(exports,
     unit = c("deaths", "life years", "disease cases", "deaths", "disease cases"),
     status = c(
       if (mortality_available) "available" else "not_selected",
-      "formula_not_implemented",
+      if (is.na(life_years_saved)) "not_available" else "available",
       if (disease_available) "available" else "not_aggregated",
       if (mortality_available) "available" else "not_selected",
       if (disease_available) "available" else "not_aggregated"
     ),
     note = c(
       "Reference minus counterfactual all-cause mortality.",
-      "HALY/life-year formula remains to be agreed.",
+      "Counterfactual minus reference life years, accumulated over the configured AMAT horizon.",
       disease_note,
       "Technical counterfactual minus reference mortality delta.",
       disease_note

@@ -156,7 +156,10 @@ miama_default_config <- function(dataset_size = NULL) {
     # Use `get_health_outcome_options()` to turn it into a UI-ready table or
     # validate it against the columns of a particular HM outcome source.
     results = list(
-      outcomes = .miama_default_health_outcomes()
+      outcomes = .miama_default_health_outcomes(),
+      # AMAT currently requests annual and cumulative impacts over 40 years.
+      # Keep this explicit until a formal AMAT schema confirms the horizon.
+      amat_horizon_years = 40L
     ),
     # 7. Data sources --------------------------------------------------------
     sources = list(

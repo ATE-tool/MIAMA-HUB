@@ -26,8 +26,9 @@
 # - Health impacts are not yet attributable to individual active modes. Results
 #   therefore use `mode = "all_modes"` and record a report note when mode
 #   filters are supplied.
-# - Life-years/HALY headline metrics need a final agreed formula. The current
-#   output keeps this value as `NA_real_` and reports the clarification need.
+# - Life years and healthy life years follow the MIAMA-HM cycle formulas. HALYs
+#   still need the prevalence/disability-weight calculation and are not yet
+#   included in the results contract.
 
 prepare_results_data <- function(
     counterfactual_data,
@@ -74,10 +75,17 @@ prepare_results_data <- function(
   results_table <- .aggregate_results_health(filtered, request)
 
   trip_distribution <- .results_trip_mode_distribution(reference_data, counterfactual_data)
-  headline_metrics <- .results_headline_metrics(results_table)
+  amat_health_timeline <- .results_amat_health_timeline(
+    health_outcomes = health_outcomes,
+    health_long = long,
+    person_weight = person_weight,
+    horizon_years = cfg$results$amat_horizon_years %||% 40L
+  )
+  headline_metrics <- .results_headline_metrics(results_table, amat_health_timeline)
   plot_data <- list(
     health_cube = health_cube,
     age_group_levels = age_group_levels,
+    amat_health_timeline = amat_health_timeline,
     health_overview = .results_plot_health_overview_data(results_table, request),
     health_timeline = .results_plot_timeline_data(filtered, request),
     trip_mode_distribution = trip_distribution
@@ -93,7 +101,8 @@ prepare_results_data <- function(
     trip_distribution = trip_distribution,
     person_weight = person_weight,
     population_source = cfg$population$source %||% "Configured synthetic-population scale",
-    cycle_zero_rows = cycle_zero_rows
+    cycle_zero_rows = cycle_zero_rows,
+    amat_health_timeline = amat_health_timeline
   )
 
   list(
@@ -102,6 +111,187 @@ prepare_results_data <- function(
     results_table = results_table,
     plot_data = plot_data,
     results_report = report
+  )
+}
+
+# AMAT Health Timeline ------------------------------------------------------
+# MIAMA-HM defines life years in cycle t as 1 - cumulative death incidence and
+# healthy life years as 1 - cumulative unhealth incidence. Incidence outcomes
+# are already cycle-specific. This table keeps both the technical `cf - ref`
+# delta and a benefit-oriented value whose positive sign always means health
+# improvement.
+
+.results_amat_health_timeline <- function(health_outcomes,
+                                          health_long,
+                                          person_weight,
+                                          horizon_years = 40L) {
+  horizon_years <- .results_validate_horizon(horizon_years)
+  incidence <- .results_amat_incidence_timeline(health_long, horizon_years)
+  years <- .results_amat_years_timeline(
+    health_outcomes,
+    person_weight = person_weight,
+    horizon_years = horizon_years
+  )
+  out <- rbind(years, incidence)
+  if (nrow(out) == 0) return(.empty_amat_health_timeline())
+  out <- out[order(out$measure_type, out$measure, out$cycle), , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+.results_amat_years_timeline <- function(health_outcomes,
+                                         person_weight,
+                                         horizon_years) {
+  required <- c("census_id", "cycle", "dead", "unhealthy")
+  if (!all(required %in% names(health_outcomes))) {
+    return(.empty_amat_health_timeline())
+  }
+
+  keep <- !is.na(health_outcomes$cycle) & health_outcomes$cycle > 0 &
+    health_outcomes$cycle <= horizon_years
+  if (!any(keep)) return(.empty_amat_health_timeline())
+
+  x <- health_outcomes[keep, , drop = FALSE]
+  ord <- order(x$census_id, x$cycle)
+  ids <- x$census_id[ord]
+  cycles <- as.integer(x$cycle[ord])
+
+  build_measure <- function(measure, ref_col, delta_col, cf_col) {
+    ref_incidence <- .as_plain_numeric(x[[ref_col]][ord])
+    cf_incidence <- if (cf_col %in% names(x)) {
+      .as_plain_numeric(x[[cf_col]][ord])
+    } else if (delta_col %in% names(x)) {
+      ref_incidence + .as_plain_numeric(x[[delta_col]][ord])
+    } else {
+      return(NULL)
+    }
+
+    ref_value <- 1 - .results_grouped_cumsum(ref_incidence, ids)
+    cf_value <- 1 - .results_grouped_cumsum(cf_incidence, ids)
+    aggregated <- stats::aggregate(
+      cbind(ref_value, cf_value) * person_weight,
+      by = list(cycle = cycles),
+      FUN = sum,
+      na.rm = TRUE
+    )
+    .results_amat_timeline_rows(
+      measure = measure,
+      measure_label = if (identical(measure, "life_years")) "Life years" else "Healthy life years",
+      measure_type = measure,
+      unit = "person-years",
+      direction = "higher_is_better",
+      cycle = aggregated$cycle,
+      ref_value = aggregated$ref_value,
+      cf_value = aggregated$cf_value
+    )
+  }
+
+  rows <- list(
+    build_measure("life_years", "dead", "d_dead", "dead_cf"),
+    build_measure("healthy_life_years", "unhealthy", "d_unhealthy", "unhealthy_cf")
+  )
+  rows <- rows[!vapply(rows, is.null, logical(1))]
+  if (length(rows) == 0) .empty_amat_health_timeline() else do.call(rbind, rows)
+}
+
+.results_amat_incidence_timeline <- function(health_long, horizon_years) {
+  if (is.null(health_long) || nrow(health_long) == 0) {
+    return(.empty_amat_health_timeline())
+  }
+  keep <- !is.na(health_long$cycle) & health_long$cycle > 0 &
+    health_long$cycle <= horizon_years
+  x <- health_long[keep, , drop = FALSE]
+  if (nrow(x) == 0) return(.empty_amat_health_timeline())
+
+  aggregated <- stats::aggregate(
+    x[, c("ref_value", "cf_value"), drop = FALSE],
+    by = x[, c("outcome", "outcome_label", "outcome_type", "cycle"), drop = FALSE],
+    FUN = sum,
+    na.rm = TRUE
+  )
+  rows <- lapply(seq_len(nrow(aggregated)), function(i) {
+    type <- if (identical(aggregated$outcome_type[[i]], "mortality")) "deaths" else "disease_cases"
+    .results_amat_timeline_rows(
+      measure = aggregated$outcome[[i]],
+      measure_label = aggregated$outcome_label[[i]],
+      measure_type = type,
+      unit = if (identical(type, "deaths")) "deaths" else "disease cases",
+      direction = "lower_is_better",
+      cycle = aggregated$cycle[[i]],
+      ref_value = aggregated$ref_value[[i]],
+      cf_value = aggregated$cf_value[[i]]
+    )
+  })
+  out <- do.call(rbind, rows)
+
+  # Cumulative values must run within outcome, not in the row order inherited
+  # from aggregate(). Rebuild each outcome as an ordered series.
+  groups <- split(out, out$measure)
+  groups <- lapply(groups, function(group) {
+    group <- group[order(group$cycle), , drop = FALSE]
+    group$cumulative_delta_cf_minus_ref <- cumsum(group$annual_delta_cf_minus_ref)
+    group$cumulative_benefit <- cumsum(group$annual_benefit)
+    group
+  })
+  do.call(rbind, groups)
+}
+
+.results_amat_timeline_rows <- function(measure,
+                                        measure_label,
+                                        measure_type,
+                                        unit,
+                                        direction,
+                                        cycle,
+                                        ref_value,
+                                        cf_value) {
+  delta <- cf_value - ref_value
+  benefit <- if (identical(direction, "higher_is_better")) delta else -delta
+  data.frame(
+    measure = measure,
+    measure_label = measure_label,
+    measure_type = measure_type,
+    cycle = as.integer(cycle),
+    reference_value = as.numeric(ref_value),
+    counterfactual_value = as.numeric(cf_value),
+    annual_delta_cf_minus_ref = as.numeric(delta),
+    annual_benefit = as.numeric(benefit),
+    cumulative_delta_cf_minus_ref = cumsum(as.numeric(delta)),
+    cumulative_benefit = cumsum(as.numeric(benefit)),
+    unit = unit,
+    benefit_direction = direction,
+    stringsAsFactors = FALSE
+  )
+}
+
+.results_grouped_cumsum <- function(values, groups) {
+  values <- as.numeric(values)
+  values[is.na(values)] <- 0
+  if (length(values) == 0) return(numeric(0))
+  cumulative <- cumsum(values)
+  starts <- c(TRUE, groups[-1] != groups[-length(groups)])
+  start_index <- which(starts)
+  lengths <- diff(c(start_index, length(values) + 1L))
+  previous <- c(0, cumulative[start_index[-1] - 1L])
+  cumulative - rep(previous, lengths)
+}
+
+.results_validate_horizon <- function(horizon_years) {
+  if (length(horizon_years) != 1 || is.na(horizon_years) ||
+      horizon_years < 1 || horizon_years != as.integer(horizon_years)) {
+    stop("horizon_years must be one positive whole number.", call. = FALSE)
+  }
+  as.integer(horizon_years)
+}
+
+.empty_amat_health_timeline <- function() {
+  data.frame(
+    measure = character(0), measure_label = character(0),
+    measure_type = character(0), cycle = integer(0),
+    reference_value = numeric(0), counterfactual_value = numeric(0),
+    annual_delta_cf_minus_ref = numeric(0), annual_benefit = numeric(0),
+    cumulative_delta_cf_minus_ref = numeric(0), cumulative_benefit = numeric(0),
+    unit = character(0), benefit_direction = character(0),
+    stringsAsFactors = FALSE
   )
 }
 
@@ -243,8 +433,8 @@ prepare_results_data <- function(
 }
 
 # Filtering And Aggregation --------------------------------------------------
-# Filter by Tab 5 controls, then aggregate either to 50-year totals or cycle
-# timelines. Population strata are only retained when requested.
+# Filter by Tab 5 controls, then aggregate either across all available model
+# cycles or to cycle timelines. Population strata are retained when requested.
 
 .filter_results_health_long <- function(long, request) {
   out <- long
@@ -333,16 +523,24 @@ prepare_results_data <- function(
 # Headline tile values follow the Tab 5 draft labels. "Prevented" values are
 # represented as `-delta`, so negative deltas become positive prevented counts.
 
-.results_headline_metrics <- function(results_table) {
+.results_headline_metrics <- function(results_table, amat_health_timeline = NULL) {
   mortality <- results_table[results_table$outcome == "mortality", , drop = FALSE]
   disease <- results_table[results_table$outcome_type == "disease", , drop = FALSE]
 
   mortality_delta <- sum(mortality$delta_value, na.rm = TRUE)
   disease_delta <- sum(disease$delta_value, na.rm = TRUE)
+  ly <- if (is.null(amat_health_timeline) || nrow(amat_health_timeline) == 0) {
+    data.frame()
+  } else {
+    amat_health_timeline[amat_health_timeline$measure == "life_years", , drop = FALSE]
+  }
+  life_years_saved <- if (nrow(ly) == 0) NA_real_ else {
+    ly$cumulative_benefit[[which.max(ly$cycle)]]
+  }
 
   list(
     premature_deaths_prevented = -mortality_delta,
-    life_years_saved = NA_real_,
+    life_years_saved = life_years_saved,
     disease_cases_prevented = -disease_delta,
     mortality_delta = mortality_delta,
     disease_cases_delta = disease_delta
@@ -451,7 +649,8 @@ prepare_results_data <- function(
     trip_distribution,
     person_weight,
     population_source,
-    cycle_zero_rows
+    cycle_zero_rows,
+    amat_health_timeline
 ) {
   available_outcomes <- unique(long$outcome)
   requested_outcomes <- request$res_outcomes
@@ -464,9 +663,10 @@ prepare_results_data <- function(
   if (length(missing_requested) > 0) {
     notes <- c(notes, paste0("Requested outcomes not available in current health outputs: ", paste(missing_requested, collapse = ", ")))
   }
-  if (is.na(.results_headline_metrics(results_table)$life_years_saved)) {
-    notes <- c(notes, "Life-years/HALY headline metric needs final formula and is currently returned as NA.")
+  if (is.na(.results_headline_metrics(results_table, amat_health_timeline)$life_years_saved)) {
+    notes <- c(notes, "Life years are unavailable because required cycle death columns were not present.")
   }
+  notes <- c(notes, "HALYs are not yet calculated; they require prevalence and disability-weight inputs beyond LY/HLY.")
 
   list(
     n_health_rows = nrow(health_outcomes),

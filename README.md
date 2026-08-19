@@ -1361,12 +1361,14 @@ profile, cfg, ...)`. Its return value contains:
 |---|---|
 | `metadata` | Appraisal name, geography, modes, UI version, population scaling, and result conventions. |
 | `filters` | Exact Tab 5 selections applied to every exported product. |
-| `headline_metrics` | Mortality, disease, and currently unavailable life-year headline fields. |
+| `headline_metrics` | Mortality, disease, and cumulative life-year headline fields. |
 | `results_table` | The currently filtered/grouped health result table. |
 | `timeline_annual` / `timeline_cumulative` | Both timeline representations, independent of the displayed table. |
 | `trip_mode_distribution` | Reference/counterfactual weighted trips and mode shares. |
 | `assumptions` | Sign conventions, population scaling, cycle handling, and current limitations. |
 | `amat_inputs` | Explicitly provisional field/value mapping pending the agreed AMAT schema. |
+| `amat_health_timeline` | Annual ref/cf values, technical differences, benefit-oriented differences, and cumulative differences for deaths, diseases, LY, and HLY. |
+| `amat_health_summary` | Final cumulative row for every AMAT health measure. |
 | `report` | Report-ready title, summary text, methods, metadata, tables, and assumptions. |
 | `plots` | Five ggplot objects built from the same filters. |
 
@@ -1377,7 +1379,7 @@ write_results_csv(results_exports, "results.csv")
 write_results_xlsx(results_exports, "results.xlsx")
 write_results_plot_pngs(results_exports, "plots", dpi = 300)
 write_results_plots_zip(results_exports, "plots.zip", dpi = 300)
-write_results_amat_csv(results_exports, "amat_inputs_DRAFT.csv")
+write_results_amat_csv(results_exports, "amat_health_timeline_DRAFT.csv")
 write_results_report(results_exports, "report.md", format = "markdown")
 write_results_report(results_exports, "report.docx", format = "docx")
 write_results_report(results_exports, "report.pdf", format = "pdf")
@@ -1385,7 +1387,8 @@ write_results_report(results_exports, "report.pdf", format = "pdf")
 
 The Excel workbook contains separate sheets for the displayed results,
 headline metrics, annual and cumulative timelines, trip modes, metadata,
-filters, assumptions, and the AMAT draft. The plot package contains 300-dpi PNG
+filters, assumptions, AMAT metadata, and AMAT health timeline/summary sheets.
+The plot package contains 300-dpi PNG
 files for health overview, health timeline, health by age, health by gender,
 and trip mode distribution, plus `plot_manifest.csv`.
 
@@ -1395,11 +1398,26 @@ or handle that download gracefully until Connect has been verified. The first
 report draft includes pre-filled text and tables; plot embedding and final
 branding remain report-template work.
 
-The AMAT table currently includes appraisal/geography metadata, reference and
-counterfactual walking/cycling weighted trips, and headline health impacts.
-Every proposed AMAT field is marked `requires AMAT field confirmation`; field
-names, units, time horizons, and required intermediate calculations must be
-replaced once the formal AMAT specification is supplied.
+The AMAT health timeline defaults to 40 years (`cfg$results$amat_horizon_years`).
+It implements the MIAMA-HM definitions `LY[t] = 1 - cumulative deaths[t]` and
+`HLY[t] = 1 - cumulative unhealth incidence[t]`. For every measure it exposes
+both `annual_delta_cf_minus_ref` and `cumulative_delta_cf_minus_ref`, plus
+benefit-oriented columns where positive consistently means improvement. For
+deaths and diseases, benefit is `ref - cf`; for LY and HLY it is `cf - ref`.
+HALYs are not yet available because their calculation additionally requires
+disease prevalence and disability weights. AMAT field names and the required
+disease subset remain provisional until the formal specification is supplied.
+
+The same health contract can be prepared without the rest of the export bundle:
+
+```r
+amat <- prepare_results_amat_outputs(
+  result$results_data,
+  horizon_years = 40
+)
+amat$timeline
+amat$summary
+```
 
 Minimal Shiny handlers can delegate directly to HUB:
 

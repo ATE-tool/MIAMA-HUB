@@ -28,7 +28,7 @@ write_results_csv(results_exports, file.path(export_dir, "results.csv"))
 write_results_xlsx(results_exports, file.path(export_dir, "results.xlsx"))
 write_results_plot_pngs(results_exports, file.path(export_dir, "plots"))
 write_results_plots_zip(results_exports, file.path(export_dir, "plots.zip"))
-write_results_amat_csv(results_exports, file.path(export_dir, "amat_inputs_DRAFT.csv"))
+write_results_amat_csv(results_exports, file.path(export_dir, "amat_health_timeline_DRAFT.csv"))
 write_results_report(results_exports, file.path(export_dir, "report.md"), "markdown")
 
 if (rmarkdown::pandoc_available()) {
@@ -44,4 +44,6 @@ message("Result export examples written to: ", normalizePath(export_dir, winslas
 # results_exports$headline_metrics
 # results_exports$results_table
 # results_exports$amat_inputs
+# results_exports$amat_health_timeline
+# results_exports$amat_health_summary
 # results_exports$report
