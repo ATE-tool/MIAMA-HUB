@@ -329,6 +329,9 @@ test_that("result plotting functions return ggplot objects", {
   expect_equal(mode_plot$labels$title, "Reference and counterfactual travel by mode")
   expect_equal(mode_plot$labels$x, "Travel mode")
   expect_equal(mode_plot$labels$y, "Share of weighted trips (%)")
+  trip_total_plot <- results_plot_trip_mode_distribution(results_data, value = "trips")
+  expect_equal(trip_total_plot$labels$y, "Weighted trips per reference week")
+  expect_equal(trip_total_plot$data$value_label, c("10", "12", "4", "6"))
 })
 
 test_that("results_filter_health_data supports interactive Tab 5 filters", {

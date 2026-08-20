@@ -455,6 +455,11 @@ results_plot_trip_mode_distribution <- function(
   plot_data$mode_label <- factor(plot_data$mode_label, levels = mode_order)
   plot_data$scenario <- factor(plot_data$scenario, levels = c("Reference", "Counterfactual"))
   y_col <- if (identical(value, "proportion")) "proportion" else "trips"
+  plot_data$value_label <- if (identical(value, "proportion")) {
+    paste0(format(round(100 * plot_data$proportion, 1), trim = TRUE), "%")
+  } else {
+    format(round(plot_data$trips, 1), trim = TRUE)
+  }
   labels <- .results_trip_plot_labels(
     value = value,
     title = title,
@@ -466,7 +471,13 @@ results_plot_trip_mode_distribution <- function(
 
   p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = mode_label, y = .data[[y_col]], fill = scenario)) +
     ggplot2::geom_col(position = ggplot2::position_dodge(width = 0.76), width = 0.68) +
-    ggplot2::coord_flip() +
+    ggplot2::geom_text(
+      ggplot2::aes(label = value_label),
+      position = ggplot2::position_dodge(width = 0.76),
+      hjust = -0.12,
+      size = 3
+    ) +
+    ggplot2::coord_flip(clip = "off") +
     ggplot2::scale_fill_manual(values = .results_scenario_colors()) +
     ggplot2::labs(
       title = labels$title, subtitle = labels$subtitle, caption = labels$caption,
@@ -475,7 +486,14 @@ results_plot_trip_mode_distribution <- function(
     .results_plot_theme()
 
   if (identical(value, "proportion")) {
-    p <- p + ggplot2::scale_y_continuous(labels = function(x) paste0(round(100 * x), "%"))
+    p <- p + ggplot2::scale_y_continuous(
+      labels = function(x) paste0(round(100 * x), "%"),
+      expand = ggplot2::expansion(mult = c(0, 0.14))
+    )
+  } else {
+    p <- p + ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.14))
+    )
   }
   p
 }
