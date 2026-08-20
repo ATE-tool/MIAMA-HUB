@@ -11,6 +11,24 @@ invalidate_hub_state <- function(state = list(), changed_fields = character()) {
 
   heavy_reload_fields <- c("geo_level", "geo_id", "res_aggregation")
   reference_reload <- any(changed_fields %in% heavy_reload_fields)
+  reference_default_fields <- c(
+    heavy_reload_fields,
+    "ui_version", "modes", "at_data_unit", "trips_refine_method",
+    "ui_mode_share_show_options", "mode_share_total_unit",
+    "ui_trips_diversion_show_options", "trips_diversion_basis"
+  )
+  reference_default_patterns <- paste0(
+    "^(",
+    paste(c(
+      "trips_timeframe", "trips_denominator", "users_timeframe",
+      "ui_dist_dur_type", "distance_unit", "duration_unit",
+      "dist_dur_denominator", "dist_dur_timeframe"
+    ), collapse = "|"),
+    ")_"
+  )
+  reference_defaults_refresh <- reference_reload ||
+    any(changed_fields %in% reference_default_fields) ||
+    any(grepl(reference_default_patterns, changed_fields))
 
   if (reference_reload) {
     state$reference_sources <- NULL
@@ -19,16 +37,19 @@ invalidate_hub_state <- function(state = list(), changed_fields = character()) {
     state$reference_default_data <- NULL
   }
   if (length(changed_fields) > 0) {
-    state$reference_ui_values <- NULL
-    state$reference_default_ui_values <- NULL
     state$counterfactual_data <- NULL
     state$results_data <- NULL
+  }
+  if (reference_defaults_refresh) {
+    state$reference_ui_values <- NULL
+    state$reference_default_ui_values <- NULL
   }
 
   list(
     state = state,
     changed_fields = changed_fields,
     invalidated = length(changed_fields) > 0,
-    reference_reload = reference_reload
+    reference_reload = reference_reload,
+    reference_defaults_refresh = reference_defaults_refresh
   )
 }

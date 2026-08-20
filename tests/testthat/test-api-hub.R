@@ -11,6 +11,48 @@ test_that("Hub initializes with cfg only and accepts profile state later", {
   expect_false(is.null(hub$get_profile()))
 })
 
+test_that("counterfactual changes retain reference defaults", {
+  marker <- list(ui_updates = list(pop_total_ref = 100))
+  state <- list(
+    reference_sources = list(source = TRUE),
+    reference_data_raw = list(ind = data.frame(census_id = 1)),
+    reference_data = list(ind = data.frame(census_id = 1)),
+    reference_ui_values = marker,
+    reference_default_data = list(ind = data.frame(census_id = 1)),
+    reference_default_ui_values = marker,
+    counterfactual_data = list(ind = data.frame(census_id = 1)),
+    results_data = list(value = 1)
+  )
+
+  invalidation <- invalidate_hub_state(state, "trips_count_cf_bike")
+
+  expect_false(invalidation$reference_reload)
+  expect_false(invalidation$reference_defaults_refresh)
+  expect_identical(invalidation$state$reference_default_ui_values, marker)
+  expect_null(invalidation$state$counterfactual_data)
+  expect_null(invalidation$state$results_data)
+})
+
+test_that("reference display changes recompute defaults without reloading rows", {
+  state <- list(
+    reference_sources = list(source = TRUE),
+    reference_data_raw = list(ind = data.frame(census_id = 1)),
+    reference_data = list(ind = data.frame(census_id = 1)),
+    reference_ui_values = list(value = 1),
+    reference_default_data = list(ind = data.frame(census_id = 1)),
+    reference_default_ui_values = list(value = 1),
+    counterfactual_data = list(value = 1),
+    results_data = list(value = 1)
+  )
+
+  invalidation <- invalidate_hub_state(state, "trips_timeframe_bike")
+
+  expect_false(invalidation$reference_reload)
+  expect_true(invalidation$reference_defaults_refresh)
+  expect_false(is.null(invalidation$state$reference_default_data))
+  expect_null(invalidation$state$reference_default_ui_values)
+})
+
 test_that("Hub exposes reference UI updates and single-field accessors", {
   hub <- Hub$new(cfg = list())
   hub$set_appraisal_inputs(build_mock_appraisal_inputs(

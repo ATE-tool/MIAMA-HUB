@@ -177,22 +177,32 @@ Hub <- R6::R6Class(
           (is.null(self$reference_data) ||
            is.null(self$reference_data$ind) ||
            !"mmets" %in% names(self$reference_data$ind))) {
-        self$load_reference_sources()
-        self$build_reference_data()
+        if (!is.null(self$reference_default_data)) {
+          self$build_reference_data_from_defaults()
+        } else {
+          self$load_reference_sources()
+          self$build_reference_data()
+        }
+      }
+      if (is.null(self$reference_default_ui_values) &&
+          !is.null(self$reference_default_data)) {
+        self$build_reference_default_ui_values()
+      }
+
+      # Once health-enriched reference data and compact defaults exist, the
+      # source/default row tables are redundant. Release them before creating
+      # the counterfactual copy to reduce the peak full-data memory footprint.
+      if (!is.null(self$reference_data)) {
+        self$reference_sources <- NULL
+        self$reference_data_raw <- NULL
+        if (!is.null(self$reference_default_ui_values)) {
+          self$reference_default_data <- NULL
+        }
+        invisible(gc(verbose = FALSE))
       }
       if (isTRUE(refresh) || is.null(self$counterfactual_data)) {
         self$build_counterfactual_data(seed = seed)
       }
-
-      # The joined/filtered reference data, compact reference defaults, and CF
-      # data are sufficient from this point. Release duplicate row-level source
-      # objects before loading the much larger death-share cycle table.
-      self$reference_sources <- NULL
-      self$reference_data_raw <- NULL
-      if (!is.null(self$reference_default_ui_values)) {
-        self$reference_default_data <- NULL
-      }
-      invisible(gc(verbose = FALSE))
 
       if (isTRUE(refresh) || is.null(self$counterfactual_data$health_outcomes)) {
         self$build_counterfactual_health_outcomes()
@@ -352,6 +362,34 @@ Hub <- R6::R6Class(
       )
 
       invisible(self$reference_data)
+    },
+
+    build_reference_data_from_defaults = function() {
+      private$.require_request()
+      if (is.null(self$reference_default_data)) {
+        stop(
+          "Reference default data are not loaded. Call build_reference_default_data() first.",
+          call. = FALSE
+        )
+      }
+
+      census_ids <- unique(stats::na.omit(self$reference_default_data$ind$census_id))
+      hm_outcomes <- load_hm_outcomes(
+        cfg = self$cfg,
+        results_request = list(res_aggregation = "total"),
+        census_ids = census_ids
+      )
+      self$reference_sources <- list(
+        hm_outcomes = hm_outcomes,
+        sp_attributes = self$reference_default_data$ind,
+        sp_trips = self$reference_default_data$trips,
+        cfg = self$cfg,
+        source_report = list(
+          source_scope = "reuse_reference_defaults",
+          n_matched_ids = length(census_ids)
+        )
+      )
+      self$build_reference_data()
     },
 
     build_reference_default_data = function() {

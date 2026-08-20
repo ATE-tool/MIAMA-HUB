@@ -33,8 +33,16 @@ filter_reference_data <- function(reference_data_raw, reference_request = list()
       stop("Geography column not found in trip-level data: ", geo_col, call. = FALSE)
     }
 
-    ind <- ind[ind[[geo_col]] %in% geo_id, , drop = FALSE]
-    trips <- trips[trips[[geo_col]] %in% geo_id, , drop = FALSE]
+    # Parquet loading normally pushes this filter down. Avoid allocating full
+    # copies when every collected row is already in the requested geography.
+    ind_keep <- ind[[geo_col]] %in% geo_id
+    trips_keep <- trips[[geo_col]] %in% geo_id
+    if (!all(ind_keep %in% TRUE)) {
+      ind <- ind[ind_keep, , drop = FALSE]
+    }
+    if (!all(trips_keep %in% TRUE)) {
+      trips <- trips[trips_keep, , drop = FALSE]
+    }
   }
 
   list(

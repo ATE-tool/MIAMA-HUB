@@ -1,11 +1,10 @@
 # MIAMA-HUB Module: Reference Data / Join HM and Synthetic Population
-# Purpose: Join HM outcomes onto SP attributes and SP trips to produce
-#   `reference_data_raw` — the enriched individual- and trip-level dataset
-#   used throughout the rest of the pipeline.
+# Purpose: Join HM outcomes onto SP attributes and align the matching SP trips
+#   without repeating wide health-outcome columns on every trip row.
 # Inputs:  Named list from `load_reference_sources()`.
 # Outputs: Named list with:
 #   - `ind`    : individual-level data (hm_outcomes left-joined onto sp_attributes)
-#   - `trips`  : trip-level data (ind left-joined onto trip-specific SP fields)
+#   - `trips`  : matching SP trip rows plus one NA trip row for people without trips
 #   - `join_report` : summary of match rates for both joins
 
 join_hm_and_synthpop <- function(reference_sources) {
@@ -39,13 +38,17 @@ join_hm_and_synthpop <- function(reference_sources) {
     n_matched, n_hm, pct_matched, n_unmatched
   ))
 
-  # --- Trip-level join: add only trip-specific columns ---------------------
-  # SP trips already contains the individual-level columns, so joining the full
-  # table would create `.x` / `.y` duplicates for geography and demographics.
-  trip_only_cols <- setdiff(names(spt), names(ind))
-  spt_join <- spt[, c("census_id", trip_only_cols), drop = FALSE]
-
-  trips <- dplyr::left_join(ind, spt_join, by = "census_id")
+  # --- Trip-level alignment ------------------------------------------------
+  # SP trips already contains the person attributes needed by trip sampling.
+  # Joining the complete HM-enriched individual table here repeats every HM
+  # outcome column for every trip and causes severe memory growth on full data.
+  # A one-column left join retains one NA trip row for people without trips,
+  # matching the previous row contract without duplicating wide person data.
+  trips <- dplyr::left_join(
+    ind[, "census_id", drop = FALSE],
+    spt,
+    by = "census_id"
+  )
 
   n_ind           <- nrow(ind)
   n_trips_total   <- nrow(trips)

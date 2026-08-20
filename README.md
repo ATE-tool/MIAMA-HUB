@@ -344,8 +344,8 @@ The current loading strategy is:
 3. filter synthpop trips by the same geography when possible; for unscoped or
    England-wide requests, use the matched `census_id` values to keep trips
    aligned with loaded attributes
-4. use `results_request$res_aggregation` to choose whether HM loads the
-   `overall` or `cycle` dataset
+4. load one-row-per-person HM `overall` outcomes only when results are built;
+   cycle/death-share outcomes remain deferred to the counterfactual health step
 
 This is intended to reduce unnecessary data transfer and memory use,
 especially once synthetic population data is available in parquet format.
@@ -403,15 +403,22 @@ default data are first loaded when `build_reference_profile_defaults()` calls
 `build_reference_default_data()`. HM outcome data are loaded later by
 `build_results()` / `build_counterfactual_health_outcomes()`.
 
-The object keeps intermediate reference objects in memory so repeated calls do
-not reload large files unnecessarily:
+The object keeps intermediate reference objects only while they remain useful:
 
 - `reference_default_data`: synthpop-only reference data for UI defaults and
   counterfactual construction
 - `reference_default_ui_values`: compact extracted defaults for the active
   profile
-- `reference_sources`, `reference_data_raw`, `reference_data`: legacy/developer
-  HM-joined reference objects used by lower-level workflow scripts
+- `reference_sources`, `reference_data_raw`, `reference_data`: HM-enriched
+  reference objects used by lower-level workflow scripts and result building
+
+When `build_results()` follows reference-default extraction, it reuses the
+already geography-filtered synthpop rows and loads only matching HM outcomes.
+It does not read the attributes and trips parquet sources a second time. Once
+compact defaults and health-enriched reference data exist, redundant source and
+default row tables are released before the counterfactual and cycle objects are
+materialized. Trip data retain the SP person/trip fields needed by sampling but
+do not repeat wide HM outcome columns on every trip row.
 
 When `build_reference_profile_defaults(profile)` receives a profile, HUB
 compares the new flattened input values with the previous request and
@@ -423,7 +430,9 @@ invalidates cached state as needed:
   timeframes keep loaded reference data but clear extracted default values, so
   defaults are recalculated from the same data.
 - Counterfactual and results objects are cleared whenever submitted profile
-  values change.
+  values change. Counterfactual and Tab 5-only changes retain the compact
+  reference defaults; only inputs that affect reference extraction clear and
+  recompute them.
 
 Use `refresh = TRUE` only for an explicit forced recomputation when the inputs
 have not changed, for example during debugging or after replacing source files
@@ -1755,6 +1764,33 @@ the filtered reference and counterfactual objects have been built. The
 death-share lookup is evaluated in bounded chunks with MMET-band overlap inside
 the join, preventing full-data scenarios from materializing all lookup bands
 for every changed person-cycle row.
+
+### Profiling full-data API performance
+
+[inst/workflows/dev_profile_api_performance.R](inst/workflows/dev_profile_api_performance.R)
+profiles the two UI-facing data calls against the real MIAMA-UI default profile.
+It records stage elapsed time, process RSS at API boundaries, retained R6 object
+sizes, and `Rprof` call-stack summaries. Run sample mode first, then a full-data
+LAD after configuring `MIAMA_DATA_ROOT` and `MIAMA_HM_ROOT`:
+
+```sh
+Rscript --no-init-file inst/workflows/dev_profile_api_performance.R
+
+MIAMA_PROFILE_DATASET_SIZE=full \
+MIAMA_PROFILE_GEO_LEVEL=lad \
+MIAMA_PROFILE_GEO_ID=E08000025 \
+Rscript --no-init-file inst/workflows/dev_profile_api_performance.R
+```
+
+Set `MIAMA_PROFILE_OUTPUT_DIR` to retain reports at a specific path. The script
+applies an approximately 10% increase in walking and cycling trip rows so the
+counterfactual and health stages do real work. `stage_timings.csv` identifies
+the expensive API stage, `hub_state_sizes.csv` identifies retained large
+objects, and `rprof_by_total.csv` / `rprof_by_self.csv` identify expensive call
+stacks. RSS is sampled at stage boundaries; it should not be interpreted as an
+exact transient peak.
+`table_inventory.csv` adds row counts, column counts, and retained sizes for the
+major person, trip, health-cycle, and result tables.
 
 Without `MIAMA_DATA_ROOT`, HUB deliberately uses the packaged sample data.
 `dataset_size = "full"` fails clearly when only packaged sample synthpop data

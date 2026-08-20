@@ -87,6 +87,35 @@ test_that("HM-to-synthpop join rejects cycle-expanded individual IDs", {
   )
 })
 
+test_that("HM-to-synthpop join does not repeat health outcomes on trip rows", {
+  reference_sources <- list(
+    hm_outcomes = data.frame(
+      census_id = c(1, 2),
+      mmets = c(10, 20),
+      dead = c(0.1, 0.2)
+    ),
+    sp_attributes = data.frame(
+      census_id = c(1, 2),
+      nts_id = c(101, 102),
+      age1year = c(30, 40)
+    ),
+    sp_trips = data.frame(
+      census_id = c(1, 1),
+      nts_id = c(101, 101),
+      age1year = c(30, 30),
+      nts_tripid = c(1001, 1002)
+    )
+  )
+
+  joined <- join_hm_and_synthpop(reference_sources)
+
+  expect_true(all(c("mmets", "dead") %in% names(joined$ind)))
+  expect_false(any(c("mmets", "dead") %in% names(joined$trips)))
+  expect_true(all(c("nts_id", "age1year", "nts_tripid") %in% names(joined$trips)))
+  expect_equal(nrow(joined$trips), 3)
+  expect_equal(sum(is.na(joined$trips$nts_tripid)), 1)
+})
+
 test_that("trip census-id parquet filter is skipped when geography pushdown is available", {
   matched_ids <- c(1, 2, 3)
 

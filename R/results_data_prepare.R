@@ -79,7 +79,7 @@ prepare_results_data <- function(
   trip_distribution <- .results_trip_mode_distribution(reference_data, counterfactual_data)
   amat_health_timeline <- .results_amat_health_timeline(
     health_outcomes = health_outcomes,
-    health_long = long,
+    health_cube = health_cube,
     person_weight = person_weight,
     horizon_years = get_assessment_period(cfg)
   )
@@ -132,11 +132,11 @@ prepare_results_data <- function(
 # improvement.
 
 .results_amat_health_timeline <- function(health_outcomes,
-                                          health_long,
+                                          health_cube,
                                           person_weight,
                                           horizon_years = 40L) {
   horizon_years <- .results_validate_horizon(horizon_years)
-  incidence <- .results_amat_incidence_timeline(health_long, horizon_years)
+  incidence <- .results_amat_incidence_timeline(health_cube, horizon_years)
   years <- .results_amat_years_timeline(
     health_outcomes,
     person_weight = person_weight,
@@ -161,7 +161,17 @@ prepare_results_data <- function(
     health_outcomes$cycle <= horizon_years
   if (!any(keep)) return(.empty_amat_health_timeline())
 
-  x <- health_outcomes[keep, , drop = FALSE]
+  value_cols <- intersect(
+    c(
+      "census_id", "cycle",
+      "dead", "d_dead", "dead_cf",
+      "unhealthy", "d_unhealthy", "unhealthy_cf"
+    ),
+    names(health_outcomes)
+  )
+  # The health table is wide. AMAT life-year calculations need only these
+  # columns, so avoid copying every disease stream for every person-cycle row.
+  x <- health_outcomes[keep, value_cols, drop = FALSE]
   ord <- order(x$census_id, x$cycle)
   ids <- x$census_id[ord]
   cycles <- as.integer(x$cycle[ord])
@@ -204,13 +214,16 @@ prepare_results_data <- function(
   if (length(rows) == 0) .empty_amat_health_timeline() else do.call(rbind, rows)
 }
 
-.results_amat_incidence_timeline <- function(health_long, horizon_years) {
-  if (is.null(health_long) || nrow(health_long) == 0) {
+.results_amat_incidence_timeline <- function(health_cube, horizon_years) {
+  if (is.null(health_cube) || nrow(health_cube) == 0) {
     return(.empty_amat_health_timeline())
   }
-  keep <- !is.na(health_long$cycle) & health_long$cycle > 0 &
-    health_long$cycle <= horizon_years
-  x <- health_long[keep, , drop = FALSE]
+  keep <- !is.na(health_cube$cycle) & health_cube$cycle > 0 &
+    health_cube$cycle <= horizon_years & health_cube$mode == "all_modes"
+  # The cube has already aggregated person-outcome rows by cycle, age, and
+  # gender. Reusing it avoids a second aggregate over the much larger long
+  # person-cycle-outcome table.
+  x <- health_cube[keep, , drop = FALSE]
   if (nrow(x) == 0) return(.empty_amat_health_timeline())
 
   aggregated <- stats::aggregate(
@@ -320,12 +333,17 @@ prepare_results_data <- function(
   all_modes <- stats::aggregate(
     long[keep, c("ref_value", "cf_value", "delta_value", "population"), drop = FALSE],
     by = long[keep, c(
-      "outcome", "outcome_label", "outcome_type", "mode", "cycle",
+      "outcome", "outcome_label", "outcome_type", "cycle",
       "age_group", "gender"
     ), drop = FALSE],
     FUN = sum,
     na.rm = TRUE
   )
+  all_modes$mode <- "all_modes"
+  all_modes <- all_modes[, c(
+    "outcome", "outcome_label", "outcome_type", "mode", "cycle",
+    "age_group", "gender", "ref_value", "cf_value", "delta_value", "population"
+  ), drop = FALSE]
 
   attributed <- .results_attributed_health_cube(long[keep, , drop = FALSE], mode_attribution)
   if (nrow(attributed) == 0) return(all_modes)
@@ -387,24 +405,27 @@ prepare_results_data <- function(
   }
 
   modes <- unique(as.character(mode_attribution$mode))
+  group_cols <- c(
+    "outcome", "outcome_label", "outcome_type", "cycle",
+    "age_group", "gender"
+  )
   rows <- lapply(modes, function(mode) {
     shares <- mode_attribution[mode_attribution$mode == mode, c("census_id", "attribution_share"), drop = FALSE]
     matched <- match(long$census_id, shares$census_id)
     share <- shares$attribution_share[matched]
     share[is.na(share)] <- 0
 
-    x <- long
-    x$mode <- mode
+    # Do not copy the complete person-outcome table once per mode. Only the
+    # grouping columns and two values are required for attributed aggregation.
+    x <- long[, c(group_cols, "delta_value", "population"), drop = FALSE]
     x$delta_value <- x$delta_value * share
     grouped <- stats::aggregate(
       x[, c("delta_value", "population"), drop = FALSE],
-      by = x[, c(
-        "outcome", "outcome_label", "outcome_type", "mode", "cycle",
-        "age_group", "gender"
-      ), drop = FALSE],
+      by = x[, group_cols, drop = FALSE],
       FUN = sum,
       na.rm = TRUE
     )
+    grouped$mode <- mode
     grouped$ref_value <- NA_real_
     grouped$cf_value <- NA_real_
     grouped[, c(
@@ -472,6 +493,12 @@ prepare_results_data <- function(
          paste(missing, collapse = ", "), call. = FALSE)
   }
 
+  # These classifications are invariant across outcomes and expensive on a
+  # full person-cycle table, so calculate them once rather than in every row
+  # of the outcome catalogue.
+  age_group <- .results_age_group(health_outcomes$age1year, cfg)
+  gender <- ifelse(health_outcomes$female == 1, "female", "male")
+
   rows <- lapply(names(outcome_specs), function(outcome_id) {
     spec <- outcome_specs[[outcome_id]]
     raw_cols <- as.character(spec$columns)
@@ -497,10 +524,8 @@ prepare_results_data <- function(
     data.frame(
       census_id = health_outcomes$census_id,
       cycle = health_outcomes$cycle,
-      age1year = health_outcomes$age1year,
-      age_group = .results_age_group(health_outcomes$age1year, cfg),
-      gender = ifelse(health_outcomes$female == 1, "female", "male"),
-      mode = "all_modes",
+      age_group = age_group,
+      gender = gender,
       outcome = outcome_id,
       outcome_label = spec$label,
       outcome_type = spec$type,
@@ -524,10 +549,8 @@ prepare_results_data <- function(
   data.frame(
     census_id = integer(0),
     cycle = integer(0),
-    age1year = numeric(0),
     age_group = character(0),
     gender = character(0),
-    mode = character(0),
     outcome = character(0),
     outcome_label = character(0),
     outcome_type = character(0),
