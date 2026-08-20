@@ -134,7 +134,7 @@ test_that("prepare_results_data aggregates filtered health outcomes", {
   expect_true(nrow(out$plot_data$health_cube) > 0)
   expect_true(all(c("mode", "mode_label", "scenario", "proportion") %in%
                     names(out$plot_data$trip_mode_distribution)))
-  expect_true("Mode-specific health impact attribution is not implemented yet; health results use `mode = all_modes`." %in% out$results_report$notes)
+  expect_true(any(grepl("Mode-specific MMET attribution was unavailable", out$results_report$notes)))
   expect_identical(
     out$plot_data$age_group_levels$id,
     c("age_18_29", "age_30_39", "age_40_49", "age_50_59", "age_60_plus")
@@ -151,6 +151,57 @@ test_that("results age groups use the configured Tab 3 boundaries", {
       "age_60_plus", "age_60_plus")
   )
   expect_identical(.results_age_group_levels(cfg)$label, cfg$spread$age$labels)
+})
+
+test_that("mode-attributed health deltas reconcile to the all-mode total", {
+  counterfactual_data <- list(
+    ind = data.frame(
+      census_id = 1:2,
+      cf_mmet_delta = c(10, 5),
+      cf_mmet_delta_walking = c(6, 0),
+      cf_mmet_delta_cycling = c(4, 5),
+      cf_mmet_delta_other_activity = c(0, 0)
+    ),
+    health_outcomes = data.frame(
+      census_id = 1:2,
+      cycle = 1L,
+      age1year = c(30, 60),
+      female = c(0, 1),
+      dead = c(10, 20),
+      d_dead = c(-1, -2),
+      dead_cf = c(9, 18)
+    )
+  )
+  cfg <- utils::modifyList(miama_default_config(), list(population = list(person_weight = 1)))
+  out <- prepare_results_data(counterfactual_data, cfg = cfg)
+
+  cube <- out$plot_data$health_cube
+  all_delta <- sum(cube$delta_value[cube$mode == "all_modes"])
+  attributed_delta <- sum(cube$delta_value[cube$mode %in% c("walking", "cycling")])
+  expect_equal(attributed_delta, all_delta)
+  expect_equal(sort(unique(cube$mode)), c("all_modes", "cycling", "walking"))
+
+  by_mode <- results_filter_health_data(
+    out,
+    outcomes = "mortality",
+    modes = c("walking", "cycling"),
+    group_by = "mode"
+  )
+  expect_equal(by_mode$delta_value[by_mode$mode == "walking"], -0.6)
+  expect_equal(by_mode$delta_value[by_mode$mode == "cycling"], -2.4)
+  expect_true(all(is.na(by_mode$ref_value)))
+  expect_equal(sum(by_mode$prevented_value), 3)
+  expect_true(nrow(out$results_report$mode_attribution) == 2)
+
+  combined <- results_filter_health_data(
+    out,
+    outcomes = "mortality",
+    modes = c("walking", "cycling"),
+    group_by = "outcome"
+  )
+  expect_equal(nrow(combined), 1)
+  expect_equal(combined$mode, "selected_modes")
+  expect_equal(combined$prevented_value, 3)
 })
 
 test_that("prepare_results_data supports timeline and population aggregation", {
@@ -352,6 +403,13 @@ test_that("Hub builds results data from counterfactual health outcomes", {
 
 test_that("results exports assemble filtered tables, metadata, plots, and drafts", {
   counterfactual_data <- list(
+    ind = data.frame(
+      census_id = 1:2,
+      cf_mmet_delta = c(10, 5),
+      cf_mmet_delta_walking = c(6, 0),
+      cf_mmet_delta_cycling = c(4, 5),
+      cf_mmet_delta_other_activity = c(0, 0)
+    ),
     health_outcomes = data.frame(
       census_id = rep(1:2, each = 2),
       cycle = rep(1:2, 2),
@@ -409,7 +467,7 @@ test_that("results exports assemble filtered tables, metadata, plots, and drafts
   expect_equal(sort(unique(exports$results_table$outcome)), c("diabetes", "mortality", "stroke"))
   expect_equal(exports$metadata$value[exports$metadata$field == "appraisal_name"], "Test scheme")
   expect_equal(exports$metadata$value[exports$metadata$field == "geo_name"], "Test place")
-  expect_equal(length(exports$plots), 5)
+  expect_equal(length(exports$plots), 6)
   expect_true(all(vapply(exports$plots, inherits, logical(1), what = "ggplot")))
   expect_true(all(c("field", "value", "unit", "mapping_status") %in% names(exports$amat_inputs)))
   expect_true(all(c("annual_delta_cf_minus_ref", "cumulative_benefit") %in%
@@ -422,6 +480,18 @@ test_that("results exports assemble filtered tables, metadata, plots, and drafts
   expect_equal(exports$headline_metrics$status[
     exports$headline_metrics$metric == "disease_cases_prevented"
   ], "partial")
+
+  mode_exports <- prepare_results_exports(
+    results_data,
+    profile = profile,
+    cfg = utils::modifyList(miama_default_config(), list(population = list(person_weight = 1))),
+    modes = c("walking", "cycling"),
+    group_by = "mode",
+    metric = "prevented",
+    include_plots = FALSE
+  )
+  expect_equal(sort(unique(mode_exports$results_table$mode)), c("cycling", "walking"))
+  expect_true(all(is.na(mode_exports$results_table$ref_value)))
 })
 
 test_that("results export writers create usable files", {

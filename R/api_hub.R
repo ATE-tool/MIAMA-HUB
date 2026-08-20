@@ -457,11 +457,15 @@ Hub <- R6::R6Class(
     get_spread_bar_values = function(ref_bars,
                                      cf_mean = NULL,
                                      cf_prop = NULL,
-                                     topic = NULL) {
+                                     topic = NULL,
+                                     ref_mean = NULL,
+                                     ref_prop = NULL) {
       spread_bar_values_from_slider(
         ref_bars = ref_bars,
         cf_mean = cf_mean,
         cf_prop = cf_prop,
+        ref_mean = ref_mean,
+        ref_prop = ref_prop,
         topic = topic
       )
     },

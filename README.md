@@ -610,9 +610,10 @@ distance mean, and trip utilitarian proportion for each supported mode.
 
 #### Slider redistribution logic
 
-`spread_bar_values_from_slider()` receives only the compact reference bars and
-the two counterfactual slider values. It does not load or retain raw synthetic
-population data.
+`spread_bar_values_from_slider()` receives the compact reference bars and the
+two counterfactual slider values. Reference bar payloads also carry the
+reference mean and proportion as compact anchor columns. It does not load or
+retain raw synthetic population data.
 
 1. HUB sums the 10 reference cells into a five-category marginal and a
    two-variable marginal.
@@ -630,10 +631,10 @@ population data.
 
 If one slider argument is `NULL`, its reference marginal is retained. If both
 are `NULL`, the exact reference joint cells are returned with only the scenario
-label changed. If both reference slider values are passed explicitly, the
-marginals remain unchanged but the returned joint cells still apply the stated
-independence assumption; this can differ slightly from the reference joint
-bars when age/PA and sex are associated.
+label changed. The same exact return now applies when the supplied CF slider
+values equal the reference anchors. Consequently the initial CF plot is an
+exact copy of the reference plot. The outer-product independence assumption is
+applied only after at least one slider moves away from its reference anchor.
 
 Category labels, breaks, and slider midpoints live in `cfg$spread`, which is
 created by `miama_default_config()`. The current defaults are intentionally easy
@@ -714,6 +715,10 @@ output[["pop_cf_plot_bike"]] <- plotly::renderPlotly({
 })
 ```
 
+The reference anchors are included in `ref_bars`, so UI does not need to pass
+them separately. For manually constructed/legacy bar payloads, the optional
+`ref_mean` and `ref_prop` arguments provide the same no-change check.
+
 PA/gender uses the same pattern with these substitutions:
 
 ```r
@@ -786,6 +791,13 @@ remainder uniformly from the zero-weight pool. This prevents `sample()` failures
 without discarding the constraints entirely. The affected change records
 `sampling_fallback` or `trip_sampling_fallback`, and the counterfactual report
 notes the number of relaxed rows.
+
+Reference spread defaults also guard against sparse packaged samples. If a
+mode-specific subset has no usable observations inside the configured
+categories, HUB returns the filtered geography's overall population or trip
+spread instead of zero bars and an `NA` slider mean. The extraction report
+records this fallback. This keeps Tab 3/4 controls renderable while making clear
+that the displayed distribution is not mode-specific in that edge case.
 
 The counterfactual report records which sampling constraints were active for a
 change in `sampling_constraints`, e.g. `sex`, `age`, `pa`, `distance`, or
@@ -943,7 +955,9 @@ minute difference to hours, and applies the configured MMET intensity (walking
 changes made only to mirror a new-user or ex-user status are excluded from this
 trip component because changed individual weekly activity already represents
 that exposure. The individual table exposes `cf_user_mmet_delta`,
-`cf_trip_mmet_delta`, and `cf_mmet_delta`; the report summarizes them under
+`cf_trip_mmet_delta`, and `cf_mmet_delta`, together with the attribution
+components `cf_mmet_delta_walking`, `cf_mmet_delta_cycling`, and
+`cf_mmet_delta_other_activity`. The report summarizes these components under
 `counterfactual_report$mmet_exposure`.
 
 Advanced Tab 4 fields such as `trips_dist_value`, `trips_purpose_type`,
@@ -1048,6 +1062,12 @@ It then caps MMETs to the lookup maximum, overlaps the changed MMET interval
 with lookup bands, multiplies overlap width by per-MMET outcome slopes, and
 adds `d_*` outcome columns. Convenience `*_cf` columns are also added as
 `ref + delta` for plotting and inspection.
+
+The death-share MMET lookup is much larger in memory than its parquet file.
+HUB derives the required `(age1year, female, mr_decile, cycle)` scope from the
+filtered people and cycle outcomes, applies Arrow filters before collection,
+and removes residual Cartesian combinations in R. Sample-mode calculations
+therefore do not materialize the complete England lookup table.
 
 The returned `counterfactual_data` gains:
 
@@ -1171,7 +1191,8 @@ The primary returned objects are:
 | `result$highlights` | Three-row, display-ready headline table for the Highlights Card. |
 | `result$results_data$headline_metrics` | Internal named values supporting the three unfiltered assessment-period highlights. |
 | `result$results_data$results_table` | Table aggregated according to the profile's initial Tab 5 selections. Useful for exports and initial tables. |
-| `result$plot_data$health_cube` | Canonical interactive health source, grouped by outcome, cycle, age group, and gender. |
+| `result$plot_data$health_cube` | Canonical interactive health source, grouped by outcome, cycle, age group, gender, and mode. It contains `all_modes` rows and attributed mode rows. |
+| `result$plot_data$mode_attribution` | Compact audit table of mode-specific MMET changes and their shares of the net MMET change. |
 | `result$plot_data$trip_mode_distribution` | Reference/counterfactual weighted trip totals and shares by broad mode. |
 | `result$plot_data$spreads` | Reference/counterfactual spread payloads described in the Tab 3/4 section. |
 
@@ -1205,9 +1226,9 @@ double-counted. It is a total of prevented disease events, not unique people.
 | `res_age_groups` | `age_groups`; filters the five result age strata. |
 | `res_gender` | `gender`; filters `male` / `female`. |
 | `res_temp_aggregation` | Selects total versus timeline presentation. `res_aggregation` is accepted as a legacy/internal alias. |
-| `res_pop_aggregation` | Selects `group_by = "none"`, `"age_group"`, or `"gender"`. |
+| `res_pop_aggregation` | Selects `group_by = "none"`, `"age_group"`, `"gender"`, or `"mode"`. |
 | `res_impact_type` | `impact_type = "attributable"` or `"cf_vs_ref"`. |
-| `res_modes_filter` | `modes` for the trip-mode plot only. Health impacts are currently `all_modes` and cannot yet be attributed to one active mode. |
+| `res_modes_filter` | `modes` for health and trip plots. `all_modes` selects canonical combined health impacts; `walking`, `cycling`, and other attributed components select the corresponding health allocation. |
 
 Two useful presentation choices are not currently separate profile fields,
 but their canonical values and labels are exposed by `get_ui_options()`:
@@ -1239,6 +1260,7 @@ output[["results_health_overview"]] <- shiny::renderPlot({
     outcomes = input[["res_outcomes"]],
     age_groups = input[["res_age_groups"]],
     gender = input[["res_gender"]],
+    modes = input[["res_modes_filter"]],
     impact_type = input[["res_impact_type"]],
     metric = "percent_reduction"
   )
@@ -1256,6 +1278,7 @@ output[["results_health_timeline"]] <- shiny::renderPlot({
     outcomes = input[["res_outcomes"]],
     age_groups = input[["res_age_groups"]],
     gender = input[["res_gender"]],
+    modes = input[["res_modes_filter"]],
     impact_type = "attributable",
     metric = "prevented_per_100000",
     timeline_type = "cumulative"
@@ -1279,6 +1302,7 @@ MIAMAHUB::results_plot_health_impacts(
   outcomes = input[["res_outcomes"]],
   age_groups = input[["res_age_groups"]],
   gender = input[["res_gender"]],
+  modes = input[["res_modes_filter"]],
   group_by = group_by,
   metric = "prevented_per_100000"
 )
@@ -1310,6 +1334,7 @@ plot_df <- MIAMAHUB::results_filter_health_data(
   outcomes = input[["res_outcomes"]],
   age_groups = input[["res_age_groups"]],
   gender = input[["res_gender"]],
+  modes = input[["res_modes_filter"]],
   aggregation = "timeline",
   group_by = "outcome",
   timeline_type = "cumulative"
@@ -1327,6 +1352,12 @@ UI may store Tab 5 selections in their existing profile `input_value` fields,
 but changing those display controls does not require a HUB round trip or a new
 health-model run.
 
+Mode selections have two aggregation behaviors. For `group_by = "mode"`, HUB
+returns one attributed series per selected mode. For outcome, age, gender, and
+timeline views, multiple selected modes are summed into one `selected_modes`
+series; selecting one mode returns that mode alone. Leaving `modes = NULL`
+uses the canonical `all_modes` health result.
+
 The central UI plotting contract is returned directly by `Hub$build_results()`
 as `result$plot_data` and is also available as
 `result$results_data$plot_data`. Both names refer to the same compact object in
@@ -1335,10 +1366,12 @@ the R session; HUB does not recalculate or copy the underlying values.
 The payload intentionally contains shared source tables rather than one data
 frame per plot:
 
-- `health_cube` is aggregated by outcome, model cycle, age group, and gender.
-  It is the comprehensive source for the health overview, timeline, age, and
-  gender plots. UI filters and aggregates this table as users change outcome,
-  age, gender, and total/timeline selections.
+- `health_cube` is aggregated by outcome, model cycle, age group, gender, and
+  mode. It contains canonical `all_modes` rows plus mode-attributed delta rows
+  and is the comprehensive source for the health overview, timeline, age,
+  gender, and mode plots.
+- `mode_attribution` is the compact audit table behind the mode split. It
+  reports changed individuals, MMET deltas, and net MMET shares by mode.
 - `trip_mode_distribution` contains reference and counterfactual weighted trip
   totals and proportions for Walking, Cycling, Public transport, Driving, and
   Other. It remains separate because its rows represent travel modes and
@@ -1367,15 +1400,45 @@ trip_modes <- result$plot_data$trip_mode_distribution
 health_by_age <- results_filter_health_data(
   result$results_data,
   outcomes = c("mortality", "ihd", "stroke"),
+  modes = "all_modes",
   aggregation = "total",
   group_by = "age_group"
 )
 plot <- results_plot_health_impacts(
   result$results_data,
   outcomes = c("mortality", "ihd", "stroke"),
+  modes = "all_modes",
   group_by = "age_group"
 )
+
+# Allocate combined health deltas to the active modes that supplied the MMET
+# change. This contains attributable changes, not mode-specific reference and
+# counterfactual disease totals.
+plot_by_mode <- results_plot_health_impacts(
+  result$results_data,
+  outcomes = c("mortality", "ihd", "stroke"),
+  modes = c("walking", "cycling"),
+  group_by = "mode",
+  metric = "prevented"
+)
 ```
+
+#### Mode attribution contract
+
+The health model is run once for the combined counterfactual exposure. HUB then
+allocates each individual's resulting health delta using that individual's
+signed MMET components: `mode share = mode MMET delta / total MMET delta` and
+`mode health delta = combined health delta * mode share`. Walking, cycling,
+other activity, and any numerical residual are retained so their attributed
+health deltas reconcile exactly to the canonical `all_modes` result.
+
+This is an attribution of the combined model result, not a separate health-model
+run for each mode. Shares can be negative or greater than one when one mode
+offsets another. Mode rows therefore contain attributable deltas only;
+`ref_value` and `cf_value` are `NA`. Direct reference-versus-counterfactual
+totals and percentage reductions require the canonical `all_modes` rows.
+Headline figures and AMAT exports also remain canonical all-mode totals to avoid
+double counting.
 
 For a lean Shiny reactive, UI can retain `result$results_data` (or only
 `result$plot_data` when it performs its own filtering) instead of retaining the
@@ -1425,7 +1488,7 @@ profile, cfg, ...)`. Its return value contains:
 | `amat_health_timeline` | Annual ref/cf values, technical differences, benefit-oriented differences, and cumulative differences for deaths, diseases, LY, and HLY. |
 | `amat_health_summary` | Final cumulative row for every AMAT health measure. |
 | `report` | Report-ready title, summary text, methods, metadata, tables, and assumptions. |
-| `plots` | Five ggplot objects built from the same filters. |
+| `plots` | Six ggplot objects built from the same filters, including a mode-attributed health plot. |
 
 Available writers are:
 
@@ -1517,6 +1580,7 @@ plot_df <- results_filter_health_data(
   outcomes = c("mortality", "ihd", "stroke"),
   age_groups = c("age_40_49", "age_50_59", "age_60_plus"),
   gender = c("male", "female"),
+  modes = "all_modes",
   aggregation = "timeline",
   group_by = "age_group",
   timeline_type = "cumulative"
@@ -1524,7 +1588,7 @@ plot_df <- results_filter_health_data(
 ```
 
 Development plotting functions consume the same compact data. The intended
-Tab 5 structure is deliberately limited to two core and three advanced views:
+Tab 5 structure is deliberately limited to two core and four advanced views:
 
 - Core 1, `results_plot_health_overview()`: cumulative health impact by outcome,
   shown as prevented outcomes, prevented outcomes per 100,000 residents, or
@@ -1534,7 +1598,10 @@ Tab 5 structure is deliberately limited to two core and three advanced views:
   default, with annual impact available through `timeline_type = "annual"`.
 - Advanced 1 and 2, `results_plot_health_impacts()`: cumulative health impacts
   split by age group or by gender and faceted by outcome.
-- Advanced 3, `results_plot_trip_mode_distribution()`: reference and
+- Advanced 3, `results_plot_health_impacts(group_by = "mode")`: combined
+  health deltas attributed to walking, cycling, and other activity according to
+  their individual-level MMET contributions.
+- Advanced 4, `results_plot_trip_mode_distribution()`: reference and
   counterfactual weighted trip shares or weekly weighted totals by mode.
 
 Each function provides data-aware defaults for `title`, `subtitle`, `caption`,
@@ -1556,11 +1623,12 @@ scheme.
 
 These ggplot functions currently live in HUB so the result contract and example
 presentation can be developed together. MIAMA-UI can call them directly or
-reproduce their styling from the returned data frames. Health outcomes are not
-yet attributable to individual active modes: `res_modes_filter` can filter or
-describe travel results, but a health chart labelled "by mode" would currently
-be misleading. Health plots use `mode = "all_modes"` until the health-impact
-pipeline provides a defensible mode decomposition.
+reproduce their styling from the returned data frames. Omit `modes`, or use
+`modes = "all_modes"`, for the canonical combined health result. Pass
+`modes = c("walking", "cycling")` for attributed health deltas. Because mode
+rows do not have separate reference denominators, mode-specific requests use
+prevented counts or prevented counts per 100,000 rather than direct scenario
+totals or percentage reduction.
 
 ## Synthetic population parquet conversion
 

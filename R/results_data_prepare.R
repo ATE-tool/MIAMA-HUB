@@ -22,10 +22,11 @@
 # - Raw `d_*` values remain `cf - ref`; presentation impacts use `ref - cf`.
 # - Expected outcomes are multiplied by `cfg$population$person_weight`.
 #
-# Current limitations:
-# - Health impacts are not yet attributable to individual active modes. Results
-#   therefore use `mode = "all_modes"` and record a report note when mode
-#   filters are supplied.
+# Mode attribution:
+# - `all_modes` remains the canonical health-model total.
+# - Mode-specific health deltas are allocated per person in proportion to that
+#   person's signed counterfactual MMET delta from walking, cycling, or other
+#   activity. Absolute reference/counterfactual burdens are not mode-specific.
 # - Life years and healthy life years follow the MIAMA-HM cycle formulas. HALYs
 #   still need the prevalence/disability-weight calculation and are not yet
 #   included in the results contract.
@@ -70,8 +71,9 @@ prepare_results_data <- function(
   person_weight <- .results_person_weight(cfg)
 
   long <- .results_health_long(health_outcomes, outcome_specs, person_weight, cfg)
-  health_cube <- .results_health_cube(long)
-  filtered <- .filter_results_health_long(long, request)
+  mode_attribution <- .results_mmet_mode_attribution(counterfactual_data$ind)
+  health_cube <- .results_health_cube(long, mode_attribution)
+  filtered <- .filter_results_health_long(health_cube, request)
   results_table <- .aggregate_results_health(filtered, request)
 
   trip_distribution <- .results_trip_mode_distribution(reference_data, counterfactual_data)
@@ -89,6 +91,7 @@ prepare_results_data <- function(
   )
   plot_data <- list(
     health_cube = health_cube,
+    mode_attribution = mode_attribution,
     age_group_levels = age_group_levels,
     amat_health_timeline = amat_health_timeline,
     health_overview = .results_plot_health_overview_data(results_table, request),
@@ -108,7 +111,8 @@ prepare_results_data <- function(
     population_source = cfg$population$source %||% "Configured synthetic-population scale",
     cycle_zero_rows = cycle_zero_rows,
     amat_health_timeline = amat_health_timeline,
-    assessment_period_years = get_assessment_period(cfg)
+    assessment_period_years = get_assessment_period(cfg),
+    mode_attribution = mode_attribution
   )
 
   list(
@@ -301,7 +305,7 @@ prepare_results_data <- function(
   )
 }
 
-.results_health_cube <- function(long) {
+.results_health_cube <- function(long, mode_attribution = NULL) {
   if (nrow(long) == 0) {
     return(data.frame(
       outcome = character(0), outcome_label = character(0),
@@ -313,7 +317,7 @@ prepare_results_data <- function(
   }
 
   keep <- !is.na(long$age_group) & !is.na(long$gender)
-  stats::aggregate(
+  all_modes <- stats::aggregate(
     long[keep, c("ref_value", "cf_value", "delta_value", "population"), drop = FALSE],
     by = long[keep, c(
       "outcome", "outcome_label", "outcome_type", "mode", "cycle",
@@ -321,6 +325,102 @@ prepare_results_data <- function(
     ), drop = FALSE],
     FUN = sum,
     na.rm = TRUE
+  )
+
+  attributed <- .results_attributed_health_cube(long[keep, , drop = FALSE], mode_attribution)
+  if (nrow(attributed) == 0) return(all_modes)
+  out <- rbind(all_modes, attributed)
+  rownames(out) <- NULL
+  out
+}
+
+.results_mmet_mode_attribution <- function(ind, tolerance = 1e-10) {
+  empty <- data.frame(
+    census_id = integer(0), mode = character(0), mmet_delta = numeric(0),
+    attribution_share = numeric(0), stringsAsFactors = FALSE
+  )
+  if (is.null(ind) || !all(c("census_id", "cf_mmet_delta") %in% names(ind))) {
+    return(empty)
+  }
+
+  mode_columns <- c(
+    walking = "cf_mmet_delta_walking",
+    cycling = "cf_mmet_delta_cycling",
+    other_activity = "cf_mmet_delta_other_activity"
+  )
+  if (!any(mode_columns %in% names(ind))) return(empty)
+
+  total <- .as_plain_numeric(ind$cf_mmet_delta)
+  components <- lapply(mode_columns, function(column) {
+    if (!column %in% names(ind)) return(rep(0, nrow(ind)))
+    value <- .as_plain_numeric(ind[[column]])
+    value[!is.finite(value)] <- 0
+    value
+  })
+  components <- as.data.frame(components, stringsAsFactors = FALSE)
+  residual <- total - rowSums(components)
+  residual[!is.finite(residual) | abs(residual) <= tolerance] <- 0
+  components$unattributed <- residual
+
+  changed <- is.finite(total) & abs(total) > tolerance
+  if (!any(changed)) return(empty)
+
+  rows <- lapply(names(components), function(mode) {
+    value <- components[[mode]][changed]
+    data.frame(
+      census_id = ind$census_id[changed],
+      mode = mode,
+      mmet_delta = value,
+      attribution_share = value / total[changed],
+      stringsAsFactors = FALSE
+    )
+  })
+  out <- do.call(rbind, rows)
+  out <- out[is.finite(out$attribution_share) & abs(out$mmet_delta) > tolerance, , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+.results_attributed_health_cube <- function(long, mode_attribution) {
+  if (is.null(mode_attribution) || nrow(mode_attribution) == 0 || nrow(long) == 0) {
+    return(.empty_results_health_cube())
+  }
+
+  modes <- unique(as.character(mode_attribution$mode))
+  rows <- lapply(modes, function(mode) {
+    shares <- mode_attribution[mode_attribution$mode == mode, c("census_id", "attribution_share"), drop = FALSE]
+    matched <- match(long$census_id, shares$census_id)
+    share <- shares$attribution_share[matched]
+    share[is.na(share)] <- 0
+
+    x <- long
+    x$mode <- mode
+    x$delta_value <- x$delta_value * share
+    grouped <- stats::aggregate(
+      x[, c("delta_value", "population"), drop = FALSE],
+      by = x[, c(
+        "outcome", "outcome_label", "outcome_type", "mode", "cycle",
+        "age_group", "gender"
+      ), drop = FALSE],
+      FUN = sum,
+      na.rm = TRUE
+    )
+    grouped$ref_value <- NA_real_
+    grouped$cf_value <- NA_real_
+    grouped[, c(
+      "outcome", "outcome_label", "outcome_type", "mode", "cycle",
+      "age_group", "gender", "ref_value", "cf_value", "delta_value", "population"
+    ), drop = FALSE]
+  })
+  do.call(rbind, rows)
+}
+
+.empty_results_health_cube <- function() {
+  data.frame(
+    outcome = character(0), outcome_label = character(0), outcome_type = character(0),
+    mode = character(0), cycle = integer(0), age_group = character(0),
+    gender = character(0), ref_value = numeric(0), cf_value = numeric(0),
+    delta_value = numeric(0), population = numeric(0), stringsAsFactors = FALSE
   )
 }
 
@@ -455,7 +555,29 @@ prepare_results_data <- function(
     out <- out[out$gender %in% request$res_gender, , drop = FALSE]
   }
 
+  available_modes <- unique(as.character(out$mode))
+  requested_modes <- .results_normalize_health_modes(request$res_modes_filter)
+  selected_modes <- intersect(requested_modes, setdiff(available_modes, "all_modes"))
+  if (length(selected_modes) == 0 && "all_modes" %in% available_modes) {
+    selected_modes <- "all_modes"
+  }
+  if (length(selected_modes) > 0) {
+    out <- out[out$mode %in% selected_modes, , drop = FALSE]
+  }
+
   out
+}
+
+.results_normalize_health_modes <- function(modes) {
+  map <- c(
+    all = "all_modes", all_modes = "all_modes",
+    walking = "walking", walk = "walking",
+    cycling = "cycling", bike = "cycling",
+    ebiking = "cycling", ebike = "cycling",
+    other_activity = "other_activity", unattributed = "unattributed"
+  )
+  values <- unname(map[as.character(modes)])
+  unique(values[!is.na(values)])
 }
 
 .aggregate_results_health <- function(filtered, request) {
@@ -479,7 +601,10 @@ prepare_results_data <- function(
     FUN = sum,
     na.rm = TRUE
   )
-  aggregated$population <- .results_population_by_group(filtered, group_cols, aggregated)
+  attributed <- aggregated$mode != "all_modes"
+  aggregated$ref_value[attributed] <- NA_real_
+  aggregated$cf_value[attributed] <- NA_real_
+  aggregated$population <- .results_cube_population(filtered, group_cols, aggregated)
   aggregated$percent_change <- 100 * .results_divide_or_na(aggregated$delta_value, aggregated$ref_value)
   aggregated$prevented_value <- -aggregated$delta_value
   aggregated$percent_reduction <- -aggregated$percent_change
@@ -594,8 +719,11 @@ prepare_results_data <- function(
     FUN = sum,
     na.rm = TRUE
   )
+  attributed <- out$mode != "all_modes"
+  out$ref_value[attributed] <- NA_real_
+  out$cf_value[attributed] <- NA_real_
   group_cols <- c("outcome", "outcome_label", "outcome_type", "mode", "cycle")
-  out$population <- .results_population_by_group(filtered, group_cols, out)
+  out$population <- .results_cube_population(filtered, group_cols, out)
   out$prevented_value <- -out$delta_value
   out$percent_reduction <- -100 * .results_divide_or_na(out$delta_value, out$ref_value)
   out$prevented_per_100000 <- 100000 * .results_divide_or_na(out$prevented_value, out$population)
@@ -675,15 +803,22 @@ prepare_results_data <- function(
     population_source,
     cycle_zero_rows,
     amat_health_timeline,
-    assessment_period_years
+    assessment_period_years,
+    mode_attribution
 ) {
   available_outcomes <- unique(long$outcome)
   requested_outcomes <- request$res_outcomes
   missing_requested <- setdiff(requested_outcomes, available_outcomes)
 
   notes <- character(0)
-  if (length(request$res_modes_filter) > 0) {
-    notes <- c(notes, "Mode-specific health impact attribution is not implemented yet; health results use `mode = all_modes`.")
+  mode_summary <- .results_mode_attribution_summary(mode_attribution)
+  if (nrow(mode_summary) == 0) {
+    notes <- c(notes, "Mode-specific MMET attribution was unavailable; health results use `mode = all_modes`.")
+  } else {
+    notes <- c(notes, paste0(
+      "Mode-specific health deltas are allocated per individual using signed shares of counterfactual MMET change; ",
+      "absolute reference and counterfactual burdens remain `all_modes`."
+    ))
   }
   if (length(missing_requested) > 0) {
     notes <- c(notes, paste0("Requested outcomes not available in current health outputs: ", paste(missing_requested, collapse = ", ")))
@@ -705,9 +840,41 @@ prepare_results_data <- function(
     filters = request,
     available_outcomes = available_outcomes,
     missing_requested_outcomes = missing_requested,
+    mode_attribution = mode_summary,
     trip_distribution_available = nrow(trip_distribution) > 0,
     notes = unique(notes)
   )
+}
+
+.results_mode_attribution_summary <- function(mode_attribution) {
+  if (is.null(mode_attribution) || nrow(mode_attribution) == 0) {
+    return(data.frame(
+      mode = character(0), changed_individuals = integer(0),
+      mmet_delta = numeric(0), share_of_net_mmet_delta = numeric(0),
+      stringsAsFactors = FALSE
+    ))
+  }
+  totals <- stats::aggregate(
+    mode_attribution$mmet_delta,
+    by = list(mode = mode_attribution$mode),
+    FUN = sum,
+    na.rm = TRUE
+  )
+  names(totals)[names(totals) == "x"] <- "mmet_delta"
+  changed <- stats::aggregate(
+    mode_attribution$census_id,
+    by = list(mode = mode_attribution$mode),
+    FUN = function(x) length(unique(x))
+  )
+  names(changed)[names(changed) == "x"] <- "changed_individuals"
+  out <- merge(totals, changed, by = "mode", all = TRUE, sort = FALSE)
+  net <- sum(out$mmet_delta, na.rm = TRUE)
+  out$share_of_net_mmet_delta <- if (is.finite(net) && abs(net) > 1e-10) {
+    out$mmet_delta / net
+  } else {
+    NA_real_
+  }
+  out[, c("mode", "changed_individuals", "mmet_delta", "share_of_net_mmet_delta")]
 }
 
 # Small Helpers --------------------------------------------------------------

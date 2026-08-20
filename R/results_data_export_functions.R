@@ -4,7 +4,7 @@
 #
 # Export products:
 # - Results table: filtered CSV or multi-sheet Excel workbook.
-# - Plots package: five standard high-resolution PNG files plus a manifest.
+# - Plots package: six standard high-resolution PNG files plus a manifest.
 # - AMAT outputs: yearly and cumulative deaths, disease incidence, life years,
 #   and healthy life years over the configured assessment horizon.
 # - Report: pre-filled Markdown, Word, or PDF generated from the same bundle.
@@ -48,7 +48,7 @@ prepare_results_exports <- function(
   metric <- match.arg(metric)
 
   aggregation <- match.arg(aggregation, c("total", "timeline"))
-  group_by <- match.arg(group_by, c("outcome", "age_group", "gender", "none"))
+  group_by <- match.arg(group_by, c("outcome", "age_group", "gender", "mode", "none"))
   impact_type <- match.arg(.results_plot_impact_type(impact_type), c("attributable", "cf_vs_ref"))
 
   results_table <- results_filter_health_data(
@@ -56,6 +56,7 @@ prepare_results_exports <- function(
     outcomes = outcomes,
     age_groups = age_groups,
     gender = gender,
+    modes = modes,
     aggregation = aggregation,
     group_by = group_by,
     timeline_type = timeline_type
@@ -65,6 +66,7 @@ prepare_results_exports <- function(
     outcomes = outcomes,
     age_groups = age_groups,
     gender = gender,
+    modes = modes,
     aggregation = "timeline",
     group_by = "outcome",
     timeline_type = "annual"
@@ -74,6 +76,7 @@ prepare_results_exports <- function(
     outcomes = outcomes,
     age_groups = age_groups,
     gender = gender,
+    modes = modes,
     aggregation = "timeline",
     group_by = "outcome",
     timeline_type = "cumulative"
@@ -348,7 +351,13 @@ write_results_report <- function(exports,
 }
 
 .results_export_group_by <- function(value) {
-  switch(value %||% "total", age_group = "age_group", gender = "gender", "outcome")
+  switch(
+    value %||% "total",
+    age_group = "age_group",
+    gender = "gender",
+    mode = "mode",
+    "outcome"
+  )
 }
 
 .results_export_trip_modes <- function(results_data, modes) {
@@ -437,7 +446,7 @@ write_results_report <- function(exports,
       ),
       "delta_value = counterfactual - reference",
       "prevented_value = reference - counterfactual",
-      "Health impacts currently use mode = all_modes"
+      "All-mode totals are canonical; mode-specific deltas are allocated by each individual's signed MMET contribution"
     ),
     source = "HUB results contract",
     stringsAsFactors = FALSE
@@ -542,19 +551,23 @@ write_results_report <- function(exports,
   list(
     health_overview = results_plot_health_overview(
       results_data, outcomes = outcomes, age_groups = age_groups, gender = gender,
-      impact_type = impact_type, metric = metric
+      modes = modes, impact_type = impact_type, metric = metric
     ),
     health_timeline = results_plot_health_timeline(
       results_data, outcomes = outcomes, age_groups = age_groups, gender = gender,
-      impact_type = impact_type, metric = metric, timeline_type = timeline_type
+      modes = modes, impact_type = impact_type, metric = metric, timeline_type = timeline_type
     ),
     health_by_age = results_plot_health_impacts(
       results_data, outcomes = outcomes, age_groups = age_groups, gender = gender,
-      group_by = "age_group", metric = metric
+      modes = modes, group_by = "age_group", metric = metric
     ),
     health_by_gender = results_plot_health_impacts(
       results_data, outcomes = outcomes, age_groups = age_groups, gender = gender,
-      group_by = "gender", metric = metric
+      modes = modes, group_by = "gender", metric = metric
+    ),
+    health_by_mode = results_plot_health_impacts(
+      results_data, outcomes = outcomes, age_groups = age_groups, gender = gender,
+      modes = modes, group_by = "mode", metric = metric
     ),
     trip_mode_distribution = results_plot_trip_mode_distribution(
       results_data, modes = modes, value = "proportion"

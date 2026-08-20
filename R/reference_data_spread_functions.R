@@ -37,14 +37,20 @@ miama_spread_topics <- function() {
 #'   proportion. Values can be proportions (`0.55`) or percentages (`55`). When
 #'   `NULL`, the reference split is reused.
 #' @param topic Optional spread topic label: `pop`, `trips`, or `pa`.
-#'
+#' @param ref_mean Optional reference slider value. When it equals `cf_mean`
+#'   (within numeric tolerance), the category distribution is unchanged.
+#' @param ref_prop Optional reference slider proportion. When it equals
+#'   `cf_prop`, the variable split is unchanged. Reference spread payloads made
+#'   by HUB carry both anchors, so UI callers normally need not pass them.
 #' @return A compact counterfactual spread data frame with the same schema as
 #'   `ref_bars`.
 #' @export
 spread_bar_values_from_slider <- function(ref_bars,
                                           cf_mean = NULL,
                                           cf_prop = NULL,
-                                          topic = NULL) {
+                                          topic = NULL,
+                                          ref_mean = NULL,
+                                          ref_prop = NULL) {
   ref_bars <- .spread_validate_bars(ref_bars)
   if (!is.null(topic) && !topic %in% miama_spread_topics()) {
     stop("`topic` must be one of: ", paste(miama_spread_topics(), collapse = ", "), call. = FALSE)
@@ -56,8 +62,10 @@ spread_bar_values_from_slider <- function(ref_bars,
     stop("`ref_bars` must contain five categories and two variables.", call. = FALSE)
   }
 
-  mean_unchanged <- is.null(cf_mean) || length(cf_mean) == 0 || is.na(cf_mean[1])
-  prop_unchanged <- is.null(cf_prop) || length(cf_prop) == 0 || is.na(cf_prop[1])
+  ref_mean <- ref_mean %||% .spread_payload_anchor(ref_bars, "reference_mean")
+  ref_prop <- ref_prop %||% .spread_payload_anchor(ref_bars, "reference_prop")
+  mean_unchanged <- .spread_target_unchanged(cf_mean, ref_mean)
+  prop_unchanged <- .spread_target_unchanged(cf_prop, ref_prop, proportion = TRUE)
   if (mean_unchanged && prop_unchanged) {
     ref_bars$scenario <- "cf"
     return(ref_bars)
@@ -87,12 +95,15 @@ spread_bar_values_from_slider <- function(ref_bars,
   out_matrix <- outer(cf_category / 100, cf_variable / 100) * 100
   dimnames(out_matrix) <- list(categories, variables)
 
-  .spread_matrix_to_bars(
+  out <- .spread_matrix_to_bars(
     spread_matrix = out_matrix,
     category_midpoints = category_midpoints,
     topic = topic %||% unique(ref_bars$topic)[1],
     scenario = "cf"
   )
+  if (!is.null(ref_mean)) out$reference_mean <- as.numeric(ref_mean[[1]])
+  if (!is.null(ref_prop)) out$reference_prop <- as.numeric(ref_prop[[1]])
+  out
 }
 
 # Reference spread builders ----------------------------------------------------
@@ -254,6 +265,13 @@ spread_category_props_from_bars <- function(bars) {
   unname(props / sum(props, na.rm = TRUE))
 }
 
+.spread_bars_have_data <- function(bars) {
+  is.data.frame(bars) &&
+    "percent" %in% names(bars) &&
+    any(is.finite(bars$percent)) &&
+    sum(bars$percent, na.rm = TRUE) > 0
+}
+
 derive_counterfactual_spread_values <- function(appraisal_input_values,
                                                 reference_ui_values) {
   values <- appraisal_input_values
@@ -263,7 +281,8 @@ derive_counterfactual_spread_values <- function(appraisal_input_values,
     reference_ui_values
   }
 
-  add_one <- function(ref_field, cf_bars_field, cf_mean_field, cf_prop_field, topic) {
+  add_one <- function(ref_field, cf_bars_field, ref_mean_field, ref_prop_field,
+                      cf_mean_field, cf_prop_field, topic) {
     ref_bars <- ui_updates[[ref_field]]
     if (!is.data.frame(ref_bars)) {
       return()
@@ -273,6 +292,8 @@ derive_counterfactual_spread_values <- function(appraisal_input_values,
       ref_bars = ref_bars,
       cf_mean = .ui_value(values, cf_mean_field, NULL),
       cf_prop = .ui_value(values, cf_prop_field, NULL),
+      ref_mean = ui_updates[[ref_mean_field]],
+      ref_prop = ui_updates[[ref_prop_field]],
       topic = topic
     )
   }
@@ -283,6 +304,8 @@ derive_counterfactual_spread_values <- function(appraisal_input_values,
     add_one(
       ref_field = paste0("pop_spread_bars_ref_", suffix),
       cf_bars_field = paste0("pop_spread_bars_cf_", suffix),
+      ref_mean_field = paste0("pop_spread_age_mean_ref_", suffix),
+      ref_prop_field = paste0("pop_spread_sex_prop_ref_", suffix),
       cf_mean_field = paste0("pop_spread_age_mean_cf_", suffix),
       cf_prop_field = paste0("pop_spread_sex_prop_cf_", suffix),
       topic = "pop"
@@ -290,6 +313,8 @@ derive_counterfactual_spread_values <- function(appraisal_input_values,
     add_one(
       ref_field = paste0("pa_spread_bars_ref_", suffix),
       cf_bars_field = paste0("pa_spread_bars_cf_", suffix),
+      ref_mean_field = paste0("pop_spread_pa_mean_ref_", suffix),
+      ref_prop_field = paste0("pop_spread_pa_sex_prop_ref_", suffix),
       cf_mean_field = paste0("pop_spread_pa_mean_cf_", suffix),
       cf_prop_field = paste0("pop_spread_pa_sex_prop_cf_", suffix),
       topic = "pa"
@@ -299,6 +324,8 @@ derive_counterfactual_spread_values <- function(appraisal_input_values,
     add_one(
       ref_field = paste0("trips_spread_bars_ref_", suffix),
       cf_bars_field = paste0("trips_spread_bars_cf_", suffix),
+      ref_mean_field = paste0("trips_spread_mean_ref_", suffix),
+      ref_prop_field = paste0("trips_spread_util_prop_ref_", suffix),
       cf_mean_field = paste0("trips_spread_mean_cf_", suffix),
       cf_prop_field = paste0("trips_spread_util_prop_cf_", suffix),
       topic = "trips"
@@ -306,6 +333,35 @@ derive_counterfactual_spread_values <- function(appraisal_input_values,
   }
 
   values
+}
+
+.spread_payload_anchor <- function(ref_bars, field) {
+  if (!field %in% names(ref_bars)) {
+    return(NULL)
+  }
+  value <- unique(ref_bars[[field]])
+  value <- value[is.finite(value)]
+  if (length(value) == 0) NULL else value[[1]]
+}
+
+.spread_target_unchanged <- function(target,
+                                     reference,
+                                     proportion = FALSE,
+                                     tolerance = 1e-8) {
+  if (is.null(target) || length(target) == 0 || is.na(target[[1]])) {
+    return(TRUE)
+  }
+  if (is.null(reference) || length(reference) == 0 || is.na(reference[[1]])) {
+    return(FALSE)
+  }
+
+  target <- as.numeric(target[[1]])
+  reference <- as.numeric(reference[[1]])
+  if (isTRUE(proportion)) {
+    if (abs(target) > 1) target <- target / 100
+    if (abs(reference) > 1) reference <- reference / 100
+  }
+  isTRUE(all.equal(target, reference, tolerance = tolerance))
 }
 
 # Internals --------------------------------------------------------------------

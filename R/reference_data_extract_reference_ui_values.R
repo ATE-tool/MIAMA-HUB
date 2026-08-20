@@ -131,6 +131,8 @@ extract_reference_ui_values <- function(
   ui_updates <- utils::modifyList(ui_updates, tab4_result$ui_updates)
   report$notes <- c(report$notes, tab4_result$notes)
 
+  ui_updates <- .reference_add_spread_anchors(ui_updates)
+
   report$spread_bar_values <- .reference_spread_bar_report(ui_updates)
   report$spread_bar_fields <- unique(report$spread_bar_values$field)
   report$notes <- unique(report$notes[nzchar(report$notes)])
@@ -144,6 +146,28 @@ extract_reference_ui_values <- function(
     ui_updates = ui_updates,
     extraction_report = report
   )
+}
+
+.reference_add_spread_anchors <- function(ui_updates) {
+  topics <- list(
+    pop = c("pop_spread_bars_ref_", "pop_spread_age_mean_ref_", "pop_spread_sex_prop_ref_"),
+    pa = c("pa_spread_bars_ref_", "pop_spread_pa_mean_ref_", "pop_spread_pa_sex_prop_ref_"),
+    trips = c("trips_spread_bars_ref_", "trips_spread_mean_ref_", "trips_spread_util_prop_ref_")
+  )
+
+  for (suffix in vapply(names(.miama_tab2_mode_specs()), .miama_mode_suffix, character(1))) {
+    for (fields in topics) {
+      bars_field <- paste0(fields[[1]], suffix)
+      bars <- ui_updates[[bars_field]]
+      if (!is.data.frame(bars)) next
+
+      bars$reference_mean <- ui_updates[[paste0(fields[[2]], suffix)]]
+      bars$reference_prop <- ui_updates[[paste0(fields[[3]], suffix)]]
+      ui_updates[[bars_field]] <- bars
+    }
+  }
+
+  ui_updates
 }
 
 .reference_spread_bar_report <- function(ui_updates) {
@@ -662,8 +686,30 @@ extract_reference_ui_values <- function(
       next
     }
     suffix <- .miama_mode_suffix(mode)
-    mode_pop_bars <- reference_population_spread_bars(ind, trips, mode, fallback_all = FALSE, cfg = cfg)
-    mode_pa_bars <- reference_pa_spread_bars(ind, trips, mode, fallback_all = FALSE, cfg = cfg)
+    mode_pop_bars <- reference_population_spread_bars(
+      ind, trips, mode, fallback_all = FALSE, cfg = cfg
+    )
+    mode_pa_bars <- reference_pa_spread_bars(
+      ind, trips, mode, fallback_all = FALSE, cfg = cfg
+    )
+    pop_fallback <- !.spread_bars_have_data(mode_pop_bars)
+    pa_fallback <- !.spread_bars_have_data(mode_pa_bars)
+    if (pop_fallback) {
+      mode_pop_bars <- reference_population_spread_bars(
+        ind, trips, character(0), fallback_all = TRUE, cfg = cfg
+      )
+    }
+    if (pa_fallback) {
+      mode_pa_bars <- reference_pa_spread_bars(
+        ind, trips, character(0), fallback_all = TRUE, cfg = cfg
+      )
+    }
+    if (pop_fallback || pa_fallback) {
+      notes <- c(notes, paste0(
+        "No usable mode-specific ", suffix,
+        " spread was available; empty Tab 3 defaults use the filtered population distribution."
+      ))
+    }
 
     ui_updates[[paste0("pop_spread_bars_ref_", suffix)]] <- mode_pop_bars
     ui_updates[[paste0("pop_spread_age_mean_ref_", suffix)]] <- spread_mean_from_bars(mode_pop_bars)
@@ -834,6 +880,16 @@ extract_reference_ui_values <- function(
     }
     suffix <- .miama_mode_suffix(mode)
     mode_bars <- reference_trip_spread_bars(trips, mode, fallback_all = FALSE, cfg = cfg)
+    trip_fallback <- !.spread_bars_have_data(mode_bars)
+    if (trip_fallback) {
+      mode_bars <- reference_trip_spread_bars(
+        trips, character(0), fallback_all = TRUE, cfg = cfg
+      )
+      notes <- c(notes, paste0(
+        "No usable mode-specific ", suffix,
+        " trip spread was available; Tab 4 defaults use all filtered trips."
+      ))
+    }
     ui_updates[[paste0("trips_spread_bars_ref_", suffix)]] <- mode_bars
     ui_updates[[paste0("trips_spread_mean_ref_", suffix)]] <- spread_mean_from_bars(mode_bars)
     ui_updates[[paste0("trips_spread_util_prop_ref_", suffix)]] <- spread_first_variable_prop_from_bars(mode_bars)

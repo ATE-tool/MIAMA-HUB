@@ -437,12 +437,14 @@ apply_counterfactual_ui_values <- function(
   users_field <- paste0("users_count_cf_", suffix)
   pop_field <- paste0("pop_number_cf_", suffix)
 
-  target <- .ui_value(values, users_field, NULL)
-  if (is.null(target)) {
-    target <- .ui_value(values, pop_field, NULL)
+  for (field in c(users_field, pop_field)) {
+    target <- .ui_value(values, field, NULL)
+    if (!.is_blank_cf_target(target)) {
+      return(target)
+    }
   }
 
-  target
+  NULL
 }
 
 ### Trips, Trip counts ----
@@ -672,11 +674,15 @@ apply_counterfactual_ui_values <- function(
   timeframe <- .ui_value(values, paste0("trips_timeframe_", suffix), "year")
   denominator <- .ui_value(values, paste0("trips_denominator_", suffix), "total")
 
-  if (is.null(value)) {
+  if (.is_blank_cf_target(value)) {
     value <- .ui_value(values, tab4_field, NULL)
     field <- tab4_field
     timeframe <- "week"
     denominator <- "total"
+  }
+
+  if (.is_blank_cf_target(value)) {
+    value <- NULL
   }
 
   list(
@@ -685,6 +691,21 @@ apply_counterfactual_ui_values <- function(
     timeframe = timeframe,
     denominator = denominator
   )
+}
+
+# Hidden Shiny inputs can be included in a submitted profile as scalar `NA`
+# values. Such values mean "not supplied" and must not mask the corresponding
+# Basic/Advanced alias. Non-blank invalid values still reach strict validators.
+.is_blank_cf_target <- function(value) {
+  if (is.null(value) || length(value) == 0) {
+    return(TRUE)
+  }
+
+  if (length(value) == 1 && is.na(value)) {
+    return(TRUE)
+  }
+
+  is.character(value) && length(value) == 1 && !nzchar(trimws(value))
 }
 
 .cf_trip_distribution_args <- function(values, suffix) {
@@ -1179,23 +1200,30 @@ apply_counterfactual_ui_values <- function(
     cf_value - ref_value
   }
 
-  user_delta <-
-    activity_delta("walktime_wkhr") * constants$mmet_walking +
-    activity_delta("cycletime_wkhr") * constants$mmet_cycling +
-    activity_delta("sport_wkhr") * constants$mmet_vigorous
+  user_delta_walking <- activity_delta("walktime_wkhr") * constants$mmet_walking
+  user_delta_cycling <- activity_delta("cycletime_wkhr") * constants$mmet_cycling
+  user_delta_other <- activity_delta("sport_wkhr") * constants$mmet_vigorous
+  user_delta <- user_delta_walking + user_delta_cycling + user_delta_other
 
-  trip_delta <- .counterfactual_trip_mmet_delta(
+  trip_delta_by_mode <- .counterfactual_trip_mmet_delta_by_mode(
     counterfactual_data$trips,
     reference_data$trips,
     cf_ind$census_id,
     constants
   )
+  trip_delta <- rowSums(trip_delta_by_mode)
+
+  mode_delta_walking <- user_delta_walking + trip_delta_by_mode$walking
+  mode_delta_cycling <- user_delta_cycling + trip_delta_by_mode$cycling
 
   # Preserve the HM reference exposure and add only exposure caused by changed
   # activity. Reconstructing MMETs for every person from SP activity columns
   # would incorrectly mark unchanged individuals as counterfactual changes.
   counterfactual_data$ind$cf_user_mmet_delta <- user_delta
   counterfactual_data$ind$cf_trip_mmet_delta <- trip_delta
+  counterfactual_data$ind$cf_mmet_delta_walking <- mode_delta_walking
+  counterfactual_data$ind$cf_mmet_delta_cycling <- mode_delta_cycling
+  counterfactual_data$ind$cf_mmet_delta_other_activity <- user_delta_other
   counterfactual_data$ind$cf_mmet_delta <- user_delta + trip_delta
   counterfactual_data$ind$mmets <-
     as.numeric(ref_ind$mmets[matched]) + counterfactual_data$ind$cf_mmet_delta
@@ -1207,7 +1235,23 @@ apply_counterfactual_ui_values <- function(
                                             ref_trips,
                                             census_ids,
                                             constants) {
-  out <- numeric(length(census_ids))
+  rowSums(.counterfactual_trip_mmet_delta_by_mode(
+    cf_trips = cf_trips,
+    ref_trips = ref_trips,
+    census_ids = census_ids,
+    constants = constants
+  ))
+}
+
+.counterfactual_trip_mmet_delta_by_mode <- function(cf_trips,
+                                                     ref_trips,
+                                                     census_ids,
+                                                     constants) {
+  out <- data.frame(
+    walking = numeric(length(census_ids)),
+    cycling = numeric(length(census_ids)),
+    stringsAsFactors = FALSE
+  )
   if (is.null(cf_trips) || is.null(ref_trips) ||
       !all(c("census_id", "nts_tripid") %in% names(cf_trips)) ||
       !all(c("census_id", "nts_tripid") %in% names(ref_trips)) ||
@@ -1237,24 +1281,24 @@ apply_counterfactual_ui_values <- function(
   cf_trip_key <- paste(cf_trips$census_id, cf_trips$nts_tripid, sep = "\r")
   ref_trip_key <- paste(ref_trips$census_id, ref_trips$nts_tripid, sep = "\r")
   ref_match <- match(cf_trip_key, ref_trip_key)
-  delta <- numeric(nrow(cf_trips))
   for (mode in c("walking", "cycling")) {
     intensity <- constants[[paste0("mmet_", mode)]]
     cf_minutes <- active_minutes(cf_trips, mode)
     ref_minutes <- numeric(nrow(cf_trips))
     matched_rows <- !is.na(ref_match)
     ref_minutes[matched_rows] <- active_minutes(ref_trips, mode)[ref_match[matched_rows]]
-    delta <- delta + (cf_minutes - ref_minutes) * intensity / 60
+    delta <- (cf_minutes - ref_minutes) * intensity / 60
+    per_person <- stats::aggregate(
+      delta[include],
+      by = list(census_id = cf_trips$census_id[include]),
+      FUN = sum,
+      na.rm = TRUE
+    )
+    matched_people <- match(census_ids, per_person$census_id)
+    keep <- !is.na(matched_people)
+    out[[mode]][keep] <- per_person$x[matched_people[keep]]
   }
 
-  per_person <- stats::aggregate(
-    delta[include],
-    by = list(census_id = cf_trips$census_id[include]),
-    FUN = sum,
-    na.rm = TRUE
-  )
-  matched_people <- match(census_ids, per_person$census_id)
-  out[!is.na(matched_people)] <- per_person$x[matched_people[!is.na(matched_people)]]
   out
 }
 
@@ -1485,7 +1529,11 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
 }
 
 .counterfactual_mmet_exposure_report <- function(ind) {
-  columns <- c("cf_user_mmet_delta", "cf_trip_mmet_delta", "cf_mmet_delta")
+  columns <- c(
+    "cf_user_mmet_delta", "cf_trip_mmet_delta",
+    "cf_mmet_delta_walking", "cf_mmet_delta_cycling",
+    "cf_mmet_delta_other_activity", "cf_mmet_delta"
+  )
   if (is.null(ind) || !all(columns %in% names(ind))) {
     return(data.frame(
       component = character(0), changed_individuals = integer(0),
@@ -1494,7 +1542,10 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
   }
 
   data.frame(
-    component = c("individual_activity", "trip_activity", "total"),
+    component = c(
+      "individual_activity", "trip_activity", "walking",
+      "cycling", "other_activity", "total"
+    ),
     changed_individuals = vapply(columns, function(column) {
       sum(is.finite(ind[[column]]) & ind[[column]] != 0)
     }, integer(1)),

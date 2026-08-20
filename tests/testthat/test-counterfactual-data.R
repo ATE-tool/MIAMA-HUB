@@ -57,6 +57,55 @@ test_that("apply_counterfactual_ui_values increases walking users from non-users
   expect_true(nrow(counterfactual_data$counterfactual_report$comparison$changed_ind_rows) > 0)
 })
 
+test_that("blank basic user target does not mask advanced target", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:3,
+      walktime_wkhr = c(0, 0, 0),
+      cycletime_wkhr = c(1, 0, 0),
+      sport_wkhr = c(0, 0, 0),
+      mmets = c(5.8, 0, 0)
+    )
+  )
+
+  counterfactual_data <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    appraisal_input_values = list(
+      modes = "cycling",
+      users_count_cf_bike = NA_real_,
+      pop_number_cf_bike = 2
+    ),
+    reference_data = reference_data,
+    seed = 10
+  )
+
+  expect_equal(sum(counterfactual_data$ind$cycletime_wkhr > 0), 2)
+  expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$target, 2)
+})
+
+test_that("blank user targets produce no counterfactual user change", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:2,
+      walktime_wkhr = c(1, 0),
+      cycletime_wkhr = c(0, 0)
+    )
+  )
+
+  counterfactual_data <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    appraisal_input_values = list(
+      modes = "walking",
+      users_count_cf_walk = NA_real_,
+      pop_number_cf_walk = NULL
+    ),
+    reference_data = reference_data
+  )
+
+  expect_equal(counterfactual_data$ind$walktime_wkhr, reference_data$ind$walktime_wkhr)
+  expect_length(counterfactual_data$counterfactual_report$changes, 0)
+})
+
 test_that("counterfactual MMET calculation preserves unchanged HM exposure", {
   reference_data <- list(
     ind = data.frame(
@@ -559,6 +608,8 @@ test_that("independent active-trip shifts add weekly MMET exposure", {
 
   expected_delta <- 10 / 60 * MIAMA_MMET_PER_HOUR[["walking"]]
   expect_equal(sum(counterfactual_data$ind$cf_trip_mmet_delta), expected_delta)
+  expect_equal(sum(counterfactual_data$ind$cf_mmet_delta_walking), expected_delta)
+  expect_equal(sum(counterfactual_data$ind$cf_mmet_delta_cycling), 0)
   expect_equal(sum(counterfactual_data$ind$cf_user_mmet_delta), 0)
   expect_equal(
     counterfactual_data$ind$mmets - reference_data$ind$mmets,
@@ -595,6 +646,7 @@ test_that("trips mirroring a user-status change do not double count MMET exposur
 
   expect_equal(sum(counterfactual_data$ind$cf_trip_mmet_delta), 0)
   expect_equal(sum(counterfactual_data$ind$cf_user_mmet_delta), 2.5)
+  expect_equal(sum(counterfactual_data$ind$cf_mmet_delta_walking), 2.5)
   expect_equal(sum(counterfactual_data$ind$cf_mmet_delta), 2.5)
 })
 

@@ -19,9 +19,13 @@
 #   Cumulative health impacts split by male/female model strata and faceted by
 #   outcome. Labels follow the gender categories present in HM output.
 #
-# Advanced 3 -- Travel by mode
+# Advanced 3 -- Health impact by active mode
+#   Attributable health deltas allocated from each individual's mode-specific
+#   MMET contribution. Absolute reference/counterfactual burdens remain all-mode.
+#
+# Advanced 4 -- Travel by mode
 #   Reference and counterfactual weighted trip totals or shares by travel mode.
-#   Health impacts cannot currently be attributed to individual travel modes.
+#   This remains distinct from the MMET-attributed health-by-mode view.
 #
 # Label and unit contract:
 # - Titles, subtitles, captions, and axis labels have semantic defaults derived
@@ -43,8 +47,8 @@
 #   without rerunning counterfactual or health-model calculations.
 # - Plot functions consume only `results_data$plot_data`, so MIAMA-UI can use the
 #   same functions or reproduce them from the returned compact data frames.
-# - Health impacts currently have `mode = "all_modes"`; mode-specific plotting
-#   is intentionally limited to the trip-distribution chart.
+# - `modes = NULL` uses the canonical `all_modes` health total. Supplying active
+#   modes selects attributed health deltas for those modes.
 
 
 # Filterable Health Plot Data ------------------------------------------------
@@ -55,8 +59,9 @@ results_filter_health_data <- function(
     age_groups = NULL,
     gender = NULL,
     aggregation = c("total", "timeline"),
-    group_by = c("outcome", "age_group", "gender", "none"),
-    timeline_type = c("annual", "cumulative")
+    group_by = c("outcome", "age_group", "gender", "mode", "none"),
+    timeline_type = c("annual", "cumulative"),
+    modes = NULL
 ) {
   aggregation <- match.arg(aggregation)
   group_by <- match.arg(group_by)
@@ -73,9 +78,18 @@ results_filter_health_data <- function(
   if (!is.null(gender) && length(gender) > 0) {
     cube <- cube[cube$gender %in% gender, , drop = FALSE]
   }
+  available_modes <- unique(as.character(cube$mode))
+  if (is.null(modes) || length(modes) == 0) {
+    selected_modes <- if ("all_modes" %in% available_modes) "all_modes" else available_modes
+  } else {
+    selected_modes <- intersect(.results_normalize_health_modes(modes), available_modes)
+  }
+  cube <- cube[cube$mode %in% selected_modes, , drop = FALSE]
   if (nrow(cube) == 0) return(cube)
 
-  group_cols <- c("outcome", "outcome_label", "outcome_type", "mode")
+  keep_mode_groups <- identical(group_by, "mode") || length(selected_modes) == 1L
+  group_cols <- c("outcome", "outcome_label", "outcome_type")
+  if (keep_mode_groups) group_cols <- c(group_cols, "mode")
   if (identical(aggregation, "timeline")) group_cols <- c(group_cols, "cycle")
   if (group_by %in% c("age_group", "gender")) group_cols <- c(group_cols, group_by)
 
@@ -85,7 +99,13 @@ results_filter_health_data <- function(
     FUN = sum,
     na.rm = TRUE
   )
+  if (!"mode" %in% names(out)) {
+    out$mode <- "selected_modes"
+  }
   out$population <- .results_cube_population(cube, group_cols, out)
+  attributed <- out$mode != "all_modes"
+  out$ref_value[attributed] <- NA_real_
+  out$cf_value[attributed] <- NA_real_
 
   if (identical(aggregation, "timeline") && identical(timeline_type, "cumulative")) {
     series_cols <- setdiff(group_cols, "cycle")
@@ -109,6 +129,8 @@ results_filter_health_data <- function(
     out$group_label <- unname(age_labels[out$age_group])
   } else if ("gender" %in% names(out)) {
     out$group_label <- ifelse(out$gender == "female", "Female", "Male")
+  } else if (identical(group_by, "mode")) {
+    out$group_label <- .results_health_mode_label(out$mode)
   } else {
     out$group_label <- out$outcome_label
   }
@@ -131,7 +153,8 @@ results_plot_health_overview <- function(
     subtitle = NULL,
     caption = NULL,
     x_label = NULL,
-    y_label = NULL
+    y_label = NULL,
+    modes = NULL
 ) {
   .require_ggplot2()
   impact_type <- match.arg(.results_plot_impact_type(impact_type), c("attributable", "cf_vs_ref"))
@@ -145,9 +168,15 @@ results_plot_health_overview <- function(
 
   plot_data <- results_filter_health_data(
     results_data, outcomes, age_groups, gender,
-    aggregation = "total", group_by = "outcome"
+    aggregation = "total", group_by = "outcome", modes = modes
   )
   if (nrow(plot_data) == 0) return(.results_empty_plot("No health overview data available"))
+  if (identical(impact_type, "cf_vs_ref") && any(plot_data$mode != "all_modes")) {
+    return(.results_empty_plot("Reference versus counterfactual burden is available for all modes only"))
+  }
+  if (any(plot_data$mode != "all_modes") && identical(metric, "percent_reduction")) {
+    metric <- "prevented"
+  }
 
   labels <- .results_health_plot_labels(
     results_data = results_data,
@@ -190,6 +219,28 @@ results_plot_health_overview <- function(
     "prevented_value"
   )
   plot_data$direction <- ifelse(plot_data[[y_col]] >= 0, "Health gain", "Health loss")
+  plot_data$mode_label <- .results_health_mode_label(plot_data$mode)
+
+  if (length(unique(plot_data$mode)) > 1) {
+    return(
+      ggplot2::ggplot(
+        plot_data,
+        ggplot2::aes(
+          x = stats::reorder(outcome_label, .data[[y_col]]),
+          y = .data[[y_col]], fill = mode_label
+        )
+      ) +
+        ggplot2::geom_hline(yintercept = 0, color = "grey65", linewidth = 0.35) +
+        ggplot2::geom_col(position = ggplot2::position_dodge(width = 0.76), width = 0.68) +
+        ggplot2::coord_flip() +
+        ggplot2::scale_fill_manual(values = .results_group_colors(length(unique(plot_data$mode)))) +
+        ggplot2::labs(
+          title = labels$title, subtitle = labels$subtitle, caption = labels$caption,
+          x = labels$x, y = labels$y, fill = "Active mode"
+        ) +
+        .results_plot_theme()
+    )
+  }
 
   ggplot2::ggplot(
     plot_data,
@@ -214,22 +265,27 @@ results_plot_health_impacts <- function(
     outcomes = NULL,
     age_groups = NULL,
     gender = NULL,
-    group_by = c("age_group", "gender"),
+    group_by = c("age_group", "gender", "mode"),
     metric = c("prevented", "percent_reduction", "prevented_per_100000"),
     title = NULL,
     subtitle = NULL,
     caption = NULL,
     x_label = NULL,
-    y_label = NULL
+    y_label = NULL,
+    modes = NULL
 ) {
   .require_ggplot2()
   group_by <- match.arg(group_by)
   metric <- match.arg(metric)
   plot_data <- results_filter_health_data(
     results_data, outcomes, age_groups, gender,
-    aggregation = "total", group_by = group_by
+    aggregation = "total", group_by = group_by, modes = modes
   )
   if (nrow(plot_data) == 0) return(.results_empty_plot("No detailed health-impact data available"))
+
+  if (any(plot_data$mode != "all_modes") && identical(metric, "percent_reduction")) {
+    metric <- "prevented"
+  }
 
   y_col <- switch(
     metric,
@@ -252,6 +308,8 @@ results_plot_health_impacts <- function(
 
   group_levels <- if (identical(group_by, "age_group")) {
     .results_plot_age_group_levels(results_data)$label
+  } else if (identical(group_by, "mode")) {
+    unique(.results_health_mode_label(plot_data$mode))
   } else {
     c("Male", "Female")
   }
@@ -285,7 +343,8 @@ results_plot_health_timeline <- function(
     subtitle = NULL,
     caption = NULL,
     x_label = NULL,
-    y_label = NULL
+    y_label = NULL,
+    modes = NULL
 ) {
   .require_ggplot2()
   impact_type <- match.arg(.results_plot_impact_type(impact_type), c("attributable", "cf_vs_ref"))
@@ -293,10 +352,17 @@ results_plot_health_timeline <- function(
   timeline_type <- match.arg(timeline_type)
   plot_data <- results_filter_health_data(
     results_data, outcomes, age_groups, gender,
-    aggregation = "timeline", group_by = "outcome", timeline_type = timeline_type
+    aggregation = "timeline", group_by = "outcome",
+    timeline_type = timeline_type, modes = modes
   )
   if (nrow(plot_data) == 0 || !"cycle" %in% names(plot_data)) {
     return(.results_empty_plot("No timeline data available"))
+  }
+  if (identical(impact_type, "cf_vs_ref") && any(plot_data$mode != "all_modes")) {
+    return(.results_empty_plot("Reference versus counterfactual burden is available for all modes only"))
+  }
+  if (any(plot_data$mode != "all_modes") && identical(metric, "percent_reduction")) {
+    metric <- "prevented"
   }
 
   labels <- .results_health_plot_labels(
@@ -338,7 +404,12 @@ results_plot_health_timeline <- function(
     prevented_per_100000 = "prevented_per_100000",
     "prevented_value"
   )
-  ggplot2::ggplot(plot_data, ggplot2::aes(x = cycle, y = .data[[y_col]], color = outcome_label)) +
+  plot_data$series_label <- if (length(unique(plot_data$mode)) > 1) {
+    paste(plot_data$outcome_label, .results_health_mode_label(plot_data$mode), sep = " - ")
+  } else {
+    plot_data$outcome_label
+  }
+  ggplot2::ggplot(plot_data, ggplot2::aes(x = cycle, y = .data[[y_col]], color = series_label)) +
     ggplot2::geom_hline(yintercept = 0, color = "grey75", linewidth = 0.3) +
     ggplot2::geom_line(linewidth = 0.85) +
     ggplot2::labs(
@@ -349,7 +420,7 @@ results_plot_health_timeline <- function(
 }
 
 
-# Advanced 3: Reference Versus Counterfactual Travel By Mode ----------------
+# Advanced 4: Reference Versus Counterfactual Travel By Mode ----------------
 
 results_plot_trip_mode_distribution <- function(
     results_data,
@@ -425,7 +496,8 @@ results_plot_trip_mode_distribution <- function(
     overview = "Health impact by outcome",
     timeline = "Health impacts over time",
     age_group = "Health impact by age group",
-    gender = "Health impact by gender"
+    gender = "Health impact by gender",
+    mode = "Health impact by active mode"
   )
 
   if (identical(impact_type, "cf_vs_ref")) {
@@ -480,7 +552,8 @@ results_plot_trip_mode_distribution <- function(
       overview = "Health outcome",
       timeline = "Model year (cycle 1 = first modelled year)",
       age_group = "Age group",
-      gender = "Gender"
+      gender = "Gender",
+      mode = "Active mode"
     )),
     y = .results_resolve_plot_label(y_label, default_y)
   )
@@ -569,6 +642,17 @@ results_plot_trip_mode_distribution <- function(
     car = "driving", driving = "driving", other = "other"
   )
   unique(unname(map[as.character(modes)]))
+}
+
+.results_health_mode_label <- function(mode) {
+  labels <- c(
+    all_modes = "All modes", selected_modes = "Selected modes",
+    walking = "Walking", cycling = "Cycling",
+    other_activity = "Other activity", unattributed = "Unattributed"
+  )
+  value <- unname(labels[as.character(mode)])
+  value[is.na(value)] <- as.character(mode)[is.na(value)]
+  value
 }
 
 .results_scenario_colors <- function() {

@@ -337,6 +337,30 @@ test_that("extract_reference_ui_values derives Tab 3 population reference fields
   expect_equal(new_values$ui_updates$pop_spread_sex_prop_ref_walk, 1)
 })
 
+test_that("Tab 3 spread defaults fall back when a mode has no valid adult category", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:2,
+      age1year = c(16, 40),
+      female = c(0, 1),
+      walktime_wkhr = c(0, 0),
+      cycletime_wkhr = c(1, 0)
+    )
+  )
+
+  values <- extract_reference_ui_values(
+    reference_data,
+    appraisal_input_values = list(modes = "cycling")
+  )
+
+  expect_equal(values$ui_updates$pop_spread_age_mean_ref_bike, 45)
+  expect_equal(sum(values$ui_updates$pop_spread_bars_ref_bike$percent), 100)
+  expect_true(any(grepl(
+    "No usable mode-specific bike spread",
+    values$extraction_report$notes
+  )))
+})
+
 test_that("extract_reference_ui_values handles haven-labelled numeric columns", {
   skip_if_not_installed("haven")
   skip_if_not_installed("vctrs")
@@ -389,6 +413,33 @@ test_that("spread categories respect configured interval boundaries", {
     .spread_cut(c(0, 0.1, 10, 25, 50, 51), cfg$spread$pa$breaks, cfg$spread$pa$right),
     c(1L, 2L, 2L, 3L, 4L, 5L)
   )
+})
+
+test_that("spread bars remain exact when CF sliders equal reference anchors", {
+  ref_matrix <- matrix(
+    c(20, 5, 10, 5, 10, 5, 5, 10, 10, 20),
+    nrow = 5,
+    dimnames = list(paste0("category_", 1:5), c("male", "female"))
+  )
+  ref_bars <- .spread_matrix_to_bars(
+    ref_matrix,
+    category_midpoints = c(20, 35, 45, 55, 70),
+    topic = "pop",
+    scenario = "ref"
+  )
+  ref_bars$reference_mean <- 42.3
+  ref_bars$reference_prop <- 0.5
+
+  cf_bars <- spread_bar_values_from_slider(
+    ref_bars,
+    cf_mean = 42.3,
+    cf_prop = 0.5,
+    topic = "pop"
+  )
+
+  expect_equal(cf_bars$percent, ref_bars$percent)
+  expect_equal(cf_bars$category, ref_bars$category)
+  expect_true(all(cf_bars$scenario == "cf"))
 })
 
 test_that("trip purpose categories use one utilitarian default rule", {

@@ -48,7 +48,12 @@ apply_counterfactual_health_outcomes <- function(
     hm_cycle_outcomes <- load_hm_cycle_outcomes_death_share(cfg, census_ids = census_ids)
   }
   if (is.null(hm_cycle_lookup)) {
-    hm_cycle_lookup <- load_hm_cycle_lookup_death_share(cfg)
+    lookup_scope <- .counterfactual_health_lookup_scope(hm_cycle_outcomes, exposure)
+    hm_cycle_lookup <- load_hm_cycle_lookup_death_share(
+      cfg,
+      strata = lookup_scope$strata,
+      cycles = lookup_scope$cycles
+    )
   }
 
   health_outcomes <- .apply_mmet_delta_lookup(
@@ -88,14 +93,50 @@ load_hm_cycle_outcomes_death_share <- function(cfg = NULL, census_ids = NULL) {
   dplyr::collect(ds)
 }
 
-load_hm_cycle_lookup_death_share <- function(cfg = NULL) {
+load_hm_cycle_lookup_death_share <- function(cfg = NULL,
+                                             strata = NULL,
+                                             cycles = NULL) {
   cfg <- cfg %||% miama_default_config()
   path <- .hm_death_share_path(cfg, "mmet_d_cycle_lookup_death_share")
   if (!dir.exists(path)) {
     stop("HM cycle death-share lookup directory not found: ", path, call. = FALSE)
   }
 
-  dplyr::collect(arrow::open_dataset(path, format = "parquet"))
+  ds <- arrow::open_dataset(path, format = "parquet")
+  if (is.null(strata) || nrow(strata) == 0) {
+    return(dplyr::collect(ds))
+  }
+
+  required <- c("age1year", "female", "mr_decile")
+  missing <- setdiff(required, names(strata))
+  if (length(missing) > 0) {
+    stop(
+      "Health lookup strata are missing required columns: ",
+      paste(missing, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  strata <- unique(as.data.frame(strata[, required, drop = FALSE]))
+  cycles <- unique(.as_plain_numeric(cycles))
+  cycles <- cycles[is.finite(cycles)]
+
+  age_values <- unique(.as_plain_numeric(strata$age1year))
+  female_values <- unique(.as_plain_numeric(strata$female))
+  mr_values <- unique(.as_plain_numeric(strata$mr_decile))
+  query <- dplyr::filter(
+    ds,
+    .data$age1year %in% age_values,
+    .data$female %in% female_values,
+    .data$mr_decile %in% mr_values
+  )
+  if (length(cycles) > 0) {
+    query <- dplyr::filter(query, .data$cycle %in% cycles)
+  }
+
+  candidates <- dplyr::collect(query)
+  key <- function(data) paste(data$age1year, data$female, data$mr_decile, sep = "\r")
+  candidates[key(candidates) %in% key(strata), , drop = FALSE]
 }
 
 .hm_death_share_path <- function(cfg, dataset_name) {
@@ -195,6 +236,37 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL) {
   exposure <- dplyr::left_join(ref, cf, by = "census_id")
   exposure$mmets_delta <- exposure$mmets_cf_ind - exposure$mmets_ref
   exposure
+}
+
+.counterfactual_health_lookup_scope <- function(hm_cycle_outcomes, exposure) {
+  cycle_keys <- .health_plain_numeric_columns(
+    hm_cycle_outcomes,
+    c("census_id", "mr_decile", "cycle"),
+    integer_columns = c("mr_decile", "cycle")
+  )
+  exposure_keys <- .health_plain_numeric_columns(
+    exposure,
+    c("census_id", "age1year", "female"),
+    integer_columns = "age1year"
+  )
+
+  required_cycle <- c("census_id", "mr_decile", "cycle")
+  required_exposure <- c("census_id", "age1year", "female")
+  if (!all(required_cycle %in% names(cycle_keys)) ||
+      !all(required_exposure %in% names(exposure_keys))) {
+    return(list(strata = NULL, cycles = NULL))
+  }
+
+  scope <- dplyr::inner_join(
+    unique(cycle_keys[, required_cycle, drop = FALSE]),
+    unique(exposure_keys[, required_exposure, drop = FALSE]),
+    by = "census_id"
+  )
+
+  list(
+    strata = unique(scope[, c("age1year", "female", "mr_decile"), drop = FALSE]),
+    cycles = unique(scope$cycle)
+  )
 }
 
 # Delta Lookup Application ---------------------------------------------------

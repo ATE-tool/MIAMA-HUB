@@ -48,6 +48,41 @@ test_that("death-share path uses shared lookup table without sample suffix", {
   })
 })
 
+test_that("death-share lookup loading keeps only requested person strata", {
+  lookup_path <- tempfile("lookup-")
+  lookup <- expand.grid(
+    age1year = c(20, 40),
+    female = c(0, 1),
+    mr_decile = c(1, 2),
+    cycle = 1:2,
+    outcome = c("dead", "diabetes"),
+    mmet_band = 1:2,
+    KEEP.OUT.ATTRS = FALSE
+  )
+  lookup$mmets_lo <- lookup$mmet_band - 1
+  lookup$mmets_hi <- lookup$mmet_band
+  lookup$slope <- 0.1
+  lookup$mmet_band <- NULL
+  arrow::write_dataset(lookup, lookup_path, format = "parquet")
+
+  cfg <- miama_default_config()
+  cfg$sources$hm_death_share$lookup_cycle <- list(
+    path = lookup_path,
+    format = "parquet"
+  )
+  result <- load_hm_cycle_lookup_death_share(
+    cfg,
+    strata = data.frame(age1year = 20, female = 1, mr_decile = 2),
+    cycles = 2
+  )
+
+  expect_equal(nrow(result), 4)
+  expect_equal(unique(result$age1year), 20)
+  expect_equal(unique(result$female), 1)
+  expect_equal(unique(result$mr_decile), 2)
+  expect_equal(unique(result$cycle), 2)
+})
+
 test_that("apply_counterfactual_health_outcomes calculates lookup deltas and cf columns", {
   reference_data <- list(
     ind = data.frame(
