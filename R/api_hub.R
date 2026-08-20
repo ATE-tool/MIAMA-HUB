@@ -36,6 +36,7 @@ Hub <- R6::R6Class(
     reference_default_data = NULL,
     reference_default_ui_values = NULL,
     counterfactual_data = NULL,
+    health_impacts = NULL,
     results_data = NULL,
 
     # Lifecycle --------------------------------------------------------------
@@ -64,6 +65,7 @@ Hub <- R6::R6Class(
             reference_default_data = self$reference_default_data,
             reference_default_ui_values = self$reference_default_ui_values,
             counterfactual_data = self$counterfactual_data,
+            health_impacts = self$health_impacts,
             results_data = self$results_data
           ),
           changed_fields = changed_fields
@@ -76,6 +78,7 @@ Hub <- R6::R6Class(
         self$reference_default_data <- invalidation$state$reference_default_data
         self$reference_default_ui_values <- invalidation$state$reference_default_ui_values
         self$counterfactual_data <- invalidation$state$counterfactual_data
+        self$health_impacts <- invalidation$state$health_impacts
         self$results_data <- invalidation$state$results_data
       }
 
@@ -101,6 +104,7 @@ Hub <- R6::R6Class(
           reference_default_data = self$reference_default_data,
           reference_default_ui_values = self$reference_default_ui_values,
           counterfactual_data = self$counterfactual_data,
+          health_impacts = self$health_impacts,
           results_data = self$results_data
         ),
         changed_fields = changed_fields
@@ -115,6 +119,7 @@ Hub <- R6::R6Class(
       self$reference_default_data <- invalidation$state$reference_default_data
       self$reference_default_ui_values <- invalidation$state$reference_default_ui_values
       self$counterfactual_data <- invalidation$state$counterfactual_data
+      self$health_impacts <- invalidation$state$health_impacts
       self$results_data <- invalidation$state$results_data
 
       invisible(self$request)
@@ -163,16 +168,22 @@ Hub <- R6::R6Class(
       private$.require_request()
 
       if (isTRUE(refresh)) {
+        self$reference_sources <- NULL
+        self$reference_data_raw <- NULL
+        self$reference_data <- NULL
+        self$reference_ui_values <- NULL
         self$reference_default_data <- NULL
         self$reference_default_ui_values <- NULL
         self$counterfactual_data <- NULL
+        self$health_impacts <- NULL
         self$results_data <- NULL
       }
       if (is.null(self$reference_default_data) && is.null(self$reference_data)) {
         self$build_reference_default_data()
       }
       needs_health_pipeline <- is.null(self$counterfactual_data) ||
-        is.null(self$counterfactual_data$health_outcomes)
+        (is.null(self$results_data) &&
+         is.null(self$counterfactual_data$health_outcomes))
       if (needs_health_pipeline &&
           (is.null(self$reference_data) ||
            is.null(self$reference_data$ind) ||
@@ -204,18 +215,24 @@ Hub <- R6::R6Class(
         self$build_counterfactual_data(seed = seed)
       }
 
-      if (isTRUE(refresh) || is.null(self$counterfactual_data$health_outcomes)) {
+      if (isTRUE(refresh) ||
+          (is.null(self$results_data) &&
+           is.null(self$counterfactual_data$health_outcomes))) {
         self$build_counterfactual_health_outcomes()
       }
 
-      self$build_results_data()
+      if (isTRUE(refresh) || is.null(self$results_data)) {
+        self$build_results_data()
+      }
       spread_data <- private$.build_spread_data()
       self$results_data$plot_data$spreads <- spread_data
+      private$.compact_health_impacts()
 
       list(
         profile = self$appraisal_inputs,
         reference_data = private$.counterfactual_reference_data(),
         counterfactual_data = self$counterfactual_data,
+        health_impacts = self$health_impacts,
         results_data = self$results_data,
         highlights = get_results_highlights(self$results_data),
         # Compact UI contract. These are shared source tables for interactive
@@ -537,7 +554,8 @@ Hub <- R6::R6Class(
       self$counterfactual_data
     },
 
-    build_counterfactual_health_outcomes = function(scheme_effect_duration = "longterm") {
+    build_counterfactual_health_outcomes = function(scheme_effect_duration = "longterm",
+                                                     include_cf_columns = FALSE) {
       private$.require_counterfactual_data()
       reference_data <- private$.counterfactual_reference_data()
 
@@ -545,7 +563,8 @@ Hub <- R6::R6Class(
         counterfactual_data = self$counterfactual_data,
         reference_data = reference_data,
         cfg = self$cfg,
-        scheme_effect_duration = scheme_effect_duration
+        scheme_effect_duration = scheme_effect_duration,
+        include_cf_columns = include_cf_columns
       )
 
       self$counterfactual_data
@@ -569,14 +588,45 @@ Hub <- R6::R6Class(
 
     get_results_data = function(refresh = FALSE) {
       if (isTRUE(refresh) || is.null(self$results_data)) {
+        if (is.null(self$counterfactual_data$health_outcomes)) {
+          return(self$build_results(
+            profile = self$appraisal_inputs,
+            refresh = refresh
+          )$results_data)
+        }
         return(self$build_results_data())
       }
 
       self$results_data
+    },
+
+    get_health_impacts = function() {
+      self$health_impacts
     }
   ),
 
   private = list(
+    .compact_health_impacts = function() {
+      cycle_data <- self$counterfactual_data$health_outcomes
+      if (is.null(cycle_data)) {
+        return(invisible(self$health_impacts))
+      }
+
+      health_report <- self$counterfactual_data$counterfactual_health_report
+      self$health_impacts <- list(
+        health_report = health_report,
+        n_cycle_rows = nrow(cycle_data),
+        n_cycle_columns = ncol(cycle_data),
+        cycle_data_size_mb = as.numeric(utils::object.size(cycle_data)) / 1024^2,
+        cycle_data_retained = FALSE,
+        results_available = !is.null(self$results_data)
+      )
+      self$counterfactual_data$health_outcomes <- NULL
+      cycle_data <- NULL
+      invisible(gc(verbose = FALSE))
+      invisible(self$health_impacts)
+    },
+
     .require_profile = function() {
       if (is.null(self$appraisal_inputs)) {
         stop("Hub profile is not set. Call set_appraisal_inputs() first.", call. = FALSE)

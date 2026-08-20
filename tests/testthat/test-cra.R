@@ -120,6 +120,7 @@ test_that("apply_counterfactual_health_outcomes calculates lookup deltas and cf 
   out <- apply_counterfactual_health_outcomes(
     counterfactual_data,
     reference_data,
+    include_cf_columns = TRUE,
     hm_cycle_outcomes = hm_cycle_outcomes,
     hm_cycle_lookup = hm_cycle_lookup
   )
@@ -179,7 +180,8 @@ test_that("apply_counterfactual_health_outcomes accepts data.table inputs from w
   )
 
   expect_equal(out$health_outcomes$d_dead, 0.3)
-  expect_equal(out$health_outcomes$dead_cf, 10.3)
+  expect_false("dead_cf" %in% names(out$health_outcomes))
+  expect_false(out$counterfactual_health_report$include_cf_columns)
 })
 
 test_that("apply_counterfactual_health_outcomes accepts labelled numeric inputs", {
@@ -219,7 +221,7 @@ test_that("apply_counterfactual_health_outcomes accepts labelled numeric inputs"
   )
 
   expect_equal(out$health_outcomes$d_dead, 0.3)
-  expect_equal(out$health_outcomes$dead_cf, 10.3)
+  expect_false("dead_cf" %in% names(out$health_outcomes))
 })
 
 test_that("apply_counterfactual_health_outcomes handles reduced mmets with negative deltas", {
@@ -255,5 +257,6 @@ test_that("apply_counterfactual_health_outcomes handles reduced mmets with negat
   )
 
   expect_equal(out$health_outcomes$d_dead, -0.3)
-  expect_equal(out$health_outcomes$dead_cf, 9.7)
+  expect_false("dead_cf" %in% names(out$health_outcomes))
+  expect_equal(out$health_outcomes$dead + out$health_outcomes$d_dead, 9.7)
 })

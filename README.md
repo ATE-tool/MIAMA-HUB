@@ -113,8 +113,9 @@ Primary UI-facing methods:
   end-to-end calculation from the fully filled profile. It builds
   counterfactual data from the synthpop reference data, applies the HM
   death-share cycle lookup to ref/cf physical-activity exposure, and returns
-  the updated `profile`, `reference_data`, `counterfactual_data`, and
-  `results_data`.
+  the updated `profile`, `reference_data`, `counterfactual_data`, compact
+  `health_impacts`, and `results_data`. The full person-cycle table is released
+  after these compact result objects have been built.
 - `get_results_highlights()`: after `build_results()`, returns the three
   assessment-period totals for prevented deaths, saved life-years, and
   prevented disease cases.
@@ -1069,8 +1070,8 @@ mmets_new   = mmets_cycle + mmets_delta
 
 It then caps MMETs to the lookup maximum, overlaps the changed MMET interval
 with lookup bands, multiplies overlap width by per-MMET outcome slopes, and
-adds `d_*` outcome columns. Convenience `*_cf` columns are also added as
-`ref + delta` for plotting and inspection.
+adds `d_*` outcome columns. Counterfactual values are derived as `ref + delta`;
+redundant `*_cf` columns are not materialized by default.
 
 The death-share MMET lookup is much larger in memory than its parquet file.
 HUB derives the required `(age1year, female, mr_decile, cycle)` scope from the
@@ -1078,18 +1079,20 @@ filtered people and cycle outcomes, applies Arrow filters before collection,
 and removes residual Cartesian combinations in R. Sample-mode calculations
 therefore do not materialize the complete England lookup table.
 
-The returned `counterfactual_data` gains:
+The low-level function returns `counterfactual_data` with:
 
-- `health_outcomes`: full cycle-level reference, delta, and counterfactual
-  outcome table
+- `health_outcomes`: full cycle-level reference and delta outcome table
 - `counterfactual_health_report`: counts, MMET-delta summary, terminology, and
   summed outcome deltas
 - `counterfactual_health_report$impact_overview`: compact outcome-level totals
   with `ref_total`, `cf_total`, `delta_total`, and `delta_per_1000_people`
 
-Future work: add `scheme_effect_duration = "shortterm"` and decide whether
-large production runs should keep all `*_cf` columns or compute them lazily for
-plotting to reduce data volume.
+Pass `include_cf_columns = TRUE` only for targeted model debugging that requires
+explicit `*_cf` columns. The high-level `Hub$build_results()` method consumes
+and releases `health_outcomes` after constructing compact `health_impacts` and
+`results_data`; plots and exports do not require the raw cycle table afterward.
+
+Future work: add `scheme_effect_duration = "shortterm"`.
 
 ## Results data and Tab 5 plots
 
@@ -1764,6 +1767,18 @@ the filtered reference and counterfactual objects have been built. The
 death-share lookup is evaluated in bounded chunks with MMET-band overlap inside
 the join, preventing full-data scenarios from materializing all lookup bands
 for every changed person-cycle row.
+
+The cycle calculation retains reference outcome columns plus `d_* = cf - ref`
+columns while it runs. Redundant `*_cf` columns are disabled by default because
+all consumers derive them as `ref + d_*`. After result preparation, the full
+person-cycle table is removed from `counterfactual_data`; `health_impacts`
+retains its row/column/size audit and health report. Compact health cubes, AMAT
+timelines, and headline metrics live only in `results_data`, avoiding duplicate
+UI/export payloads. This keeps plot and export functionality while substantially
+reducing per-session retained memory. Low-level calls to
+`apply_counterfactual_health_outcomes()` still return the cycle table for model
+development; pass `include_cf_columns = TRUE` only when explicit convenience
+columns are needed.
 
 ### Profiling full-data API performance
 

@@ -19,15 +19,16 @@
 #
 # Outputs:
 # The returned `counterfactual_data` gains `health_outcomes`, a full cycle-level
-# table for all filtered individuals. Reference outcome columns are retained,
-# `d_*` delta columns are added, and `*_cf` columns are added for convenience.
+# table for all filtered individuals. Reference outcome columns are retained and
+# `d_*` delta columns are added. Redundant `*_cf` columns are optional and are
+# disabled by default because callers can derive them as `ref + delta`.
 
 apply_counterfactual_health_outcomes <- function(
     counterfactual_data,
     reference_data,
     cfg = NULL,
     scheme_effect_duration = "longterm",
-    include_cf_columns = TRUE,
+    include_cf_columns = FALSE,
     hm_cycle_outcomes = NULL,
     hm_cycle_lookup = NULL
 ) {

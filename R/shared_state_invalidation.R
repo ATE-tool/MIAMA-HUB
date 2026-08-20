@@ -38,6 +38,7 @@ invalidate_hub_state <- function(state = list(), changed_fields = character()) {
   }
   if (length(changed_fields) > 0) {
     state$counterfactual_data <- NULL
+    state$health_impacts <- NULL
     state$results_data <- NULL
   }
   if (reference_defaults_refresh) {

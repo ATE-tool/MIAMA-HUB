@@ -158,7 +158,7 @@ hub_state_sizes <- function(hub, stage) {
   fields <- c(
     "reference_default_data", "reference_default_ui_values",
     "reference_sources", "reference_data_raw", "reference_data",
-    "counterfactual_data", "results_data"
+    "counterfactual_data", "health_impacts", "results_data"
   )
   data.frame(
     stage = stage,
@@ -181,16 +181,33 @@ hub_table_inventory <- function(hub, stage) {
     health_cube = hub$results_data$plot_data$health_cube
   )
   tables <- tables[!vapply(tables, is.null, logical(1))]
-  if (length(tables) == 0L) return(data.frame())
-
-  data.frame(
-    stage = stage,
-    table = names(tables),
-    rows = vapply(tables, nrow, integer(1)),
-    columns = vapply(tables, ncol, integer(1)),
-    size_mb = vapply(tables, object_mb, numeric(1)),
-    stringsAsFactors = FALSE
-  )
+  out <- if (length(tables) == 0L) {
+    data.frame(
+      stage = character(0), table = character(0), rows = integer(0),
+      columns = integer(0), size_mb = numeric(0)
+    )
+  } else {
+    data.frame(
+      stage = stage,
+      table = names(tables),
+      rows = vapply(tables, nrow, integer(1)),
+      columns = vapply(tables, ncol, integer(1)),
+      size_mb = vapply(tables, object_mb, numeric(1)),
+      stringsAsFactors = FALSE
+    )
+  }
+  if (!is.null(hub$health_impacts) &&
+      !isTRUE(hub$health_impacts$cycle_data_retained)) {
+    out <- rbind(out, data.frame(
+      stage = stage,
+      table = "health_outcomes_released",
+      rows = hub$health_impacts$n_cycle_rows,
+      columns = hub$health_impacts$n_cycle_columns,
+      size_mb = hub$health_impacts$cycle_data_size_mb,
+      stringsAsFactors = FALSE
+    ))
+  }
+  out
 }
 
 state_sizes <- list()

@@ -550,7 +550,9 @@ stopifnot(isTRUE(all.equal(
   tolerance = 1e-8
 )))
 
-## 8.3 Core presentation plots ----
+## TODO 8.3.1 Headline results ----
+
+## 8.3.2 Core presentation plots ----
 # Core 1: cumulative percentage reduction by selected health outcome.
 plot_core_health_by_outcome <- results_plot_health_overview(
   results_data,
@@ -619,4 +621,4 @@ plot_advanced_health_by_gender
 plot_advanced_health_by_mode
 plot_advanced_travel_by_mode
 
-# Step X: comparison of reference vs counterfactual data
+## TODO 8.5: Export products

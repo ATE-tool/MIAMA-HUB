@@ -499,8 +499,12 @@ test_that("Hub builds results through high-level UI method when data are already
   out <- hub$build_results(profile)
 
   expect_true(all(c(
-    "profile", "reference_data", "counterfactual_data", "results_data", "highlights", "plot_data"
+    "profile", "reference_data", "counterfactual_data", "health_impacts",
+    "results_data", "highlights", "plot_data"
   ) %in% names(out)))
+  expect_null(out$counterfactual_data$health_outcomes)
+  expect_false(out$health_impacts$cycle_data_retained)
+  expect_equal(out$health_impacts$n_cycle_rows, 1)
   expect_identical(out$plot_data, out$results_data$plot_data)
   expect_true(all(c(
     "health_cube", "mode_attribution", "trip_mode_distribution", "spreads"
@@ -509,6 +513,28 @@ test_that("Hub builds results through high-level UI method when data are already
   expect_equal(out$results_data$headline_metrics$premature_deaths_prevented, 1)
   expect_identical(out$highlights, hub$get_results_highlights())
   expect_equal(hub$get_results_highlights()$value[[1]], 1)
+})
+
+test_that("Hub reuses compacted results without rebuilding released cycle data", {
+  hub <- Hub$new(cfg = list(population = list(person_weight = 1)))
+  profile <- build_mock_appraisal_inputs(overrides = list(
+    res_outcomes = list(input_value = "mortality", is_filled = TRUE),
+    res_aggregation = list(input_value = "total", is_filled = TRUE)
+  ))
+  hub$reference_data <- list(ind = data.frame(census_id = 1))
+  hub$counterfactual_data <- list(
+    health_outcomes = data.frame(
+      census_id = 1, cycle = 1L, age1year = 30, female = 0,
+      dead = 10, d_dead = -1
+    )
+  )
+
+  first <- hub$build_results(profile)
+  second <- hub$build_results(profile)
+
+  expect_null(second$counterfactual_data$health_outcomes)
+  expect_identical(second$results_data, first$results_data)
+  expect_identical(second$health_impacts, first$health_impacts)
 })
 
 test_that("Hub exposes lightweight assessment and option metadata", {
