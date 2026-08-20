@@ -79,10 +79,18 @@ results_filter_health_data <- function(
     cube <- cube[cube$gender %in% gender, , drop = FALSE]
   }
   available_modes <- unique(as.character(cube$mode))
-  if (is.null(modes) || length(modes) == 0) {
+  requested_modes <- .results_normalize_health_modes(modes)
+  show_each_mode <- identical(group_by, "mode") &&
+    (is.null(modes) || length(modes) == 0 || "all_modes" %in% requested_modes)
+  if (show_each_mode) {
+    selected_modes <- setdiff(available_modes, "all_modes")
+    if (length(selected_modes) == 0 && "all_modes" %in% available_modes) {
+      selected_modes <- "all_modes"
+    }
+  } else if (is.null(modes) || length(modes) == 0) {
     selected_modes <- if ("all_modes" %in% available_modes) "all_modes" else available_modes
   } else {
-    selected_modes <- intersect(.results_normalize_health_modes(modes), available_modes)
+    selected_modes <- intersect(requested_modes, available_modes)
   }
   cube <- cube[cube$mode %in% selected_modes, , drop = FALSE]
   if (nrow(cube) == 0) return(cube)

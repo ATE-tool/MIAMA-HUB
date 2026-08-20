@@ -193,6 +193,15 @@ test_that("mode-attributed health deltas reconcile to the all-mode total", {
   expect_equal(sum(by_mode$prevented_value), 3)
   expect_true(nrow(out$results_report$mode_attribution) == 2)
 
+  all_by_mode <- results_filter_health_data(
+    out,
+    outcomes = "mortality",
+    modes = "all_modes",
+    group_by = "mode"
+  )
+  expect_equal(sort(all_by_mode$mode), c("cycling", "walking"))
+  expect_equal(sum(all_by_mode$prevented_value), 3)
+
   combined <- results_filter_health_data(
     out,
     outcomes = "mortality",

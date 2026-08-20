@@ -1353,10 +1353,12 @@ but changing those display controls does not require a HUB round trip or a new
 health-model run.
 
 Mode selections have two aggregation behaviors. For `group_by = "mode"`, HUB
-returns one attributed series per selected mode. For outcome, age, gender, and
-timeline views, multiple selected modes are summed into one `selected_modes`
-series; selecting one mode returns that mode alone. Leaving `modes = NULL`
-uses the canonical `all_modes` health result.
+returns one attributed series per selected mode; `modes = NULL` or
+`modes = "all_modes"` displays every available attributed mode separately. For
+outcome, age, gender, and timeline views, multiple selected modes are summed
+into one `selected_modes` series; selecting one mode returns that mode alone.
+Leaving `modes = NULL` in those combined views uses the canonical `all_modes`
+health result.
 
 The central UI plotting contract is returned directly by `Hub$build_results()`
 as `result$plot_data` and is also available as
