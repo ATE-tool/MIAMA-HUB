@@ -260,9 +260,8 @@ test_that("apply_reference_defaults_to_profile writes all matching broad default
   expect_equal(out$users_count_ref_bike$default_value, 5)
   expect_equal(out$trips_number_ref_walk$default_value, 6)
   expect_equal(out$pop_number_ref_walk$default_value, 7)
-  expect_equal(report$excluded_fields, character(0))
-  expect_false(report$default_context$conditional_filter_applied)
-  expect_equal(report$default_context$strategy, "broad_reference_defaults")
+  expect_equal(report$n_updated, 5)
+  expect_equal(report$n_skipped, 0)
 })
 
 test_that("apply_reference_defaults_to_profile writes aggregate and per-mode mode-share defaults", {
@@ -310,7 +309,7 @@ test_that("apply_reference_defaults_to_profile writes aggregate and per-mode mod
   expect_equal(advanced$mode_share_ref_walk$default_value, 6)
   expect_equal(advanced$mode_share_ref_bike$default_value, 7)
   expect_equal(advanced$users_count_ref_walk$default_value, 8)
-  expect_equal(attr(advanced, "reference_defaults_report")$excluded_fields, character(0))
+  expect_equal(attr(advanced, "reference_defaults_report")$n_skipped, 0)
 })
 
 test_that("Hub builds a profile with reference defaults in one UI-facing call", {

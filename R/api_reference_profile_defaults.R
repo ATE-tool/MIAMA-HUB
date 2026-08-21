@@ -5,6 +5,20 @@
 # User-entered values live in `input_value` when `is_filled = TRUE`. Reference
 # values that pre-populate UI fields should instead be written to
 # `default_value`, so they remain distinguishable from submitted user inputs.
+#
+# The application strategy is deliberately broad: HUB calculates all available
+# reference defaults and this module writes every update that has a matching
+# canonical profile field. UI selections such as `at_data_unit`, `ui_version`,
+# and selected modes determine which controls are displayed; they do not filter
+# which reference values HUB prepares.
+#
+# The returned profile carries a `reference_defaults_report` attribute for
+# diagnostics. It is not an appraisal input and does not control application
+# behavior. The report lists fields written to the profile, reference spread
+# values mirrored to counterfactual slider defaults, and calculated values that
+# had no matching profile field. Development workflows and tests can inspect it
+# when reconciling the HUB output with the UI schema.
+#
 # Mode-specific spread sliders are paired: HUB writes the observed value to the
 # `_ref_` field and mirrors it to the corresponding `_cf_` field's
 # `default_value`. This gives the counterfactual slider a no-change starting
@@ -17,8 +31,6 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
   assert_named_list(ui_updates, "ui_updates")
 
   out <- profile
-  filtered_updates <- .filter_reference_defaults_for_profile(profile, ui_updates)
-  ui_updates <- filtered_updates$ui_updates
   updated <- character(0)
   skipped <- character(0)
 
@@ -45,11 +57,8 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
     mirrored_cf_fields = mirrored$updated_fields,
     mirrored_cf_sources = mirrored$sources,
     skipped_fields = skipped,
-    excluded_fields = filtered_updates$excluded_fields,
     n_updated = length(updated),
-    n_skipped = length(skipped),
-    n_excluded = length(filtered_updates$excluded_fields),
-    default_context = filtered_updates$context
+    n_skipped = length(skipped)
   )
 
   out
@@ -91,39 +100,4 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
   out <- rep(NA_character_, length(field_name))
   out[matched] <- sub("_ref_", "_cf_", field_name[matched], fixed = TRUE)
   out
-}
-
-.filter_reference_defaults_for_profile <- function(profile, ui_updates) {
-  values <- extract_input_values(profile)
-
-  list(
-    ui_updates = ui_updates,
-    excluded_fields = character(0),
-    context = list(
-      ui_version = .reference_default_value(values, "ui_version", "basic"),
-      at_data_unit = .reference_default_value(values, "at_data_unit", "trips"),
-      trips_refine_method = .reference_default_value(values, "trips_refine_method", NULL),
-      modes = normalize_active_modes(.reference_default_value(values, "modes", character(0))),
-      selected_mode_suffixes = .reference_default_mode_suffixes(
-        normalize_active_modes(.reference_default_value(values, "modes", character(0)))
-      ),
-      conditional_filter_applied = FALSE,
-      strategy = "broad_reference_defaults"
-    )
-  )
-}
-
-.reference_default_mode_suffixes <- function(modes) {
-  supported <- names(.miama_tab2_mode_specs())
-  modes <- modes[modes %in% supported]
-  unname(vapply(modes, .miama_mode_suffix, character(1)))
-}
-
-.reference_default_value <- function(values, field_name, default = NULL) {
-  value <- values[[field_name]]
-  if (is.null(value) || length(value) == 0 || is.na(value[1])) {
-    return(default)
-  }
-
-  value
 }

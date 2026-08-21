@@ -391,10 +391,13 @@ The R6 method now fails fast if reference geography is missing, because an
 unscoped call can otherwise trigger a much larger parquet load than intended.
 
 The returned profile keeps `input_value` and `is_filled` unchanged. Fields that
-do not exist in the UI profile are skipped and listed in the
-`reference_defaults_report` attribute. `excluded_fields` is currently empty by
-design because HUB writes broad defaults and leaves conditional display choices
-to MIAMA-UI.
+do not exist in the UI profile are skipped and listed in the diagnostic
+`reference_defaults_report` attribute. This attribute is not part of the
+appraisal schema and does not drive UI or HUB behavior. It records
+`updated_fields`, `mirrored_cf_fields`, `mirrored_cf_sources`, `skipped_fields`,
+and their counts so developers can reconcile calculated HUB values with fields
+available in the UI profile. HUB writes broad defaults and leaves conditional
+display choices to MIAMA-UI.
 
 ### HUB session state and refresh behavior
 

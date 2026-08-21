@@ -55,7 +55,6 @@ extract_reference_ui_values <- function(
   population_size <- if (!is.null(ind)) nrow(ind) else NA_integer_
   context <- .reference_ui_context(appraisal_input_values)
   report <- list(
-    at_data_unit = context$at_data_unit,
     modes = context$modes,
     calculation_modes = context$calculation_modes,
     base_timeframe = "week",
@@ -219,9 +218,7 @@ extract_reference_ui_values <- function(
     values = appraisal_input_values,
     modes = modes,
     calculation_modes = calculation_modes,
-    mode_share_modes = names(.miama_tab2_mode_specs()),
-    at_data_unit = .ui_value(appraisal_input_values, "at_data_unit", "trips"),
-    trips_refine_method = .ui_value(appraisal_input_values, "trips_refine_method", NULL)
+    mode_share_modes = names(.miama_tab2_mode_specs())
   )
 }
 
