@@ -124,7 +124,7 @@ test_that("prepare_results_data aggregates filtered health outcomes", {
   expect_equal(out$headline_metrics$premature_deaths_prevented, 3)
   # Diabetes and stroke are separate underlying incidence streams and are each
   # counted once, irrespective of which outcomes are selected for plotting.
-  expect_equal(out$headline_metrics$disease_cases_prevented, 1.05)
+  expect_equal(out$headline_metrics$disease_cases_prevented, 1)
   highlights <- get_results_highlights(out)
   expect_equal(highlights$metric, c(
     "premature_deaths_prevented", "life_years_saved", "disease_cases_prevented"
@@ -275,7 +275,7 @@ test_that("AMAT outputs contain annual and cumulative LY, HLY, and incidence imp
   expect_equal(healthy_life_years$cumulative_benefit, c(1, 2.4))
   expect_equal(mortality$annual_delta_cf_minus_ref, c(-0.4, -0.4))
   expect_equal(mortality$cumulative_benefit, c(0.4, 0.8))
-  expect_equal(results_data$headline_metrics$life_years_saved, 1.2)
+  expect_equal(results_data$headline_metrics$life_years_saved, 1)
 
   first_year <- prepare_results_amat_outputs(results_data, horizon_years = 1)
   expect_equal(unique(first_year$timeline$cycle), 1L)
@@ -488,7 +488,7 @@ test_that("results exports assemble filtered tables, metadata, plots, and drafts
   expect_match(exports$amat_inputs$value[exports$amat_inputs$field == "schema_version"], "draft")
   expect_equal(exports$headline_metrics$value[
     exports$headline_metrics$metric == "disease_cases_prevented"
-  ], 1.6)
+  ], 2)
   expect_equal(exports$headline_metrics$status[
     exports$headline_metrics$metric == "disease_cases_prevented"
   ], "partial")

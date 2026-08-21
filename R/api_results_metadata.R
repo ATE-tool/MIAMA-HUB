@@ -112,9 +112,10 @@ get_results_options <- function(cfg = NULL) {
 
 #' Get the three headline health totals for the results summary card
 #'
-#' The values cover the configured assessment period and are not affected by
-#' interactive Tab 5 filters. Disease cases sum each configured underlying HM
-#' incidence stream once, avoiding overlap between UI composites and subtypes.
+#' The whole-number values cover the configured assessment period and are not
+#' affected by interactive Tab 5 filters. Disease cases sum each configured
+#' underlying HM incidence stream once, avoiding overlap between UI composites
+#' and subtypes. Detailed results data remain unrounded.
 #'
 #' @param results_data Object returned by [prepare_results_data()].
 #' @return Three-row data frame suitable for direct UI rendering.

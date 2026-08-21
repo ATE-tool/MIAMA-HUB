@@ -674,8 +674,10 @@ prepare_results_data <- function(
 }
 
 # Headline Metrics -----------------------------------------------------------
-# Headline tile values follow the Tab 5 draft labels. "Prevented" values are
-# represented as `-delta`, so negative deltas become positive prevented counts.
+# Headline tile values follow the Tab 5 draft labels and are rounded to whole
+# people or life-years for presentation. Detailed result tables remain unrounded.
+# "Prevented" values are represented as `-delta`, so negative deltas become
+# positive prevented counts.
 
 .results_headline_metrics <- function(health_outcomes,
                                       amat_health_timeline,
@@ -706,13 +708,20 @@ prepare_results_data <- function(
     ) * person_weight
   }
 
-  mortality_prevented <- benefit("mortality")
+  round_headline <- function(value) {
+    if (is.na(value)) NA_real_ else round(value)
+  }
+  mortality_prevented <- round_headline(benefit("mortality"))
+  life_years_saved <- round_headline(benefit("life_years"))
+  disease_cases_prevented <- round_headline(
+    if (is.na(disease_delta)) NA_real_ else -disease_delta
+  )
   list(
     premature_deaths_prevented = mortality_prevented,
-    life_years_saved = benefit("life_years"),
-    disease_cases_prevented = if (is.na(disease_delta)) NA_real_ else -disease_delta,
+    life_years_saved = life_years_saved,
+    disease_cases_prevented = disease_cases_prevented,
     mortality_delta = if (is.na(mortality_prevented)) NA_real_ else -mortality_prevented,
-    disease_cases_delta = disease_delta,
+    disease_cases_delta = if (is.na(disease_cases_prevented)) NA_real_ else -disease_cases_prevented,
     assessment_period_years = as.integer(period),
     disease_columns_used = available_diseases,
     disease_columns_missing = setdiff(configured_diseases, available_diseases)
