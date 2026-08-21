@@ -167,7 +167,8 @@ test_that("extract_reference_ui_values derives Tab 2 trip reference fields", {
     )
   )
 
-  expect_equal(values$ui_updates$pop_total_ref, 2)
+  expect_equal(values$ui_updates$pop_total_ref_basic, 2)
+  expect_equal(values$ui_updates$pop_total_ref_advanced, 2)
   expect_equal(values$ui_updates$population_size, 2)
   expect_equal(values$ui_updates$trips_count_ref_walk, 1)
   expect_equal(values$ui_updates$trips_count_ref_bike, 3)
@@ -228,7 +229,8 @@ test_that("extract_reference_ui_values derives summary geo_name where possible",
   )
 
   expect_equal(values$ui_updates$geo_name, "Leeds")
-  expect_equal(values$ui_updates$population_size, values$ui_updates$pop_total_ref)
+  expect_equal(values$ui_updates$population_size, values$ui_updates$pop_total_ref_basic)
+  expect_equal(values$ui_updates$population_size, values$ui_updates$pop_total_ref_advanced)
 })
 
 test_that("extract_reference_ui_values supports individual-only user counts", {
@@ -345,9 +347,9 @@ test_that("extract_reference_ui_values derives Tab 3 population reference fields
     )
   )
 
-  expect_equal(current_values$ui_updates$pop_total_ref, 4)
-  expect_equal(current_values$ui_updates$pop_number_ref_walk, 2)
-  expect_equal(current_values$ui_updates$pop_number_ref_bike, 1)
+  expect_equal(current_values$ui_updates$pop_total_ref_advanced, 4)
+  expect_equal(current_values$ui_updates$pop_number_ref_walk_advanced, 2)
+  expect_equal(current_values$ui_updates$pop_number_ref_bike_advanced, 1)
   expect_equal(current_values$ui_updates$pop_spread_age_mean_ref_walk, 39.5)
   expect_equal(current_values$ui_updates$pop_spread_sex_prop_ref_walk, 1)
   expect_equal(current_values$ui_updates$pop_spread_age_mean_ref_bike, 35)
@@ -424,7 +426,7 @@ test_that("extract_reference_ui_values handles haven-labelled numeric columns", 
     )
   )
 
-  expect_equal(values$ui_updates$pop_number_ref_walk, 2)
+  expect_equal(values$ui_updates$pop_number_ref_walk_advanced, 2)
   expect_equal(values$ui_updates$trips_count_ref_walk, 2)
   expect_equal(values$ui_updates$pop_spread_age_mean_ref_walk, 34.5)
   expect_equal(values$ui_updates$pop_spread_sex_prop_ref_walk, 1)

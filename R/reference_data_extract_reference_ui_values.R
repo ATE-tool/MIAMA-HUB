@@ -64,7 +64,8 @@ extract_reference_ui_values <- function(
 
   geo_name <- .reference_geo_name(reference_data, reference_request)
   ui_updates <- list(
-    pop_total_ref = population_size,
+    pop_total_ref_basic = population_size,
+    pop_total_ref_advanced = population_size,
     population_size = population_size,
     geo_name = geo_name
   )
@@ -83,6 +84,7 @@ extract_reference_ui_values <- function(
     field <- paste0("users_count_ref_", suffix)
     result <- .reference_users_count(ind, trips, mode)
     ui_updates[[field]] <- result$value
+    ui_updates[[paste0("pop_number_ref_", suffix, "_basic")]] <- result$value
     report$notes <- c(report$notes, result$notes)
 
     field <- paste0("trips_count_ref_", suffix)
@@ -674,7 +676,7 @@ extract_reference_ui_values <- function(
     }
     suffix <- .miama_mode_suffix(mode)
     result <- .reference_users_count(ind, trips, mode)
-    ui_updates[[paste0("pop_number_ref_", suffix)]] <- result$value
+    ui_updates[[paste0("pop_number_ref_", suffix, "_advanced")]] <- result$value
     notes <- c(notes, result$notes)
   }
 

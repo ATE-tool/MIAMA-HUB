@@ -202,7 +202,7 @@ profile_defaults_filled <- profile_defaults_overview[
 ]
 
 profile_reference_fields <- profile_defaults_filled[
-  grepl("_ref$|^geo_name$|^population_size$|^pop_total_ref$", profile_defaults_filled$field),
+  grepl("_ref_|_ref$|^geo_name$|^population_size$", profile_defaults_filled$field),
   ,
   drop = FALSE
 ]
@@ -238,7 +238,9 @@ reference_defaults_changed <- data.frame(
 )
 
 classify_reference_default_field <- function(field) {
-  if (field %in% c("geo_name", "population_size", "pop_total_ref")) {
+  if (field %in% c(
+    "geo_name", "population_size", "pop_total_ref_basic", "pop_total_ref_advanced"
+  )) {
     return("summary")
   }
   if (grepl("^users_count_ref_|^pop_number_ref_|^pop_spread_", field)) {
@@ -314,7 +316,8 @@ if (nrow(trip_count_defaults) > 0) {
 # View(trip_count_defaults)
 # str(profile_with_defaults$geo_name)
 # str(profile_with_defaults$population_size)
-# str(profile_with_defaults$pop_total_ref)
+# str(profile_with_defaults$pop_total_ref_basic)
+# str(profile_with_defaults$pop_total_ref_advanced)
 # str(profile_with_defaults$users_count_ref_walk)
 # str(profile_with_defaults$trips_count_ref_bike)
 # reference_defaults_report

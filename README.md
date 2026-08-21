@@ -141,7 +141,8 @@ For inspection during development:
 
 ```r
 names(hub$get_profile())
-str(hub$get_profile()$pop_total_ref)
+str(hub$get_profile()$pop_total_ref_basic)
+str(hub$get_profile()$pop_total_ref_advanced)
 hub$get_request()$appraisal_input_values
 hub$get_reference_ui_updates()
 result$results_data$results_table
@@ -283,9 +284,10 @@ Summary-only fields should be reserved for values that are derived or displayed:
 `geo_name` / `location` is available from the lightweight geography lookup and
 can be resolved before full reference data is built. Prefer
 `get_geo_details(cfg, geo_id)` for Tab 1 summary panels. `population_size` is
-equivalent to `pop_total_ref` and is available after reference data has been
-filtered and `extract_reference_ui_values()` has run. The R6 API still exposes a
-compact development helper:
+the canonical summary value corresponding to both `pop_total_ref_basic` and
+`pop_total_ref_advanced`; it is available after reference data has been filtered
+and `extract_reference_ui_values()` has run. The R6 API still exposes a compact
+development helper:
 
 ```r
 hub$get_appraisal_summary_values()
@@ -478,8 +480,10 @@ The current extractor covers Tab 2 reference fields for:
 
 It also covers advanced Tab 3 and Tab 4 reference fields:
 
-- population totals and per-mode population counts (`pop_total_ref`,
-  `population_size`, `pop_number_ref_*`)
+- basic and advanced population totals and per-mode population counts
+  (`pop_total_ref_basic`, `pop_total_ref_advanced`,
+  `pop_number_ref_*_basic`, and `pop_number_ref_*_advanced`) plus the canonical
+  `population_size` summary value
 - mode-specific population distribution anchors (`pop_spread_age_mean_ref_*`,
   `pop_spread_sex_prop_ref_*`, `pop_spread_pa_mean_ref_*`,
   `pop_spread_pa_sex_prop_ref_*`)
@@ -849,9 +853,15 @@ Rscript --vanilla inst/workflows/dev_profile_defaults_from_ui_default.R
 ```
 
 `build_reference_profile_defaults()` uses a synthpop-only reference-default path,
-so full-data Tab 2/3/4 defaults do not require full HM outcomes. `pop_total_ref`
-remains the filtered synthetic-population row count; `population_size` is
-overridden from the geography lookup's scaled population where available.
+so full-data Tab 2/3/4 defaults do not require full HM outcomes.
+`pop_total_ref_basic` and `pop_total_ref_advanced` remain the filtered synthetic-
+population row count; `population_size` is overridden from the geography
+lookup's scaled population where available.
+
+`pop_total_cf_basic` and `pop_total_cf_advanced` are currently retained as
+separate UI/profile values. They do not add or remove synthetic-population rows:
+counterfactual user targets are validated against the fixed filtered reference
+population until an explicit total-population scaling mechanism is introduced.
 
 For England-wide schema default review values, use
 `inst/workflows/dev_extract_england_schema_default_values.R`. It reads the full
@@ -896,10 +906,12 @@ convenience helpers for development and summary displays.
 that copy and adds a compact `counterfactual_report`.
 
 ### Users: derive counterfactual number of active mode users
-The current implementation supports `users_count_cf_*` and `pop_number_cf_*`
-for walking and cycling. These fields adjust the number of individuals with
-positive mode-specific weekly activity while keeping the individual population
-fixed:
+The current implementation supports `users_count_cf_*` in the basic UI,
+`pop_number_cf_*_basic` as the basic population-modal alternative, and
+`pop_number_cf_*_advanced` in the advanced UI for walking and cycling. HUB uses
+`ui_version` to select the applicable field family. These fields adjust the
+number of individuals with positive mode-specific weekly activity while keeping
+the individual population fixed:
 
 - if the counterfactual target is larger than the current reference count,
   existing non-users are sampled as `new_users`

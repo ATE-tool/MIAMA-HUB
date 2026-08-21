@@ -107,11 +107,11 @@ hub$build_reference_data()
 ui_updates <- hub$get_reference_ui_updates(refresh = TRUE)
 
 # Example Shiny-side use:
-# updateNumericInput(session, "pop_total_ref", value = ui_updates$pop_total_ref)
+# updateNumericInput(session, "pop_total_ref_basic", value = ui_updates$pop_total_ref_basic)
 # updateNumericInput(session, "trips_number_total_ref", value = ui_updates$trips_number_total_ref)
 
 # Get one value:
-hub$get_reference_ui_value("pop_total_ref")
+hub$get_reference_ui_value("pop_total_ref_basic")
 ```
 
 When a user changes inputs, call `update_inputs()` with a named list in the same
@@ -263,7 +263,7 @@ server <- function(input, output, session) {
     updates <- h$get_reference_ui_updates(refresh = TRUE)
 
     # Then update UI fields that exist and are visible.
-    # updateNumericInput(session, "pop_total_ref", value = updates$pop_total_ref)
+    # updateNumericInput(session, "pop_total_ref_basic", value = updates$pop_total_ref_basic)
   })
 }
 ```
@@ -277,10 +277,10 @@ list(
   reference_request = list(...),
   appraisal_input_values = list(...),
   ui_updates = list(
-    pop_total_ref = ...,
+    pop_total_ref_basic = ...,
     users_count_ref_walk = ...,
     trips_count_ref_walk = ...,
-    pop_number_ref_walk = ...,
+    pop_number_ref_walk_advanced = ...,
     trips_number_total_ref = ...,
     ...
   ),

@@ -71,9 +71,10 @@ test_that("blank basic user target does not mask advanced target", {
   counterfactual_data <- apply_counterfactual_ui_values(
     init_counterfactual_data(reference_data),
     appraisal_input_values = list(
+      ui_version = "advanced",
       modes = "cycling",
       users_count_cf_bike = NA_real_,
-      pop_number_cf_bike = 2
+      pop_number_cf_bike_advanced = 2
     ),
     reference_data = reference_data,
     seed = 10
@@ -81,6 +82,24 @@ test_that("blank basic user target does not mask advanced target", {
 
   expect_equal(sum(counterfactual_data$ind$cycletime_wkhr > 0), 2)
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$target, 2)
+})
+
+test_that("user targets are selected from the active UI field family", {
+  values <- list(
+    users_count_cf_bike = 4,
+    pop_number_cf_bike_basic = 5,
+    pop_number_cf_bike_advanced = 9
+  )
+
+  basic <- .cf_user_target(c(values, list(ui_version = "basic")), "bike")
+  advanced <- .cf_user_target(c(values, list(ui_version = "advanced")), "bike")
+
+  expect_equal(basic$value, 4)
+  expect_equal(basic$field, "users_count_cf_bike")
+  expect_equal(basic$alias_field, "pop_number_cf_bike_basic")
+  expect_equal(advanced$value, 9)
+  expect_equal(advanced$field, "pop_number_cf_bike_advanced")
+  expect_equal(advanced$alias_field, "pop_number_cf_bike_advanced")
 })
 
 test_that("blank user targets produce no counterfactual user change", {
@@ -95,9 +114,10 @@ test_that("blank user targets produce no counterfactual user change", {
   counterfactual_data <- apply_counterfactual_ui_values(
     init_counterfactual_data(reference_data),
     appraisal_input_values = list(
+      ui_version = "advanced",
       modes = "walking",
       users_count_cf_walk = NA_real_,
-      pop_number_cf_walk = NULL
+      pop_number_cf_walk_advanced = NULL
     ),
     reference_data = reference_data
   )

@@ -347,7 +347,10 @@ Hub <- R6::R6Class(
         geo_level = self$request$reference_request$geo_level,
         geo_id = self$request$reference_request$geo_id,
         geo_name = self$get_geo_name(default = ui_updates$geo_name %||% NA_character_),
-        population_size = ui_updates$population_size %||% ui_updates$pop_total_ref %||% NA_integer_,
+        population_size = ui_updates$population_size %||%
+          ui_updates$pop_total_ref_basic %||%
+          ui_updates$pop_total_ref_advanced %||%
+          NA_integer_,
         appraisal_name = self$request$appraisal_input_values$appraisal_name %||% NULL
       )
     },

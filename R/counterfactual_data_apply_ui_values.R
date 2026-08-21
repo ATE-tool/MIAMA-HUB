@@ -18,8 +18,8 @@
 # Handler design:
 # Each handler owns one conceptual family of UI fields, not one literal input.
 # For example, `.apply_cf_active_user_count_handler()` handles
-# `users_count_cf_*` and `pop_number_cf_*` because both mean "set the
-# counterfactual number of active mode users".
+# `users_count_cf_*` and the UI-version-specific `pop_number_cf_*_(basic|advanced)`
+# fields because both mean "set the counterfactual number of active mode users".
 #
 # Anticipated future handler families:
 # - active-mode user count targets: implemented first-pass
@@ -155,7 +155,8 @@ apply_counterfactual_ui_values <- function(
 # Handler: active-mode user count targets ----
 # UI fields:
 # - `users_count_cf_walk`, `users_count_cf_bike`
-# - `pop_number_cf_walk`, `pop_number_cf_bike`
+# - basic UI: `pop_number_cf_walk_basic`, `pop_number_cf_bike_basic`
+# - advanced UI: `pop_number_cf_walk_advanced`, `pop_number_cf_bike_advanced`
 #
 # Data manipulation:
 # - Select row IDs from current non-users or current users.
@@ -271,7 +272,8 @@ apply_counterfactual_ui_values <- function(
     ))
   }
 
-  target <- .cf_user_target(appraisal_input_values, spec$suffix)
+  target_spec <- .cf_user_target(appraisal_input_values, spec$suffix)
+  target <- target_spec$value
   if (is.null(target)) {
     return(.counterfactual_no_change(counterfactual_data))
   }
@@ -330,8 +332,8 @@ apply_counterfactual_ui_values <- function(
 
   updated_cf_users <- .positive_col(counterfactual_data$ind, spec$activity_col)
   change <- .compact_counterfactual_change(
-    field = paste0("users_count_cf_", spec$suffix),
-    alias_field = paste0("pop_number_cf_", spec$suffix),
+    field = target_spec$field,
+    alias_field = target_spec$alias_field,
     mode = mode,
     activity_col = spec$activity_col,
     target = target,
@@ -435,16 +437,19 @@ apply_counterfactual_ui_values <- function(
 
 .cf_user_target <- function(values, suffix) {
   users_field <- paste0("users_count_cf_", suffix)
-  pop_field <- paste0("pop_number_cf_", suffix)
+  ui_version <- .ui_value(values, "ui_version", "basic")
+  ui_version <- if (identical(ui_version, "advanced")) "advanced" else "basic"
+  pop_field <- paste0("pop_number_cf_", suffix, "_", ui_version)
+  fields <- if (identical(ui_version, "advanced")) pop_field else c(users_field, pop_field)
 
-  for (field in c(users_field, pop_field)) {
+  for (field in fields) {
     target <- .ui_value(values, field, NULL)
     if (!.is_blank_cf_target(target)) {
-      return(target)
+      return(list(value = target, field = field, alias_field = pop_field))
     }
   }
 
-  NULL
+  list(value = NULL, field = fields[[1]], alias_field = pop_field)
 }
 
 ### Trips, Trip counts ----

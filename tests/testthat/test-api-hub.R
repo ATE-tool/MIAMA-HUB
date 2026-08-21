@@ -12,7 +12,7 @@ test_that("Hub initializes with cfg only and accepts profile state later", {
 })
 
 test_that("counterfactual changes retain reference defaults", {
-  marker <- list(ui_updates = list(pop_total_ref = 100))
+  marker <- list(ui_updates = list(pop_total_ref_basic = 100))
   state <- list(
     reference_sources = list(source = TRUE),
     reference_data_raw = list(ind = data.frame(census_id = 1)),
@@ -75,9 +75,11 @@ test_that("Hub exposes reference UI updates and single-field accessors", {
   ui_values <- hub$build_reference_ui_values()
   updates <- hub$get_reference_ui_updates()
 
-  expect_equal(ui_values$ui_updates$pop_total_ref, 3)
-  expect_equal(updates$pop_number_ref_walk, 2)
-  expect_equal(hub$get_reference_ui_value("pop_number_ref_bike"), 1)
+  expect_equal(ui_values$ui_updates$pop_total_ref_basic, 3)
+  expect_equal(ui_values$ui_updates$pop_total_ref_advanced, 3)
+  expect_equal(updates$pop_number_ref_walk_basic, 2)
+  expect_equal(updates$pop_number_ref_walk_advanced, 2)
+  expect_equal(hub$get_reference_ui_value("pop_number_ref_bike_advanced"), 1)
   expect_equal(hub$get_population_size(), 3)
   expect_equal(hub$get_appraisal_summary_values()$population_size, 3)
   expect_null(hub$get_reference_ui_value("missing_field"))
@@ -110,22 +112,22 @@ test_that("get_input_value treats unfilled list fields as missing even without i
 
 test_that("apply_reference_defaults_to_profile writes defaults without filling inputs", {
   profile <- list(
-    pop_total_ref = list(is_filled = FALSE, input_value = NULL, description = "Population"),
+    pop_total_ref_basic = list(is_filled = FALSE, input_value = NULL, description = "Population"),
     users_count_ref_walk = list(is_filled = FALSE, input_value = NULL, description = "Walk users"),
     users_count_cf_walk = list(is_filled = FALSE, input_value = NULL, description = "CF walk users")
   )
 
   out <- apply_reference_defaults_to_profile(
     profile,
-    ui_updates = list(pop_total_ref = 10, users_count_ref_walk = 3, missing_field = 99)
+    ui_updates = list(pop_total_ref_basic = 10, users_count_ref_walk = 3, missing_field = 99)
   )
   report <- attr(out, "reference_defaults_report")
 
-  expect_equal(out$pop_total_ref$default_value, 10)
+  expect_equal(out$pop_total_ref_basic$default_value, 10)
   expect_equal(out$users_count_ref_walk$default_value, 3)
-  expect_null(out$pop_total_ref$input_value)
-  expect_false(out$pop_total_ref$is_filled)
-  expect_equal(report$updated_fields, c("pop_total_ref", "users_count_ref_walk"))
+  expect_null(out$pop_total_ref_basic$input_value)
+  expect_false(out$pop_total_ref_basic$is_filled)
+  expect_equal(report$updated_fields, c("pop_total_ref_basic", "users_count_ref_walk"))
   expect_equal(report$skipped_fields, "missing_field")
 })
 
@@ -236,30 +238,30 @@ test_that("apply_reference_defaults_to_profile writes all matching broad default
     ui_version = list(is_filled = TRUE, input_value = "basic"),
     at_data_unit = list(is_filled = TRUE, input_value = "users"),
     modes = list(is_filled = TRUE, input_value = "walk"),
-    pop_total_ref = list(is_filled = FALSE, input_value = NULL),
+    pop_total_ref_basic = list(is_filled = FALSE, input_value = NULL),
     users_count_ref_walk = list(is_filled = FALSE, input_value = NULL),
     users_count_ref_bike = list(is_filled = FALSE, input_value = NULL),
     trips_number_ref_walk = list(is_filled = FALSE, input_value = NULL),
-    pop_number_ref_walk = list(is_filled = FALSE, input_value = NULL)
+    pop_number_ref_walk_advanced = list(is_filled = FALSE, input_value = NULL)
   )
 
   out <- apply_reference_defaults_to_profile(
     profile,
     ui_updates = list(
-      pop_total_ref = 10,
+      pop_total_ref_basic = 10,
       users_count_ref_walk = 4,
       users_count_ref_bike = 5,
       trips_number_ref_walk = 6,
-      pop_number_ref_walk = 7
+      pop_number_ref_walk_advanced = 7
     )
   )
   report <- attr(out, "reference_defaults_report")
 
-  expect_equal(out$pop_total_ref$default_value, 10)
+  expect_equal(out$pop_total_ref_basic$default_value, 10)
   expect_equal(out$users_count_ref_walk$default_value, 4)
   expect_equal(out$users_count_ref_bike$default_value, 5)
   expect_equal(out$trips_number_ref_walk$default_value, 6)
-  expect_equal(out$pop_number_ref_walk$default_value, 7)
+  expect_equal(out$pop_number_ref_walk_advanced$default_value, 7)
   expect_equal(report$n_updated, 5)
   expect_equal(report$n_skipped, 0)
 })
@@ -269,8 +271,8 @@ test_that("apply_reference_defaults_to_profile writes aggregate and per-mode mod
     ui_version = list(is_filled = TRUE, input_value = "advanced"),
     modes = list(is_filled = TRUE, input_value = "walk"),
     trips_refine_method = list(is_filled = TRUE, input_value = "trip_diversion"),
-    pop_number_ref_walk = list(is_filled = FALSE, input_value = NULL),
-    pop_number_ref_bike = list(is_filled = FALSE, input_value = NULL),
+    pop_number_ref_walk_advanced = list(is_filled = FALSE, input_value = NULL),
+    pop_number_ref_bike_advanced = list(is_filled = FALSE, input_value = NULL),
     trips_number_ref_walk = list(is_filled = FALSE, input_value = NULL),
     trips_number_ref_bike = list(is_filled = FALSE, input_value = NULL),
     trips_diversion_total_trips = list(is_filled = FALSE, input_value = NULL),
@@ -283,8 +285,8 @@ test_that("apply_reference_defaults_to_profile writes aggregate and per-mode mod
   advanced <- apply_reference_defaults_to_profile(
     advanced_profile,
     ui_updates = list(
-      pop_number_ref_walk = 1,
-      pop_number_ref_bike = 2,
+      pop_number_ref_walk_advanced = 1,
+      pop_number_ref_bike_advanced = 2,
       trips_number_ref_walk = 3,
       trips_number_ref_bike = 4,
       trips_diversion_total_trips = 5,
@@ -300,8 +302,8 @@ test_that("apply_reference_defaults_to_profile writes aggregate and per-mode mod
     )
   )
 
-  expect_equal(advanced$pop_number_ref_walk$default_value, 1)
-  expect_equal(advanced$pop_number_ref_bike$default_value, 2)
+  expect_equal(advanced$pop_number_ref_walk_advanced$default_value, 1)
+  expect_equal(advanced$pop_number_ref_bike_advanced$default_value, 2)
   expect_equal(advanced$trips_number_ref_walk$default_value, 3)
   expect_equal(advanced$trips_number_ref_bike$default_value, 4)
   expect_equal(advanced$trips_diversion_total_trips$default_value, 5)
@@ -317,10 +319,12 @@ test_that("Hub builds a profile with reference defaults in one UI-facing call", 
     ui_version = list(input_value = "basic", is_filled = TRUE),
     at_data_unit = list(input_value = "users", is_filled = TRUE),
     modes = list(input_value = "walking", is_filled = TRUE),
-    pop_total_ref = list(is_filled = FALSE, input_value = NULL, description = "Population"),
+    pop_total_ref_basic = list(is_filled = FALSE, input_value = NULL, description = "Population"),
+    pop_total_ref_advanced = list(is_filled = FALSE, input_value = NULL, description = "Population"),
     population_size = list(is_filled = FALSE, input_value = NULL, description = "Population size"),
     users_count_ref_walk = list(is_filled = FALSE, input_value = NULL, description = "Walking users"),
-    pop_number_ref_walk = list(is_filled = FALSE, input_value = NULL, description = "Advanced walking users")
+    pop_number_ref_walk_basic = list(is_filled = FALSE, input_value = NULL, description = "Basic walking users"),
+    pop_number_ref_walk_advanced = list(is_filled = FALSE, input_value = NULL, description = "Advanced walking users")
   ))
   hub <- Hub$new(cfg = list())
   hub$reference_default_data <- list(
@@ -335,13 +339,15 @@ test_that("Hub builds a profile with reference defaults in one UI-facing call", 
   updated <- hub$build_reference_profile_defaults(profile)
   report <- attr(updated, "reference_defaults_report")
 
-  expect_equal(updated$pop_total_ref$default_value, 3)
+  expect_equal(updated$pop_total_ref_basic$default_value, 3)
+  expect_equal(updated$pop_total_ref_advanced$default_value, 3)
   expect_equal(updated$population_size$default_value, 3)
   expect_equal(updated$users_count_ref_walk$default_value, 2)
-  expect_equal(updated$pop_number_ref_walk$default_value, 2)
-  expect_null(updated$pop_total_ref$input_value)
-  expect_false(updated$pop_total_ref$is_filled)
-  expect_true("pop_total_ref" %in% report$updated_fields)
+  expect_equal(updated$pop_number_ref_walk_basic$default_value, 2)
+  expect_equal(updated$pop_number_ref_walk_advanced$default_value, 2)
+  expect_null(updated$pop_total_ref_basic$input_value)
+  expect_false(updated$pop_total_ref_basic$is_filled)
+  expect_true(all(c("pop_total_ref_basic", "pop_total_ref_advanced") %in% report$updated_fields))
 })
 
 test_that("Hub reference loading fails fast when Tab 1 geography is not written to profile", {
@@ -400,7 +406,7 @@ test_that("Hub clears cached reference UI values when lightweight inputs change"
   hub$reference_sources <- list(source_report = list())
   hub$reference_data_raw <- list(ind = data.frame(), trips = data.frame())
   hub$reference_data <- list(ind = data.frame(), trips = data.frame())
-  hub$reference_ui_values <- list(ui_updates = list(pop_total_ref = 3))
+  hub$reference_ui_values <- list(ui_updates = list(pop_total_ref_basic = 3))
 
   hub$update_inputs(list(
     modes = list(input_value = "walking")
@@ -419,7 +425,7 @@ test_that("Hub clears cached reference data when profile geography changes", {
   hub$reference_sources <- list(source_report = list())
   hub$reference_data_raw <- list(ind = data.frame(), trips = data.frame())
   hub$reference_data <- list(ind = data.frame(), trips = data.frame())
-  hub$reference_ui_values <- list(ui_updates = list(pop_total_ref = 3))
+  hub$reference_ui_values <- list(ui_updates = list(pop_total_ref_basic = 3))
 
   profile$geo_id$input_value <- "E09000001"
   hub$set_appraisal_inputs(profile)
@@ -437,7 +443,7 @@ test_that("Hub keeps loaded reference data when profile change only affects disp
   hub$reference_sources <- list(source_report = list())
   hub$reference_data_raw <- list(ind = data.frame(), trips = data.frame())
   hub$reference_data <- list(ind = data.frame(), trips = data.frame())
-  hub$reference_ui_values <- list(ui_updates = list(pop_total_ref = 3))
+  hub$reference_ui_values <- list(ui_updates = list(pop_total_ref_basic = 3))
 
   profile$modes$input_value <- "walking"
   hub$set_appraisal_inputs(profile)
