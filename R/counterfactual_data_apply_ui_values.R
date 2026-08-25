@@ -311,6 +311,11 @@ apply_counterfactual_ui_values <- function(
     appraisal_input_values,
     spec$suffix
   )
+  trip_rate <- .cf_positive_mode_assumption(
+    appraisal_input_values,
+    "default_trips_per_user_per_week",
+    spec$suffix
+  )
   trip_effect <- .apply_user_status_trip_effects(
     counterfactual_data = counterfactual_data,
     reference_data = reference_data,
@@ -325,7 +330,8 @@ apply_counterfactual_ui_values <- function(
       spread = constants$spread
     ),
     car_diversion_target = car_diversion_target,
-    diversion_target = .cf_away_diversion_target(constants)
+    diversion_target = .cf_away_diversion_target(constants),
+    trips_per_user_per_week = trip_rate$value
   )
   counterfactual_data <- trip_effect$counterfactual_data
   counterfactual_data <- cf_add_key_indicators(counterfactual_data, spec$mode)
@@ -349,13 +355,14 @@ apply_counterfactual_ui_values <- function(
   change$relevant_attributes <- assignment$relevant_attributes
   change$sampling_constraints <- assignment$sampling_constraints
   change$sampling_fallback <- assignment$sampling_fallback
-  change$sampling_fallback <- assignment$sampling_fallback
   change$user_trip_shift_target_n <- trip_effect$trip_shift_target_n
   change$user_trip_shift_n <- trip_effect$trip_shift_n
   change$trip_sampling_fallback <- trip_effect$sampling_fallback
   change$car_diversion_percent <- car_diversion_target$percent
   change$car_diversion_field <- car_diversion_target$field
   change$realized_car_diversion_percent <- trip_effect$realized_car_diversion_percent
+  change$trips_per_user_per_week <- trip_rate$value
+  change$trips_per_user_per_week_field <- trip_rate$field
 
   list(
     counterfactual_data = counterfactual_data,
@@ -452,6 +459,21 @@ apply_counterfactual_ui_values <- function(
   list(value = NULL, field = fields[[1]], alias_field = pop_field)
 }
 
+.cf_positive_mode_assumption <- function(values, field_stem, suffix) {
+  field <- paste0(field_stem, "_", suffix)
+  raw <- .ui_value(values, field, NULL)
+  if (is.null(raw) || length(raw) == 0 || (length(raw) == 1 && is.na(raw))) {
+    return(list(field = field, value = NULL))
+  }
+
+  value <- suppressWarnings(as.numeric(raw))
+  if (length(value) != 1 || !is.finite(value) || value <= 0) {
+    stop("`", field, "` must be one finite number greater than zero.", call. = FALSE)
+  }
+
+  list(field = field, value = value)
+}
+
 ### Trips, Trip counts ----
 
 .apply_cf_trip_count_for_mode <- function(
@@ -481,6 +503,11 @@ apply_counterfactual_ui_values <- function(
   args <- .cf_trip_distribution_args(appraisal_input_values, spec$suffix)
   car_diversion_target <- .cf_car_diversion_target(
     appraisal_input_values,
+    spec$suffix
+  )
+  trip_rate <- .cf_positive_mode_assumption(
+    appraisal_input_values,
+    "default_trips_per_user_per_week",
     spec$suffix
   )
   target_base <- .validate_cf_trip_target(target, reference_data, spec)
@@ -529,6 +556,16 @@ apply_counterfactual_ui_values <- function(
     census_id = .changed_trip_census_ids(assignment$changed_rows)
   )
   change$target_base_week_count <- target_base$count
+  change$implied_weekly_users <- if (is.null(trip_rate$value)) {
+    NULL
+  } else {
+    as.integer(ceiling(target_base$count / trip_rate$value))
+  }
+  change$trips_per_user_per_week <- trip_rate$value
+  change$trips_per_user_per_week_field <- trip_rate$field
+  change$realized_changed_users <- length(unique(.changed_trip_census_ids(
+    assignment$changed_rows
+  )))
   change$target_denominator <- target$denominator
   change$target_timeframe <- target$timeframe
   change$distribution_args <- args
@@ -730,7 +767,11 @@ apply_counterfactual_ui_values <- function(
 
   list(
     new_user_percent = .ui_value(values, "pop_new_current_perc", NULL),
-    trip_distance_default = .ui_value(values, "trips_dist_value", NULL),
+    trip_distance_default = .ui_value(
+      values,
+      paste0("default_trip_distance_", suffix),
+      NULL
+    ),
     purpose_type = .ui_value(values, "trips_purpose_type", NULL),
     utilitarian_percent = .ui_value(values, "trips_purpose_util_perc", NULL),
     target_mean_distance = .ui_value(values, paste0("trips_spread_mean_cf_", suffix), NULL),
@@ -763,7 +804,8 @@ apply_counterfactual_ui_values <- function(
     seed,
     trip_target,
     car_diversion_target,
-    diversion_target
+    diversion_target,
+    trips_per_user_per_week = NULL
 ) {
   notes <- character(0)
   if (length(changed_rows) == 0 || is.null(counterfactual_data$trips) ||
@@ -813,7 +855,8 @@ apply_counterfactual_ui_values <- function(
       reference_data = reference_data,
       spec = spec,
       new_user_n = length(changed_ids),
-      seed = seed + spec$seed_offset + 2300L
+      seed = seed + spec$seed_offset + 2300L,
+      trips_per_user_per_week = trips_per_user_per_week
     )
     shifted <- .shift_nonactive_trips_to_mode(
       counterfactual_data = counterfactual_data,
@@ -1024,7 +1067,15 @@ apply_counterfactual_ui_values <- function(
   trips
 }
 
-.new_user_trip_shift_count <- function(reference_data, spec, new_user_n, seed) {
+.new_user_trip_shift_count <- function(reference_data,
+                                       spec,
+                                       new_user_n,
+                                       seed,
+                                       trips_per_user_per_week = NULL) {
+  if (!is.null(trips_per_user_per_week)) {
+    return(as.integer(round(new_user_n * trips_per_user_per_week)))
+  }
+
   if (new_user_n == 0 || is.null(reference_data$ind) || is.null(reference_data$trips) ||
       !"census_id" %in% names(reference_data$ind) ||
       !"census_id" %in% names(reference_data$trips) ||

@@ -284,6 +284,14 @@ cf_trip_candidate_weights <- function(trips, candidate_rows, active_distances, t
   if (length(candidate_rows) == 0 || !"trip_distraw_km" %in% names(trips)) {
     return(weights)
   }
+
+  if (is.null(target$distance_category_props) && !is.null(target$target_mean_distance)) {
+    return(weights * cf_mean_distance_weights(
+      trips$trip_distraw_km[candidate_rows],
+      target$target_mean_distance
+    ))
+  }
+
   if (length(active_distances) == 0 || all(is.na(active_distances))) {
     return(weights)
   }
@@ -310,6 +318,25 @@ cf_trip_candidate_weights <- function(trips, candidate_rows, active_distances, t
   }
 
   weights * cf_quintile_weights(category[candidate_rows], props)
+}
+
+cf_mean_distance_weights <- function(distances, target_mean) {
+  distances <- suppressWarnings(as.numeric(distances))
+  target_mean <- suppressWarnings(as.numeric(target_mean))
+  if (length(target_mean) != 1 || !is.finite(target_mean) || target_mean <= 0) {
+    return(rep(1, length(distances)))
+  }
+
+  observed <- distances[is.finite(distances) & distances >= 0]
+  spread <- suppressWarnings(stats::IQR(observed, na.rm = TRUE) / 1.349)
+  bandwidth <- max(c(spread, target_mean / 2, 0.25), na.rm = TRUE)
+  weights <- exp(-0.5 * ((distances - target_mean) / bandwidth) ^ 2)
+  weights[!is.finite(weights)] <- 0
+  if (sum(weights) <= 0) {
+    return(rep(1, length(distances)))
+  }
+
+  weights
 }
 
 cf_numeric_quintile <- function(values, breaks = NULL, right = TRUE) {
@@ -456,6 +483,8 @@ cf_population_sampling_target <- function(values, suffix = NULL, spread = NULL) 
 }
 
 cf_trip_sampling_target <- function(values, suffix = NULL, spread = NULL) {
+  ui_version <- values$ui_version %||% "basic"
+  ui_version <- if (identical(ui_version, "advanced")) "advanced" else "basic"
   trip_bars_cf <- .cf_mode_value(values, "trips_spread_bars_cf", suffix)
   distance_props <- if (is.data.frame(trip_bars_cf)) {
     spread_category_props_from_bars(trip_bars_cf)
@@ -466,6 +495,15 @@ cf_trip_sampling_target <- function(values, suffix = NULL, spread = NULL) {
     spread_first_variable_prop_from_bars(trip_bars_cf)
   } else {
     .cf_mode_value(values, "trips_spread_util_prop_cf", suffix)
+  }
+  target_mean_distance <- if (identical(ui_version, "advanced")) {
+    .cf_mode_value(values, "trips_spread_mean_cf", suffix)
+  } else {
+    NULL
+  }
+  if (is.null(target_mean_distance) || length(target_mean_distance) == 0 ||
+      (length(target_mean_distance) == 1 && is.na(target_mean_distance))) {
+    target_mean_distance <- .cf_mode_value(values, "default_trip_distance", suffix)
   }
 
   list(
@@ -478,10 +516,11 @@ cf_trip_sampling_target <- function(values, suffix = NULL, spread = NULL) {
     distance_category_breaks = spread$trip_distance$breaks %||% NULL,
     distance_category_right = spread$trip_distance$right %||% TRUE,
     distance_quintile_props = distance_props,
-    target_mean_distance = .cf_mode_value(values, "trips_spread_mean_cf", suffix),
+    target_mean_distance = target_mean_distance,
     target_utilitarian_prop = util_prop,
     constraints = c(
       if (!is.null(distance_props)) "distance",
+      if (is.null(distance_props) && !is.null(target_mean_distance)) "distance_mean",
       if (!is.null(util_prop)) "purpose"
     )
   )

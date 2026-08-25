@@ -102,6 +102,65 @@ test_that("user targets are selected from the active UI field family", {
   expect_equal(advanced$alias_field, "pop_number_cf_bike_advanced")
 })
 
+test_that("weekly trips-per-user assumptions drive new-user trip targets", {
+  expect_equal(
+    .new_user_trip_shift_count(
+      reference_data = list(),
+      spec = list(),
+      new_user_n = 3,
+      seed = 1,
+      trips_per_user_per_week = 2.5
+    ),
+    8L
+  )
+
+  assumption <- .cf_positive_mode_assumption(
+    list(default_trips_per_user_per_week_bike = 6.2),
+    "default_trips_per_user_per_week",
+    "bike"
+  )
+  expect_equal(assumption$value, 6.2)
+  expect_equal(assumption$field, "default_trips_per_user_per_week_bike")
+  expect_error(
+    .cf_positive_mode_assumption(
+      list(default_trips_per_user_per_week_bike = 0),
+      "default_trips_per_user_per_week",
+      "bike"
+    ),
+    "greater than zero"
+  )
+})
+
+test_that("trip distance defaults constrain basic trip sampling", {
+  spread <- miama_default_config()$spread
+  basic <- cf_trip_sampling_target(
+    list(
+      ui_version = "basic",
+      default_trip_distance_bike = 5.33,
+      trips_spread_mean_cf_bike = 12
+    ),
+    suffix = "bike",
+    spread = spread
+  )
+  advanced <- cf_trip_sampling_target(
+    list(
+      ui_version = "advanced",
+      default_trip_distance_bike = 5.33,
+      trips_spread_mean_cf_bike = 12
+    ),
+    suffix = "bike",
+    spread = spread
+  )
+
+  expect_equal(basic$target_mean_distance, 5.33)
+  expect_equal(advanced$target_mean_distance, 12)
+  expect_true("distance_mean" %in% basic$constraints)
+
+  weights <- cf_mean_distance_weights(c(1, 5, 10), target_mean = 5)
+  expect_equal(which.max(weights), 2)
+  expect_true(all(is.finite(weights) & weights > 0))
+})
+
 test_that("blank user targets produce no counterfactual user change", {
   reference_data <- list(
     ind = data.frame(
@@ -183,7 +242,7 @@ test_that("apply_counterfactual_ui_values decreases walking users to non-user ac
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$changed_n, 2)
 })
 
-test_that("new walking users shift trips using current-user active trip rates", {
+test_that("new walking users shift trips using the configured weekly trip rate", {
   reference_data <- list(
     ind = data.frame(
       census_id = 1:2,
@@ -205,16 +264,22 @@ test_that("new walking users shift trips using current-user active trip rates", 
     init_counterfactual_data(reference_data),
     appraisal_input_values = list(
       modes = "walking",
-      users_count_cf_walk = 2
+      users_count_cf_walk = 2,
+      default_trips_per_user_per_week_walk = 1
     ),
     reference_data = reference_data,
     seed = 16
   )
 
   change <- counterfactual_data$counterfactual_report$changes[[1]]
-  expect_equal(change$user_trip_shift_target_n, 2)
-  expect_equal(change$user_trip_shift_n, 2)
-  expect_equal(sum(counterfactual_data$trips$trip_walkdist_km > 0), 4)
+  expect_equal(change$user_trip_shift_target_n, 1)
+  expect_equal(change$user_trip_shift_n, 1)
+  expect_equal(change$trips_per_user_per_week, 1)
+  expect_equal(
+    change$trips_per_user_per_week_field,
+    "default_trips_per_user_per_week_walk"
+  )
+  expect_equal(sum(counterfactual_data$trips$trip_walkdist_km > 0), 3)
 })
 
 test_that("apply_counterfactual_ui_values validates user-count targets", {
@@ -261,7 +326,8 @@ test_that("apply_counterfactual_ui_values increases walking trips by shifting mo
       modes = "walking",
       trips_count_cf_walk = 3,
       trips_timeframe_walk = "week",
-      trips_denominator_walk = "total"
+      trips_denominator_walk = "total",
+      default_trips_per_user_per_week_walk = 2
     ),
     reference_data = reference_data,
     seed = 12
@@ -274,6 +340,7 @@ test_that("apply_counterfactual_ui_values increases walking trips by shifting mo
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$field, "trips_count_cf_walk")
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$role, "mode_shift_and_induced_trips")
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$mode_shift_n, 2)
+  expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$implied_weekly_users, 2)
 })
 
 test_that("induced trips preserve unlabeled numeric purpose and set recreational indicator", {

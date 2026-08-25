@@ -878,6 +878,18 @@ resulting constants:
   metrics to current MIAMA-UI field names and labels each value as a review
   candidate, unavailable, or requiring a schema decision.
 
+The canonical editable assumptions are
+`default_trips_per_user_per_week_*` and `default_trip_distance_*`. One weekly
+trip rate supports both conversions: `trips = users * rate` and
+`users = trips / rate`; HUB does not store a separate inverse rate. For a trip
+target, the implied weekly user count is retained in the counterfactual report;
+trip rows remain the operative sampling unit. Basic trip sampling uses
+`default_trip_distance_*` as its preferred mean while retaining the observed raw
+distance of each selected reference trip. Advanced Tab 4 mean distance inputs
+override that basic default. The Tab 2 user and trip modals intentionally edit
+the same weekly-rate profile field because they expose the same assumption and
+are not displayed simultaneously.
+
 Installed-package code can resolve these files with
 `system.file("extdata", "data", "lookup", ..., package = "MIAMAHUB")`.
 
@@ -928,9 +940,10 @@ the individual population fixed:
 - if trip-level data is present, ex-users' active trips are shifted away from
   the active mode; new users trigger sampling of plausible non-active trips for
   mode shift where matching trip rows exist
-- new-user trip shifts use current-user active trip rates: active trip counts
-  are computed for current users and sampled onto new users, rather than
-  assuming exactly one shifted trip per new user
+- new-user trip shifts use the canonical mode-specific
+  `default_trips_per_user_per_week_*` rate supplied by the appraisal profile.
+  HUB calculates `new trips = new users * weekly trips per user`. If that
+  assumption is absent, observed current-user trip counts remain the fallback.
 
 Targets must be finite, non-negative, rounded integer counts and cannot exceed
 the filtered reference population size. E-bike and walk-to-public-transport
