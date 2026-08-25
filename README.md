@@ -401,6 +401,12 @@ and their counts so developers can reconcile calculated HUB values with fields
 available in the UI profile. HUB writes broad defaults and leaves conditional
 display choices to MIAMA-UI.
 
+Paired counterfactual controls receive a no-change starting default from their
+reference control. This includes the mode-specific spread sliders and the
+`pop_total_*` / `pop_number_*` controls in both the basic and advanced UI. The
+copy affects only `default_value`; a user-submitted counterfactual `input_value`
+and its `is_filled` state are preserved.
+
 ### HUB session state and refresh behavior
 
 `Hub$new(cfg = hub_cfg)` creates a session-scoped object. Construction is light:
@@ -1358,8 +1364,11 @@ MIAMAHUB::results_plot_trip_mode_distribution(
 )
 ```
 
-Use `plotly::ggplotly(plot)` if Tab 5 requires Plotly interaction. HUB does not
-require Plotly and returns ordinary ggplot objects so UI controls the rendering
+Use `plotly::ggplotly(plot, tooltip = "text")` if Tab 5 requires Plotly
+interaction. Every HUB plot includes a formatted `tooltip_text` aesthetic with
+semantic labels, context, units, and rounded values. Restricting Plotly to
+`"text"` prevents raw internal field names from appearing. HUB does not require
+Plotly and returns ordinary ggplot objects so UI controls the rendering
 technology.
 
 #### UI-owned plotting alternative
@@ -1655,6 +1664,10 @@ model cycles; timeline plots are annual or cumulative according to
 `timeline_type`; trip shares are displayed as
 percentages; and trip totals are weighted trips per reference week. Label
 overrides change presentation only and never transform the numeric values.
+The same semantics are used in the embedded `tooltip_text` aesthetic. Health
+tooltips identify the outcome, scenario or grouping, model year where relevant,
+and requested metric; trip tooltips identify mode, scenario, and weighted count
+or share.
 
 For attributable health plots, `prevented_value = reference - counterfactual`
 and `percent_reduction = 100 * (reference - counterfactual) / reference`.

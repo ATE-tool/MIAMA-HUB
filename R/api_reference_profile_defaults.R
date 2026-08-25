@@ -14,15 +14,16 @@
 #
 # The returned profile carries a `reference_defaults_report` attribute for
 # diagnostics. It is not an appraisal input and does not control application
-# behavior. The report lists fields written to the profile, reference spread
-# values mirrored to counterfactual slider defaults, and calculated values that
+# behavior. The report lists fields written to the profile, reference values
+# mirrored to no-change counterfactual defaults, and calculated values that
 # had no matching profile field. Development workflows and tests can inspect it
 # when reconciling the HUB output with the UI schema.
 #
-# Mode-specific spread sliders are paired: HUB writes the observed value to the
-# `_ref_` field and mirrors it to the corresponding `_cf_` field's
-# `default_value`. This gives the counterfactual slider a no-change starting
-# point without marking it as user-filled or overwriting a submitted value.
+# Paired fields are initialized consistently: HUB writes the observed value to
+# the `_ref_` field and mirrors it to the corresponding `_cf_` field's
+# `default_value`. This covers mode-specific spread sliders and basic/advanced
+# population counts. It gives counterfactual controls a no-change starting point
+# without marking them as user-filled or overwriting submitted values.
 # Numeric category metadata for the basic population refinements is written to
 # `additional_data`, preserving the categorical `default_value` selections.
 
@@ -48,7 +49,7 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
     updated <- c(updated, field_name)
   }
 
-  mirrored <- .apply_reference_spread_defaults_to_cf(out, ui_updates)
+  mirrored <- .apply_reference_defaults_to_cf(out, ui_updates)
   out <- mirrored$profile
   updated <- unique(c(updated, mirrored$updated_fields))
 
@@ -64,10 +65,10 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
   out
 }
 
-.apply_reference_spread_defaults_to_cf <- function(profile, ui_updates) {
+.apply_reference_defaults_to_cf <- function(profile, ui_updates) {
   out <- profile
   ref_fields <- names(ui_updates)
-  cf_fields <- .reference_spread_cf_field(ref_fields)
+  cf_fields <- .reference_cf_field(ref_fields)
   matched <- !is.na(cf_fields) & cf_fields %in% names(out)
 
   updated <- character(0)
@@ -91,10 +92,14 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
   )
 }
 
-.reference_spread_cf_field <- function(field_name) {
+.reference_cf_field <- function(field_name) {
   supported <- paste0(
-    "^(pop_spread_(age_mean|sex_prop|pa_mean|pa_sex_prop)|",
-    "trips_spread_(mean|util_prop))_ref_(walk|bike|ebike|pt)$"
+    "^(",
+    "pop_spread_(age_mean|sex_prop|pa_mean|pa_sex_prop)_ref_(walk|bike|ebike|pt)|",
+    "trips_spread_(mean|util_prop)_ref_(walk|bike|ebike|pt)|",
+    "pop_total_ref_(basic|advanced)|",
+    "pop_number_ref_(walk|bike|ebike|pt)_(basic|advanced)",
+    ")$"
   )
   matched <- grepl(supported, field_name)
   out <- rep(NA_character_, length(field_name))

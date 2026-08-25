@@ -181,6 +181,45 @@ test_that("reference spread defaults initialise matching counterfactual sliders"
   )
 })
 
+test_that("reference population defaults initialise matching counterfactual fields", {
+  profile <- list(
+    pop_total_ref_advanced = list(is_filled = FALSE, input_value = NULL),
+    pop_total_cf_advanced = list(is_filled = FALSE, input_value = NULL),
+    pop_number_ref_bike_advanced = list(is_filled = FALSE, input_value = NULL),
+    pop_number_cf_bike_advanced = list(
+      is_filled = TRUE,
+      input_value = 120,
+      default_value = NULL
+    ),
+    pop_number_ref_walk_basic = list(is_filled = FALSE, input_value = NULL),
+    pop_number_cf_walk_basic = list(is_filled = FALSE, input_value = NULL)
+  )
+
+  out <- apply_reference_defaults_to_profile(
+    profile,
+    ui_updates = list(
+      pop_total_ref_advanced = 1000,
+      pop_number_ref_bike_advanced = 100,
+      pop_number_ref_walk_basic = 400
+    )
+  )
+  report <- attr(out, "reference_defaults_report")
+
+  expect_equal(out$pop_total_cf_advanced$default_value, 1000)
+  expect_equal(out$pop_number_cf_bike_advanced$default_value, 100)
+  expect_equal(out$pop_number_cf_walk_basic$default_value, 400)
+  expect_true(out$pop_number_cf_bike_advanced$is_filled)
+  expect_equal(out$pop_number_cf_bike_advanced$input_value, 120)
+  expect_setequal(
+    report$mirrored_cf_fields,
+    c(
+      "pop_total_cf_advanced",
+      "pop_number_cf_bike_advanced",
+      "pop_number_cf_walk_basic"
+    )
+  )
+})
+
 test_that("category population defaults are written to additional data", {
   age_data <- list(
     pop_age_18_29 = list(

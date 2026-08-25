@@ -47,6 +47,9 @@
 #   without rerunning counterfactual or health-model calculations.
 # - Plot functions consume only `results_data$plot_data`, so MIAMA-UI can use the
 #   same functions or reproduce them from the returned compact data frames.
+# - Each plot maps a formatted HTML `tooltip_text` aesthetic. Interactive callers
+#   should use `plotly::ggplotly(plot, tooltip = "text")` to suppress raw field
+#   names while static callers can continue to use the returned ggplot object.
 # - `modes = NULL` uses the canonical `all_modes` health total. Supplying active
 #   modes selects attributed health deltas for those modes.
 
@@ -206,9 +209,19 @@ results_plot_health_overview <- function(
     )
     scenario_data$scenario <- factor(scenario_data$scenario, levels = c("Reference", "Counterfactual"))
     scenario_data$outcome_label <- stats::reorder(scenario_data$outcome_label, scenario_data$value)
+    scenario_data$tooltip_text <- .results_health_tooltip(
+      scenario_data,
+      value = scenario_data$value,
+      metric = "modelled",
+      scenario = scenario_data$scenario,
+      period = "Cumulative"
+    )
 
     return(
-      ggplot2::ggplot(scenario_data, ggplot2::aes(x = outcome_label, y = value, fill = scenario)) +
+      ggplot2::ggplot(
+        scenario_data,
+        ggplot2::aes(x = outcome_label, y = value, fill = scenario, text = tooltip_text)
+      ) +
         ggplot2::geom_col(position = ggplot2::position_dodge(width = 0.76), width = 0.68) +
         ggplot2::coord_flip() +
         ggplot2::scale_fill_manual(values = .results_scenario_colors()) +
@@ -228,6 +241,14 @@ results_plot_health_overview <- function(
   )
   plot_data$direction <- ifelse(plot_data[[y_col]] >= 0, "Health gain", "Health loss")
   plot_data$mode_label <- .results_health_mode_label(plot_data$mode)
+  plot_data$tooltip_text <- .results_health_tooltip(
+    plot_data,
+    value = plot_data[[y_col]],
+    metric = metric,
+    group_name = "Active mode",
+    group_value = plot_data$mode_label,
+    period = "Cumulative"
+  )
 
   if (length(unique(plot_data$mode)) > 1) {
     return(
@@ -235,7 +256,7 @@ results_plot_health_overview <- function(
         plot_data,
         ggplot2::aes(
           x = stats::reorder(outcome_label, .data[[y_col]]),
-          y = .data[[y_col]], fill = mode_label
+          y = .data[[y_col]], fill = mode_label, text = tooltip_text
         )
       ) +
         ggplot2::geom_hline(yintercept = 0, color = "grey65", linewidth = 0.35) +
@@ -252,7 +273,10 @@ results_plot_health_overview <- function(
 
   ggplot2::ggplot(
     plot_data,
-    ggplot2::aes(x = stats::reorder(outcome_label, .data[[y_col]]), y = .data[[y_col]], fill = direction)
+    ggplot2::aes(
+      x = stats::reorder(outcome_label, .data[[y_col]]),
+      y = .data[[y_col]], fill = direction, text = tooltip_text
+    )
   ) +
     ggplot2::geom_hline(yintercept = 0, color = "grey65", linewidth = 0.35) +
     ggplot2::geom_col(width = 0.68) +
@@ -322,7 +346,22 @@ results_plot_health_impacts <- function(
     c("Male", "Female")
   }
   plot_data$group_label <- factor(plot_data$group_label, levels = group_levels)
-  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = group_label, y = .data[[y_col]], fill = group_label)) +
+  group_name <- switch(group_by, age_group = "Age group", gender = "Gender", mode = "Active mode")
+  plot_data$tooltip_text <- .results_health_tooltip(
+    plot_data,
+    value = plot_data[[y_col]],
+    metric = metric,
+    group_name = group_name,
+    group_value = plot_data$group_label,
+    period = "Cumulative"
+  )
+  p <- ggplot2::ggplot(
+    plot_data,
+    ggplot2::aes(
+      x = group_label, y = .data[[y_col]], fill = group_label,
+      text = tooltip_text
+    )
+  ) +
     ggplot2::facet_wrap(~outcome_label, scales = "free_y") +
     ggplot2::scale_fill_manual(values = .results_group_colors(length(group_levels)))
 
@@ -393,8 +432,19 @@ results_plot_health_timeline <- function(
       transform(plot_data, scenario = "Counterfactual", value = cf_value)
     )
     scenario_data$scenario <- factor(scenario_data$scenario, levels = c("Reference", "Counterfactual"))
+    scenario_data$tooltip_text <- .results_health_tooltip(
+      scenario_data,
+      value = scenario_data$value,
+      metric = "modelled",
+      scenario = scenario_data$scenario,
+      cycle = scenario_data$cycle,
+      period = if (identical(timeline_type, "cumulative")) "Cumulative" else "Annual"
+    )
     return(
-      ggplot2::ggplot(scenario_data, ggplot2::aes(x = cycle, y = value, color = scenario)) +
+      ggplot2::ggplot(
+        scenario_data,
+        ggplot2::aes(x = cycle, y = value, color = scenario, text = tooltip_text)
+      ) +
         ggplot2::geom_line(linewidth = 0.85) +
         ggplot2::facet_wrap(~outcome_label, scales = "free_y") +
         ggplot2::scale_color_manual(values = .results_scenario_colors()) +
@@ -417,7 +467,20 @@ results_plot_health_timeline <- function(
   } else {
     plot_data$outcome_label
   }
-  ggplot2::ggplot(plot_data, ggplot2::aes(x = cycle, y = .data[[y_col]], color = series_label)) +
+  plot_data$mode_label <- .results_health_mode_label(plot_data$mode)
+  plot_data$tooltip_text <- .results_health_tooltip(
+    plot_data,
+    value = plot_data[[y_col]],
+    metric = metric,
+    group_name = "Active mode",
+    group_value = plot_data$mode_label,
+    cycle = plot_data$cycle,
+    period = if (identical(timeline_type, "cumulative")) "Cumulative" else "Annual"
+  )
+  ggplot2::ggplot(
+    plot_data,
+    ggplot2::aes(x = cycle, y = .data[[y_col]], color = series_label, text = tooltip_text)
+  ) +
     ggplot2::geom_hline(yintercept = 0, color = "grey75", linewidth = 0.3) +
     ggplot2::geom_line(linewidth = 0.85) +
     ggplot2::labs(
@@ -460,6 +523,7 @@ results_plot_trip_mode_distribution <- function(
   } else {
     format(round(plot_data$trips, 1), trim = TRUE)
   }
+  plot_data$tooltip_text <- .results_trip_tooltip(plot_data, value)
   labels <- .results_trip_plot_labels(
     value = value,
     title = title,
@@ -469,7 +533,13 @@ results_plot_trip_mode_distribution <- function(
     y_label = y_label
   )
 
-  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = mode_label, y = .data[[y_col]], fill = scenario)) +
+  p <- ggplot2::ggplot(
+    plot_data,
+    ggplot2::aes(
+      x = mode_label, y = .data[[y_col]], fill = scenario,
+      text = tooltip_text
+    )
+  ) +
     ggplot2::geom_col(position = ggplot2::position_dodge(width = 0.76), width = 0.68) +
     ggplot2::geom_text(
       ggplot2::aes(label = value_label),
@@ -500,6 +570,91 @@ results_plot_trip_mode_distribution <- function(
 
 
 # Shared Plot Helpers --------------------------------------------------------
+
+.results_health_tooltip <- function(data,
+                                    value,
+                                    metric,
+                                    group_name = NULL,
+                                    group_value = NULL,
+                                    scenario = NULL,
+                                    cycle = NULL,
+                                    period = NULL) {
+  n <- nrow(data)
+  if (n == 0) return(character(0))
+
+  outcome_type <- if ("outcome_type" %in% names(data)) data$outcome_type else rep(NA_character_, n)
+  value_name <- .results_health_tooltip_value_name(outcome_type, metric, period)
+  value_text <- .results_tooltip_number(value, percent = identical(metric, "percent_reduction"))
+  tooltip <- paste0("<b>", as.character(data$outcome_label), "</b>")
+
+  if (!is.null(group_name) && !is.null(group_value)) {
+    tooltip <- paste0(tooltip, "<br>", group_name, ": ", as.character(group_value))
+  }
+  if (!is.null(scenario)) {
+    tooltip <- paste0(tooltip, "<br>Scenario: ", as.character(scenario))
+  }
+  if (!is.null(cycle)) {
+    tooltip <- paste0(tooltip, "<br>Model year: ", as.character(cycle))
+  }
+
+  paste0(tooltip, "<br>", value_name, ": ", value_text)
+}
+
+.results_health_tooltip_value_name <- function(outcome_type, metric, period) {
+  outcome_type <- as.character(outcome_type)
+  outcome_type[is.na(outcome_type) | !nzchar(outcome_type)] <- "health"
+  outcome <- ifelse(
+    outcome_type == "mortality",
+    "deaths",
+    ifelse(outcome_type == "disease", "disease cases", "health outcomes")
+  )
+  prefix <- if (is.null(period) || !nzchar(period)) "" else paste0(period, " ")
+
+  switch(
+    metric,
+    modelled = paste0(prefix, "modelled ", outcome),
+    percent_reduction = rep("Reduction from reference", length(outcome)),
+    prevented_per_100000 = paste0(prefix, "prevented ", outcome, " per 100,000"),
+    paste0(prefix, "prevented ", outcome)
+  )
+}
+
+.results_trip_tooltip <- function(data, value) {
+  value_name <- if (identical(value, "proportion")) {
+    "Share of weighted trips"
+  } else {
+    "Weighted trips per reference week"
+  }
+  value_text <- if (identical(value, "proportion")) {
+    .results_tooltip_number(100 * data$proportion, percent = TRUE)
+  } else {
+    .results_tooltip_number(data$trips)
+  }
+
+  paste0(
+    "<b>", as.character(data$mode_label), "</b>",
+    "<br>Scenario: ", as.character(data$scenario),
+    "<br>", value_name, ": ", value_text
+  )
+}
+
+.results_tooltip_number <- function(value, percent = FALSE) {
+  value <- suppressWarnings(as.numeric(value))
+  formatted <- vapply(value, function(x) {
+    if (!is.finite(x)) return("Not available")
+    if (x == 0) return("0")
+
+    rounded <- signif(x, digits = 3)
+    format(
+      rounded,
+      scientific = abs(rounded) >= 1e7 || abs(rounded) < 1e-4,
+      big.mark = ",",
+      trim = TRUE
+    )
+  }, character(1))
+
+  if (isTRUE(percent)) paste0(formatted, "%") else formatted
+}
 
 .results_health_plot_labels <- function(results_data,
                                         plot_data,
