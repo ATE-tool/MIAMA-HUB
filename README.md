@@ -1498,30 +1498,28 @@ development inspection.
 
 ### Tab 5 result exports
 
-The export buttons currently drafted in MIAMA-UI are presentation stubs. HUB
-now provides one filtered export bundle and file writers so UI does not need to
-reimplement result semantics. Build the bundle after `build_results()` and
-whenever a Tab 5 filter changes; this filters compact result data and does not
-rerun the counterfactual or health model:
+HUB provides one static export bundle and file writers so MIAMA-UI does not need
+to reimplement result semantics. The current app builds this bundle once,
+immediately after `build_results()`, and stores it as
+`mdata[["results_export"]]`:
 
 ```r
-results_exports <- hub$build_results_exports(
-  outcomes = input[["res_outcomes"]],
-  age_groups = input[["res_age_groups"]],
-  gender = input[["res_gender"]],
-  modes = input[["res_modes_filter"]],
-  aggregation = input[["res_temp_aggregation"]],
-  group_by = switch(
-    input[["res_pop_aggregation"]],
-    age_group = "age_group",
-    gender = "gender",
-    "outcome"
-  ),
-  timeline_type = "cumulative",
-  impact_type = input[["res_impact_type"]],
-  metric = "prevented_per_100000"
-)
+mdata[["results"]] <- hub$build_results(mdata[["profile"]])
+mdata[["results_export"]] <- hub$build_results_exports()
 ```
+
+With no explicit arguments, the bundle uses the initial `results_request`
+stored in `results_data`. It is not rebuilt when the advanced Tab 5 filter panel
+changes. Those interactive `results_filter_*` controls currently update only
+the on-screen plots. Consequently, downloads are reproducible snapshots of the
+result settings present when results were built, but the primary CSV is not a
+raw dump of every `health_cube` row. Developers can inspect the comprehensive,
+filterable source tables under `results_data$plot_data`.
+
+`build_results_exports()` still accepts explicit outcome, age, gender, mode,
+aggregation, grouping, timeline, impact, and metric arguments for development
+or possible future filtered exports. Passing those arguments creates a new
+static selection snapshot; it does not rerun the counterfactual or health model.
 
 The equivalent stateless function is `prepare_results_exports(results_data,
 profile, cfg, ...)`. Its return value contains:
@@ -1529,17 +1527,17 @@ profile, cfg, ...)`. Its return value contains:
 | Object | Draft export content |
 |---|---|
 | `metadata` | Appraisal name, geography, modes, UI version, population scaling, and result conventions. |
-| `filters` | Exact Tab 5 selections applied to every exported product. |
+| `filters` | Initial results-request selections captured when the static bundle was assembled. |
 | `headline_metrics` | Mortality, disease, and cumulative life-year headline fields. |
-| `results_table` | The currently filtered/grouped health result table. |
-| `timeline_annual` / `timeline_cumulative` | Both timeline representations, independent of the displayed table. |
-| `trip_mode_distribution` | Reference/counterfactual weighted trips and mode shares. |
+| `results_table` | Health result table grouped according to the bundle's initial selection snapshot. |
+| `timeline_annual` / `timeline_cumulative` | Both timeline representations using the same outcome/population/mode snapshot. |
+| `trip_mode_distribution` | Reference/counterfactual weighted trips and mode shares for the snapshot's modes. |
 | `assumptions` | Sign conventions, population scaling, cycle handling, and current limitations. |
 | `amat_inputs` | Explicitly provisional field/value mapping pending the agreed AMAT schema. |
 | `amat_health_timeline` | Annual ref/cf values, technical differences, benefit-oriented differences, and cumulative differences for deaths, diseases, LY, and HLY. |
 | `amat_health_summary` | Final cumulative row for every AMAT health measure. |
-| `report` | Report-ready title, summary text, methods, metadata, tables, and assumptions. |
-| `plots` | Six ggplot objects built from the same filters, including a mode-attributed health plot. |
+| `report` | Report-ready title, summary text, methods, metadata, static selection table, and assumptions. |
+| `plots` | Six static ggplot objects built when the bundle is assembled, including a mode-attributed health plot. |
 
 Available writers are:
 
@@ -1557,9 +1555,12 @@ write_results_report(results_exports, "report.pdf", format = "pdf")
 The Excel workbook contains separate sheets for the displayed results,
 headline metrics, annual and cumulative timelines, trip modes, metadata,
 filters, assumptions, AMAT metadata, and AMAT health timeline/summary sheets.
-The plot package contains 300-dpi PNG
-files for health overview, health timeline, health by age, health by gender,
-and trip mode distribution, plus `plot_manifest.csv`.
+The plot package contains 300-dpi PNG files for health overview, health
+timeline, health by age, health by gender, health by mode, and trip mode
+distribution, plus `plot_manifest.csv`. Their semantic titles, units, and
+captions adapt to metric, impact type, annual/cumulative presentation, and
+grouping. They do not currently enumerate every selection snapshot filter in
+the title or caption; the separate `filters` table records that context.
 
 Word report generation requires Pandoc. PDF additionally requires a working
 PDF engine/LaTeX installation in the deployment environment; UI should disable
@@ -1594,33 +1595,46 @@ Minimal Shiny handlers can delegate directly to HUB:
 ```r
 output[["download_results_csv"]] <- shiny::downloadHandler(
   filename = function() "miama-results.csv",
-  content = function(file) write_results_csv(results_exports(), file)
+  content = function(file) {
+    MIAMAHUB::write_results_csv(mdata[["results_export"]], file)
+  }
 )
 
 output[["download_results_xlsx"]] <- shiny::downloadHandler(
   filename = function() "miama-results.xlsx",
-  content = function(file) write_results_xlsx(results_exports(), file)
+  content = function(file) {
+    MIAMAHUB::write_results_xlsx(mdata[["results_export"]], file)
+  }
 )
 
 output[["download_plots"]] <- shiny::downloadHandler(
   filename = function() "miama-plots.zip",
-  content = function(file) write_results_plots_zip(results_exports(), file)
+  content = function(file) {
+    MIAMAHUB::write_results_plots_zip(mdata[["results_export"]], file)
+  }
 )
 
 output[["download_amat"]] <- shiny::downloadHandler(
   filename = function() "miama-amat-inputs-DRAFT.csv",
-  content = function(file) write_results_amat_csv(results_exports(), file)
+  content = function(file) {
+    MIAMAHUB::write_results_amat_csv(mdata[["results_export"]], file)
+  }
 )
 
 output[["download_report_docx"]] <- shiny::downloadHandler(
   filename = function() "miama-report.docx",
-  content = function(file) write_results_report(results_exports(), file, "docx")
+  content = function(file) {
+    MIAMAHUB::write_results_report(
+      mdata[["results_export"]], file, format = "docx"
+    )
+  }
 )
 ```
 
-Run [inst/workflows/dev_results_exports.R](inst/workflows/dev_results_exports.R)
-after Step 8 of the main development workflow to generate and inspect all draft
-artifacts locally.
+Step 9 of [inst/workflows/dev_workflow.R](inst/workflows/dev_workflow.R) builds
+and displays the same in-memory static export bundle as MIAMA-UI. Run
+[inst/workflows/dev_results_exports.R](inst/workflows/dev_results_exports.R)
+afterward, in the same R session, to write all draft artifacts locally.
 
 `results_filter_health_data()` is the non-plot interface UI can use to obtain a
 filtered data frame. Its arguments mirror the Tab 5 controls:

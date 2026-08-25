@@ -509,9 +509,10 @@ counterfactual_data$counterfactual_health_report$impact_overview |>
 
 # 8. Prepare results data for Tab 5 presentation ----
 # -----------------------------------------------------------------------------#
-# Based on UI Tab 5 inputs this step filters and aggregates the health-outcome
-# deltas into compact tables for plots, result tiles, and exports. The first
-# draft also creates ggplot objects that can be used for development testing.
+# Builds the compact, filterable result tables used by Tab 5. The UI can apply
+# its interactive filter panel to `results_data$plot_data` without rerunning the
+# health model. Those later interactive selections currently affect displayed
+# plots only; they do not rebuild the static download bundle created in Step 9.
 
 results_data <- prepare_results_data(
   counterfactual_data = counterfactual_data,
@@ -621,4 +622,51 @@ plot_advanced_health_by_gender
 plot_advanced_health_by_mode
 plot_advanced_travel_by_mode
 
-## TODO 8.5: Export products
+## 8.5 Inspect the compact plot-data contract ----
+# These are the comprehensive source tables retained for plotting and export
+# preparation. They are more useful for development inspection than any one
+# filtered plot data frame.
+names(results_data$plot_data)
+glimpse_head(results_data$plot_data$health_cube)
+glimpse_head(results_data$plot_data$trip_mode_distribution)
+
+
+# 9. Build the static UI export bundle ----
+# -----------------------------------------------------------------------------#
+# Mirrors the current MIAMA-UI behavior: immediately after `build_results()`,
+# the app calls `build_results_exports()` once with no live Tab 5 filter-panel
+# arguments. The bundle therefore uses the initial `results_request` stored in
+# `results_data` and remains unchanged when users later filter on-screen plots.
+#
+# This step only assembles compact tables and ggplot objects in memory. To write
+# CSV, Excel, PNG/ZIP, AMAT, and report examples, subsequently run
+# `inst/workflows/dev_results_exports.R` in the same R session.
+
+results_exports <- prepare_results_exports(
+  results_data = results_data,
+  profile = appraisal_inputs,
+  cfg = cfg
+)
+
+## 9.1 Inspect export bundle structure and selection snapshot ----
+names(results_exports)
+results_exports$metadata |> as.data.frame() |> print(row.names = FALSE)
+results_exports$filters |> as.data.frame() |> print(row.names = FALSE)
+results_exports$headline_metrics |> as.data.frame() |> print(row.names = FALSE)
+
+## 9.2 Inspect principal exported data tables ----
+glimpse_head(results_exports$results_table, n = 30L)
+glimpse_head(results_exports$timeline_annual)
+glimpse_head(results_exports$timeline_cumulative)
+glimpse_head(results_exports$trip_mode_distribution)
+glimpse_head(results_exports$amat_health_timeline)
+results_exports$amat_health_summary |> as.data.frame() |> print(row.names = FALSE)
+
+## 9.3 Inspect static export plots ----
+names(results_exports$plots)
+results_exports$plots$health_overview
+results_exports$plots$health_timeline
+results_exports$plots$health_by_age
+results_exports$plots$health_by_gender
+results_exports$plots$health_by_mode
+results_exports$plots$trip_mode_distribution

@@ -1,17 +1,20 @@
 # MIAMA-HUB Module: Results Data / Export Functions
-# Purpose: Assemble one filtered Tab 5 export contract and write the formats
+# Purpose: Assemble one static Tab 5 export contract and write the formats
 #   advertised by MIAMA-UI without rerunning counterfactual or HM calculations.
 #
 # Export products:
-# - Results table: filtered CSV or multi-sheet Excel workbook.
+# - Results table: CSV or multi-sheet Excel workbook using the bundle's selection
+#   snapshot.
 # - Plots package: six standard high-resolution PNG files plus a manifest.
 # - AMAT outputs: yearly and cumulative deaths, disease incidence, life years,
 #   and healthy life years over the configured assessment horizon.
 # - Report: pre-filled Markdown, Word, or PDF generated from the same bundle.
 #
-# The export bundle is intentionally data-first. UI can inspect or amend its
-# tables before writing files, and every format uses the same filters and sign
-# conventions as the interactive result plots.
+# The export bundle is intentionally data-first and immutable after assembly.
+# Optional filter arguments define a selection snapshot; when they are omitted,
+# the initial `results_request` stored in `results_data` is used. MIAMA-UI
+# currently creates this bundle once after `build_results()` and does not rebuild
+# it when users later filter on-screen plots.
 
 
 # Export bundle -------------------------------------------------------------
