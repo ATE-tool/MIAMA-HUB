@@ -34,6 +34,27 @@ test_that("miama_default_config() reads and validates MIAMA_DATASET_SIZE", {
   withr::with_envvar(list(MIAMA_DATASET_SIZE = "full"), {
     expect_equal(miama_default_config(dataset_size = "sample")$workflow$dataset_size, "sample")
   })
+
+  expect_equal(
+    miama_default_config(dataset_size = "leeds")$workflow$dataset_size,
+    "leeds"
+  )
+})
+
+test_that("Leeds config uses one aligned packaged profile", {
+  external_data <- withr::local_tempdir()
+
+  withr::with_envvar(list(MIAMA_DATA_ROOT = external_data), {
+    cfg <- miama_default_config(dataset_size = "leeds")
+
+    expect_match(cfg$sources$sp_attributes$path, "profiles/leeds/synthetic_pop")
+    expect_match(cfg$sources$hm_outcomes$overall$path, "profiles/leeds/health_data")
+    expect_match(cfg$sources$hm_death_share$cycle$path, "profiles/leeds/health_data")
+    expect_equal(cfg$sources$hm_death_share$lookup_cycle$source, "hub_shared")
+    expect_equal(cfg$population$profile$geo_id, "E08000035")
+    expect_equal(cfg$population$profile$sampled_individuals, 5000L)
+    expect_equal(cfg$population$person_weight, 163.552, tolerance = 1e-10)
+  })
 })
 
 test_that("sample config uses packaged data even when MIAMA_DATA_ROOT is set", {
@@ -91,6 +112,7 @@ test_that("miama_paths() returns list with expected keys", {
     p <- miama_paths()
     expected_keys <- c(
       "project_root", "hm_root", "hm_processed_root",
+      "packaged_data_dir", "profile_metadata",
       "inst_workflows", "data_dir", "cache_dir",
       "output_root", "output_lookup", "output_reference",
       "sp_attributes", "sp_trips",

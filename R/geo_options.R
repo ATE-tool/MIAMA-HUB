@@ -32,6 +32,8 @@ get_geo_levels <- function(cfg = NULL, refresh = FALSE) {
   )
   out$n_options <- unname(counts[out$geo_level])
   out$n_options[is.na(out$n_options)] <- 0L
+  out <- out[out$n_options > 0L, , drop = FALSE]
+  row.names(out) <- out$geo_level
   out
 }
 

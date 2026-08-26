@@ -1,5 +1,12 @@
 # MIAMA-HUB
 
+For a report-style description of the active-travel, sampling, physical-
+activity, and health-impact methodology, see
+[`docs/methodology.qmd`](docs/methodology.qmd). A concise presentation version
+is available in [`docs/methodology_slides.qmd`](docs/methodology_slides.qmd).
+The documents distinguish implemented, approximate, and planned behavior; this
+README remains the developer-facing integration reference.
+
 `MIAMA-HUB` is a standalone R package that acts as the integration layer
 between `MIAMA-UI` and `MIAMA-HM`.
 
@@ -172,7 +179,7 @@ Examples of **config** concerns:
 
 - file locations
 - cache settings
-- whether development uses the `sample` or `full` datasets
+- whether runtime uses the `sample`, `leeds`, or `full` data profile
 - which parquet directories provide local synthpop sources
 
 Examples of **request** concerns:
@@ -793,8 +800,11 @@ higher-priority constraints:
 - `pa_spread_bars_cf_*` supplies the cf PA-category marginal for
   mode-specific individual sampling, while its male/female split is available
   for display and reporting.
-- `trips_spread_bars_cf_*` supplies the cf distance-category marginal and
-  utilitarian proportion for mode-specific trip-shift sampling.
+- `trips_spread_bars_cf_*` supplies the cf distance-category marginal for
+  mode-specific trip-shift sampling. Its utilitarian proportion is parsed and
+  reported but is not yet applied to candidate weights; existing shifted trips
+  are currently restricted to utilitarian candidates and induced rows are
+  classified as recreational.
 - If those compact payloads are absent, the older permissive hooks remain:
   `agecat_1_prop_cf` ... `agecat_5_prop_cf` and `distcat_1_prop_cf` ...
   `distcat_5_prop_cf`.
@@ -972,9 +982,10 @@ For increases, Tab 4 may specify a small source-by-target diversion matrix using
 `trips_diversion_car_perc_walk` and `trips_diversion_car_perc_bike`. Each value
 is the expected percentage of mode-shift trips into that active target mode
 whose reference mode was car. The residual percentage is sampled from all
-other plausible non-target-mode trips. Distance, purpose, and car-source
-weights are combined when candidates are sampled, so realized percentages are
-approximate in finite samples. Each counterfactual change report records
+other plausible non-target-mode trips. Distance and car-source weights are
+combined when candidates are sampled, so realized percentages are approximate
+in finite samples. The requested purpose distribution is not yet included in
+the trip candidate weights. Each counterfactual change report records
 `car_diversion_field`, the requested `car_diversion_percent`, and the observed
 `realized_car_diversion_percent` among shifted trips.
 
@@ -1011,6 +1022,11 @@ available, distance-based candidate selection uses the configured five-category
 distance distribution. Older direct category controls can still plug into the
 `agecat_1_prop_cf` ... `agecat_5_prop_cf` and `distcat_1_prop_cf` ...
 `distcat_5_prop_cf` hooks, or the corresponding `_perc_cf` fields.
+
+TODO: apply `trips_spread_util_prop_cf_*` to trip candidate selection and add a
+requested-versus-realized purpose summary. At present, mode-shift candidates
+are utilitarian and induced trips are recreational, so the purpose mix is
+mainly determined by the configured shifted/induced split.
 
 Basic Tab 2 currently has two additional target forms that are not yet applied
 to counterfactual rows:
@@ -1743,12 +1759,37 @@ before creating the HUB configuration:
 MIAMA_DATASET_SIZE=sample
 ```
 
-`MIAMA_DATASET_SIZE=sample` is the default. It uses the packaged synthetic
-population sample and packaged HM sample/death-share artifacts, so a developer
-does not need a local MIAMA-HM checkout to test the complete UI workflow. Sample
-mode deliberately ignores `MIAMA_DATA_ROOT`; this prevents a full external
-synthpop from being combined with packaged sample HM outcomes. Explicit
+MIAMA-HUB supports three coherent runtime data profiles:
+
+- `sample` is the default, very small packaged cross-geography fixture. It is
+  useful for fast automated tests but is too sparse for realistic appraisal
+  inspection; Leeds contains only 16 people.
+- `leeds` is a packaged Leeds-only profile with 5,000 people, 83,534 trips, and
+  aligned overall and death-share cycle HM outcomes. It is the recommended
+  profile for local UI development, demonstrations, and published test apps.
+- `full` reads full external synthpop and MIAMA-HM data and is intended for
+  production-scale analysis rather than deployment inside the package.
+
+Both packaged profiles ignore `MIAMA_DATA_ROOT`. This prevents external
+synthpop rows from being combined with unrelated packaged HM outcomes. Explicit
 `cfg$sources` overrides remain available for controlled development tests.
+
+Select the Leeds profile either through the process environment or directly:
+
+```r
+MIAMA_DATASET_SIZE=leeds
+```
+
+```r
+cfg <- MIAMAHUB::miama_default_config(dataset_size = "leeds")
+```
+
+The Leeds profile only offers Leeds (`E08000035`) as an LAD option. Its 5,000
+people are a reproducible simple random sample from all 40,888 Leeds synthpop
+rows. HUB therefore uses an effective person weight of `163.552` (`20 / sample
+fraction`) and represents the same 817,760-person synthetic population as the
+full Leeds data. Sampling provenance and row counts are stored in
+`inst/extdata/data/profiles/leeds/profile.rds`.
 
 Full-data testing requires external data that are deliberately excluded from
 the package and git repository:
@@ -1768,14 +1809,14 @@ a root only points HUB at existing files; it does not download them.
 The UI should construct its shared config once with
 `MIAMAHUB::miama_default_config()` and should not subsequently hard-code
 `cfg$workflow$dataset_size`. This lets local `.Renviron` files and deployment
-environment variables select sample or full data without exposing that
+environment variables select sample, Leeds, or full data without exposing that
 operational choice in the appraisal profile.
 
 Development scripts that intentionally choose the scope should pass it while
 constructing the configuration, because source paths are resolved at that time:
 
 ```r
-cfg <- MIAMAHUB::miama_default_config(dataset_size = "sample")
+cfg <- MIAMAHUB::miama_default_config(dataset_size = "leeds")
 ```
 
 For local development, large data files must not be tracked in git or included
@@ -1794,6 +1835,8 @@ Current expected layout:
   `$MIAMA_DATA_ROOT/synthetic_pop/`
 - packaged sample synthetic population files live in
   `MIAMA-HUB/inst/extdata/data/synthetic_pop/`
+- the aligned 5,000-person Leeds profile lives under
+  `MIAMA-HUB/inst/extdata/data/profiles/leeds/`
 - the packaged `geo_options.rds` is intentionally full-derived because it is
   small and needed for complete UI geography dropdowns and population labels
 - packaged HM sample processed outputs live under
@@ -1802,6 +1845,20 @@ Current expected layout:
   `sp_cycle_outcomes_sample_death_share/` and
   `mmet_d_cycle_lookup_death_share/`
 - full HM processed outputs are read from `MIAMA-HM` via `MIAMA_HM_ROOT`
+
+Regenerate the Leeds profile only when the full upstream synthpop or HM data
+change, or when intentionally changing its sample size or seed:
+
+```bash
+MIAMA_LEEDS_OVERWRITE=true \
+  Rscript --vanilla inst/workflows/dev_build_packaged_leeds_profile.R
+Rscript --vanilla inst/workflows/dev_build_packaged_data_manifest.R
+```
+
+The builder defaults to `MIAMA-HUB/data` for current full synthpop parquet and
+the sibling `MIAMA-HM` repository for full health data. `MIAMA_DATA_ROOT` and
+`MIAMA_HM_ROOT` can override those source roots. Legacy DTA and RDS synthpop
+files are not accepted by this workflow.
 
 HM outcome loading follows this hierarchy:
 

@@ -114,3 +114,16 @@ test_that("get_geo_options rejects unsupported geography levels", {
 
   expect_error(get_geo_options(cfg, "msoa"), "Unsupported geo_level")
 })
+
+test_that("packaged Leeds profile exposes only its aligned Leeds geography", {
+  cfg <- miama_default_config(dataset_size = "leeds")
+
+  levels <- get_geo_levels(cfg)
+  options <- get_geo_options(cfg, "lad")
+  details <- get_geo_details(cfg, "E08000035")
+
+  expect_equal(levels$geo_level, "lad")
+  expect_equal(options$geo_id, "E08000035")
+  expect_equal(options$n_individuals, 5000L)
+  expect_equal(details$population_size, 817760)
+})

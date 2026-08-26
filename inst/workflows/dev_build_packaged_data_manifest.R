@@ -100,6 +100,43 @@ artifacts <- data.frame(
   stringsAsFactors = FALSE
 )
 
+artifacts <- rbind(
+  artifacts,
+  data.frame(
+    artifact = c(
+      "profiles/leeds/profile.rds",
+      "profiles/leeds/synthetic_pop/SPindivid_CensusNTSALS_parquet",
+      "profiles/leeds/synthetic_pop/SPtrip_CensusNTSALS_parquet",
+      "profiles/leeds/health_data/sp_overall_outcomes",
+      "profiles/leeds/health_data/sp_cycle_outcomes_death_share",
+      "profiles/leeds/lookup/geo_options.rds"
+    ),
+    format = c("rds", "parquet", "parquet", "parquet", "parquet", "rds"),
+    source = c(
+      "Derived Leeds runtime profile metadata",
+      "MIAMA full synthetic population: Leeds subset",
+      "MIAMA full synthetic population: Leeds subset",
+      "MIAMA-HM full overall outcomes: Leeds subset",
+      "MIAMA-HM full death-share cycle outcomes: Leeds subset",
+      "Derived Leeds runtime profile geography lookup"
+    ),
+    source_version = rep("Census 2021 synthpop; profile seed 20260826", 6),
+    purpose = c(
+      "Sampling, weighting, provenance, and alignment metadata",
+      "Packaged 5000-person Leeds attribute profile",
+      "Trips for the packaged Leeds person profile",
+      "Overall health outcomes for the packaged Leeds person profile",
+      "Cycle outcomes used for Leeds counterfactual health recalculation",
+      "Leeds-only UI geography option and scaled population label"
+    ),
+    generated_by = rep(
+      "inst/workflows/dev_build_packaged_leeds_profile.R",
+      6
+    ),
+    stringsAsFactors = FALSE
+  )
+)
+
 
 # 2. Inspection Helpers ----
 # -----------------------------------------------------------------------------#

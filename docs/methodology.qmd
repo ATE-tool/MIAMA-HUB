@@ -1,0 +1,431 @@
+---
+title: "MIAMA active travel and health impact methodology"
+subtitle: "Draft methods description for methodological review and early testing"
+author: "MIAMA project team"
+date: last-modified
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    embed-resources: true
+  pdf:
+    toc: true
+    number-sections: true
+    geometry:
+      - margin=25mm
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+::: {.callout-note}
+## Document status
+
+This is a methods-facing description of the behavior implemented in
+MIAMA-HUB, not a final model specification. **Implemented** means that the
+behavior is present in the current code. **Approximate** means that it is
+implemented through probabilistic sampling and may not exactly reproduce a
+requested distribution. **Planned** identifies a UI option or methodological
+feature that is represented in the design but does not yet change modeled
+outcomes.
+:::
+
+# Purpose and scope
+
+MIAMA estimates how a proposed intervention may change walking and cycling and
+how the resulting change in physical activity may alter population health over
+time. The current workflow is a comparative scenario model:
+
+1. select a reference synthetic population and its observed weekly travel;
+2. translate user-entered active-travel assumptions into a counterfactual copy
+   of those people and trips;
+3. convert changed walking and cycling time into marginal metabolic-equivalent
+   exposure (MMETs);
+4. apply the MMET change to health-model trajectories; and
+5. report the difference between the reference (without-scheme) and
+   counterfactual (with-scheme) scenarios.
+
+```{mermaid}
+flowchart TD
+  A[Reference people and weekly trips] --> B[Constrained sampling and mode shifts]
+  U[UI assumptions] --> B
+  B --> C[Counterfactual weekly MMET exposure]
+  C --> D[Apply health-trajectory lookup]
+  D --> E[Reference vs counterfactual impacts]
+```
+
+The model is not a transport-demand model and does not create a new population.
+It reallocates active travel among the existing synthetic people and trips,
+with a limited mechanism for induced recreational trips. The validity of the
+results therefore depends on both the external assumptions supplied through the
+app and the representativeness of the donor people and trips available in the
+selected geography.
+
+# Reference synthetic population
+
+## Unit of representation
+
+The synthetic population represents approximately 5% of the source population.
+Each person row is currently assigned a population factor of 20 when aggregate
+health results are presented. Individual rows remain fixed between scenarios:
+investment in active travel changes behavior, not the number of residents.
+
+The data contain two related levels:
+
+- **Individual level:** one row per synthetic person, including geography,
+  demographics, household characteristics, and weekly activity.
+- **Trip level:** reported trips linked to people by `census_id`, including
+  travel mode, purpose, distance, duration, and a trip weight.
+
+Person and trip records are required for the most complete workflow. Trip rows
+contain person identifiers and selected attached attributes, but they do not
+replace the individual table: people without usable trip rows and person-level
+physical-activity measures still matter.
+
+## Key variables from active travel to physical activity
+
+| Domain | Principal fields | Role in the model |
+|---|---|---|
+| Identity and geography | `census_id`, `nts_id`, LAD and region identifiers | Select the appraisal population and link people, trips, and health trajectories. |
+| Demographics | `age1year`, `female`, ethnicity, deprivation, limiting condition | Describe the reference population, constrain counterfactual sampling, and identify health-model strata. |
+| Weekly activity | `walktime_wkhr`, `cycletime_wkhr`, `sport_wkhr` | Person-level weekly hours used to identify mode users and calculate MMET exposure. |
+| Trip mode | `trip_mainmode`, walking and cycling component fields | Identify active trips and record mode switches. |
+| Trip amount | raw and mode-specific distance and duration | Preserve plausible observed journeys and calculate added or removed active minutes. |
+| Trip purpose | `trip_purpose`, derived `trip_utilitarian` | Distinguish travel needs from discretionary recreational travel. |
+| Trip representation | `weight_tripXhh` | Weight reference trip summaries; treatment of weights in counterfactual row changes remains provisional. |
+
+Mode-user indicators are derived from positive weekly walking or cycling time,
+with trip evidence used where appropriate. Active-trip indicators use the
+mode-specific trip component fields and main-mode coding. HUB adds explicit
+`user_walk`, `user_bike`, `trip_activemode`, and `trip_utilitarian` fields to
+make these model currencies inspectable.
+
+## Weekly physical-activity exposure
+
+The model uses the week as its base behavioral timeframe. Current conversion
+factors are configurable and equal to:
+
+| Activity | MMET per hour |
+|---|---:|
+| Walking | 2.5 |
+| Cycling | 5.8 |
+| Other vigorous activity | 7.0 |
+
+For person-level changes, weekly hours are converted to MMET-week-hours and
+added to or subtracted from the person's reference MMET value. For an
+independently specified trip target, active minutes are compared between
+reference and counterfactual trips, divided by 60, and multiplied by the
+mode-specific intensity. User-triggered trip changes are excluded from this
+second calculation because their exposure is already represented by the
+person-level activity change.
+
+This separation prevents the same behavioral change from being counted once as
+weekly user activity and again as changed trip minutes.
+
+# From physical activity to health trajectories
+
+MIAMA-HM provides reference person-cycle health outcomes and a piecewise lookup
+describing the change in each outcome per additional MMET. HUB does not rerun
+the underlying microsimulation. It applies the scenario logic to the processed
+health-model outputs.
+
+For each synthetic person:
+
+$$
+\Delta MMET_i = MMET_{i,cf} - MMET_{i,ref}
+$$
+
+Under the currently implemented **long-term** assumption, the same individual
+MMET change is applied in every modeled cycle:
+
+$$
+MMET_{i,t,cf} = MMET_{i,t,ref} + \Delta MMET_i
+$$
+
+The changed MMET interval is intersected with the applicable lookup bands for
+the person's age, sex, mortality-risk decile, and model cycle. For each overlap,
+the model multiplies the interval width by the band-specific outcome slope and
+sums across bands. Counterfactual outcomes equal reference outcomes plus this
+technical delta.
+
+```{mermaid}
+flowchart TD
+  A[Person-level weekly MMET change] --> B[Apply change to each health-model cycle]
+  B --> C[Match age, sex, mortality risk and cycle]
+  C --> D[Intersect changed exposure with MMET lookup bands]
+  D --> E[Band width x outcome slope]
+  E --> F[Counterfactual outcome trajectory]
+  F --> G[Prevented impact = reference - counterfactual]
+```
+
+The internal `d_*` fields use `counterfactual - reference`. Presentation fields
+reverse the sign so that a positive prevented value denotes a health gain. The
+configured assessment period is currently 40 years, excluding cycle 0 from
+impact totals. Population totals apply the synthetic-person factor described
+above.
+
+The health outcome set includes mortality, life-year, and disease-incidence
+measures supplied by the death-share health-model artifacts. Effects attributed
+to walking or cycling are currently obtained after the combined health run by
+allocating impacts in proportion to each person's signed mode-specific MMET
+contribution. This is an attribution of a combined nonlinear calculation, not
+an independent mode-specific rerun of the health model.
+
+# Ways to specify counterfactual active travel
+
+## Reference defaults
+
+After geography and assessed modes are selected, HUB loads and filters the
+synthetic population and fills the UI profile's reference `default_value`
+fields. It calculates reference values for all supported modes and common units
+up front; later UI changes can therefore switch displays without reloading the
+large data.
+
+Reference values include user and trip counts, mode share, average distance and
+duration, and compact five-category distributions. Weekly values are canonical.
+Trip counts can be converted between day, week, and year; user-count conversion
+currently uses a factor of one because repeat-user behavior outside the
+observed week is not identified by the data.
+
+## Basic specification (Tab 2)
+
+The basic interface offers alternative currencies for describing change:
+
+| Input route | Interpretation | Current modeling status |
+|---|---|---|
+| Number of mode users | Target number of weekly walking or cycling users | **Implemented** for walking and cycling. |
+| Number of mode trips | Target weekly active-trip count, with UI timeframe and denominator conversion | **Implemented** for walking and cycling. |
+| Distance or duration | Target aggregate or per-person active-travel amount | **Planned:** collected and summarized but not yet allocated to rows or health exposure. |
+| Mode share | Target shares by travel mode | **Planned:** reference and UI values exist, but counterfactual shares do not yet drive trip sampling. |
+
+Only one basic input route is intended to be active at a time. User and trip
+targets use the same counterfactual machinery as the advanced interface; the
+advanced controls add information about who changes and which trips change.
+
+## Refined population specification (Tab 3)
+
+For each assessed mode, Tab 3 can provide:
+
+- a target number of affected mode users;
+- a target mean age and proportion male;
+- a target mean weekly PA exposure and proportion male within the PA display;
+  and
+- a UI option describing current versus new users.
+
+Reference distributions are represented as a 5 x 2 table: five configured age
+or PA categories crossed with sex. The app displays the table as paired bars.
+Moving a mean or proportion slider does not transmit a new table to HUB.
+Instead, both UI and HUB reproduce it from the same reference bars and scalar
+counterfactual slider values.
+
+For the numeric dimension, exponential tilting shifts the reference category
+percentages toward the requested mean while retaining the reference nonzero
+support. For the binary dimension, the requested proportion replaces the
+reference marginal. The two counterfactual marginals are combined using an
+outer product, which assumes independence between the numeric category and the
+binary grouping. If neither slider changes, the reference table is returned
+exactly.
+
+Current configured categories are:
+
+- age: 18--29, 30--39, 40--49, 50--59, and 60+;
+- PA: sedentary, low, moderate, high, and very high, using provisional MMET
+  cutoffs in configuration.
+
+## Refined trip specification (Tab 4)
+
+For each assessed mode, Tab 4 can provide:
+
+- a target number of weekly active trips;
+- a target mean trip distance;
+- a target proportion of utilitarian trips; and
+- the percentage of new active-mode shifts expected to come from car.
+
+Trip spread bars use five configured distance categories crossed with
+utilitarian/recreational purpose. The same slider redistribution method is used
+for display and for reconstructing internal counterfactual distance targets.
+The configured distance groups are 0--2, 2--5, 5--10, 10--30, and 30+ km.
+
+# Counterfactual sampling and redistribution
+
+## General design
+
+Counterfactual data begin as a one-to-one copy of the filtered reference data.
+All changes are made only in that copy. The person count cannot increase;
+travel needs are preserved by switching trip mode rather than deleting
+utilitarian journeys. Sampling uses existing observed rows as donors so that
+joint characteristics not explicitly modeled remain plausible.
+
+The random seed is fixed by the calling workflow, making a run reproducible for
+the same data and inputs. Sampling is without replacement when selecting people
+or existing trips. Induced trips and donor activity values may be sampled with
+replacement.
+
+## Changing the number of users
+
+If the counterfactual target exceeds the reference user count, HUB samples
+existing non-users and marks them as `new_users`. If it is lower, HUB samples
+existing users and marks them as `ex_users`.
+
+Candidate probabilities combine the available mode-specific Tab 3 constraints:
+
+$$
+w_i = w_{sex,i} \times w_{age,i} \times w_{PA,i}.
+$$
+
+The category percentages reconstructed from the sliders are used directly as
+relative sampling weights. They are not exact quotas and are not currently
+calibrated for the prevalence of each category in the candidate pool. If too
+few candidates have positive combined weight, all positive-weight candidates
+are selected first and the unavoidable remainder is sampled uniformly. The
+counterfactual report records this relaxation.
+
+New users receive a weekly mode-activity value sampled with replacement from
+observed current users of that mode; the configured fallback is one hour per
+week if no donor value exists. Ex-users' mode activity is set to zero. This
+changes the person's MMET exposure.
+
+When trips are available, new-user status also triggers mode shifts among that
+person's plausible non-active trips. The number is based on the configured
+weekly trips-per-user assumption; observed trip rates among current users are a
+fallback. For ex-users, their active trips are switched away from the active
+mode, currently to car.
+
+::: {.callout-warning}
+The age and PA spread targets constrain **which candidates change status**.
+They do not impose exact distributions on all final counterfactual users. In
+addition, the PA constraint is based on candidate PA before newly sampled mode
+activity is added, so the final PA distribution of new users can differ from
+the displayed target.
+:::
+
+## Changing the number of trips
+
+For an increase, 90% of the additional active trips are currently treated as
+mode shifts and 10% as induced recreational trips. These shares are configurable
+counterfactual assumptions.
+
+Mode-shift candidates must be existing non-active utilitarian trips. Candidate
+distances are limited to 120% of the maximum observed reference active-mode
+distance to avoid implausible switches. Their sampling probabilities reflect
+the requested distance distribution or, when only a mean is available, a
+smooth preference for distances near that mean. The requested car-source share
+rebalances the car and non-car candidate pools while retaining the distance
+weights. The realized share can differ in finite or constrained samples and is
+reported.
+
+Selected trips retain their observed raw distance and duration; the target
+active-mode fields are populated from those raw values. For induced travel,
+HUB copies observed active-trip donor rows, assigns new trip identifiers, marks
+them recreational, and assigns trip weight 1.
+
+For a decrease, sampled active trips are switched to the configured alternative
+mode, currently car. Rows are not deleted because the underlying travel need is
+assumed to remain.
+
+::: {.callout-warning}
+Although the Tab 4 utilitarian-proportion value is parsed and reported as a
+sampling constraint, it is not yet applied in `cf_trip_candidate_weights()`.
+At present, existing mode-shift candidates are all utilitarian and induced
+rows are all recreational, so the realized purpose split is mainly determined
+by the fixed 90/10 mechanism rather than the purpose slider.
+:::
+
+## Weights and represented totals
+
+Reference trip summaries use `weight_tripXhh`. Counterfactual operations
+currently alter physical rows: shifted trips retain their existing weights and
+induced rows receive weight 1. Consequently, a requested numeric change and a
+weighted result are not guaranteed to coincide. This is acceptable for early
+mechanism testing but requires a settled weighting strategy before substantive
+appraisal use.
+
+# What each refinement currently controls
+
+| UI information | Stored/reconstructed quantity | Current effect on counterfactual data |
+|---|---|---|
+| Mode-specific user count | Weekly target users | Adds new-user or ex-user statuses among existing people. |
+| Mean age + sex proportion | Five age categories and sex marginal | Weights candidate people changing status. |
+| Mean PA + sex proportion | Five PA categories and sex marginal | Weights candidate people using their pre-change PA. |
+| Current/new-user percentage | Scalar profile value | **Planned:** parsed but not currently used to partition the target. |
+| Mode-specific trip count | Weekly target trip rows | Shifts existing trips and adds induced recreational trips. |
+| Mean trip distance | Five distance-category target or smooth mean preference | Weights plausible trip candidates. |
+| Utilitarian proportion | Purpose marginal | **Planned:** parsed but not currently included in candidate weights. |
+| Car diversion percentage | Expected car share among shifted trips | Rebalances car versus other source-mode candidate pools. |
+| Basic distance/duration target | Aggregate exposure target | **Planned:** no allocation to people/trips. |
+| Basic mode share target | Aggregate shares | **Planned:** no conversion to per-mode trip targets. |
+
+# Validation, uncertainty, and remaining work
+
+The current implementation makes assumptions visible in
+`counterfactual_report`, including requested and realized counts, active
+sampling constraints, fallback sampling, induced trips, diversion shares, and
+MMET components. This supports mechanical checking, but it is not a substitute
+for empirical validation.
+
+## Priority methodological TODOs
+
+1. **Trip purpose targeting:** apply the Tab 4 utilitarian/recreational target
+   in trip candidate selection and verify the realized split.
+2. **Candidate-weight calibration:** decide whether category weights should be
+   calibrated as target share divided by candidate prevalence, or replaced by
+   exact/near-exact quota sampling. Test on large and sparse geographies.
+3. **Final-distribution validation:** report requested versus realized age,
+   sex, PA, distance, purpose, and source-mode distributions after all changes,
+   not only the constraints supplied to the sampler.
+4. **New versus current users:** implement the UI percentage explicitly and
+   define whether spread controls describe new users, all affected users, or
+   the complete counterfactual mode-user population.
+5. **PA targeting semantics:** decide whether PA categories refer to pre-change
+   activity, post-change total activity, or mode-specific added activity, then
+   align sampling and UI wording.
+6. **Trip weights:** define whether targets represent physical synthetic rows,
+   weighted trips, or actual population trips; update shifts and induced trips
+   accordingly.
+7. **Basic distance/duration and mode share:** translate these inputs into
+   operational user/trip targets or clearly mark them as non-modeling inputs.
+8. **Short-term effects:** implement a time-limited intervention effect rather
+   than applying the MMET change to every health cycle.
+9. **Category and intensity review:** validate age, distance, PA cutoffs and
+   MMET intensity factors against agreed evidence and document provenance.
+10. **Mode coverage:** establish defensible e-bike and public-transport walking
+    exposure rules; current person-level user changes support walking and
+    cycling only.
+11. **Uncertainty analysis:** quantify Monte Carlo variation from sampling and
+    parameter uncertainty; a fixed seed currently provides reproducibility but
+    not uncertainty intervals.
+12. **External validation:** compare reference summaries, modeled behavioral
+    changes, and health-response magnitudes with independent observed data and
+    established appraisal tools.
+
+## Recommended checks for each appraisal
+
+- Confirm that reference user/trip counts and spread plots are credible for the
+  selected geography and are not using a sparse-data fallback.
+- Compare requested and realized counterfactual changes in the report.
+- Inspect the number of relaxed sampling selections and induced trip rows.
+- Check the individual walking/cycling MMET components before reviewing health
+  outcomes.
+- Confirm sign conventions: internal delta is counterfactual minus reference;
+  prevented outcomes are reference minus counterfactual.
+- Treat very small samples and unsupported modes as development tests, not
+  substantive estimates.
+
+# Implementation traceability
+
+This description is based on the current implementation, principally:
+
+- `R/reference_data_extract_reference_ui_values.R`
+- `R/reference_data_spread_functions.R`
+- `R/counterfactual_data_sampling_functions.R`
+- `R/counterfactual_data_apply_ui_values.R`
+- `R/counterfactual_data_apply_health_outcomes.R`
+- `R/results_data_prepare.R`
+- `R/config.R` and `R/constants.R`
+
+The companion slide deck is `docs/methodology_slides.qmd`. The package README
+remains the developer-facing integration reference; where terminology differs,
+the implementation and the status statements in this methods document take
+precedence until the discrepancy is resolved.

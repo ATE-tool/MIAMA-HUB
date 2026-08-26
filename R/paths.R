@@ -129,7 +129,10 @@ miama_pick_synthpop_source <- function(data_dir, prefix) {
   list(path = parquet, format = "parquet")
 }
 
-miama_pick_hm_source <- function(data_dir, hm_processed, dataset_name) {
+miama_pick_hm_source <- function(data_dir,
+                                 hm_processed,
+                                 dataset_name,
+                                 fallback_data_dirs = character()) {
   hub_path <- file.path(data_dir, "health_data", dataset_name)
   hm_path <- if (is.null(hm_processed)) NULL else file.path(hm_processed, dataset_name)
 
@@ -138,6 +141,12 @@ miama_pick_hm_source <- function(data_dir, hm_processed, dataset_name) {
   }
   if (!is.null(hm_path) && dir.exists(hm_path)) {
     return(list(path = hm_path, format = "parquet", source = "hm"))
+  }
+
+  fallback_paths <- file.path(fallback_data_dirs, "health_data", dataset_name)
+  fallback_match <- fallback_paths[dir.exists(fallback_paths)]
+  if (length(fallback_match) > 0) {
+    return(list(path = fallback_match[[1]], format = "parquet", source = "hub_shared"))
   }
 
   list(
@@ -150,38 +159,52 @@ miama_pick_hm_source <- function(data_dir, hm_processed, dataset_name) {
 miama_paths <- function(dataset_size = NULL) {
   project_root <- miama_project_root()
   hm_root      <- miama_hm_root_or_null()
+  uses_packaged_profile <- isTRUE(dataset_size %in% c("sample", "leeds"))
+  packaged_data_dir <- if (uses_packaged_profile) {
+    miama_packaged_data_dir(project_root)
+  } else {
+    tryCatch(miama_packaged_data_dir(project_root), error = function(e) NULL)
+  }
   data_dir <- if (identical(dataset_size, "sample")) {
     # Sample mode must use a coherent packaged SP/HM sample. Allowing an
     # existing MIAMA_DATA_ROOT to replace only the SP side creates targets from
     # full SP rows that cannot be applied to the much smaller sample HM join.
-    miama_packaged_data_dir(project_root)
+    packaged_data_dir
+  } else if (identical(dataset_size, "leeds")) {
+    # The Leeds profile is a self-contained, aligned SP/HM subset intended for
+    # realistic local and published-app testing without external full data.
+    file.path(packaged_data_dir, "profiles", "leeds")
   } else {
     miama_runtime_data_dir(project_root)
   }
   hm_processed <- if (is.null(hm_root)) NULL else file.path(hm_root, "health_data", "processed")
+  profile_hm_processed <- if (identical(dataset_size, "leeds")) NULL else hm_processed
 
   sp_attributes <- miama_pick_synthpop_source(data_dir, "SPindivid_CensusNTSALS")
   sp_trips      <- miama_pick_synthpop_source(data_dir, "SPtrip_CensusNTSALS")
-  hm_sp_overall <- miama_pick_hm_source(data_dir, hm_processed, "sp_overall_outcomes")
-  hm_sp_cycle <- miama_pick_hm_source(data_dir, hm_processed, "sp_cycle_outcomes")
-  hm_sp_overall_sample <- miama_pick_hm_source(data_dir, hm_processed, "sp_overall_outcomes_sample")
-  hm_sp_cycle_sample <- miama_pick_hm_source(data_dir, hm_processed, "sp_cycle_outcomes_sample")
-  hm_cycle_death_share <- miama_pick_hm_source(data_dir, hm_processed, "sp_cycle_outcomes_death_share")
+  hm_sp_overall <- miama_pick_hm_source(data_dir, profile_hm_processed, "sp_overall_outcomes")
+  hm_sp_cycle <- miama_pick_hm_source(data_dir, profile_hm_processed, "sp_cycle_outcomes")
+  hm_sp_overall_sample <- miama_pick_hm_source(data_dir, profile_hm_processed, "sp_overall_outcomes_sample")
+  hm_sp_cycle_sample <- miama_pick_hm_source(data_dir, profile_hm_processed, "sp_cycle_outcomes_sample")
+  hm_cycle_death_share <- miama_pick_hm_source(data_dir, profile_hm_processed, "sp_cycle_outcomes_death_share")
   hm_cycle_sample_death_share <- miama_pick_hm_source(
     data_dir,
-    hm_processed,
+    profile_hm_processed,
     "sp_cycle_outcomes_sample_death_share"
   )
   hm_lookup_cycle_death_share <- miama_pick_hm_source(
     data_dir,
-    hm_processed,
-    "mmet_d_cycle_lookup_death_share"
+    profile_hm_processed,
+    "mmet_d_cycle_lookup_death_share",
+    fallback_data_dirs = if (identical(dataset_size, "leeds")) packaged_data_dir else character()
   )
 
   list(
     project_root      = project_root,
     hm_root           = hm_root,
     hm_processed_root = hm_processed,
+    packaged_data_dir = packaged_data_dir,
+    profile_metadata  = file.path(data_dir, "profile.rds"),
     inst_workflows    = file.path(project_root, "inst", "workflows"),
     data_dir          = data_dir,
     cache_dir         = file.path(data_dir, "cache"),

@@ -10,8 +10,9 @@
 # Then restart R so the vars are picked up before loading the package.
 # `MIAMA_HM_ROOT` is optional in the common dev layout where `MIAMA-HUB` and
 # `MIAMA-HM` are sibling repos; HUB will discover `../MIAMA-HM` automatically.
-# `MIAMA_DATA_ROOT` is optional for packaged sample runs and required for full
-# synthpop runs.
+# `MIAMA_DATA_ROOT` is optional for packaged `sample` and `leeds` runs and
+# required for full synthpop runs. Set `MIAMA_DEV_DATASET_SIZE=leeds` to use the
+# packaged 5,000-person Leeds profile.
 
 # 0. Setup ----
 # -----------------------------------------------------------------------------#
@@ -48,7 +49,8 @@ devtools::load_all(hub_root)
 # Pass dataset size at construction time because it determines which source
 # paths are resolved. Changing only `cfg$workflow$dataset_size` afterward can
 # leave full synthpop paths paired with sample HM paths (or vice versa).
-cfg <- miama_default_config(dataset_size = "sample") # "sample" or "full"
+dev_dataset_size <- Sys.getenv("MIAMA_DEV_DATASET_SIZE", unset = "sample")
+cfg <- miama_default_config(dataset_size = dev_dataset_size) # sample, leeds, or full
 cfg$cache$enabled         <- TRUE
 cfg$cache$refresh         <- FALSE
 

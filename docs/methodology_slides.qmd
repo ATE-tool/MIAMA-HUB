@@ -1,0 +1,186 @@
+---
+title: "How MIAMA links active travel to health"
+subtitle: "Current methodology, assumptions, and validation priorities"
+author: "MIAMA project team"
+date: last-modified
+format:
+  revealjs:
+    slide-number: true
+    progress: true
+    transition: fade
+    smaller: true
+    embed-resources: true
+    width: 1280
+    height: 720
+    margin: 0.08
+    footer: "Draft for methodological review"
+---
+
+## What the model does
+
+1. Selects a reference synthetic population and its weekly travel
+2. Applies active-travel assumptions to a counterfactual copy
+3. Converts changed walking/cycling time to MMET exposure
+4. Applies the exposure change to health trajectories
+5. Reports reference minus counterfactual impacts
+
+```{mermaid}
+flowchart LR
+  A[People + trips] --> B[Counterfactual sampling]
+  U[UI assumptions] --> B
+  B --> C[Weekly MMET change]
+  C --> D[Health lookup by cycle]
+  D --> E[Prevented outcomes]
+```
+
+## Reference population
+
+- Individual rows: geography, age, sex, characteristics, weekly activity
+- Trip rows: mode, purpose, distance, duration, trip weight
+- People and trips linked by `census_id`
+- Synthetic population represents about 5% of the source population
+- Current aggregate person factor: **20**
+- Counterfactual population size remains fixed
+
+## Active travel to physical activity
+
+| Weekly activity | Current intensity |
+|---|---:|
+| Walking | 2.5 MMET/hour |
+| Cycling | 5.8 MMET/hour |
+| Other vigorous activity | 7.0 MMET/hour |
+
+$$
+\Delta MMET_i = MMET_{i,cf} - MMET_{i,ref}
+$$
+
+User-based and independent trip-based changes are kept separate to avoid
+double counting the same active minutes.
+
+## Physical activity to health
+
+- MIAMA-HM supplies reference person-cycle trajectories
+- MMET lookup varies by age, sex, mortality risk, cycle, and outcome
+- Current **long-term** assumption applies the MMET change to every cycle
+- Piecewise MMET-band slopes determine outcome changes
+- Internal delta: counterfactual minus reference
+- Presentation impact: reference minus counterfactual
+- Current assessment period: **40 years**, excluding cycle 0
+
+## Ways users can specify change
+
+| Interface | Input | Status |
+|---|---|---|
+| Basic | Mode users | Implemented |
+| Basic | Mode trips | Implemented |
+| Basic | Distance/duration | Planned allocation |
+| Basic | Mode share | Planned conversion |
+| Advanced population | User count + age/sex + PA/sex | Implemented as sampling constraints |
+| Advanced trips | Trip count + distance + purpose + car diversion | Partly implemented |
+
+## Five-category spread controls
+
+- Reference data provide a 5 x 2 distribution for each mode
+- Slider values summarize the same data: mean + binary proportion
+- Exponential tilting shifts the five-category marginal
+- Requested sex/purpose proportion replaces the binary marginal
+- Outer product reconstructs the displayed joint distribution
+- An unchanged slider reproduces the reference bars exactly
+
+**Configured groups**
+
+- Age: 18--29, 30--39, 40--49, 50--59, 60+
+- Distance: 0--2, 2--5, 5--10, 10--30, 30+ km
+- PA: sedentary, low, moderate, high, very high
+
+## Sampling people
+
+**User increase**
+
+- sample existing non-users as new users
+- probability weights combine sex, age, and PA targets
+- sample weekly mode activity from observed current users
+- shift plausible trips for selected people where trip data exist
+
+**User decrease**
+
+- sample existing users as ex-users
+- set mode activity to zero
+- divert their active trips, currently to car
+
+## Sampling trips
+
+**Trip increase**
+
+- 90% existing non-active utilitarian trips switch mode
+- 10% induced recreational trips are added
+- retain observed raw distance and duration
+- distance target and car-source share weight candidate selection
+
+**Trip decrease**
+
+- active trips switch away from the mode
+- travel needs remain; rows are not deleted
+
+## What “matching” currently means
+
+- Target category shares are **relative sampling weights**, not quotas
+- Sampling is without replacement for people and existing trips
+- Sparse combined constraints can be relaxed and are reported
+- Large samples should be more stable, but exact matching is not guaranteed
+- Requested versus realized distributions still need a complete audit table
+
+::: {.callout-warning}
+Candidate weights are not yet calibrated for category prevalence in the
+eligible pool. The purpose slider is parsed but not yet included in trip
+candidate weights.
+:::
+
+## Important current limitations
+
+- PA target selects candidates using **pre-change** PA; final PA can differ
+- “Current vs new users” input is not yet operational
+- Trip weights and physical row changes are not fully reconciled
+- Basic mode-share and distance/duration routes do not yet change outcomes
+- Only long-term persistence is implemented
+- Walking/cycling are the defensible person-level active modes
+- Sampling uncertainty is not yet quantified
+
+## Validation priorities
+
+1. Apply and verify trip-purpose targeting
+2. Compare requested and realized distributions
+3. Calibrate probabilities or implement near-exact quotas
+4. Define PA and current/new-user semantics
+5. Resolve weighted trip targets
+6. Operationalize remaining basic input routes
+7. Add short-term effects and uncertainty analysis
+8. Validate against observed data and established appraisal tools
+
+## What early testers should inspect
+
+- Are reference counts and distributions plausible for the location?
+- Did requested user/trip changes occur?
+- Were sampling constraints relaxed?
+- Are induced trips and diversion shares reasonable?
+- Do walking/cycling MMET changes have the expected sign and magnitude?
+- Are prevented health outcomes positive for beneficial scenarios?
+- Is the geography large enough for stable constrained sampling?
+
+## Terminology
+
+| Term | Meaning |
+|---|---|
+| Reference (`ref`) | Without-scheme scenario |
+| Counterfactual (`cf`) | With-scheme scenario |
+| Technical delta | `cf - ref` |
+| Prevented impact | `ref - cf` |
+| Baseline | Reserved for the health model's initial state/cycle |
+
+## Review question
+
+Does the current model allocate the requested active-travel change to plausible
+people and trips **in a way that is transparent, empirically defensible, and
+consistent with the question asked in the UI?**
+
+Full methods and TODO register: `docs/methodology.qmd`

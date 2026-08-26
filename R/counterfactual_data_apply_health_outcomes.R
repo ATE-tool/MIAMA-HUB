@@ -157,6 +157,19 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL,
     return(normalizePath(configured_path, winslash = "/", mustWork = FALSE))
   }
 
+  # A normal resolved config returns above. For a deliberately minimal config,
+  # preserve the legacy fallback order: an explicit/sibling MIAMA-HM checkout
+  # takes precedence over whatever package happens to be installed locally.
+  hm_processed <- miama_paths()$hm_processed_root
+  if (!is.null(hm_processed)) {
+    hm_paths <- file.path(hm_processed, dataset_candidates)
+    for (path in hm_paths) {
+      if (dir.exists(path)) {
+        return(normalizePath(path, winslash = "/", mustWork = FALSE))
+      }
+    }
+  }
+
   hub_paths <- file.path(miama_runtime_data_dir(), "health_data", dataset_candidates)
   for (path in hub_paths) {
     if (dir.exists(path)) {
@@ -164,7 +177,6 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL,
     }
   }
 
-  hm_processed <- miama_paths()$hm_processed_root
   if (is.null(hm_processed)) {
     stop(
       "Death-share HM data was not found locally and MIAMA_HM_ROOT is not set. ",
@@ -174,14 +186,7 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL,
     )
   }
 
-  hm_paths <- file.path(hm_processed, dataset_candidates)
-  for (path in hm_paths) {
-    if (dir.exists(path)) {
-      return(normalizePath(path, winslash = "/", mustWork = FALSE))
-    }
-  }
-
-  normalizePath(hm_paths[1], winslash = "/", mustWork = FALSE)
+  normalizePath(file.path(hm_processed, dataset_candidates[1]), winslash = "/", mustWork = FALSE)
 }
 
 .hm_death_share_dataset_candidates <- function(cfg, dataset_name) {
