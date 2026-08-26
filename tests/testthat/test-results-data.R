@@ -337,6 +337,14 @@ test_that("result plotting functions return ggplot objects", {
   expect_s3_class(timeline_scenario, "ggplot")
   expect_true(any(grepl("Scenario: Reference", timeline_scenario$data$tooltip_text)))
   expect_true(all(grepl("Cumulative modelled deaths", timeline_scenario$data$tooltip_text)))
+  timeline_scenario_modes <- results_plot_health_timeline(
+    results_data,
+    impact_type = "cf_vs_ref",
+    modes = c("walking", "cycling")
+  )
+  expect_s3_class(timeline_scenario_modes, "ggplot")
+  expect_gt(nrow(timeline_scenario_modes$data), 0)
+  expect_true(all(timeline_scenario_modes$data$mode == "all_modes"))
   mode_plot <- results_plot_trip_mode_distribution(results_data)
   expect_s3_class(mode_plot, "ggplot")
   expect_equal(mode_plot$labels$title, "Reference and counterfactual travel by mode")

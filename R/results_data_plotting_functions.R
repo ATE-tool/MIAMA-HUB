@@ -397,16 +397,17 @@ results_plot_health_timeline <- function(
   impact_type <- match.arg(.results_plot_impact_type(impact_type), c("attributable", "cf_vs_ref"))
   metric <- match.arg(metric)
   timeline_type <- match.arg(timeline_type)
+  # Absolute reference and counterfactual burdens exist only for the all-mode
+  # series. Mode selections remain meaningful for attributable impacts, but
+  # must not suppress the scenario timeline when the UI retains checked modes.
+  timeline_modes <- if (identical(impact_type, "cf_vs_ref")) NULL else modes
   plot_data <- results_filter_health_data(
     results_data, outcomes, age_groups, gender,
     aggregation = "timeline", group_by = "outcome",
-    timeline_type = timeline_type, modes = modes
+    timeline_type = timeline_type, modes = timeline_modes
   )
   if (nrow(plot_data) == 0 || !"cycle" %in% names(plot_data)) {
     return(.results_empty_plot("No timeline data available"))
-  }
-  if (identical(impact_type, "cf_vs_ref") && any(plot_data$mode != "all_modes")) {
-    return(.results_empty_plot("Reference versus counterfactual burden is available for all modes only"))
   }
   if (any(plot_data$mode != "all_modes") && identical(metric, "percent_reduction")) {
     metric <- "prevented"
