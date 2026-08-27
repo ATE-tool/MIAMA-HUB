@@ -444,7 +444,13 @@ results_plot_health_timeline <- function(
     return(
       ggplot2::ggplot(
         scenario_data,
-        ggplot2::aes(x = cycle, y = value, color = scenario, text = tooltip_text)
+        ggplot2::aes(
+          x = cycle,
+          y = value,
+          color = scenario,
+          group = interaction(outcome_label, scenario, drop = TRUE),
+          text = tooltip_text
+        )
       ) +
         ggplot2::geom_line(linewidth = 0.85) +
         ggplot2::facet_wrap(~outcome_label, scales = "free_y") +
@@ -480,7 +486,13 @@ results_plot_health_timeline <- function(
   )
   ggplot2::ggplot(
     plot_data,
-    ggplot2::aes(x = cycle, y = .data[[y_col]], color = series_label, text = tooltip_text)
+    ggplot2::aes(
+      x = cycle,
+      y = .data[[y_col]],
+      color = series_label,
+      group = series_label,
+      text = tooltip_text
+    )
   ) +
     ggplot2::geom_hline(yintercept = 0, color = "grey75", linewidth = 0.3) +
     ggplot2::geom_line(linewidth = 0.85) +

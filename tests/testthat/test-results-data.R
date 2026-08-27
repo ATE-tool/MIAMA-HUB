@@ -287,13 +287,13 @@ test_that("result plotting functions return ggplot objects", {
 
   counterfactual_data <- list(
     health_outcomes = data.frame(
-      census_id = c(1, 1),
-      cycle = c(0L, 1L),
-      age1year = c(30, 31),
-      female = c(0, 0),
-      dead = c(10, 11),
-      d_dead = c(-1, -1.1),
-      dead_cf = c(9, 9.9)
+      census_id = c(1, 1, 1),
+      cycle = c(0L, 1L, 2L),
+      age1year = c(30, 31, 32),
+      female = c(0, 0, 0),
+      dead = c(10, 11, 12),
+      d_dead = c(-1, -1.1, -1.2),
+      dead_cf = c(9, 9.9, 10.8)
     )
   )
 
@@ -331,12 +331,16 @@ test_that("result plotting functions return ggplot objects", {
   expect_s3_class(timeline, "ggplot")
   expect_equal(timeline$labels$title, "Health impacts over time")
   expect_match(timeline$labels$x, "Model year")
-  expect_match(timeline$data$tooltip_text, "Model year: 1")
+  expect_true(any(grepl("Model year: 1", timeline$data$tooltip_text)))
   expect_match(timeline$data$tooltip_text, "per 100,000")
+  timeline_line_data <- ggplot2::ggplot_build(timeline)$data[[2]]
+  expect_true(all(table(timeline_line_data$group) > 1L))
   timeline_scenario <- results_plot_health_timeline(results_data, impact_type = "cf_vs_ref")
   expect_s3_class(timeline_scenario, "ggplot")
   expect_true(any(grepl("Scenario: Reference", timeline_scenario$data$tooltip_text)))
   expect_true(all(grepl("Cumulative modelled deaths", timeline_scenario$data$tooltip_text)))
+  timeline_scenario_line_data <- ggplot2::ggplot_build(timeline_scenario)$data[[1]]
+  expect_true(all(table(timeline_scenario_line_data$group) > 1L))
   timeline_scenario_modes <- results_plot_health_timeline(
     results_data,
     impact_type = "cf_vs_ref",
