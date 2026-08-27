@@ -33,8 +33,8 @@
 #   `title`, `subtitle`, `caption`, `x_label`, and `y_label` overrides for UI use.
 # - Pass `NULL` to use the semantic default or `NA_character_` to suppress a
 #   label. Changing a label does not transform the underlying numeric values.
-# - `prevented_value = reference - counterfactual`; positive values are a health
-#   gain. `percent_reduction = 100 * (reference - counterfactual) / reference`.
+# - Benefit values are reference minus counterfactual for adverse outcomes and
+#   counterfactual minus reference for HALYs; positive values are health gains.
 # - `prevented_per_100000` uses the represented population attached to each
 #   result group. Cycle 0 is excluded before plot data are constructed.
 # - Reference/counterfactual health values are modelled deaths, disease cases,
@@ -130,8 +130,9 @@ results_filter_health_data <- function(
   }
 
   out$percent_change <- 100 * .results_divide_or_na(out$delta_value, out$ref_value)
-  out$prevented_value <- -out$delta_value
-  out$percent_reduction <- -out$percent_change
+  benefit_sign <- .results_benefit_sign(out$outcome_type)
+  out$prevented_value <- benefit_sign * out$delta_value
+  out$percent_reduction <- benefit_sign * out$percent_change
   out$prevented_per_100000 <- 100000 * .results_divide_or_na(out$prevented_value, out$population)
 
   if ("age_group" %in% names(out)) {
@@ -619,16 +620,26 @@ results_plot_trip_mode_distribution <- function(
   outcome <- ifelse(
     outcome_type == "mortality",
     "deaths",
-    ifelse(outcome_type == "disease", "disease cases", "health outcomes")
+    ifelse(
+      outcome_type == "disease", "disease cases",
+      ifelse(outcome_type == "health_years", "HALYs", "health outcomes")
+    )
   )
   prefix <- if (is.null(period) || !nzchar(period)) "" else paste0(period, " ")
 
   switch(
     metric,
     modelled = paste0(prefix, "modelled ", outcome),
-    percent_reduction = rep("Reduction from reference", length(outcome)),
-    prevented_per_100000 = paste0(prefix, "prevented ", outcome, " per 100,000"),
-    paste0(prefix, "prevented ", outcome)
+    percent_reduction = ifelse(
+      outcome_type == "health_years", "Increase from reference", "Reduction from reference"
+    ),
+    prevented_per_100000 = paste0(
+      prefix, ifelse(outcome_type == "health_years", "gained ", "prevented "),
+      outcome, " per 100,000"
+    ),
+    paste0(
+      prefix, ifelse(outcome_type == "health_years", "gained ", "prevented "), outcome
+    )
   )
 }
 
@@ -681,6 +692,7 @@ results_plot_trip_mode_distribution <- function(
                                         x_label,
                                         y_label) {
   unit <- .results_health_outcome_unit(plot_data)
+  health_years_only <- all(as.character(plot_data$outcome_type) == "health_years")
   cycle_span <- .results_cycle_span(results_data)
   is_timeline <- identical(plot, "timeline")
   is_cumulative <- is_timeline && identical(timeline_type, "cumulative")
@@ -711,13 +723,17 @@ results_plot_trip_mode_distribution <- function(
     )
   } else {
     default_y <- if (identical(metric, "percent_reduction")) {
-      "Reduction from reference (%)"
+      if (health_years_only) "Increase from reference (%)" else "Reduction from reference (%)"
     } else if (identical(metric, "prevented_per_100000")) {
-      paste0(if (is_cumulative || !is_timeline) "Cumulative prevented " else "Prevented ", unit, " per 100,000 residents")
+      paste0(
+        if (is_cumulative || !is_timeline) "Cumulative " else "",
+        if (health_years_only) "gained " else "prevented ", unit,
+        " per 100,000 residents"
+      )
     } else if (is_timeline && !is_cumulative) {
-      paste0("Prevented ", unit, " per model year")
+      paste0(if (health_years_only) "Gained " else "Prevented ", unit, " per model year")
     } else {
-      paste0("Cumulative prevented ", unit)
+      paste0("Cumulative ", if (health_years_only) "gained " else "prevented ", unit)
     }
     default_subtitle <- if (is_timeline) {
       paste0(if (is_cumulative) "Cumulative" else "Annual", " scheme impact across ", cycle_span)
@@ -726,12 +742,20 @@ results_plot_trip_mode_distribution <- function(
     }
     default_caption <- if (identical(metric, "percent_reduction")) {
       paste(
-        "Reduction (%) = 100 x (reference - counterfactual) / reference.",
-        "Positive values indicate fewer outcomes with the scheme; negative values indicate an increase."
+        if (health_years_only) {
+          "Increase (%) = 100 x (counterfactual - reference) / reference."
+        } else {
+          "Reduction (%) = 100 x (reference - counterfactual) / reference."
+        },
+        "Positive values indicate a health gain; negative values indicate a health loss."
       )
     } else {
       paste(
-        "Prevented outcomes = reference - counterfactual.",
+        if (health_years_only) {
+          "HALYs gained = counterfactual - reference."
+        } else {
+          "Prevented outcomes = reference - counterfactual."
+        },
         "Positive values indicate a health gain; negative values indicate a health loss."
       )
     }
@@ -806,6 +830,7 @@ results_plot_trip_mode_distribution <- function(
   outcome_types <- outcome_types[!is.na(outcome_types) & nzchar(outcome_types)]
   if (length(outcome_types) == 1 && identical(outcome_types, "mortality")) return("deaths")
   if (length(outcome_types) == 1 && identical(outcome_types, "disease")) return("disease cases")
+  if (length(outcome_types) == 1 && identical(outcome_types, "health_years")) return("HALYs")
   "health outcomes"
 }
 

@@ -67,6 +67,20 @@ double counting the same active minutes.
 - Presentation impact: reference minus counterfactual
 - Current assessment period: **40 years**, excluding cycle 0
 
+## Health-adjusted life years (HALYs)
+
+- HALYs are distinct from healthy life years (HLYs)
+- Reconstruct annual disease prevalence from incidence, deaths, death share,
+  and depression remission/exits
+- Calculate reference and counterfactual prevalence separately
+- Adjust life years for residual pYLD and comorbidity-adjusted disease weights
+
+$$
+HALY=LY(1-pYLD)\left(1-\sum_d prevalence_d\,dw_d^{adj}\right)
+$$
+
+- Positive `d_haly = HALY_cf - HALY_ref` means a health gain
+
 ## Ways users can specify change
 
 | Interface | Input | Status |
@@ -170,6 +184,7 @@ candidate weights.
 - Are induced trips and diversion shares reasonable?
 - Do walking/cycling MMET changes have the expected sign and magnitude?
 - Are prevented health outcomes positive for beneficial scenarios?
+- Are HALY gains plausible relative to life-year and disease-incidence changes?
 - Is the geography large enough for stable constrained sampling?
 
 ## Terminology

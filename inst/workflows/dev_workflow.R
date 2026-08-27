@@ -506,8 +506,9 @@ glimpse_head(counterfactual_data$trips)
 
 # 7. Rejoin health outcomes based on updated physical activity levels (mmets) for counterfactual data ----
 # -----------------------------------------------------------------------------#
-# Uses the updated MIAMA-HM death-share cycle tables so HALY-compatible outputs
-# are available. For `dataset_size = "sample"`, Step 7 prefers the sample
+# Uses the updated MIAMA-HM death-share cycle tables, then reconstructs disease
+# prevalence and calculates reference/counterfactual HALYs. For
+# `dataset_size = "sample"`, Step 7 prefers the sample
 # death-share cycle table when present. The default `scheme_effect_duration =
 # "longterm"` applies the individual MMET delta to every model cycle.
 
@@ -528,7 +529,15 @@ message(
 
 ## 7.1 Inspect counterfactual health outcomes ----
 str(counterfactual_data$counterfactual_health_report)
+str(counterfactual_data$counterfactual_health_report$haly)
 glimpse_head(counterfactual_data$health_outcomes)
+counterfactual_data$health_outcomes |>
+  dplyr::summarise(
+    haly_ref = sum(.data$haly, na.rm = TRUE),
+    haly_cf = sum(.data$haly + .data$d_haly, na.rm = TRUE),
+    halys_gained = sum(.data$d_haly, na.rm = TRUE)
+  ) |>
+  print()
 counterfactual_data$counterfactual_health_report$impact_overview |>
   dplyr::arrange(dplyr::desc(abs(delta_total))) |>
   utils::head(30) |>
@@ -553,8 +562,9 @@ results_data <- prepare_results_data(
 ## 8.1 Inspect result summaries and tables ----
 str(results_data$headline_metrics)
 str(results_data$results_report)
-# `delta_value` retains HM's technical cf-ref sign. Presentation columns use
-# ref-cf: positive `prevented_value` and `prevented_per_100000` are health gains.
+# `delta_value` retains HM's technical cf-ref sign. Benefit-oriented columns
+# reverse this for adverse outcomes but retain it for HALYs, so positive values
+# consistently represent health gains.
 results_data$results_table |>
   dplyr::arrange(dplyr::desc(abs(delta_value))) |>
   utils::head(30) |>

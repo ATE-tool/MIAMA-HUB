@@ -166,7 +166,30 @@ configured assessment period is currently 40 years, excluding cycle 0 from
 impact totals. Population totals apply the synthetic-person factor described
 above.
 
-The health outcome set includes mortality, life-year, and disease-incidence
+## Health-adjusted life years
+
+Healthy life years (HLYs) and health-adjusted life years (HALYs) are separate
+measures. HALYs are calculated after the MMET lookup has produced the
+counterfactual incidence trajectories. For each person and year, HUB
+reconstructs prevalence from incidence, deaths, disease-specific death share,
+and, for depression, remission/exits. It does this independently for reference
+and counterfactual trajectories.
+
+Life years are first adjusted for the age/sex residual prevalence of years
+lived with disability outside the explicitly modelled diseases. They are then
+adjusted for reconstructed disease prevalence multiplied by age-, sex-, and
+disease-specific disability weights that account for comorbidity:
+
+$$
+HALY_{i,t}=LY_{i,t}(1-pYLD_{i,t})
+\left(1-\sum_d prevalence_{i,t,d}\,dw_{i,t,d}^{adj}\right)
+$$
+
+The technical HALY delta is counterfactual minus reference, so a positive value
+already represents a health gain. This differs from adverse incidence outcomes,
+where positive presentation benefits require reversing the technical delta.
+
+The health outcome set includes mortality, life-year, HALY, and disease-incidence
 measures supplied by the death-share health-model artifacts. Effects attributed
 to walking or cycling are currently obtained after the combined health run by
 allocating impacts in proportion to each person's signed mode-specific MMET

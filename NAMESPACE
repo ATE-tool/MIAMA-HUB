@@ -1,4 +1,5 @@
 export(build_ui_return_payload)
+export(calculate_health_adjusted_life_years)
 export(convert_timeframe_value)
 export(get_geo_levels)
 export(get_geo_details)

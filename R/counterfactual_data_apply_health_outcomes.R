@@ -64,12 +64,20 @@ apply_counterfactual_health_outcomes <- function(
     include_cf_columns = include_cf_columns
   )
 
+  haly <- .try_add_haly_outcomes(
+    health_outcomes,
+    cfg = cfg %||% miama_default_config(),
+    include_cf_columns = include_cf_columns
+  )
+  health_outcomes <- haly$data
+
   counterfactual_data$health_outcomes <- health_outcomes
   counterfactual_data$counterfactual_health_report <- .counterfactual_health_report(
     exposure = exposure,
     health_outcomes = health_outcomes,
     scheme_effect_duration = scheme_effect_duration,
-    include_cf_columns = include_cf_columns
+    include_cf_columns = include_cf_columns,
+    haly_report = haly$report
   )
 
   counterfactual_data
@@ -434,7 +442,11 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL,
   cycle_data
 }
 
-.counterfactual_health_report <- function(exposure, health_outcomes, scheme_effect_duration, include_cf_columns) {
+.counterfactual_health_report <- function(exposure,
+                                          health_outcomes,
+                                          scheme_effect_duration,
+                                          include_cf_columns,
+                                          haly_report = NULL) {
   changed <- !is.na(exposure$mmets_delta) & exposure$mmets_delta != 0
   delta_cols <- grep("^d_", names(health_outcomes), value = TRUE)
   delta_sums <- vapply(delta_cols, function(col) sum(health_outcomes[[col]], na.rm = TRUE), numeric(1))
@@ -451,6 +463,7 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL,
     n_changed_ind = sum(changed, na.rm = TRUE),
     n_cycle_rows = nrow(health_outcomes),
     include_cf_columns = isTRUE(include_cf_columns),
+    haly = haly_report,
     mmets_delta_summary = summary(exposure$mmets_delta),
     outcome_delta_sums = delta_sums,
     impact_overview = impact_overview

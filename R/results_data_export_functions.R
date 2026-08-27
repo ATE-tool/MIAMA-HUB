@@ -7,7 +7,8 @@
 #   snapshot.
 # - Plots package: six standard high-resolution PNG files plus a manifest.
 # - AMAT outputs: yearly and cumulative deaths, disease incidence, life years,
-#   and healthy life years over the configured assessment horizon.
+#   healthy life years, and health-adjusted life years over the configured
+#   assessment horizon.
 # - Report: pre-filled Markdown, Word, or PDF generated from the same bundle.
 #
 # The export bundle is intentionally data-first and immutable after assembly.
@@ -259,16 +260,16 @@ write_results_plots_zip <- function(exports,
 #' Prepare health outputs for the Active Mode Appraisal Toolkit
 #'
 #' Returns annual and cumulative differences for deaths, disease incidence,
-#' life years, and healthy life years. `annual_delta_cf_minus_ref` always uses
+#' life years, healthy life years, and HALYs. `annual_delta_cf_minus_ref` always uses
 #' the technical counterfactual-minus-reference sign. `annual_benefit` uses a
 #' positive-is-beneficial sign: reference minus counterfactual for adverse
-#' incidence outcomes and counterfactual minus reference for LY/HLY.
+#' incidence outcomes and counterfactual minus reference for LY/HLY/HALY.
 #'
 #' @param results_data Object returned by [prepare_results_data()].
 #' @param horizon_years Optional positive whole-number assessment horizon.
 #'   Defaults to the canonical period stored in `results_data`.
-#' @param outcomes Optional health-outcome IDs to retain. Life years and healthy
-#'   life years are always retained.
+#' @param outcomes Optional health-outcome IDs to retain. Life years, healthy
+#'   life years, and HALYs are always retained.
 #' @return A list containing `timeline`, `summary`, `horizon_years`, and a draft
 #'   schema version.
 #' @export
@@ -287,7 +288,7 @@ prepare_results_amat_outputs <- function(results_data,
   if (nrow(timeline) > 0) {
     timeline <- timeline[timeline$cycle <= horizon_years, , drop = FALSE]
     if (!is.null(outcomes) && length(outcomes) > 0) {
-      always <- c("life_years", "healthy_life_years")
+      always <- c("life_years", "healthy_life_years", "halys")
       timeline <- timeline[timeline$measure %in% c(always, as.character(outcomes)), , drop = FALSE]
     }
   }
@@ -484,7 +485,7 @@ write_results_report <- function(exports,
     "schema_version", "scheme_name", "geography_id", "geography_name",
     "population_size", "walking_trips_reference", "walking_trips_counterfactual",
     "cycling_trips_reference", "cycling_trips_counterfactual",
-    "premature_deaths_prevented", "disease_cases_prevented"
+    "premature_deaths_prevented", "halys_gained", "disease_cases_prevented"
   )
   values <- c(
     "draft-awaiting-AMAT-specification",
@@ -493,11 +494,12 @@ write_results_report <- function(exports,
     trip_value("walking", "Reference"), trip_value("walking", "Counterfactual"),
     trip_value("cycling", "Reference"), trip_value("cycling", "Counterfactual"),
     headline_value("premature_deaths_prevented"),
+    headline_value("halys_gained"),
     headline_value("disease_cases_prevented")
   )
   units <- c(
     NA, NA, NA, NA, "people", "weighted trips/week", "weighted trips/week",
-    "weighted trips/week", "weighted trips/week", "deaths", "disease cases"
+    "weighted trips/week", "weighted trips/week", "deaths", "HALYs", "disease cases"
   )
 
   data.frame(
@@ -506,7 +508,7 @@ write_results_report <- function(exports,
     unit = units,
     source = c(
       "HUB export", rep("appraisal profile", 4), rep("trip_mode_distribution", 4),
-      rep("headline_metrics", 2)
+      rep("headline_metrics", 3)
     ),
     mapping_status = c("draft", rep("requires AMAT field confirmation", length(fields) - 1)),
     stringsAsFactors = FALSE
@@ -529,6 +531,7 @@ write_results_report <- function(exports,
     title = name[[1]],
     summary = c(
       paste0("Estimated premature deaths prevented: ", metric("premature_deaths_prevented"), "."),
+      paste0("Estimated HALYs gained: ", metric("halys_gained"), "."),
       paste0("Estimated disease cases prevented: ", metric("disease_cases_prevented"), "."),
       "Positive prevented values represent lower counterfactual health outcomes than reference."
     ),

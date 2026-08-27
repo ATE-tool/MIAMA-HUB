@@ -4,11 +4,13 @@ test_that("health outcome options expose configured Tab 5 metadata", {
   expect_equal(
     options$outcome,
     c(
-      "mortality", "cvd", "ihd", "stroke", "diabetes", "depression",
+      "halys", "mortality", "cvd", "ihd", "stroke", "diabetes", "depression",
       "alzheimer", "cancers", "breast_cancer", "colon_cancer"
     )
   )
   expect_equal(options$label[options$outcome == "mortality"], "All-cause mortality")
+  expect_equal(options$direction[options$outcome == "halys"], "higher_is_better")
+  expect_equal(options$unit[options$outcome == "halys"], "HALYs")
   expect_true(options$default[options$outcome == "ihd"])
   expect_false(options$default[options$outcome == "breast_cancer"])
   expect_true(all(options$available))
@@ -127,7 +129,8 @@ test_that("prepare_results_data aggregates filtered health outcomes", {
   expect_equal(out$headline_metrics$disease_cases_prevented, 1)
   highlights <- get_results_highlights(out)
   expect_equal(highlights$metric, c(
-    "premature_deaths_prevented", "life_years_saved", "disease_cases_prevented"
+    "premature_deaths_prevented", "life_years_saved", "halys_gained",
+    "disease_cases_prevented"
   ))
   expect_true(all(highlights$assessment_period_years == 40L))
   expect_true(nrow(out$plot_data$trip_mode_distribution) > 0)
@@ -254,7 +257,10 @@ test_that("AMAT outputs contain annual and cumulative LY, HLY, and incidence imp
       dead_cf = c(0.08, 0.08),
       unhealthy = c(0.20, 0.10),
       d_unhealthy = c(-0.05, -0.02),
-      unhealthy_cf = c(0.15, 0.08)
+      unhealthy_cf = c(0.15, 0.08),
+      haly = c(0.60, 0.55),
+      d_haly = c(0.04, 0.06),
+      haly_cf = c(0.64, 0.61)
     )
   )
   cfg <- utils::modifyList(
@@ -264,10 +270,11 @@ test_that("AMAT outputs contain annual and cumulative LY, HLY, and incidence imp
   results_data <- prepare_results_data(counterfactual_data, cfg = cfg)
   amat <- prepare_results_amat_outputs(results_data, horizon_years = 40)
 
-  expect_true(all(c("life_years", "healthy_life_years", "mortality") %in% amat$timeline$measure))
+  expect_true(all(c("life_years", "healthy_life_years", "halys", "mortality") %in% amat$timeline$measure))
   life_years <- amat$timeline[amat$timeline$measure == "life_years", ]
   healthy_life_years <- amat$timeline[amat$timeline$measure == "healthy_life_years", ]
   mortality <- amat$timeline[amat$timeline$measure == "mortality", ]
+  halys <- amat$timeline[amat$timeline$measure == "halys", ]
 
   expect_equal(life_years$annual_benefit, c(0.4, 0.8))
   expect_equal(life_years$cumulative_benefit, c(0.4, 1.2))
@@ -275,7 +282,17 @@ test_that("AMAT outputs contain annual and cumulative LY, HLY, and incidence imp
   expect_equal(healthy_life_years$cumulative_benefit, c(1, 2.4))
   expect_equal(mortality$annual_delta_cf_minus_ref, c(-0.4, -0.4))
   expect_equal(mortality$cumulative_benefit, c(0.4, 0.8))
+  expect_equal(halys$annual_benefit, c(0.8, 1.2))
+  expect_equal(halys$cumulative_benefit, c(0.8, 2))
   expect_equal(results_data$headline_metrics$life_years_saved, 1)
+  expect_equal(results_data$headline_metrics$halys_gained, 2)
+
+  haly_results <- results_filter_health_data(
+    results_data, outcomes = "halys", aggregation = "total", group_by = "outcome"
+  )
+  expect_equal(haly_results$delta_value, 2)
+  expect_equal(haly_results$prevented_value, 2)
+  expect_equal(haly_results$percent_reduction, 2 / 23 * 100)
 
   first_year <- prepare_results_amat_outputs(results_data, horizon_years = 1)
   expect_equal(unique(first_year$timeline$cycle), 1L)

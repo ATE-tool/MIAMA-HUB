@@ -260,3 +260,37 @@ test_that("apply_counterfactual_health_outcomes handles reduced mmets with negat
   expect_false("dead_cf" %in% names(out$health_outcomes))
   expect_equal(out$health_outcomes$dead + out$health_outcomes$d_dead, 9.7)
 })
+
+test_that("HALYs reconstruct prevalence and apply disability adjustments", {
+  diseases <- "diabetes"
+  health <- data.frame(
+    census_id = c(1, 1),
+    cycle = c(0L, 1L),
+    age1year = c(40, 40),
+    female = c(0, 0),
+    dead = c(0.10, 0.10),
+    d_dead = c(0, -0.02),
+    depression_remission = c(0, 0),
+    d_depression_remission = c(0, 0),
+    diabetes = c(0.20, 0.10),
+    d_diabetes = c(0, -0.04),
+    death_share_diabetes = c(0.5, 0.5),
+    d_death_share_diabetes = c(0, 0)
+  )
+  pyld <- data.frame(
+    age = c(40, 41), sex = c(1, 1), pyld_rate = c(0.1, 0.1)
+  )
+  dw <- data.frame(
+    age = c(40, 41), sex = c(1, 1), disease = "diabetes", dw_adj = c(0.2, 0.2)
+  )
+
+  out <- calculate_health_adjusted_life_years(
+    health, pyld, dw, diseases = diseases, include_cf_columns = TRUE
+  )
+
+  # Cycle 0 prevalence is opening incidence. Cycle 1 prevalence subtracts the
+  # current cycle's deaths multiplied by death share.
+  expect_equal(out$haly, c(0.774, 0.675), tolerance = 1e-10)
+  expect_equal(out$haly_cf, c(0.774, 0.6984), tolerance = 1e-10)
+  expect_equal(out$d_haly, c(0, 0.0234), tolerance = 1e-10)
+})

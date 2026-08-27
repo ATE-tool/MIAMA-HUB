@@ -32,9 +32,16 @@
   )
 
   list(
+    halys = list(
+      label = "Health-adjusted life years (HALYs)",
+      type = "health_years", category = "Summary measures",
+      columns = "haly", default = TRUE,
+      direction = "higher_is_better", unit = "HALYs"
+    ),
     mortality = list(
       label = "All-cause mortality", type = "mortality", category = "Mortality",
-      columns = "dead", default = TRUE
+      columns = "dead", default = TRUE,
+      direction = "lower_is_better", unit = "deaths"
     ),
     cvd = list(
       label = "Cardiovascular disease", type = "disease", category = "Cardiovascular",
@@ -263,7 +270,16 @@ miama_default_config <- function(dataset_size = NULL) {
     results = list(
       outcomes = .miama_default_health_outcomes(),
       assessment_period_years = 40L,
-      headline_disease_columns = .miama_default_disease_incidence_columns()
+      headline_disease_columns = .miama_default_disease_incidence_columns(),
+      haly = list(
+        diseases = .miama_default_disease_incidence_columns(),
+        pyld_path = file.path(
+          p$packaged_data_dir, "health_data", "haly_parameters", "pyld_table.csv"
+        ),
+        disability_weights_path = file.path(
+          p$packaged_data_dir, "health_data", "haly_parameters", "dw_table.csv"
+        )
+      )
     ),
     # 7. Stable UI option metadata ------------------------------------------
     # Data-derived reference values remain elsewhere; these are only the

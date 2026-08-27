@@ -52,13 +52,15 @@ artifacts <- data.frame(
     "health_data/sp_cycle_outcomes_sample",
     "health_data/sp_cycle_outcomes_sample_death_share",
     "health_data/mmet_d_cycle_lookup_death_share",
+    "health_data/haly_parameters/pyld_table.csv",
+    "health_data/haly_parameters/dw_table.csv",
     "lookup/geo_options.rds",
     "lookup/england_mode_default_candidates.csv",
     "lookup/england_schema_default_candidates.csv"
   ),
   format = c(
     "parquet", "parquet", "parquet", "parquet", "parquet", "parquet",
-    "rds", "csv", "csv"
+    "csv", "csv", "rds", "csv", "csv"
   ),
   source = c(
     "MIAMA synthetic population: Census/NTS/ALS",
@@ -67,12 +69,15 @@ artifacts <- data.frame(
     "MIAMA-HM sample output",
     "MIAMA-HM death-share sample output",
     "MIAMA-HM death-share MMET lookup",
+    "MIAMA-HM residual pYLD parameters",
+    "MIAMA-HM adjusted disability-weight parameters",
     "Derived from full MIAMA synthetic population",
     "Derived from full MIAMA synthetic population",
     "Derived from full MIAMA synthetic population"
   ),
   source_version = c(
     "unrecorded", "unrecorded", "unrecorded", "unrecorded", "unrecorded", "unrecorded",
+    "unrecorded", "unrecorded",
     "Census 2021 5% synthpop scale", "unrecorded", "unrecorded"
   ),
   purpose = c(
@@ -82,6 +87,8 @@ artifacts <- data.frame(
     "Packaged sample cycle health outcomes",
     "Packaged sample cycle outcomes used for counterfactual health recalculation",
     "MMET-delta lookup used for sample counterfactual health recalculation",
+    "Age/sex residual disability rates used in HALY calculations",
+    "Age/sex/disease comorbidity-adjusted weights used in HALY calculations",
     "Full-derived geography options and scaled population labels",
     "England-wide mode assumption evidence",
     "England-wide UI schema default candidates"
@@ -93,6 +100,8 @@ artifacts <- data.frame(
     "MIAMA-HM sample export",
     "MIAMA-HM sample death-share export",
     "MIAMA-HM death-share lookup export",
+    "MIAMA-HM health_data/processed/pyld_table.csv",
+    "MIAMA-HM health_data/processed/dw_table.csv",
     "build_geo_lookup()",
     "inst/workflows/dev_extract_england_schema_default_values.R",
     "inst/workflows/dev_extract_england_schema_default_values.R"

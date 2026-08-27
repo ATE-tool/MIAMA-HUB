@@ -110,7 +110,7 @@ get_results_options <- function(cfg = NULL) {
 
 # Results Highlights --------------------------------------------------------
 
-#' Get the three headline health totals for the results summary card
+#' Get the headline health totals for the results summary card
 #'
 #' The whole-number values cover the configured assessment period and are not
 #' affected by interactive Tab 5 filters. Disease cases sum each configured
@@ -118,7 +118,7 @@ get_results_options <- function(cfg = NULL) {
 #' and subtypes. Detailed results data remain unrounded.
 #'
 #' @param results_data Object returned by [prepare_results_data()].
-#' @return Three-row data frame suitable for direct UI rendering.
+#' @return Four-row data frame suitable for direct UI rendering.
 #' @export
 get_results_highlights <- function(results_data) {
   if (!is.list(results_data) || is.null(results_data$headline_metrics)) {
@@ -128,6 +128,7 @@ get_results_highlights <- function(results_data) {
   values <- c(
     premature_deaths_prevented = x$premature_deaths_prevented,
     life_years_saved = x$life_years_saved,
+    halys_gained = x$halys_gained,
     disease_cases_prevented = x$disease_cases_prevented
   )
   disease_status <- if (length(x$disease_columns_used %||% character(0)) == 0) {
@@ -140,6 +141,7 @@ get_results_highlights <- function(results_data) {
   status <- c(
     if (is.na(values[[1]])) "not_available" else "available",
     if (is.na(values[[2]])) "not_available" else "available",
+    if (is.na(values[[3]])) "not_available" else "available",
     disease_status
   )
 
@@ -148,10 +150,11 @@ get_results_highlights <- function(results_data) {
     label = c(
       "Total number of prevented premature deaths",
       "Total number of saved life-years",
+      "Total health-adjusted life years (HALYs) gained",
       "Total number of prevented disease cases"
     ),
     value = unname(as.numeric(values)),
-    unit = c("deaths", "life-years", "disease cases"),
+    unit = c("deaths", "life-years", "HALYs", "disease cases"),
     assessment_period_years = as.integer(x$assessment_period_years),
     status = status,
     stringsAsFactors = FALSE

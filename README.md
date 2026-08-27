@@ -339,8 +339,8 @@ stable presentation metadata (`results`), and infrastructure (`sources`,
 whole config wherever possible.
 
 Tab 5 health outcome definitions live in `cfg$results$outcomes`. Each named
-definition records its UI label, outcome type, category, reference HM source
-columns, and whether it is selected by default. Composite outcomes such as CVD
+definition records its UI label, outcome type, category, unit, benefit
+direction, reference HM source columns, and whether it is selected by default. Composite outcomes such as CVD
 and all cancers explicitly list all columns that are summed. Results
 preparation consumes this same catalogue, so UI choices and calculations do
 not maintain separate hard-coded mappings.
@@ -1158,6 +1158,33 @@ with lookup bands, multiplies overlap width by per-MMET outcome slopes, and
 adds `d_*` outcome columns. Counterfactual values are derived as `ref + delta`;
 redundant `*_cf` columns are not materialized by default.
 
+After applying the lookup, HUB also calculates health-adjusted life years
+(HALYs). This is distinct from the existing healthy-life-year (HLY) stream.
+Following the MIAMA-HM scenario-verification method, HUB reconstructs annual
+disease prevalence for each person. For chronic diseases:
+
+```text
+prevalence[t] = prevalence[t-1] + incidence[t]
+                - deaths[t] * death_share[t]
+```
+
+For depression, the remission/exits stream replaces the death-share term.
+Reference and counterfactual prevalence are calculated separately and divided
+by the corresponding population alive in each cycle. HUB then applies the
+packaged age/sex residual-disability (`pyld_rate`) table and age/sex/disease
+comorbidity-adjusted disability weights (`dw_adj`):
+
+```text
+HALY = LY * (1 - pyld_rate) * (1 - sum(prevalence * dw_adj))
+```
+
+The resulting person-cycle fields are `haly` (reference), `d_haly` (`cf - ref`),
+and, when `include_cf_columns = TRUE`, `haly_cf`. The two small parameter tables
+are packaged under `inst/extdata/data/health_data/haly_parameters`; their paths
+and the included disease streams are explicit in `cfg$results$haly`. The
+counterfactual health report records whether HALYs were available, the method,
+diseases used, and the unscaled total delta.
+
 The death-share MMET lookup is much larger in memory than its parquet file.
 HUB derives the required `(age1year, female, mr_decile, cycle)` scope from the
 filtered people and cycle outcomes, applies Arrow filters before collection,
@@ -1188,10 +1215,12 @@ health model.
 
 Cycle 0 is the without-scheme baseline state and is excluded from presented
 impact totals and timelines. Cycle 1 is the first modelled year. Raw HM `d_*`
-columns retain the technical convention `counterfactual - reference`; UI-facing
-`prevented_value`, `prevented_per_100000`, and `percent_reduction` use
-`reference - counterfactual`, so positive values consistently indicate a
-health gain.
+columns retain the technical convention `counterfactual - reference`.
+Benefit-oriented fields use `reference - counterfactual` for adverse outcomes
+(deaths and disease cases) and `counterfactual - reference` for HALYs, so
+positive values consistently indicate a health gain. Legacy column names such
+as `prevented_value` are retained in the compact result contract even when the
+selected positive outcome is more naturally described as HALYs gained.
 
 Expected health outcomes are scaled from synthetic rows to represented
 residents using `cfg$population$person_weight` (default 20 for the 5% Census
@@ -1230,7 +1259,10 @@ checked_options <- MIAMAHUB::get_health_outcome_options(
 `available` confirms that all configured reference columns exist.
 `delta_available` and `counterfactual_available` separately report whether the
 matching `d_*` and `*_cf` columns have already been produced. The equivalent
-R6 call is `hub$get_health_outcome_options()`.
+R6 call is `hub$get_health_outcome_options()`. The `direction` and `unit`
+columns distinguish adverse incidence outcomes from positive HALY outcomes;
+UI code should use those fields rather than assuming every selected outcome is
+a prevented case.
 
 ### Shared UI option catalogues
 
@@ -1285,8 +1317,8 @@ The primary returned objects are:
 
 | Object | Purpose |
 |---|---|
-| `result$highlights` | Three-row, display-ready headline table for the Highlights Card. |
-| `result$results_data$headline_metrics` | Internal named values supporting the three unfiltered assessment-period highlights. |
+| `result$highlights` | Four-row, display-ready headline table for the Highlights Card. |
+| `result$results_data$headline_metrics` | Internal named values supporting the four unfiltered assessment-period highlights. |
 | `result$results_data$results_table` | Table aggregated according to the profile's initial Tab 5 selections. Useful for exports and initial tables. |
 | `result$plot_data$health_cube` | Canonical interactive health source, grouped by outcome, cycle, age group, gender, and mode. It contains `all_modes` rows and attributed mode rows. |
 | `result$plot_data$mode_attribution` | Compact audit table of mode-specific MMET changes and their shares of the net MMET change. |
@@ -1299,7 +1331,7 @@ plot payload. HUB plotting and filtering functions expect the enclosing
 
 #### Headline health outcomes
 
-After `build_results()`, UI can populate the three highlight figures with one
+After `build_results()`, UI can populate the four highlight figures with one
 method call:
 
 ```r
@@ -1308,9 +1340,9 @@ highlights <- mdata[["hub"]]$get_results_highlights()
 # Stateless equivalent: get_results_highlights(mdata[["result"]]$results_data)
 ```
 
-The returned rows are `premature_deaths_prevented`, `life_years_saved`, and
-`disease_cases_prevented`, with display labels, units, assessment period, and
-availability status. These totals intentionally ignore interactive Tab 5
+The returned rows are `premature_deaths_prevented`, `life_years_saved`,
+`halys_gained`, and `disease_cases_prevented`, with display labels, units,
+assessment period, and availability status. These totals intentionally ignore interactive Tab 5
 filters. The disease total sums each underlying HM incidence stream once;
 presentation composites such as CVD/all cancers and their subtypes are not
 double-counted. It is a total of prevented disease events, not unique people.
@@ -1585,7 +1617,7 @@ profile, cfg, ...)`. Its return value contains:
 | `trip_mode_distribution` | Reference/counterfactual weighted trips and mode shares for the snapshot's modes. |
 | `assumptions` | Sign conventions, population scaling, cycle handling, and current limitations. |
 | `amat_inputs` | Explicitly provisional field/value mapping pending the agreed AMAT schema. |
-| `amat_health_timeline` | Annual ref/cf values, technical differences, benefit-oriented differences, and cumulative differences for deaths, diseases, LY, and HLY. |
+| `amat_health_timeline` | Annual ref/cf values, technical differences, benefit-oriented differences, and cumulative differences for deaths, diseases, LY, HLY, and HALY. |
 | `amat_health_summary` | Final cumulative row for every AMAT health measure. |
 | `report` | Report-ready title, summary text, methods, metadata, static selection table, and assumptions. |
 | `plots` | Six static ggplot objects built when the bundle is assembled, including a mode-attributed health plot. |
@@ -1625,10 +1657,11 @@ It implements the MIAMA-HM definitions `LY[t] = 1 - cumulative deaths[t]` and
 `HLY[t] = 1 - cumulative unhealth incidence[t]`. For every measure it exposes
 both `annual_delta_cf_minus_ref` and `cumulative_delta_cf_minus_ref`, plus
 benefit-oriented columns where positive consistently means improvement. For
-deaths and diseases, benefit is `ref - cf`; for LY and HLY it is `cf - ref`.
-HALYs are not yet available because their calculation additionally requires
-disease prevalence and disability weights. AMAT field names and the required
-disease subset remain provisional until the formal specification is supplied.
+deaths and diseases, benefit is `ref - cf`; for LY, HLY, and HALY it is
+`cf - ref`. HALYs use the reconstructed-prevalence and disability-weight method
+described under Counterfactual health outcomes. AMAT field names and the
+required disease subset remain provisional until the formal specification is
+supplied.
 
 The same health contract can be prepared without the rest of the export bundle:
 
