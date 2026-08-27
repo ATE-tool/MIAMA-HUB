@@ -282,9 +282,24 @@ test_that("category population defaults are written to additional data", {
       pop_pt = 1L
     )
   )
+  pa_data <- list(
+    moderate = list(
+      pop_tot = 8L,
+      pop_walk = 3L,
+      pop_bike = 1L,
+      pop_ebike = NA_integer_,
+      pop_pt = 1L
+    )
+  )
   profile <- list(
     pop_target_age_groups = list(
       default_value = "pop_age_18_29",
+      additional_data = list(),
+      is_filled = FALSE,
+      input_value = NULL
+    ),
+    pop_target_pa_groups = list(
+      default_value = "moderate",
       additional_data = list(),
       is_filled = FALSE,
       input_value = NULL
@@ -293,11 +308,44 @@ test_that("category population defaults are written to additional data", {
 
   out <- apply_reference_defaults_to_profile(
     profile,
-    ui_updates = list(pop_target_age_groups = age_data)
+    ui_updates = list(
+      pop_target_age_groups = age_data,
+      pop_target_pa_groups = pa_data
+    )
   )
 
   expect_identical(out$pop_target_age_groups$additional_data, age_data)
   expect_identical(out$pop_target_age_groups$default_value, "pop_age_18_29")
+  expect_identical(out$pop_target_pa_groups$additional_data, pa_data)
+  expect_identical(out$pop_target_pa_groups$default_value, "moderate")
+  expect_setequal(
+    attr(out, "reference_defaults_report")$additional_data_fields,
+    c("pop_target_age_groups", "pop_target_pa_groups")
+  )
+})
+
+test_that("profile fields with additional_data receive derived metadata generically", {
+  profile <- list(
+    future_category_field = list(
+      default_value = "category_a",
+      additional_data = list(category_a = list(pop_tot = NA_integer_)),
+      is_filled = FALSE,
+      input_value = NULL
+    )
+  )
+  derived <- list(category_a = list(pop_tot = 25L))
+
+  out <- apply_reference_defaults_to_profile(
+    profile,
+    ui_updates = list(future_category_field = derived)
+  )
+
+  expect_identical(out$future_category_field$additional_data, derived)
+  expect_identical(out$future_category_field$default_value, "category_a")
+  expect_identical(
+    attr(out, "reference_defaults_report")$additional_data_fields,
+    "future_category_field"
+  )
 })
 
 test_that("reference defaults include age and PA category population counts", {

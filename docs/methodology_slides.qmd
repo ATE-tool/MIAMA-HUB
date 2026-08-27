@@ -80,6 +80,10 @@ double counting the same active minutes.
 
 ## Five-category spread controls
 
+- HUB prepopulates reference defaults and initializes paired CF controls to the
+  same no-change value
+- Age and PA selectors retain their choices while `additional_data` supplies
+  category totals and mode-user counts from the filtered synthetic population
 - Reference data provide a 5 x 2 distribution for each mode
 - Slider values summarize the same data: mean + binary proportion
 - Exponential tilting shifts the five-category marginal

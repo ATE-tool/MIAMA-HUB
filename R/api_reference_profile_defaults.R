@@ -35,6 +35,7 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
 
   out <- profile
   updated <- character(0)
+  additional_data_updated <- character(0)
   skipped <- character(0)
 
   for (field_name in names(ui_updates)) {
@@ -43,8 +44,9 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
       next
     }
 
-    if (field_name %in% c("pop_target_age_groups", "pop_target_pa_groups")) {
+    if ("additional_data" %in% names(out[[field_name]])) {
       out[[field_name]]$additional_data <- ui_updates[[field_name]]
+      additional_data_updated <- c(additional_data_updated, field_name)
     } else {
       out[[field_name]]$default_value <- ui_updates[[field_name]]
     }
@@ -59,6 +61,7 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
     updated_fields = updated,
     mirrored_cf_fields = mirrored$updated_fields,
     mirrored_cf_sources = mirrored$sources,
+    additional_data_fields = additional_data_updated,
     skipped_fields = skipped,
     n_updated = length(updated),
     n_skipped = length(skipped)

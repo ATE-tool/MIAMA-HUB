@@ -442,7 +442,7 @@
   <meta name="generator" content="quarto-1.8.25">
 
   <meta name="author" content="MIAMA project team">
-  <meta name="dcterms.date" content="2026-08-26">
+  <meta name="dcterms.date" content="2026-08-27">
   <title>How MIAMA links active travel to health</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3896,7 +3896,7 @@ MIAMA project team
 </div>
 </div>
 
-  <p class="date">2026-08-26</p>
+  <p class="date">2026-08-27</p>
 </section>
 <section id="what-the-model-does" class="slide level2">
 <h2>What the model does</h2>
@@ -4029,6 +4029,8 @@ MIAMA project team
 <section id="five-category-spread-controls" class="slide level2">
 <h2>Five-category spread controls</h2>
 <ul>
+<li>HUB prepopulates reference defaults and initializes paired CF controls to the same no-change value</li>
+<li>Age and PA selectors retain their choices while <code>additional_data</code> supplies category totals and mode-user counts from the filtered synthetic population</li>
 <li>Reference data provide a 5 x 2 distribution for each mode</li>
 <li>Slider values summarize the same data: mean + binary proportion</li>
 <li>Exponential tilting shifts the five-category marginal</li>
@@ -4102,7 +4104,7 @@ MIAMA project team
 <ul>
 <li>PA target selects candidates using <strong>pre-change</strong> PA; final PA can differ</li>
 <li>“Current vs new users” input is not yet operational</li>
-<li>Trip weights and physical row changes are not fully reconciled</li>
+<li>Weighted trip targets are converted to proportional physical-row targets; shifted and induced rows retain source/donor weights</li>
 <li>Basic mode-share and distance/duration routes do not yet change outcomes</li>
 <li>Only long-term persistence is implemented</li>
 <li>Walking/cycling are the defensible person-level active modes</li>
@@ -4116,7 +4118,7 @@ MIAMA project team
 <li>Compare requested and realized distributions</li>
 <li>Calibrate probabilities or implement near-exact quotas</li>
 <li>Define PA and current/new-user semantics</li>
-<li>Resolve weighted trip targets</li>
+<li>Compare requested and realized weighted trip targets</li>
 <li>Operationalize remaining basic input routes</li>
 <li>Add short-term effects and uncertainty analysis</li>
 <li>Validate against observed data and established appraisal tools</li>

@@ -81,6 +81,9 @@ HUB expects that same canonical parameter-list shape. The field contract is:
   appraisal value
 - `default_value`: UI prefill/default value, including HUB-derived reference
   values
+- `additional_data`: derived metadata attached to a control without changing
+  its selected `default_value`; currently used for age- and PA-category
+  population counts in Tab 3
 
 `default_value` is deliberately not promoted into `input_value`. This prevents
 reference defaults from being mistaken for user-supplied counterfactual or
@@ -383,8 +386,8 @@ The extraction and profile-write responsibilities are intentionally separated:
 - [reference_data_extract_reference_ui_values.R](R/reference_data_extract_reference_ui_values.R)
   derives all reference values that HUB currently knows how to calculate.
 - [api_reference_profile_defaults.R](R/api_reference_profile_defaults.R)
-  writes each derived value into `default_value` when the matching profile field
-  exists.
+  writes each derived value into `default_value`, or into `additional_data` for
+  profile fields that declare that slot, when the matching profile field exists.
 
 Intended UI usage:
 
@@ -403,10 +406,10 @@ The returned profile keeps `input_value` and `is_filled` unchanged. Fields that
 do not exist in the UI profile are skipped and listed in the diagnostic
 `reference_defaults_report` attribute. This attribute is not part of the
 appraisal schema and does not drive UI or HUB behavior. It records
-`updated_fields`, `mirrored_cf_fields`, `mirrored_cf_sources`, `skipped_fields`,
-and their counts so developers can reconcile calculated HUB values with fields
-available in the UI profile. HUB writes broad defaults and leaves conditional
-display choices to MIAMA-UI.
+`updated_fields`, `additional_data_fields`, `mirrored_cf_fields`,
+`mirrored_cf_sources`, `skipped_fields`, and their counts so developers can
+reconcile calculated HUB values with fields available in the UI profile. HUB
+writes broad defaults and leaves conditional display choices to MIAMA-UI.
 
 Every canonical paired counterfactual control receives a no-change starting
 default from its reference control. HUB pairs existing `_ref_`/`_cf_` and
@@ -417,6 +420,25 @@ copy affects only `default_value`; a user-submitted counterfactual `input_value`
 and its `is_filled` state are preserved. Pairing is constrained by the actual
 profile schema, so a calculated reference field without a corresponding CF
 control is not invented dynamically.
+
+Tab 3's `pop_target_age_groups` and `pop_target_pa_groups` are different: their
+categorical selections remain in `default_value`, while HUB replaces their
+`additional_data` with counts derived from the filtered synthetic population.
+For every configured category, the payload contains `pop_tot` plus
+mode-specific `pop_walk`, `pop_bike`, `pop_ebike`, and `pop_pt` counts. Age
+categories come from `age1year` and `cfg$spread$age`; PA categories come first
+from `mmets`, then `mmet_wkhr`, or otherwise reconstructed weekly MMET-hours
+from walking, cycling, and sport activity using configured intensities. Mode
+counts use the corresponding person-level duration column when available, with
+trip evidence as the supported fallback. Unavailable mode evidence produces
+`NA` rather than zero and is recorded in the extraction notes. These values are
+synthetic-profile row counts; population scaling is applied later in results,
+not to this UI metadata.
+
+The writer is schema-driven: any future profile control declaring an
+`additional_data` slot will receive a same-named derived `ui_updates` payload.
+HUB must still implement the corresponding extractor; it does not invent new
+category data merely because the slot exists.
 
 ### HUB session state and refresh behavior
 

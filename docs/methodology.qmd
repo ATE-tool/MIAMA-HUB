@@ -183,11 +183,30 @@ fields. It calculates reference values for all supported modes and common units
 up front; later UI changes can therefore switch displays without reloading the
 large data.
 
+Counterfactual controls with a matching reference control receive the reference
+value as their starting `default_value`. This represents a no-change scenario;
+it does not mark the control as user-filled and does not overwrite a submitted
+counterfactual value.
+
 Reference values include user and trip counts, mode share, average distance and
 duration, and compact five-category distributions. Weekly values are canonical.
 Trip counts can be converted between day, week, and year; user-count conversion
 currently uses a factor of one because repeat-user behavior outside the
 observed week is not identified by the data.
+
+Two Tab 3 selectors also receive derived `additional_data`. For each configured
+age group and PA group, HUB records the number of filtered synthetic people in
+the category (`pop_tot`) and the numbers identified as walking, cycling,
+e-biking, or walk-to-public-transport users. Age groups use `age1year` and the
+configured age cut points. PA groups use weekly MMET-hours from `mmets` or
+`mmet_wkhr`; if neither is present, HUB reconstructs the value from walking,
+cycling, and sport hours and their configured intensities. Mode-user status is
+identified from person-level mode duration where available, with trip evidence
+as fallback. Missing evidence is retained as `NA`, not interpreted as no users.
+These metadata populate labels/context for category choices while leaving the
+selector's categorical `default_value` unchanged. They are counts in the
+filtered synthetic profile; population expansion factors are applied to health
+results rather than to these selector metadata.
 
 ## Basic specification (Tab 2)
 
