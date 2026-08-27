@@ -929,7 +929,15 @@ apply_counterfactual_ui_values <- function(
 
   trips <- counterfactual_data$trips
   active <- spec$trip_filter(trips)
-  candidates <- which(!active & !is.na(trips$nts_tripid))
+  # A candidate must be inactive in every assessed active mode, not merely
+  # inactive in the target mode. Otherwise processing walking after cycling can
+  # convert newly/currently cycling trips to walking and make results depend on
+  # the order of `modes` in the UI profile.
+  active_any_mode <- rep(FALSE, nrow(trips))
+  if ("trip_activemode" %in% names(trips)) {
+    active_any_mode <- .true_values(trips$trip_activemode)
+  }
+  candidates <- which(!active & !active_any_mode & !is.na(trips$nts_tripid))
   if (!is.null(census_ids) && "census_id" %in% names(trips)) {
     candidates <- candidates[trips$census_id[candidates] %in% census_ids]
   }

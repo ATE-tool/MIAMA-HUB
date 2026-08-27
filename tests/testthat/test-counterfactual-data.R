@@ -505,6 +505,53 @@ test_that("trip targets default to the canonical weekly timeframe", {
   expect_equal(change$cf_n_after, 2)
 })
 
+test_that("simultaneous walking and cycling targets are mode-order invariant", {
+  n <- 20
+  reference_data <- list(
+    trips = data.frame(
+      census_id = seq_len(n),
+      nts_tripid = seq_len(n) + 100,
+      trip_mainmode = c(rep("walking", 2), rep("cycling", 2), rep("car", 16)),
+      trip_distraw_km = rep(1, n),
+      trip_durationraw_min = rep(10, n),
+      trip_walkdist_km = c(rep(1, 2), rep(0, 18)),
+      trip_walktime_min = c(rep(10, 2), rep(0, 18)),
+      trip_cycledist_km = c(rep(0, 2), rep(1, 2), rep(0, 16)),
+      trip_cycletime_min = c(rep(0, 2), rep(10, 2), rep(0, 16)),
+      trip_purpose = rep("Commuting", n)
+    )
+  )
+
+  run_order <- function(modes) {
+    apply_counterfactual_ui_values(
+      init_counterfactual_data(reference_data),
+      appraisal_input_values = list(
+        modes = modes,
+        trips_count_cf_walk = 5,
+        trips_count_cf_bike = 5,
+        trips_timeframe_walk = "week",
+        trips_timeframe_bike = "week",
+        trips_denominator_walk = "total",
+        trips_denominator_bike = "total"
+      ),
+      reference_data = reference_data,
+      seed = 18
+    )
+  }
+
+  cycling_first <- run_order(c("cycling", "walking"))
+  walking_first <- run_order(c("walking", "cycling"))
+  active_counts <- function(result) {
+    c(
+      walking = sum(.miama_tab2_mode_specs()$walking$trip_filter(result$trips)),
+      cycling = sum(.miama_tab2_mode_specs()$cycling$trip_filter(result$trips))
+    )
+  }
+
+  expect_equal(active_counts(cycling_first), c(walking = 5, cycling = 5))
+  expect_equal(active_counts(walking_first), c(walking = 5, cycling = 5))
+})
+
 test_that("induced walking trips retain donor trip weights", {
   reference_data <- list(
     ind = data.frame(census_id = 1:5, walktime_wkhr = c(1, 0, 0, 0, 0)),
