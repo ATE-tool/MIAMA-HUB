@@ -31,8 +31,9 @@
 #   proportion fields.
 # - More detailed mode-specific diversion fields in MIAMA-UI. HUB already parses
 #   simple `% car` and future per-mode percentage hooks.
-# - Weighted trip data. Current behavior keeps existing trip weights for shifted
-#   rows and assigns `weight_tripXhh = 1` to induced trip rows.
+# - Weighted trip data. Shifted rows retain their existing weights and induced
+#   rows retain the sampled donor weight. UI weighted targets are translated to
+#   physical-row targets before these samplers are called.
 
 miama_counterfactual_sampling_strategies <- function() {
   "random_sample_as_is_rows"

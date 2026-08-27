@@ -474,7 +474,38 @@ test_that("apply_counterfactual_ui_values converts mean trip targets to total ba
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$target_base_week_count, 3)
 })
 
-test_that("induced walking trips receive unit trip weights", {
+test_that("trip targets default to the canonical weekly timeframe", {
+  reference_data <- list(
+    ind = data.frame(census_id = 1:2),
+    trips = data.frame(
+      census_id = 1:2,
+      nts_tripid = c(10, 20),
+      trip_mainmode = c("walking", "car"),
+      trip_distraw_km = c(1, 0.8),
+      trip_durationraw_min = c(10, 8),
+      trip_walkdist_km = c(1, 0),
+      trip_walktime_min = c(10, 0)
+    )
+  )
+
+  counterfactual_data <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    appraisal_input_values = list(
+      modes = "walking",
+      trips_count_cf_walk = 2,
+      trips_denominator_walk = "total"
+    ),
+    reference_data = reference_data,
+    seed = 16
+  )
+
+  change <- counterfactual_data$counterfactual_report$changes[[1]]
+  expect_equal(change$target_timeframe, "week")
+  expect_equal(change$target_physical_row_count, 2)
+  expect_equal(change$cf_n_after, 2)
+})
+
+test_that("induced walking trips retain donor trip weights", {
   reference_data <- list(
     ind = data.frame(census_id = 1:5, walktime_wkhr = c(1, 0, 0, 0, 0)),
     trips = data.frame(
@@ -494,7 +525,7 @@ test_that("induced walking trips receive unit trip weights", {
     init_counterfactual_data(reference_data),
     appraisal_input_values = list(
       modes = "walking",
-      trips_count_cf_walk = 6,
+      trips_count_cf_walk = 12,
       trips_timeframe_walk = "week",
       trips_denominator_walk = "total"
     ),
@@ -504,8 +535,16 @@ test_that("induced walking trips receive unit trip weights", {
 
   induced <- counterfactual_data$trips$cf_induced
   expect_equal(sum(induced), 1)
-  expect_equal(counterfactual_data$trips$weight_tripXhh[induced], 1)
+  expect_equal(counterfactual_data$trips$weight_tripXhh[induced], 2)
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$induced_n, 1)
+  expect_equal(
+    counterfactual_data$counterfactual_report$changes[[1]]$target_base_week_weighted_count,
+    12
+  )
+  expect_equal(
+    counterfactual_data$counterfactual_report$changes[[1]]$target_physical_row_count,
+    6
+  )
 })
 
 test_that("apply_counterfactual_ui_values decreases walking trips by shifting modes away", {

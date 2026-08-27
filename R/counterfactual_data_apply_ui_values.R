@@ -217,8 +217,9 @@ apply_counterfactual_ui_values <- function(
 #   initially follow current use.
 #
 # Key limitations:
-# - This currently manipulates physical rows, not weighted trip totals. If
-#   `weight_tripXhh` is present, the report flags this approximation.
+# - This currently manipulates physical rows. Weighted UI totals are converted
+#   to equivalent row targets using the mode-specific reference mean weight;
+#   realized weighted totals can therefore differ slightly from the target.
 # - Some advanced controls still remain report-only; spread bars and the
 #   mode-specific car-source share are used as sampling constraints.
 .apply_cf_active_trip_count_handler <- function(counterfactual_data, context) {
@@ -556,6 +557,11 @@ apply_counterfactual_ui_values <- function(
     census_id = .changed_trip_census_ids(assignment$changed_rows)
   )
   change$target_base_week_count <- target_base$count
+  change$target_base_week_weighted_count <- target_base$weighted_count
+  change$target_physical_row_count <- target_base$count
+  change$reference_active_trip_mean_weight <- target_base$mean_active_trip_weight
+  change$reference_base_week_weighted_count <- target_base$reference_weighted_count
+  change$target_weighted_ratio <- target_base$target_ratio
   change$implied_weekly_users <- if (is.null(trip_rate$value)) {
     NULL
   } else {
@@ -583,8 +589,9 @@ apply_counterfactual_ui_values <- function(
     notes <- c(
       notes,
       paste0(
-        "Trip-count handler for mode `", mode,
-        "` currently changes physical rows, not weighted `weight_tripXhh` totals."
+        "Weighted trip target for mode `", mode,
+        "` was converted to a physical-row target using the reference mean ",
+        "`weight_tripXhh`; the realized weighted total may differ slightly."
       )
     )
   }
@@ -713,7 +720,7 @@ apply_counterfactual_ui_values <- function(
 
   value <- .ui_value(values, tab2_field, NULL)
   field <- tab2_field
-  timeframe <- .ui_value(values, paste0("trips_timeframe_", suffix), "year")
+  timeframe <- .ui_value(values, paste0("trips_timeframe_", suffix), "week")
   denominator <- .ui_value(values, paste0("trips_denominator_", suffix), "total")
 
   if (.is_blank_cf_target(value)) {
@@ -994,9 +1001,9 @@ apply_counterfactual_ui_values <- function(
   new_rows <- reference_data$trips[donor_rows, , drop = FALSE]
   new_rows <- .assign_new_trip_ids(counterfactual_data$trips, new_rows)
   new_rows <- .switch_trips_to_active_mode(new_rows, seq_len(nrow(new_rows)), spec)
-  if ("weight_tripXhh" %in% names(new_rows)) {
-    new_rows$weight_tripXhh <- 1
-  }
+  # Preserve the donor weight. Each induced synthetic row represents the same
+  # population stratum as its sampled donor; assigning weight 1 would mix row
+  # counts and represented trip totals and systematically distort outputs.
   if ("trip_purpose" %in% names(new_rows) &&
       (is.character(new_rows$trip_purpose) || is.factor(new_rows$trip_purpose))) {
     new_rows$trip_purpose <- "Recreational"
@@ -1464,12 +1471,50 @@ apply_counterfactual_ui_values <- function(
     count <- count * pop_total_ref
   }
 
-  count <- convert_timeframe_value(
+  weighted_count <- convert_timeframe_value(
     target$timeframe, count, "week", datatype = "trips"
   )
-  count <- as.integer(round(count))
 
-  list(count = count)
+  # Tab 2 reference totals and their counterfactual counterparts are weighted
+  # population estimates. The current counterfactual implementation changes
+  # physical synthetic-population rows, so translate that weighted target to
+  # an equivalent row target using the reference mode's mean trip weight. This
+  # is equivalent to applying the requested weighted ref-to-cf ratio to the
+  # physical active-row count. It preserves proportional changes without
+  # treating synthetic rows themselves as population totals.
+  mean_active_trip_weight <- 1
+  reference_weighted_count <- NA_real_
+  target_ratio <- NA_real_
+  if (!is.null(reference_data$trips)) {
+    active <- spec$trip_filter(reference_data$trips) &
+      !is.na(reference_data$trips$nts_tripid)
+    active_n <- sum(active, na.rm = TRUE)
+    if (active_n > 0) {
+      reference_weighted_count <- active_n
+      if ("weight_tripXhh" %in% names(reference_data$trips)) {
+        reference_weighted_count <- .weighted_sum(
+          rep(1, nrow(reference_data$trips)),
+          reference_data$trips,
+          active
+        )
+      }
+      candidate_mean <- reference_weighted_count / active_n
+      if (is.finite(candidate_mean) && candidate_mean > 0) {
+        mean_active_trip_weight <- candidate_mean
+        target_ratio <- weighted_count / reference_weighted_count
+      }
+    }
+  }
+
+  count <- as.integer(round(weighted_count / mean_active_trip_weight))
+
+  list(
+    count = count,
+    weighted_count = weighted_count,
+    mean_active_trip_weight = mean_active_trip_weight,
+    reference_weighted_count = reference_weighted_count,
+    target_ratio = target_ratio
+  )
 }
 
 # 7. Constants And Mode Specs ----

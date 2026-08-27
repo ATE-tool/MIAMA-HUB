@@ -335,12 +335,15 @@ by the fixed 90/10 mechanism rather than the purpose slider.
 
 ## Weights and represented totals
 
-Reference trip summaries use `weight_tripXhh`. Counterfactual operations
-currently alter physical rows: shifted trips retain their existing weights and
-induced rows receive weight 1. Consequently, a requested numeric change and a
-weighted result are not guaranteed to coincide. This is acceptable for early
-mechanism testing but requires a settled weighting strategy before substantive
-appraisal use.
+Reference values, UI targets, and results use weighted weekly trips based on
+`weight_tripXhh`. Sampling itself operates on physical synthetic-population
+rows. HUB converts the requested weighted change to a row target using the
+mode-specific reference ratio: a 20% increase in weighted trips requests an
+approximately 20% increase in active rows. Shifted rows keep their existing
+weights and induced rows retain the sampled donor weight. Because rows are
+indivisible, the realized weighted total can differ slightly from the target;
+the discrepancy should become small in adequately sized samples and is retained
+in the counterfactual report for validation.
 
 # What each refinement currently controls
 

@@ -1047,12 +1047,16 @@ units, so no precedence rule is needed while exactly one branch is filled. The
 distance/duration allocation rule still requires an explicit modelling decision
 before it should affect health outcomes.
 
-TODO: Important limitation: the draft trip handler currently changes physical rows,
-not weighted `weight_tripXhh` totals. Existing shifted rows keep their existing
-weights; induced trip rows receive `weight_tripXhh = 1` when that column exists.
-This is useful for validating the manipulation flow, but the weighted-data
-behavior needs to be resolved before using these trip changes for final impact
-calculations.
+Trip counts have an explicit two-level contract. UI reference values,
+counterfactual targets, result tables, and plots use weighted weekly trips.
+Counterfactual sampling operates on physical synthetic-population rows. HUB
+converts a weighted target to a row target by applying the requested
+reference-to-counterfactual ratio to the reference active-row count. Shifted
+rows retain their existing `weight_tripXhh`; induced rows retain the sampled
+donor weight. The counterfactual report stores the submitted weighted target,
+derived row target, and mean reference weight. Realized weighted totals can
+differ slightly because rows are indivisible, but converge on the requested
+ratio in larger samples.
 
 Parameter naming follows the same distinction used elsewhere in the package:
 `*_ref` values are measured from filtered reference data, while `*_default`

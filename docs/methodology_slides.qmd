@@ -140,7 +140,8 @@ candidate weights.
 
 - PA target selects candidates using **pre-change** PA; final PA can differ
 - “Current vs new users” input is not yet operational
-- Trip weights and physical row changes are not fully reconciled
+- Weighted trip targets are converted to proportional physical-row targets;
+  shifted and induced rows retain source/donor weights
 - Basic mode-share and distance/duration routes do not yet change outcomes
 - Only long-term persistence is implemented
 - Walking/cycling are the defensible person-level active modes
@@ -152,7 +153,7 @@ candidate weights.
 2. Compare requested and realized distributions
 3. Calibrate probabilities or implement near-exact quotas
 4. Define PA and current/new-user semantics
-5. Resolve weighted trip targets
+5. Compare requested and realized weighted trip targets
 6. Operationalize remaining basic input routes
 7. Add short-term effects and uncertainty analysis
 8. Validate against observed data and established appraisal tools

@@ -777,7 +777,7 @@ results_plot_trip_mode_distribution <- function(
     caption = .results_resolve_plot_label(
       caption,
       paste(
-        "Trip totals use weight_tripXhh where available; induced trips currently receive weight 1.",
+        "Trip totals use weight_tripXhh where available; shifted and induced rows retain their source/donor weights.",
         "Reference = without scheme; counterfactual = with scheme."
       )
     ),
