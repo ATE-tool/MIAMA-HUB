@@ -28,6 +28,12 @@
 # user-filled or overwriting submitted values.
 # Numeric category metadata for the basic population refinements is written to
 # `additional_data`, preserving the categorical `default_value` selections.
+# Advanced population count fields can declare
+# `additional_data$default_value_backup`. For those fields HUB writes the
+# derived reference/no-change value to both `default_value` and the backup.
+# Subsequent UI refinement logic may change `default_value`, while the backup
+# retains the original geography-derived value until reference defaults are
+# deliberately rebuilt (for example after changing geography).
 
 apply_reference_defaults_to_profile <- function(profile, ui_updates) {
   assert_named_list(profile, "profile")
@@ -36,6 +42,7 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
   out <- profile
   updated <- character(0)
   additional_data_updated <- character(0)
+  backup_updated <- character(0)
   skipped <- character(0)
 
   for (field_name in names(ui_updates)) {
@@ -44,11 +51,16 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
       next
     }
 
-    if ("additional_data" %in% names(out[[field_name]])) {
+    has_backup <- .profile_field_has_default_backup(out[[field_name]])
+    if ("additional_data" %in% names(out[[field_name]]) && !has_backup) {
       out[[field_name]]$additional_data <- ui_updates[[field_name]]
       additional_data_updated <- c(additional_data_updated, field_name)
     } else {
       out[[field_name]]$default_value <- ui_updates[[field_name]]
+      if (has_backup) {
+        out[[field_name]]$additional_data$default_value_backup <- ui_updates[[field_name]]
+        backup_updated <- c(backup_updated, field_name)
+      }
     }
     updated <- c(updated, field_name)
   }
@@ -56,12 +68,14 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
   mirrored <- .apply_reference_defaults_to_cf(out, ui_updates)
   out <- mirrored$profile
   updated <- unique(c(updated, mirrored$updated_fields))
+  backup_updated <- unique(c(backup_updated, mirrored$backup_fields))
 
   attr(out, "reference_defaults_report") <- list(
     updated_fields = updated,
     mirrored_cf_fields = mirrored$updated_fields,
     mirrored_cf_sources = mirrored$sources,
     additional_data_fields = additional_data_updated,
+    default_value_backup_fields = backup_updated,
     skipped_fields = skipped,
     n_updated = length(updated),
     n_skipped = length(skipped)
@@ -77,6 +91,7 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
   matched <- !is.na(cf_fields) & cf_fields %in% names(out)
 
   updated <- character(0)
+  backup_updated <- character(0)
   sources <- stats::setNames(character(0), character(0))
   for (index in which(matched)) {
     cf_field <- cf_fields[[index]]
@@ -86,6 +101,10 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
     }
 
     out[[cf_field]]$default_value <- ui_updates[[ref_field]]
+    if (.profile_field_has_default_backup(out[[cf_field]])) {
+      out[[cf_field]]$additional_data$default_value_backup <- ui_updates[[ref_field]]
+      backup_updated <- c(backup_updated, cf_field)
+    }
     updated <- c(updated, cf_field)
     sources[[cf_field]] <- ref_field
   }
@@ -93,8 +112,14 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
   list(
     profile = out,
     updated_fields = updated,
+    backup_fields = backup_updated,
     sources = sources
   )
+}
+
+.profile_field_has_default_backup <- function(field) {
+  is.list(field$additional_data) &&
+    "default_value_backup" %in% names(field$additional_data)
 }
 
 .reference_cf_field <- function(field_name) {

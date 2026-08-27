@@ -211,6 +211,13 @@ value as their starting `default_value`. This represents a no-change scenario;
 it does not mark the control as user-filled and does not overwrite a submitted
 counterfactual value.
 
+For the advanced population total and per-mode counts, the initial
+geography-derived value is also stored as
+`additional_data$default_value_backup` on both reference and counterfactual
+fields. Refinement controls may change the live `default_value`; the backup
+retains the unrefined starting point for restoration. Selecting a new geography
+and rebuilding reference defaults refreshes the backup.
+
 Reference values include user and trip counts, mode share, average distance and
 duration, and compact five-category distributions. Weekly values are canonical.
 Trip counts can be converted between day, week, and year; user-count conversion

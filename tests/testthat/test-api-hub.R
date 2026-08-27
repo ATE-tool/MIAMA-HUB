@@ -235,13 +235,23 @@ test_that("reference spread defaults initialise matching counterfactual sliders"
 
 test_that("reference population defaults initialise matching counterfactual fields", {
   profile <- list(
-    pop_total_ref_advanced = list(is_filled = FALSE, input_value = NULL),
-    pop_total_cf_advanced = list(is_filled = FALSE, input_value = NULL),
-    pop_number_ref_bike_advanced = list(is_filled = FALSE, input_value = NULL),
+    pop_total_ref_advanced = list(
+      is_filled = FALSE, input_value = NULL,
+      additional_data = list(default_value_backup = NULL)
+    ),
+    pop_total_cf_advanced = list(
+      is_filled = FALSE, input_value = NULL,
+      additional_data = list(default_value_backup = NULL)
+    ),
+    pop_number_ref_bike_advanced = list(
+      is_filled = FALSE, input_value = NULL,
+      additional_data = list(default_value_backup = NULL)
+    ),
     pop_number_cf_bike_advanced = list(
       is_filled = TRUE,
       input_value = 120,
-      default_value = NULL
+      default_value = NULL,
+      additional_data = list(default_value_backup = NULL)
     ),
     pop_number_ref_walk_basic = list(is_filled = FALSE, input_value = NULL),
     pop_number_cf_walk_basic = list(is_filled = FALSE, input_value = NULL)
@@ -262,6 +272,17 @@ test_that("reference population defaults initialise matching counterfactual fiel
   expect_equal(out$pop_number_cf_walk_basic$default_value, 400)
   expect_true(out$pop_number_cf_bike_advanced$is_filled)
   expect_equal(out$pop_number_cf_bike_advanced$input_value, 120)
+  expect_equal(out$pop_total_ref_advanced$additional_data$default_value_backup, 1000)
+  expect_equal(out$pop_total_cf_advanced$additional_data$default_value_backup, 1000)
+  expect_equal(out$pop_number_ref_bike_advanced$additional_data$default_value_backup, 100)
+  expect_equal(out$pop_number_cf_bike_advanced$additional_data$default_value_backup, 100)
+  expect_setequal(
+    report$default_value_backup_fields,
+    c(
+      "pop_total_ref_advanced", "pop_total_cf_advanced",
+      "pop_number_ref_bike_advanced", "pop_number_cf_bike_advanced"
+    )
+  )
   expect_setequal(
     report$mirrored_cf_fields,
     c(

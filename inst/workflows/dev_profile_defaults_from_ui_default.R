@@ -275,6 +275,26 @@ trip_count_defaults <- reference_defaults_changed[
   drop = FALSE
 ]
 
+backup_fields <- reference_defaults_report$default_value_backup_fields %||% character(0)
+reference_default_backups <- data.frame(
+  field = backup_fields,
+  default_value = vapply(
+    backup_fields,
+    function(field) format_profile_value(profile_with_defaults[[field]]$default_value),
+    character(1)
+  ),
+  default_value_backup = vapply(
+    backup_fields,
+    function(field) {
+      format_profile_value(
+        profile_with_defaults[[field]]$additional_data$default_value_backup
+      )
+    },
+    character(1)
+  ),
+  stringsAsFactors = FALSE
+)
+
 if (nrow(trip_count_defaults) > 0) {
   trip_count_defaults$timeframe <- vapply(
     sub("^trips_count_ref_", "", trip_count_defaults$field),
@@ -304,6 +324,11 @@ if (length(reference_defaults_report$skipped_fields) > 0) {
 message("Reference defaults changed in profile:")
 print(reference_defaults_changed, row.names = FALSE)
 
+if (nrow(reference_default_backups) > 0) {
+  message("Advanced population default backups:")
+  print(reference_default_backups, row.names = FALSE)
+}
+
 if (nrow(trip_count_defaults) > 0) {
   message("Trip count defaults for Tab 2 modal checks:")
   print(trip_count_defaults, row.names = FALSE)
@@ -313,6 +338,7 @@ if (nrow(trip_count_defaults) > 0) {
 # View(profile_defaults_filled)
 # View(profile_reference_fields)
 # View(reference_defaults_changed)
+# View(reference_default_backups)
 # View(trip_count_defaults)
 # str(profile_with_defaults$geo_name)
 # str(profile_with_defaults$population_size)

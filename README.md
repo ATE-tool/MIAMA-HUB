@@ -386,8 +386,9 @@ The extraction and profile-write responsibilities are intentionally separated:
 - [reference_data_extract_reference_ui_values.R](R/reference_data_extract_reference_ui_values.R)
   derives all reference values that HUB currently knows how to calculate.
 - [api_reference_profile_defaults.R](R/api_reference_profile_defaults.R)
-  writes each derived value into `default_value`, or into `additional_data` for
-  profile fields that declare that slot, when the matching profile field exists.
+  writes each derived value into `default_value`, into category metadata
+  `additional_data`, or into both `default_value` and a declared
+  `additional_data$default_value_backup`, when the matching profile field exists.
 
 Intended UI usage:
 
@@ -406,7 +407,7 @@ The returned profile keeps `input_value` and `is_filled` unchanged. Fields that
 do not exist in the UI profile are skipped and listed in the diagnostic
 `reference_defaults_report` attribute. This attribute is not part of the
 appraisal schema and does not drive UI or HUB behavior. It records
-`updated_fields`, `additional_data_fields`, `mirrored_cf_fields`,
+`updated_fields`, `additional_data_fields`, `default_value_backup_fields`, `mirrored_cf_fields`,
 `mirrored_cf_sources`, `skipped_fields`, and their counts so developers can
 reconcile calculated HUB values with fields available in the UI profile. HUB
 writes broad defaults and leaves conditional display choices to MIAMA-UI.
@@ -416,8 +417,13 @@ default from its reference control. HUB pairs existing `_ref_`/`_cf_` and
 `_ref`/`_cf` profile fields, covering user and trip counts,
 distance/duration, mode share, mode-specific spread sliders, and the
 `pop_total_*` / `pop_number_*` controls in both the basic and advanced UI. The
-copy affects only `default_value`; a user-submitted counterfactual `input_value`
-and its `is_filled` state are preserved. Pairing is constrained by the actual
+copy affects `default_value`; a user-submitted counterfactual `input_value` and
+its `is_filled` state are preserved. Advanced population totals and per-mode
+counts additionally preserve the geography-derived no-change value in
+`additional_data$default_value_backup`. Tab 3 may subsequently change the live
+`default_value` while sliders or category refinements are active without losing
+the original value. Rebuilding reference defaults, such as after changing
+geography, deliberately refreshes both the default and its backup. Pairing is constrained by the actual
 profile schema, so a calculated reference field without a corresponding CF
 control is not invented dynamically.
 
@@ -435,10 +441,11 @@ trip evidence as the supported fallback. Unavailable mode evidence produces
 synthetic-profile row counts; population scaling is applied later in results,
 not to this UI metadata.
 
-The writer is schema-driven: any future profile control declaring an
-`additional_data` slot will receive a same-named derived `ui_updates` payload.
-HUB must still implement the corresponding extractor; it does not invent new
-category data merely because the slot exists.
+The writer is schema-driven. A profile control whose `additional_data` contains
+`default_value_backup` is treated as a normal default field with a backup;
+other controls declaring `additional_data` receive a same-named derived
+`ui_updates` metadata payload. HUB must still implement the corresponding
+extractor; it does not invent new category data merely because the slot exists.
 
 ### HUB session state and refresh behavior
 
