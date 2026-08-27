@@ -550,6 +550,11 @@ test_that("simultaneous walking and cycling targets are mode-order invariant", {
 
   expect_equal(active_counts(cycling_first), c(walking = 5, cycling = 5))
   expect_equal(active_counts(walking_first), c(walking = 5, cycling = 5))
+  for (result in list(cycling_first, walking_first)) {
+    changed <- result$trips$cf_trip_change != "unchanged"
+    expect_true(all(result$trips$cf_trip_locked[changed]))
+    expect_false(any(result$trips$cf_trip_locked[!changed]))
+  }
 })
 
 test_that("induced walking trips retain donor trip weights", {

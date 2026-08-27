@@ -788,6 +788,26 @@ prepare_results_data <- function(
   mode <- .results_trip_mode_group(trips$trip_mainmode)
   totals <- stats::aggregate(weights, by = list(mode = mode), FUN = sum, na.rm = TRUE)
   names(totals)[names(totals) == "x"] <- "trips"
+
+  # Walking and cycling inputs are defined by their mode-specific trip
+  # evidence, not exclusively by `trip_mainmode`. Use the same filters here as
+  # reference-default extraction and counterfactual sampling so a weekly target
+  # entered in the modal is the quantity displayed in results and exports.
+  active_specs <- .miama_tab2_mode_specs()[c("walking", "cycling")]
+  for (active_mode in names(active_specs)) {
+    if (!.trip_evidence_available_for_counterfactual(trips, active_specs[[active_mode]])) {
+      next
+    }
+    active <- active_specs[[active_mode]]$trip_filter(trips)
+    active_total <- sum(weights[active], na.rm = TRUE)
+    row <- match(active_mode, totals$mode)
+    if (is.na(row)) {
+      totals <- rbind(totals, data.frame(mode = active_mode, trips = active_total))
+    } else {
+      totals$trips[row] <- active_total
+    }
+  }
+
   totals$scenario <- scenario
   totals$proportion <- .results_divide_or_na(totals$trips, sum(totals$trips, na.rm = TRUE))
   labels <- c(

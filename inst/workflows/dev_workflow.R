@@ -49,7 +49,7 @@ devtools::load_all(hub_root)
 # Pass dataset size at construction time because it determines which source
 # paths are resolved. Changing only `cfg$workflow$dataset_size` afterward can
 # leave full synthpop paths paired with sample HM paths (or vice versa).
-dev_dataset_size <- Sys.getenv("MIAMA_DEV_DATASET_SIZE", unset = "sample")
+dev_dataset_size <- Sys.getenv("MIAMA_DEV_DATASET_SIZE", unset = "leeds")
 cfg <- miama_default_config(dataset_size = dev_dataset_size) # sample, leeds, or full
 cfg$cache$enabled         <- TRUE
 cfg$cache$refresh         <- FALSE
@@ -82,7 +82,13 @@ appraisal_inputs <- build_mock_appraisal_inputs(
   overrides = list(
     geo_level = list(input_value = "lad"),
     geo_id = list(input_value = "E08000035"), # Leeds
-    modes = list(input_value = c("walking", "cycling")),
+    # Match the UI processing order that previously exposed cross-mode
+    # cannibalization: cycling first, then walking.
+    modes = list(input_value = c("cycling", "walking")),
+    trips_timeframe_bike = list(input_value = "week"),
+    trips_timeframe_walk = list(input_value = "week"),
+    users_timeframe_bike = list(input_value = "week"),
+    users_timeframe_walk = list(input_value = "week"),
     res_aggregation = list(input_value = "timeline")
   )
 )
@@ -198,25 +204,22 @@ spread_bar_report[
 # HUB consumes absolute CF targets. This development helper translates one
 # readable scenario definition into those UI-style fields.
 #
-# Here, "10% active-travel growth" means a 10% relative increase, separately
-# for walking and cycling, in both:
-#   1. people using the mode during the synthetic reference week; and
-#   2. physical active-mode trip rows during that week.
-# It does not mean a 10 percentage-point mode-share increase. Trip targets use
-# physical rows because the current CF trip handler changes rows while retaining
-# existing `weight_tripXhh` values. Weighted trip-target semantics remain a
-# production decision.
+# This default scenario reproduces the current Leeds UI test exactly. The modal
+# values are weighted weekly trip totals; HUB converts each weighted target to
+# the physical number of synthetic rows to change, retaining row trip weights.
 #
-# User changes are applied before trip-count changes. The second target is
+# User changes are applied before trip-count changes. The trip targets are
 # absolute, so Step 6 reconciles any trips already shifted for new users to the
-# final 10%-growth trip target rather than adding another 10%.
+# final submitted total rather than adding another relative change.
 
 dev_cf_scenario <- list(
-  name = "10% relative increase in active travel",
-  relative_change = 0.10,
-  modes = c("walking", "cycling"),
+  name = "Leeds UI parity: 1,500 cycling and 50,000 walking trips/week",
+  relative_change = NA_real_,
+  modes = c("cycling", "walking"),
   change_users = TRUE,
   change_trips = TRUE,
+  user_targets = c(cycling = 155, walking = 2247),
+  weighted_trip_targets = c(cycling = 1500, walking = 50000),
   induced_trip_percent = 10,
   # NA uses HUB's existing/default car-diversion behavior. Set named percentages
   # such as c(walking = 70, cycling = 85) to test explicit diversion assumptions.
@@ -282,14 +285,19 @@ build_dev_counterfactual_inputs <- function(values, reference_ui_values, referen
       if (is.null(ref_users) || !is.finite(ref_users)) {
         stop("Missing reference user count for mode: ", mode, call. = FALSE)
       }
-      cf_users <- relative_integer_target(ref_users, scenario$relative_change, population_n)
+      explicit_user_target <- scenario$user_targets[[mode]]
+      cf_users <- if (!is.null(explicit_user_target) && is.finite(explicit_user_target)) {
+        as.integer(explicit_user_target)
+      } else {
+        relative_integer_target(ref_users, scenario$relative_change, population_n)
+      }
       values[[paste0("users_count_cf_", suffix)]] <- cf_users
       target_rows[[length(target_rows) + 1L]] <- data.frame(
         mode = mode,
         metric = "weekly users",
         reference = ref_users,
         counterfactual = cf_users,
-        requested_relative_change = scenario$relative_change,
+        requested_relative_change = if (ref_users > 0) cf_users / ref_users - 1 else NA_real_,
         realized_relative_change = if (ref_users > 0) cf_users / ref_users - 1 else NA_real_,
         target_basis = "individual rows",
         stringsAsFactors = FALSE
@@ -297,8 +305,16 @@ build_dev_counterfactual_inputs <- function(values, reference_ui_values, referen
     }
 
     if (isTRUE(scenario$change_trips)) {
-      ref_trips <- active_trip_row_count(reference_data$trips, mode)
-      cf_trips <- relative_integer_target(ref_trips, scenario$relative_change)
+      ref_trips <- ref_values[[paste0("trips_count_ref_", suffix)]]
+      if (is.null(ref_trips) || !is.finite(ref_trips)) {
+        stop("Missing weighted reference trip count for mode: ", mode, call. = FALSE)
+      }
+      explicit_trip_target <- scenario$weighted_trip_targets[[mode]]
+      cf_trips <- if (!is.null(explicit_trip_target) && is.finite(explicit_trip_target)) {
+        as.numeric(explicit_trip_target)
+      } else {
+        ref_trips * (1 + scenario$relative_change)
+      }
       values[[paste0("trips_timeframe_", suffix)]] <- "week"
       values[[paste0("trips_denominator_", suffix)]] <- "total"
       values[[paste0("trips_count_cf_", suffix)]] <- cf_trips
@@ -307,9 +323,9 @@ build_dev_counterfactual_inputs <- function(values, reference_ui_values, referen
         metric = "weekly active-mode trips",
         reference = ref_trips,
         counterfactual = cf_trips,
-        requested_relative_change = scenario$relative_change,
+        requested_relative_change = if (ref_trips > 0) cf_trips / ref_trips - 1 else NA_real_,
         realized_relative_change = if (ref_trips > 0) cf_trips / ref_trips - 1 else NA_real_,
-        target_basis = "physical trip rows",
+        target_basis = "weighted weekly trips",
         stringsAsFactors = FALSE
       )
     }
@@ -343,18 +359,28 @@ check_dev_counterfactual_targets <- function(counterfactual_data, targets) {
       return(sum(.positive_col(counterfactual_data$ind, spec$ind_duration_col), na.rm = TRUE))
     }
     if (identical(metric, "weekly active-mode trips")) {
-      return(active_trip_row_count(counterfactual_data$trips, mode))
+      active <- spec$trip_filter(counterfactual_data$trips) &
+        !is.na(counterfactual_data$trips$nts_tripid)
+      return(sum(.trip_weights(counterfactual_data$trips)[active], na.rm = TRUE))
     }
 
     NA_real_
   }, numeric(1))
+
+  tolerance <- ifelse(targets$target_basis == "weighted weekly trips", 0.02, 0)
+  relative_error <- ifelse(
+    targets$counterfactual == 0,
+    abs(realized - targets$counterfactual),
+    abs(realized / targets$counterfactual - 1)
+  )
 
   data.frame(
     mode = targets$mode,
     metric = targets$metric,
     expected = targets$counterfactual,
     realized = realized,
-    achieved = realized == targets$counterfactual,
+    relative_error = relative_error,
+    achieved = relative_error <= tolerance,
     stringsAsFactors = FALSE
   )
 }
@@ -632,6 +658,71 @@ names(results_data$plot_data)
 glimpse_head(results_data$plot_data$health_cube)
 glimpse_head(results_data$plot_data$trip_mode_distribution)
 
+## 8.6 Audit submitted trip targets through the results contract ----
+# This table is the quickest regression check for the original 702-cycling-trip
+# bug. `direct_cf_weighted` is calculated from counterfactual rows, while
+# `plot_data_cf_weighted` is the value passed to plots and exports. Both should
+# be close to the submitted weighted target; a small difference is expected
+# because the target is realized by sampling indivisible weighted trip rows.
+trip_target_rows <- dev_cf_targets[
+  dev_cf_targets$metric == "weekly active-mode trips",
+  ,
+  drop = FALSE
+]
+
+trip_results_long <- results_data$plot_data$trip_mode_distribution |>
+  dplyr::filter(.data$mode %in% trip_target_rows$mode)
+trip_results_wide <- dplyr::full_join(
+  trip_results_long |>
+    dplyr::filter(.data$scenario == "Reference") |>
+    dplyr::transmute(mode = .data$mode, Reference = .data$trips),
+  trip_results_long |>
+    dplyr::filter(.data$scenario == "Counterfactual") |>
+    dplyr::transmute(mode = .data$mode, Counterfactual = .data$trips),
+  by = "mode"
+)
+
+direct_trip_totals <- do.call(rbind, lapply(trip_target_rows$mode, function(mode) {
+  spec <- .miama_tab2_mode_specs()[[mode]]
+  ref_active <- spec$trip_filter(reference_data$trips) & !is.na(reference_data$trips$nts_tripid)
+  cf_active <- spec$trip_filter(counterfactual_data$trips) & !is.na(counterfactual_data$trips$nts_tripid)
+  data.frame(
+    mode = mode,
+    reference_physical_rows = sum(ref_active, na.rm = TRUE),
+    counterfactual_physical_rows = sum(cf_active, na.rm = TRUE),
+    direct_ref_weighted = sum(.trip_weights(reference_data$trips)[ref_active], na.rm = TRUE),
+    direct_cf_weighted = sum(.trip_weights(counterfactual_data$trips)[cf_active], na.rm = TRUE),
+    stringsAsFactors = FALSE
+  )
+}))
+
+trip_results_audit <- trip_target_rows |>
+  dplyr::transmute(
+    mode = .data$mode,
+    submitted_cf_weighted = .data$counterfactual
+  ) |>
+  dplyr::left_join(direct_trip_totals, by = "mode") |>
+  dplyr::left_join(trip_results_wide, by = "mode") |>
+  dplyr::rename(
+    plot_data_ref_weighted = "Reference",
+    plot_data_cf_weighted = "Counterfactual"
+  ) |>
+  dplyr::mutate(
+    cf_target_difference = .data$plot_data_cf_weighted - .data$submitted_cf_weighted
+  )
+
+print(trip_results_audit, row.names = FALSE)
+
+stopifnot(
+  isTRUE(all.equal(
+    trip_results_audit$direct_cf_weighted,
+    trip_results_audit$plot_data_cf_weighted,
+    tolerance = 1e-10
+  )),
+  all(abs(trip_results_audit$cf_target_difference) /
+        trip_results_audit$submitted_cf_weighted <= 0.02)
+)
+
 
 # 9. Build the static UI export bundle ----
 # -----------------------------------------------------------------------------#
@@ -663,6 +754,12 @@ glimpse_head(results_exports$timeline_cumulative)
 glimpse_head(results_exports$trip_mode_distribution)
 glimpse_head(results_exports$amat_health_timeline)
 results_exports$amat_health_summary |> as.data.frame() |> print(row.names = FALSE)
+
+export_trip_audit <- results_exports$trip_mode_distribution |>
+  dplyr::filter(.data$mode %in% trip_target_rows$mode) |>
+  dplyr::select("scenario", "mode", "trips") |>
+  dplyr::arrange(.data$mode, .data$scenario)
+print(export_trip_audit, row.names = FALSE)
 
 ## 9.3 Inspect static export plots ----
 names(results_exports$plots)

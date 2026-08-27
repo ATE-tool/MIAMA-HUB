@@ -676,7 +676,12 @@ apply_counterfactual_ui_values <- function(
     sampling_fallback <- shifted$sampling_fallback
     realized_car_diversion_percent <- shifted$realized_car_diversion_percent
   } else {
-    remove_rows <- cf_sample_candidate_indices(which(cf_active), abs(delta), seed + spec$seed_offset + 4000L)
+    unlocked <- !.true_values(counterfactual_data$trips$cf_trip_locked)
+    remove_rows <- cf_sample_candidate_indices(
+      which(cf_active & unlocked),
+      abs(delta),
+      seed + spec$seed_offset + 4000L
+    )
     changed_rows <- counterfactual_data$trips[
       remove_rows,
       intersect(c("census_id", "nts_tripid"), names(counterfactual_data$trips)),
@@ -837,7 +842,10 @@ apply_counterfactual_ui_values <- function(
   realized_car_diversion_percent <- NA_real_
   if (identical(role, "ex_users")) {
     active <- spec$trip_filter(counterfactual_data$trips)
-    trip_rows <- which(counterfactual_data$trips$census_id %in% changed_ids & active)
+    unlocked <- !.true_values(counterfactual_data$trips$cf_trip_locked)
+    trip_rows <- which(
+      counterfactual_data$trips$census_id %in% changed_ids & active & unlocked
+    )
     counterfactual_data$trips <- .switch_trips_away_from_active(
       counterfactual_data$trips,
       rows = trip_rows,
@@ -937,7 +945,10 @@ apply_counterfactual_ui_values <- function(
   if ("trip_activemode" %in% names(trips)) {
     active_any_mode <- .true_values(trips$trip_activemode)
   }
-  candidates <- which(!active & !active_any_mode & !is.na(trips$nts_tripid))
+  unlocked <- !.true_values(trips$cf_trip_locked)
+  candidates <- which(
+    !active & !active_any_mode & unlocked & !is.na(trips$nts_tripid)
+  )
   if (!is.null(census_ids) && "census_id" %in% names(trips)) {
     candidates <- candidates[trips$census_id[candidates] %in% census_ids]
   }
@@ -981,6 +992,7 @@ apply_counterfactual_ui_values <- function(
   trips <- .switch_trips_to_active_mode(trips, rows, spec)
   trips$cf_trip_change[rows] <- "mode_shift_to_active"
   trips$cf_mode_shift[rows] <- TRUE
+  trips$cf_trip_locked[rows] <- TRUE
   trips$cf_trip_exposure_source[rows] <- exposure_source
   counterfactual_data$trips <- trips
 
@@ -1023,6 +1035,7 @@ apply_counterfactual_ui_values <- function(
   new_rows$cf_trip_change <- "induced_recreational_active"
   new_rows$cf_mode_shift <- FALSE
   new_rows$cf_induced <- TRUE
+  new_rows$cf_trip_locked <- TRUE
   new_rows$cf_trip_exposure_source <- "trip_target"
 
   counterfactual_data$trips <- rbind(counterfactual_data$trips, new_rows)
@@ -1078,6 +1091,7 @@ apply_counterfactual_ui_values <- function(
   }
   trips$cf_trip_change[rows] <- "mode_shift_away_from_active"
   trips$cf_mode_shift[rows] <- TRUE
+  trips$cf_trip_locked[rows] <- TRUE
   trips$cf_trip_exposure_source[rows] <- exposure_source
   trips
 }
@@ -1843,7 +1857,7 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
       "trip_durationraw_min", "trip_walkdist_km", "trip_walktime_min",
       "trip_cycledist_km", "trip_cycletime_min", "trip_purpose",
       "trip_activemode", "trip_utilitarian", "cf_trip_change",
-      "cf_mode_shift", "cf_induced"
+      "cf_mode_shift", "cf_induced", "cf_trip_locked"
     ),
     names(counterfactual_trips)
   )

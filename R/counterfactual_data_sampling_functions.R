@@ -122,6 +122,9 @@ cf_add_key_indicators <- function(counterfactual_data, modes = c("walking", "cyc
     if (!"cf_induced" %in% names(counterfactual_data$trips)) {
       counterfactual_data$trips$cf_induced <- FALSE
     }
+    if (!"cf_trip_locked" %in% names(counterfactual_data$trips)) {
+      counterfactual_data$trips$cf_trip_locked <- FALSE
+    }
     if (!"cf_trip_exposure_source" %in% names(counterfactual_data$trips)) {
       counterfactual_data$trips$cf_trip_exposure_source <- "unchanged"
     }
@@ -698,7 +701,7 @@ cf_trip_sampling_columns <- function(trips, modes = c("walking", "cycling")) {
     "trip_distancegroup", "distancegroup",
     "trip_purpose", "purpose", "trip_purpose_type",
     "trip_activemode", "trip_utilitarian", "cf_trip_change",
-    "cf_mode_shift", "cf_induced"
+    "cf_mode_shift", "cf_induced", "cf_trip_locked"
   )
 
   unique(cols[cols %in% names(trips)])

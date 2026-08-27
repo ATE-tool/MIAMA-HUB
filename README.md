@@ -997,7 +997,12 @@ other source-by-target fields without changing the target-specific field
 convention.
 
 Returned trip data includes explicit `trip_activemode`, `trip_utilitarian`,
-`cf_trip_change`, `cf_mode_shift`, and `cf_induced` indicators. The change
+`cf_trip_change`, `cf_mode_shift`, `cf_induced`, and `cf_trip_locked`
+indicators. A row is locked as soon as it is shifted, shifted away, or induced;
+later mode handlers cannot select it again. Candidates for an active-mode
+increase also exclude trips already active in another assessed active mode.
+Together these rules prevent walking and cycling targets from cannibalizing
+one another or becoming dependent on their order in the UI profile. The change
 report records actual `mode_shift_n` and `induced_n`, and
 `counterfactual_report$comparison$changed_trip_rows` lists switched or induced
 trip rows.
