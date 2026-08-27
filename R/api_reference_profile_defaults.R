@@ -20,10 +20,12 @@
 # when reconciling the HUB output with the UI schema.
 #
 # Paired fields are initialized consistently: HUB writes the observed value to
-# the `_ref_` field and mirrors it to the corresponding `_cf_` field's
-# `default_value`. This covers mode-specific spread sliders and basic/advanced
-# population counts. It gives counterfactual controls a no-change starting point
-# without marking them as user-filled or overwriting submitted values.
+# the `_ref_` (or `_ref`) field and mirrors it to the corresponding `_cf_` (or
+# `_cf`) field's `default_value` whenever that field exists in the profile. This
+# includes user/trip counts, distance/duration values, mode share, mode-specific
+# spread sliders, and basic/advanced population counts. It gives every paired
+# counterfactual control a no-change starting point without marking it as
+# user-filled or overwriting submitted values.
 # Numeric category metadata for the basic population refinements is written to
 # `additional_data`, preserving the categorical `default_value` selections.
 
@@ -93,16 +95,13 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
 }
 
 .reference_cf_field <- function(field_name) {
-  supported <- paste0(
-    "^(",
-    "pop_spread_(age_mean|sex_prop|pa_mean|pa_sex_prop)_ref_(walk|bike|ebike|pt)|",
-    "trips_spread_(mean|util_prop)_ref_(walk|bike|ebike|pt)|",
-    "pop_total_ref_(basic|advanced)|",
-    "pop_number_ref_(walk|bike|ebike|pt)_(basic|advanced)",
-    ")$"
-  )
-  matched <- grepl(supported, field_name)
   out <- rep(NA_character_, length(field_name))
-  out[matched] <- sub("_ref_", "_cf_", field_name[matched], fixed = TRUE)
+
+  infix <- grepl("_ref_", field_name, fixed = TRUE)
+  out[infix] <- sub("_ref_", "_cf_", field_name[infix], fixed = TRUE)
+
+  suffix <- !infix & grepl("_ref$", field_name)
+  out[suffix] <- sub("_ref$", "_cf", field_name[suffix])
+
   out
 }

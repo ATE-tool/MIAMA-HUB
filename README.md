@@ -408,11 +408,15 @@ and their counts so developers can reconcile calculated HUB values with fields
 available in the UI profile. HUB writes broad defaults and leaves conditional
 display choices to MIAMA-UI.
 
-Paired counterfactual controls receive a no-change starting default from their
-reference control. This includes the mode-specific spread sliders and the
+Every canonical paired counterfactual control receives a no-change starting
+default from its reference control. HUB pairs existing `_ref_`/`_cf_` and
+`_ref`/`_cf` profile fields, covering user and trip counts,
+distance/duration, mode share, mode-specific spread sliders, and the
 `pop_total_*` / `pop_number_*` controls in both the basic and advanced UI. The
 copy affects only `default_value`; a user-submitted counterfactual `input_value`
-and its `is_filled` state are preserved.
+and its `is_filled` state are preserved. Pairing is constrained by the actual
+profile schema, so a calculated reference field without a corresponding CF
+control is not invented dynamically.
 
 ### HUB session state and refresh behavior
 

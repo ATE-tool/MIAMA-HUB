@@ -125,10 +125,62 @@ test_that("apply_reference_defaults_to_profile writes defaults without filling i
 
   expect_equal(out$pop_total_ref_basic$default_value, 10)
   expect_equal(out$users_count_ref_walk$default_value, 3)
+  expect_equal(out$users_count_cf_walk$default_value, 3)
   expect_null(out$pop_total_ref_basic$input_value)
   expect_false(out$pop_total_ref_basic$is_filled)
-  expect_equal(report$updated_fields, c("pop_total_ref_basic", "users_count_ref_walk"))
+  expect_equal(
+    report$updated_fields,
+    c("pop_total_ref_basic", "users_count_ref_walk", "users_count_cf_walk")
+  )
   expect_equal(report$skipped_fields, "missing_field")
+})
+
+test_that("all canonical reference-counterfactual pairs start at no change", {
+  profile <- list(
+    users_count_ref_walk = list(is_filled = FALSE, input_value = NULL),
+    users_count_cf_walk = list(is_filled = FALSE, input_value = NULL),
+    trips_count_ref_bike = list(is_filled = FALSE, input_value = NULL),
+    trips_count_cf_bike = list(is_filled = TRUE, input_value = 1500),
+    dist_dur_amount_ref_walk = list(is_filled = FALSE, input_value = NULL),
+    dist_dur_amount_cf_walk = list(is_filled = FALSE, input_value = NULL),
+    trips_number_total_ref = list(is_filled = FALSE, input_value = NULL),
+    trips_number_total_cf = list(is_filled = FALSE, input_value = NULL),
+    mode_share_ref = list(is_filled = FALSE, input_value = NULL),
+    mode_share_cf = list(is_filled = FALSE, input_value = NULL)
+  )
+  mode_share <- list(
+    car = list(percent = 60),
+    bike = list(percent = 5),
+    walk = list(percent = 25),
+    pt = list(percent = 10)
+  )
+
+  out <- apply_reference_defaults_to_profile(
+    profile,
+    ui_updates = list(
+      users_count_ref_walk = 100,
+      trips_count_ref_bike = 734,
+      dist_dur_amount_ref_walk = 1200,
+      trips_number_total_ref = 5000,
+      mode_share_ref = mode_share
+    )
+  )
+  report <- attr(out, "reference_defaults_report")
+
+  expect_equal(out$users_count_cf_walk$default_value, 100)
+  expect_equal(out$trips_count_cf_bike$default_value, 734)
+  expect_equal(out$dist_dur_amount_cf_walk$default_value, 1200)
+  expect_equal(out$trips_number_total_cf$default_value, 5000)
+  expect_identical(out$mode_share_cf$default_value, mode_share)
+  expect_equal(out$trips_count_cf_bike$input_value, 1500)
+  expect_true(out$trips_count_cf_bike$is_filled)
+  expect_setequal(
+    report$mirrored_cf_fields,
+    c(
+      "users_count_cf_walk", "trips_count_cf_bike",
+      "dist_dur_amount_cf_walk", "trips_number_total_cf", "mode_share_cf"
+    )
+  )
 })
 
 test_that("reference spread defaults initialise matching counterfactual sliders", {
