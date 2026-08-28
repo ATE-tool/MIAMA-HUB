@@ -83,6 +83,32 @@ test_that("death-share lookup loading keeps only requested person strata", {
   expect_equal(unique(result$cycle), 2)
 })
 
+test_that("death-share outcome loading filters people and assessment cycles", {
+  outcome_path <- tempfile("cycle-outcomes-")
+  outcomes <- expand.grid(
+    census_id = c(1, 2),
+    cycle = 0:3,
+    KEEP.OUT.ATTRS = FALSE
+  )
+  outcomes$mr_decile <- 1L
+  outcomes$mmets_cycle <- 10
+  arrow::write_dataset(outcomes, outcome_path, format = "parquet")
+
+  cfg <- miama_default_config(dataset_size = "sample")
+  cfg$sources$hm_death_share$cycle_sample <- list(
+    path = outcome_path,
+    format = "parquet"
+  )
+  result <- load_hm_cycle_outcomes_death_share(
+    cfg,
+    census_ids = 2,
+    cycles = 0:1
+  )
+
+  expect_equal(unique(result$census_id), 2)
+  expect_equal(result$cycle, 0:1)
+})
+
 test_that("apply_counterfactual_health_outcomes calculates lookup deltas and cf columns", {
   reference_data <- list(
     ind = data.frame(

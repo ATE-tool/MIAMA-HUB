@@ -3,3 +3,4 @@
 ^MIAMA-HUB\.Rproj$
 ^\.Rproj\.user$
 ^data$
+^docs/_sampling_variance_cache$

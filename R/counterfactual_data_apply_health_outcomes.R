@@ -87,7 +87,9 @@ apply_counterfactual_health_outcomes <- function(
 # These helpers deliberately use the updated death-share cycle tables, because
 # those support health-adjusted life years and the full current outcome set.
 
-load_hm_cycle_outcomes_death_share <- function(cfg = NULL, census_ids = NULL) {
+load_hm_cycle_outcomes_death_share <- function(cfg = NULL,
+                                               census_ids = NULL,
+                                               cycles = NULL) {
   cfg <- cfg %||% miama_default_config()
   path <- .hm_death_share_path(cfg, "sp_cycle_outcomes_death_share")
   if (!dir.exists(path)) {
@@ -97,6 +99,11 @@ load_hm_cycle_outcomes_death_share <- function(cfg = NULL, census_ids = NULL) {
   ds <- arrow::open_dataset(path, format = "parquet")
   if (!is.null(census_ids)) {
     ds <- dplyr::filter(ds, census_id %in% census_ids)
+  }
+  cycles <- unique(.as_plain_numeric(cycles))
+  cycles <- cycles[is.finite(cycles)]
+  if (length(cycles) > 0) {
+    ds <- dplyr::filter(ds, cycle %in% cycles)
   }
 
   dplyr::collect(ds)

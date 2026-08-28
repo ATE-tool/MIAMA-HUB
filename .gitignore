@@ -9,3 +9,6 @@ Thumbs.db
 
 # External/local runtime data. Package samples belong in inst/extdata/data.
 /data/
+
+# Resumable outputs from the executable sampling-variance report.
+/docs/_sampling_variance_cache/
