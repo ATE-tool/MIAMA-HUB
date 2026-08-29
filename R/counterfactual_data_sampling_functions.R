@@ -459,6 +459,28 @@ cf_population_sampling_target <- function(values, suffix = NULL, spread = NULL) 
     cf_ui_category_props(values, "pacat")
   }
 
+  selected_age <- .cf_selected_category_indices(
+    values,
+    method = "pop_age",
+    field = "pop_target_age_groups",
+    ids = spread$age$ids %||% character(0),
+    strip_prefix = "pop_"
+  )
+  selected_pa <- .cf_selected_category_indices(
+    values,
+    method = "pop_pa_level",
+    field = "pop_target_pa_groups",
+    ids = spread$pa$ids %||% character(0)
+  )
+  if (!is.null(selected_age)) {
+    age_props <- as.numeric(seq_along(spread$age$ids) %in% selected_age)
+    age_props <- age_props / sum(age_props)
+  }
+  if (!is.null(selected_pa)) {
+    pa_props <- as.numeric(seq_along(spread$pa$ids) %in% selected_pa)
+    pa_props <- pa_props / sum(pa_props)
+  }
+
   list(
     male_prop = .cf_clamp_prop(male_prop),
     age_category_props = age_props,
@@ -478,12 +500,60 @@ cf_population_sampling_target <- function(values, suffix = NULL, spread = NULL) 
     },
     pa_category_breaks = spread$pa$breaks %||% NULL,
     pa_category_right = spread$pa$right %||% TRUE,
+    selected_age_categories = selected_age,
+    selected_pa_categories = selected_pa,
     constraints = c(
       if (!is.null(male_prop)) "sex",
       if (!is.null(age_props)) "age",
       if (!is.null(pa_props)) "pa"
     )
   )
+}
+
+.cf_selected_category_indices <- function(values,
+                                          method,
+                                          field,
+                                          ids,
+                                          strip_prefix = NULL) {
+  if (!identical(.ui_value(values, "pop_refine_method", NULL), method)) {
+    return(NULL)
+  }
+  selected <- as.character(.ui_value(values, field, character(0)))
+  if (!is.null(strip_prefix)) selected <- sub(paste0("^", strip_prefix), "", selected)
+  matched <- match(selected, ids)
+  matched <- matched[!is.na(matched)]
+  if (length(matched) == 0) {
+    stop("Selected population categories do not match the configured category definitions.", call. = FALSE)
+  }
+  unique(matched)
+}
+
+cf_population_candidate_filter <- function(ind,
+                                           candidate_rows,
+                                           target,
+                                           select_inside = TRUE) {
+  has_selection <- !is.null(target$selected_age_categories) ||
+    !is.null(target$selected_pa_categories)
+  if (!has_selection) return(candidate_rows)
+  keep <- rep(TRUE, length(candidate_rows))
+  if (!is.null(target$selected_age_categories)) {
+    category <- cf_numeric_quintile(
+      ind$age1year,
+      breaks = target$age_category_breaks,
+      right = target$age_category_right
+    )
+    keep <- keep & category[candidate_rows] %in% target$selected_age_categories
+  }
+  if (!is.null(target$selected_pa_categories)) {
+    pa <- .spread_pa_values(ind)
+    category <- cf_numeric_quintile(
+      pa,
+      breaks = target$pa_category_breaks,
+      right = target$pa_category_right
+    )
+    keep <- keep & category[candidate_rows] %in% target$selected_pa_categories
+  }
+  candidate_rows[if (isTRUE(select_inside)) keep else !keep]
 }
 
 cf_trip_sampling_target <- function(values, suffix = NULL, spread = NULL) {
@@ -639,12 +709,12 @@ cf_sample_observed_values <- function(values_ref, n, default_value, seed) {
   sample(observed, size = n, replace = TRUE)
 }
 
-cf_trip_mechanism_counts <- function(delta, induced_percent = 10) {
+cf_trip_mechanism_counts <- function(delta, induced_trips_percent = 10) {
   if (delta <= 0) {
     return(list(mode_shift_n = 0L, induced_n = 0L))
   }
 
-  induced_n <- as.integer(round(delta * induced_percent / 100))
+  induced_n <- as.integer(round(delta * induced_trips_percent / 100))
   induced_n <- min(delta, max(0L, induced_n))
   list(
     mode_shift_n = as.integer(delta - induced_n),

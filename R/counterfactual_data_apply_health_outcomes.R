@@ -230,6 +230,14 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL,
 }
 
 .counterfactual_health_exposure <- function(reference_ind, counterfactual_ind) {
+  # The full LAD remains available as the source pool, but health calculation is
+  # limited to people in the final appraisal scope. This includes the REF
+  # snapshot and any baseline non-users brought into CF scope.
+  if ("cf_in_scope" %in% names(counterfactual_ind)) {
+    keep_ids <- counterfactual_ind$census_id[.true_values(counterfactual_ind$cf_in_scope)]
+    reference_ind <- reference_ind[reference_ind$census_id %in% keep_ids, , drop = FALSE]
+    counterfactual_ind <- counterfactual_ind[counterfactual_ind$census_id %in% keep_ids, , drop = FALSE]
+  }
   reference_ind <- .health_plain_numeric_columns(
     reference_ind,
     c("age1year", "female", "mmets"),

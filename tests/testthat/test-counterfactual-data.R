@@ -373,7 +373,7 @@ test_that("induced trips preserve unlabeled numeric purpose and set recreational
     reference_data = reference_data,
     constants = utils::modifyList(
       miama_counterfactual_defaults(),
-      list(induced_trip_percent_default = 100)
+      list(induced_trips_percent_default = 100)
     ),
     seed = 20
   )

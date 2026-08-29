@@ -220,7 +220,7 @@ dev_cf_scenario <- list(
   change_trips = TRUE,
   user_targets = c(cycling = 155, walking = 2247),
   weighted_trip_targets = c(cycling = 1500, walking = 50000),
-  induced_trip_percent = 10,
+  induced_trips_percent = 10,
   # NA uses HUB's existing/default car-diversion behavior. Set named percentages
   # such as c(walking = 70, cycling = 85) to test explicit diversion assumptions.
   car_diversion_percent = c(walking = NA_real_, cycling = NA_real_),
@@ -404,8 +404,8 @@ dev_cf_targets |>
   print(row.names = FALSE)
 
 counterfactual_constants <- miama_counterfactual_defaults()
-counterfactual_constants$induced_trip_percent_default <-
-  dev_cf_scenario$induced_trip_percent
+counterfactual_constants$induced_trips_percent_default <-
+  dev_cf_scenario$induced_trips_percent
 
 ## 4.1 Inspect derived counterfactual spread bars ----
 # With empty `spread_overrides`, CF bars reproduce reference bars exactly.
@@ -462,8 +462,34 @@ glimpse_head(reference_data$trips)
 
 # 6. Create counterfactual data ----
 # -----------------------------------------------------------------------------#
-# Starts from a 1:1 copy of reference data, applies the absolute CF targets from
-# Step 4, and records requested and realized changes in `counterfactual_report`.
+# First converts submitted Tab 2 REF volumes into an assessed population and
+# mode-specific scope flags. Without an explicit population total, HUB pools
+# requested/source mode rates to estimate the population represented by those
+# volumes. REF sampling changes membership only, not behavior or MMETs. CF then
+# starts from the same person boundary and changes behavior within it.
+
+reference_data <- apply_reference_appraisal_scope(
+  reference_data,
+  appraisal_input_values = counterfactual_appraisal_input_values,
+  seed = dev_cf_scenario$seed
+)
+str(reference_data$reference_scope_report)
+reference_person_scope <- reference_data$reference_scope_report$person
+message(
+  "Assessed reference population: ", reference_person_scope$realized,
+  " / ", reference_person_scope$donor_population,
+  " (", reference_person_scope$method, ")"
+)
+if (length(reference_person_scope$mode_estimates) > 0) {
+  reference_mode_population_estimates <- do.call(rbind, lapply(
+    reference_person_scope$mode_estimates,
+    function(x) as.data.frame(x[c(
+      "mode", "source", "field", "requested", "baseline", "ratio",
+      "estimated_people"
+    )], stringsAsFactors = FALSE)
+  ))
+  print(reference_mode_population_estimates, row.names = FALSE)
+}
 
 counterfactual_data <- init_counterfactual_data(reference_data)
 counterfactual_data <- apply_counterfactual_ui_values(

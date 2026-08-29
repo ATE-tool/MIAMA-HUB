@@ -809,6 +809,10 @@ prepare_results_data <- function(
 }
 
 .trip_mode_distribution_one <- function(trips, scenario) {
+  scenario_scope <- if (identical(scenario, "Reference")) "ref" else "cf"
+  if (paste0(scenario_scope, "_in_scope") %in% names(trips)) {
+    trips <- trips[.true_values(trips[[paste0(scenario_scope, "_in_scope")]]), , drop = FALSE]
+  }
   weights <- .trip_weights(trips)
   mode <- .results_trip_mode_group(trips$trip_mainmode)
   totals <- stats::aggregate(weights, by = list(mode = mode), FUN = sum, na.rm = TRUE)
@@ -824,6 +828,10 @@ prepare_results_data <- function(
       next
     }
     active <- active_specs[[active_mode]]$trip_filter(trips)
+    mode_scope_col <- .reference_trip_scope_col(active_mode, scenario_scope)
+    if (mode_scope_col %in% names(trips)) {
+      active <- active & .true_values(trips[[mode_scope_col]])
+    }
     active_total <- sum(weights[active], na.rm = TRUE)
     row <- match(active_mode, totals$mode)
     if (is.na(row)) {

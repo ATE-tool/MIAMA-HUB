@@ -37,6 +37,9 @@ invalidate_hub_state <- function(state = list(), changed_fields = character()) {
     state$reference_default_data <- NULL
   }
   if (length(changed_fields) > 0) {
+    state$refinement_reference_data <- NULL
+    state$refinement_counterfactual_data <- NULL
+    state$refinement_report <- NULL
     state$counterfactual_data <- NULL
     state$health_impacts <- NULL
     state$results_data <- NULL

@@ -119,6 +119,10 @@ Primary UI-facing methods:
   and filters synthpop reference data for the selected geography, summarizes
   reference values, and writes matching values into each profile field's
   `default_value`.
+- `build_refinement_profile_defaults(profile = NULL, seed = 1L, refresh = FALSE)`:
+  applies filled Tab 2 REF and CF inputs to synthpop-only staged snapshots,
+  summarizes those exact scopes, and writes the resulting Tab 3 population and
+  spread values into advanced `default_value` fields. No HM data are loaded.
 - `build_results(profile = NULL, seed = 1L, refresh = FALSE)`: runs the current
   end-to-end calculation from the fully filled profile. It builds
   counterfactual data from the synthpop reference data, applies the HM
@@ -143,7 +147,11 @@ setup_profile <- hub$get_appraisal_setup_inputs(mdata[["profile"]])
 mdata[["profile"]] <- hub$build_reference_profile_defaults(mdata[["profile"]])
 attr(mdata[["profile"]], "reference_defaults_report")
 
-# After the UI has collected Tab 2 or Tab 3/4 counterfactual inputs:
+# After Tab 2 and before displaying Tab 3:
+mdata[["profile"]] <- hub$build_refinement_profile_defaults(mdata[["profile"]])
+attr(mdata[["profile"]], "refinement_defaults_report")
+
+# After the UI has collected Tab 3/4 refinements:
 result <- hub$build_results(mdata[["profile"]])
 ```
 
@@ -397,6 +405,55 @@ hub <- MIAMAHUB::Hub$new(cfg = hub_cfg)
 mdata[["profile"]] <- hub$build_reference_profile_defaults(mdata[["profile"]])
 ```
 
+This is the Tab 1-to-Tab 2 operation and describes the unmodified geography
+source population. Before opening Tab 3, call the staged operation:
+
+```r
+mdata[["profile"]] <- hub$build_refinement_profile_defaults(
+  mdata[["profile"]],
+  seed = 1L
+)
+```
+
+This call does not reload parquet or HM data. It converts filled Tab 2 reference
+volumes into REF person/user/trip scope flags, applies filled Tab 2
+counterfactual inputs to a synthpop-only CF copy, and derives the advanced
+population table and spread
+defaults from those row-level snapshots. The returned
+`refinement_defaults_report` records updated fields, reset hidden inputs, the
+scope and counterfactual reports, and the seed.
+
+For user-count input, each mode-specific Tab 3 row is the corresponding Tab 2
+count. For trip-count input, it is the number of unique people owning the
+selected active-mode trips. Unless the user supplied an explicit population
+total, HUB estimates the common assessed REF/CF population using the pooled
+selected-mode rate in the source population:
+
+```text
+estimated people = source people *
+  sum(requested mode users or trips) / sum(source mode users or trips)
+```
+
+This pools walking and cycling rather than choosing the largest standalone
+mode estimate. A person contributing to two modes is represented in both the
+requested and source sums, and per-mode estimates remain available in
+`reference_scope_report$person$mode_estimates` for diagnosis. The estimate is
+bounded below by every explicit mode-user count and cannot exceed the source
+population.
+
+The Tab 3 table is initialized from the staged REF and CF snapshots. Both sides
+remain independently editable. Basic percentage and age/PA-category controls
+scale **both** scenarios from preserved staged backups, so they change the
+overall appraisal reach without erasing the Tab 2 REF/CF contrast. Category
+counts in `additional_data` contain separate REF and CF columns. Repeated slider
+movement does not compound rounded values. A later manual table edit overrides
+the generated value until a refinement control is moved again. Advanced age,
+sex, and PA sliders leave counts alone and modify CF candidate sampling weights.
+
+The shared population total is operational as well as explanatory: it defines
+the assessed person rows, the eligible non-user pool, and population-based rate
+denominators. Mode-specific REF/CF rows determine active-mode user targets.
+
 Before this call, MIAMA-UI must copy the selected Tab 1 setup values into
 `mdata[["profile"]]`, especially `geo_level`, `geo_id` for non-England
 geographies, `ui_version`, `modes`, `intervention_type`, and `data_source`.
@@ -461,6 +518,9 @@ The object keeps intermediate reference objects only while they remain useful:
   counterfactual construction
 - `reference_default_ui_values`: compact extracted defaults for the active
   profile
+- `refinement_reference_data`, `refinement_counterfactual_data`: temporary
+  synthpop-only REF/CF snapshots used to pre-populate Tab 3 consistently after
+  Tab 2
 - `reference_sources`, `reference_data_raw`, `reference_data`: HM-enriched
   reference objects used by lower-level workflow scripts and result building
 
@@ -485,6 +545,9 @@ invalidates cached state as needed:
   values change. Counterfactual and Tab 5-only changes retain the compact
   reference defaults; only inputs that affect reference extraction clear and
   recompute them.
+- Staged refinement snapshots are cleared when submitted profile values change.
+  They are lightweight precursors to the health pipeline, not a second
+  authoritative results cache.
 
 Use `refresh = TRUE` only for an explicit forced recomputation when the inputs
 have not changed, for example during debugging or after replacing source files
@@ -907,10 +970,17 @@ so full-data Tab 2/3/4 defaults do not require full HM outcomes.
 population row count; `population_size` is overridden from the geography
 lookup's scaled population where available.
 
-`pop_total_cf_basic` and `pop_total_cf_advanced` are currently retained as
-separate UI/profile values. They do not add or remove synthetic-population rows:
-counterfactual user targets are validated against the fixed filtered reference
-population until an explicit total-population scaling mechanism is introduced.
+User-entered `pop_total_ref_*`, `pop_number_ref_*`, `users_count_ref_*`, and
+`trips_count_ref_*` values are applied when results are built. They define an
+appraisal snapshot within the full geography rather than changing observed
+reference behaviour. When no explicit total exists, user/trip volumes imply an
+affected population through the pooled source-rate calculation described above.
+HUB retains the full geography as the source pool and adds
+explicit `ref_in_scope` / `cf_in_scope`, mode-specific user-scope, and
+mode-specific trip-scope flags. The resulting `reference_scope_report` records
+the derivation, requested and realized counts. Targets larger than the available strata
+currently fail explicitly; representing them requires agreed multiplicity
+weights rather than duplicated health trajectories.
 
 For England-wide schema default review values, use
 `inst/workflows/dev_extract_england_schema_default_values.R`. It reads the full
@@ -960,6 +1030,24 @@ convenience helpers for development and summary displays.
 
 ## Counterfactual data initialization and UI application
 
+### Reference appraisal scope
+Before initializing CF, `apply_reference_appraisal_scope()` interprets submitted
+REF counts as system boundaries. Selecting a smaller population, fewer current
+users, or fewer active trips does not alter any person's travel, MMET value, or
+health trajectory. It only determines which observed rows count in the assessed
+REF snapshot. When no REF field was edited, all flags reproduce the previous
+full-geography behavior.
+
+CF starts from these flags. Added users are sampled from baseline non-users
+inside the assessed REF person scope; CF does not silently expand the appraisal
+boundary with outside rows. Existing trips are eligible for switching only for
+people in CF scope. The reference data remain unchanged and
+only CF assignments change activity and MMET exposure. Cycle health data are
+then loaded/calculated only for the final CF person scope, so unchanged donor
+rows outside the appraisal do not enter result denominators. `build_results()`
+returns the scope diagnostics as `reference_scope_report` as well as attaching
+them to `reference_data`.
+
 ### Initialize counterfactual data
 `init_counterfactual_data()` starts Step 6 by returning a 1:1 copy of filtered
 `reference_data`. The first UI-driven implementation is
@@ -995,7 +1083,7 @@ the individual population fixed:
   assumption is absent, observed current-user trip counts remain the fallback.
 
 Targets must be finite, non-negative, rounded integer counts and cannot exceed
-the filtered reference population size. E-bike and walk-to-public-transport
+the full filtered geography retained as the donor population. E-bike and walk-to-public-transport
 counterfactual user counts are currently reported as unsupported until the data
 contains dedicated activity columns or agreed classification rules.
 
@@ -1007,9 +1095,18 @@ values into a base-week trip count. Increases are split into two mechanisms:
 - `mode_shift`: existing non-active, utilitarian trips are switched to the
   active mode. Raw trip distance is preserved, and the active-mode
   distance/duration columns are populated from raw distance/duration.
-- `induced_recreational_active`: a default 10% of additional active trips are
+- `induced_recreational_active`: by default 10% of additional active trips are
   treated as newly induced discretionary trips and added as new trip rows with
   recreational purpose.
+
+The explicit mechanism parameter is
+`cfg$counterfactual$trips$induced_trips_percent_default`; shifted trips are its
+complement. This is separate from the percentage of activity assigned to new
+users, even when both defaults happen to be 10%. If Tab 4 supplies a purpose
+type, `utilitarian` maps to all shifted trips, `recreational` maps to all induced
+trips, and a `mixed` utilitarian percentage determines the complementary
+induced percentage. This is the transparent v1 mechanism interpretation; it
+does not claim that every recreational trip must be induced in reality.
 
 For increases, Tab 4 may specify a small source-by-target diversion matrix using
 `trips_diversion_car_perc_walk` and `trips_diversion_car_perc_bike`. Each value
@@ -1017,8 +1114,8 @@ is the expected percentage of mode-shift trips into that active target mode
 whose reference mode was car. The residual percentage is sampled from all
 other plausible non-target-mode trips. Distance and car-source weights are
 combined when candidates are sampled, so realized percentages are approximate
-in finite samples. The requested purpose distribution is not yet included in
-the trip candidate weights. Each counterfactual change report records
+in finite samples. Purpose determines the shifted/induced mechanism split; it
+does not alter candidate weights within a mechanism. Each counterfactual change report records
 `car_diversion_field`, the requested `car_diversion_percent`, and the observed
 `realized_car_diversion_percent` among shifted trips.
 
@@ -1053,7 +1150,7 @@ components `cf_mmet_delta_walking`, `cf_mmet_delta_cycling`, and
 `cf_mmet_delta_other_activity`. The report summarizes these components under
 `counterfactual_report$mmet_exposure`.
 
-Advanced Tab 4 fields such as `trips_dist_value`, `trips_purpose_type`,
+Advanced Tab 4 fields such as `trips_dist_value`,
 `trips_spread_mean_cf`, `trips_spread_util_prop_cf`, and the diversion
 percentage fields are parsed and recorded. When compact cf spread bars are
 available, distance-based candidate selection uses the configured five-category
@@ -1061,10 +1158,10 @@ distance distribution. Older direct category controls can still plug into the
 `agecat_1_prop_cf` ... `agecat_5_prop_cf` and `distcat_1_prop_cf` ...
 `distcat_5_prop_cf` hooks, or the corresponding `_perc_cf` fields.
 
-TODO: apply `trips_spread_util_prop_cf_*` to trip candidate selection and add a
-requested-versus-realized purpose summary. At present, mode-shift candidates
-are utilitarian and induced trips are recreational, so the purpose mix is
-mainly determined by the configured shifted/induced split.
+TODO: reconcile `trips_spread_util_prop_cf_*` with the scalar purpose controls
+and add a requested-versus-realized purpose summary. At present, mode-shift
+candidates are utilitarian and induced trips are recreational, so purpose sets
+the mechanism split rather than reweighting candidates within each mechanism.
 
 Basic Tab 2 currently has two additional target forms that are not yet applied
 to counterfactual rows:

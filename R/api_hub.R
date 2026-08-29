@@ -8,7 +8,9 @@
 # 2. `build_reference_profile_defaults()` loads/builds synthpop reference data
 #    as needed and writes derived reference values into matching
 #    `default_value` fields.
-# 3. `build_results()` receives the filled profile after UI counterfactual
+# 3. `build_refinement_profile_defaults()` applies Tab 2 inputs to staged REF
+#    and CF synthpop snapshots and writes their summaries into Tab 3 defaults.
+# 4. `build_results()` receives the filled profile after UI counterfactual
 #    inputs have been collected, builds counterfactual data from the synthpop
 #    reference data, applies HM health outcomes, and returns profile, data
 #    objects, result tables, and plot-ready data.
@@ -35,6 +37,9 @@ Hub <- R6::R6Class(
     reference_ui_values = NULL,
     reference_default_data = NULL,
     reference_default_ui_values = NULL,
+    refinement_reference_data = NULL,
+    refinement_counterfactual_data = NULL,
+    refinement_report = NULL,
     counterfactual_data = NULL,
     health_impacts = NULL,
     results_data = NULL,
@@ -64,6 +69,9 @@ Hub <- R6::R6Class(
             reference_ui_values = self$reference_ui_values,
             reference_default_data = self$reference_default_data,
             reference_default_ui_values = self$reference_default_ui_values,
+            refinement_reference_data = self$refinement_reference_data,
+            refinement_counterfactual_data = self$refinement_counterfactual_data,
+            refinement_report = self$refinement_report,
             counterfactual_data = self$counterfactual_data,
             health_impacts = self$health_impacts,
             results_data = self$results_data
@@ -77,6 +85,9 @@ Hub <- R6::R6Class(
         self$reference_ui_values <- invalidation$state$reference_ui_values
         self$reference_default_data <- invalidation$state$reference_default_data
         self$reference_default_ui_values <- invalidation$state$reference_default_ui_values
+        self$refinement_reference_data <- invalidation$state$refinement_reference_data
+        self$refinement_counterfactual_data <- invalidation$state$refinement_counterfactual_data
+        self$refinement_report <- invalidation$state$refinement_report
         self$counterfactual_data <- invalidation$state$counterfactual_data
         self$health_impacts <- invalidation$state$health_impacts
         self$results_data <- invalidation$state$results_data
@@ -103,6 +114,9 @@ Hub <- R6::R6Class(
           reference_ui_values = self$reference_ui_values,
           reference_default_data = self$reference_default_data,
           reference_default_ui_values = self$reference_default_ui_values,
+          refinement_reference_data = self$refinement_reference_data,
+          refinement_counterfactual_data = self$refinement_counterfactual_data,
+          refinement_report = self$refinement_report,
           counterfactual_data = self$counterfactual_data,
           health_impacts = self$health_impacts,
           results_data = self$results_data
@@ -118,6 +132,9 @@ Hub <- R6::R6Class(
       self$reference_ui_values <- invalidation$state$reference_ui_values
       self$reference_default_data <- invalidation$state$reference_default_data
       self$reference_default_ui_values <- invalidation$state$reference_default_ui_values
+      self$refinement_reference_data <- invalidation$state$refinement_reference_data
+      self$refinement_counterfactual_data <- invalidation$state$refinement_counterfactual_data
+      self$refinement_report <- invalidation$state$refinement_report
       self$counterfactual_data <- invalidation$state$counterfactual_data
       self$health_impacts <- invalidation$state$health_impacts
       self$results_data <- invalidation$state$results_data
@@ -161,6 +178,35 @@ Hub <- R6::R6Class(
       self$appraisal_inputs
     },
 
+    build_refinement_profile_defaults = function(profile = NULL,
+                                                 seed = 1L,
+                                                 refresh = FALSE) {
+      if (!is.null(profile)) {
+        self$set_appraisal_inputs(profile)
+      }
+      private$.require_request()
+
+      if (isTRUE(refresh) || is.null(self$reference_default_data)) {
+        self$build_reference_default_data()
+      }
+
+      staged <- prepare_refinement_profile_defaults(
+        reference_data = self$reference_default_data,
+        profile = self$appraisal_inputs,
+        reference_request = self$request$reference_request,
+        cfg = self$cfg,
+        seed = seed
+      )
+      self$refinement_reference_data <- staged$reference_data
+      self$refinement_counterfactual_data <- staged$counterfactual_data
+      self$refinement_report <- staged$report
+
+      self$request <- receive_appraisal_inputs(staged$profile)
+      self$appraisal_inputs <- self$request$appraisal_inputs_in
+      attr(self$appraisal_inputs, "refinement_defaults_report") <- staged$report
+      self$appraisal_inputs
+    },
+
     build_results = function(profile = NULL, seed = 1L, refresh = FALSE) {
       if (!is.null(profile)) {
         self$set_appraisal_inputs(profile)
@@ -174,6 +220,9 @@ Hub <- R6::R6Class(
         self$reference_ui_values <- NULL
         self$reference_default_data <- NULL
         self$reference_default_ui_values <- NULL
+        self$refinement_reference_data <- NULL
+        self$refinement_counterfactual_data <- NULL
+        self$refinement_report <- NULL
         self$counterfactual_data <- NULL
         self$health_impacts <- NULL
         self$results_data <- NULL
@@ -231,6 +280,7 @@ Hub <- R6::R6Class(
       list(
         profile = self$appraisal_inputs,
         reference_data = private$.counterfactual_reference_data(),
+        reference_scope_report = private$.counterfactual_reference_data()$reference_scope_report,
         counterfactual_data = self$counterfactual_data,
         health_impacts = self$health_impacts,
         results_data = self$results_data,
@@ -535,9 +585,22 @@ Hub <- R6::R6Class(
     build_counterfactual_data = function(seed = 1L) {
       private$.require_request()
       reference_data <- private$.counterfactual_reference_data()
+      appraisal_input_values <- private$.counterfactual_input_values()
+      reference_data <- apply_reference_appraisal_scope(
+        reference_data,
+        appraisal_input_values = appraisal_input_values,
+        seed = seed,
+        cfg = self$cfg
+      )
+      if (!is.null(self$reference_data) &&
+          !is.null(self$reference_data$ind) &&
+          "mmets" %in% names(self$reference_data$ind)) {
+        self$reference_data <- reference_data
+      } else {
+        self$reference_default_data <- reference_data
+      }
 
       self$counterfactual_data <- init_counterfactual_data(reference_data)
-      appraisal_input_values <- private$.counterfactual_input_values()
       self$counterfactual_data <- apply_counterfactual_ui_values(
         self$counterfactual_data,
         appraisal_input_values,
@@ -703,6 +766,10 @@ Hub <- R6::R6Class(
 
     .counterfactual_input_values = function() {
       values <- self$request$appraisal_input_values
+      values <- .drop_unmodified_advanced_population_values(
+        values,
+        self$appraisal_inputs
+      )
       if (is.null(self$reference_default_ui_values)) {
         if (is.null(self$reference_default_data)) {
           return(values)
@@ -710,10 +777,26 @@ Hub <- R6::R6Class(
         self$build_reference_default_ui_values()
       }
 
+      reference_ui_values <- private$.profile_reference_ui_values(
+        self$reference_default_ui_values
+      )
       derive_counterfactual_spread_values(
         appraisal_input_values = values,
-        reference_ui_values = self$reference_default_ui_values
+        reference_ui_values = reference_ui_values
       )
+    },
+
+    .profile_reference_ui_values = function(reference_ui_values) {
+      out <- reference_ui_values
+      if (is.null(out$ui_updates)) out$ui_updates <- list()
+      for (field_name in names(self$appraisal_inputs)) {
+        field <- self$appraisal_inputs[[field_name]]
+        if (!is_input_field(field) || is.null(field$default_value)) next
+        if (grepl("_ref(_|$)|^pop_target_(age|pa)_groups$", field_name)) {
+          out$ui_updates[[field_name]] <- field$default_value
+        }
+      }
+      out
     },
 
     .apply_geo_lookup_defaults = function(reference_ui_values) {

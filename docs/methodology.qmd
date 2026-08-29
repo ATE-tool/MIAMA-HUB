@@ -238,6 +238,75 @@ selector's categorical `default_value` unchanged. They are counts in the
 filtered synthetic profile; population expansion factors are applied to health
 results rather than to these selector metadata.
 
+## Continuity from Tab 2 to Tabs 3 and 4
+
+The complete geography is the donor population, but it is not necessarily the
+population represented by the appraisal. Filled Tab 2 reference fields first
+create a row-level **REF scoped** snapshot. Tab 3 reference totals,
+mode-specific user counts, and distribution anchors are recalculated from that
+snapshot rather than from the complete geography.
+
+If Tab 2 specifies a mode-user count, HUB samples that number of observed users.
+If it specifies only a mode-trip count, HUB samples active trips and derives the
+corresponding mode-user count from the unique owners of those selected trips.
+When neither field changes, the geography-derived baseline remains the
+reference default. Explicit user and trip targets can both be supplied, in
+which case the trip scope is selected within the user scope.
+
+The Tab 3 total is an estimate of the population represented by those Tab 2
+volumes, not automatically the whole LAD. When no explicit total is supplied,
+HUB compares the requested selected-mode volume with the same volume in the
+source population:
+
+$$
+N_{assessed} = N_{source}
+\frac{\sum_m V^{REF}_{requested,m}}
+     {\sum_m V^{REF}_{source,m}},
+$$
+
+where $V$ is mode users for user-count input and weighted weekly trips for
+trip-count input. Pooling the selected modes avoids making either walking or
+cycling the sole population anchor. People using multiple modes contribute to
+both sums consistently. HUB also reports each standalone mode estimate because
+strong disagreement between them indicates an internally atypical scenario.
+
+Tab 2 counterfactual inputs are applied to a synthpop-only copy before Tab 3 is
+shown. This provides a no-health-model preview of the same CF population that
+will later receive Tab 3 and Tab 4 refinements. Values written into the profile
+remain defaults, not submitted inputs. A genuinely edited Tab 3 value takes
+precedence over Tab 2, while an unchanged rendered control that merely equals
+its generated default does not become a new constraint.
+
+The left and right Tab 3 columns start as the staged REF and CF snapshots. Both
+remain editable. Basic percentage and age/PA-category controls scale both
+snapshots from preserved staged backups, retaining the REF/CF contrast while
+changing the overall assessment reach. HUB supplies separate REF and CF counts
+by category in `additional_data`; the UI applies each scenario's selected share
+to its own staged value. Manual values can still be entered independently after
+this operation. Advanced distribution sliders do not change table counts; they
+change the weights used to select rows for CF behavioral changes.
+
+```{mermaid}
+flowchart LR
+  A[Full LAD baseline donor pool] --> B[Geography defaults]
+  B --> C[Tab 2 REF inputs]
+  C --> D[REF scoped people, users and trips]
+  D --> E[Tab 3 reference table and spreads]
+  D --> F[Tab 2 CF inputs]
+  F --> G[Staged CF synthpop snapshot]
+  G --> H[Tab 3/4 refinements]
+  H --> I[Final CF snapshot]
+  D --> J[HM join and health trajectories]
+  I --> J
+  J --> K[Tab 5 results]
+```
+
+The UI precedence for overlapping concepts is:
+
+1. a filled, changed Tab 3 or Tab 4 value;
+2. a filled Tab 2 value;
+3. the geography-derived default.
+
 ## Basic specification (Tab 2)
 
 The basic interface offers alternative currencies for describing change:
@@ -262,6 +331,11 @@ For each assessed mode, Tab 3 can provide:
 - a target mean weekly PA exposure and proportion male within the PA display;
   and
 - a UI option describing current versus new users.
+
+The aggregate CF population total is a presentation summary. Row-level
+behavioral changes are controlled by the mode-specific CF user targets. People
+who remain behaviorally unchanged are not removed from health denominators
+merely to force the displayed aggregate CF total.
 
 Reference distributions are represented as a 5 x 2 table: five configured age
 or PA categories crossed with sex. The app displays the table as paired bars.
@@ -301,11 +375,19 @@ The configured distance groups are 0--2, 2--5, 5--10, 10--30, and 30+ km.
 
 ## General design
 
-Counterfactual data begin as a one-to-one copy of the filtered reference data.
-All changes are made only in that copy. The person count cannot increase;
-travel needs are preserved by switching trip mode rather than deleting
-utilitarian journeys. Sampling uses existing observed rows as donors so that
-joint characteristics not explicitly modeled remain plausible.
+The complete filtered LAD synthetic population is retained as the baseline
+source pool. User-entered reference counts define an **appraisal snapshot**
+within that pool. HUB records separate scope flags for assessed people,
+mode-specific users, and mode-specific active trips. Selecting the reference
+snapshot does not alter behavior, MMET exposure, or health trajectories; it
+only sets the system boundary for the appraisal.
+
+Counterfactual data begin as a one-to-one copy of this flagged baseline. CF
+scope initially equals REF scope. New users are sampled from baseline non-users
+inside that assessed population, so user growth changes behavior without
+expanding the population boundary. Existing trips can
+be switched only for people in CF scope, while induced trips are assigned to CF
+scope. All behavioral changes are made only in the CF copy.
 
 The random seed is fixed by the calling workflow, making a run reproducible for
 the same data and inputs. Sampling is without replacement when selecting people
@@ -352,9 +434,13 @@ the displayed target.
 
 ## Changing the number of trips
 
-For an increase, 90% of the additional active trips are currently treated as
-mode shifts and 10% as induced recreational trips. These shares are configurable
-counterfactual assumptions.
+For an increase, the default mechanism treats 90% of additional active trips as
+mode shifts and 10% as induced recreational trips. The explicit parameter is
+`cfg$counterfactual$trips$induced_trips_percent_default`; it is distinct from
+the new-user percentage even when both are set to 10%. A Tab 4 purpose choice overrides that default:
+utilitarian means shifted, recreational means induced, and a mixed
+utilitarian percentage determines the complementary induced percentage. This
+is a v1 operational interpretation of purpose, not an empirical identity.
 
 Mode-shift candidates must be existing non-active utilitarian trips. Candidate
 distances are limited to 120% of the maximum observed reference active-mode
@@ -367,19 +453,18 @@ reported.
 
 Selected trips retain their observed raw distance and duration; the target
 active-mode fields are populated from those raw values. For induced travel,
-HUB copies observed active-trip donor rows, assigns new trip identifiers, marks
-them recreational, and assigns trip weight 1.
+HUB copies observed active-trip donor rows, assigns them to people in CF scope,
+creates new trip identifiers, marks them recreational, and retains the donor
+trip weight.
 
 For a decrease, sampled active trips are switched to the configured alternative
 mode, currently car. Rows are not deleted because the underlying travel need is
 assumed to remain.
 
 ::: {.callout-warning}
-Although the Tab 4 utilitarian-proportion value is parsed and reported as a
-sampling constraint, it is not yet applied in `cf_trip_candidate_weights()`.
-At present, existing mode-shift candidates are all utilitarian and induced
-rows are all recreational, so the realized purpose split is mainly determined
-by the fixed 90/10 mechanism rather than the purpose slider.
+The compact `trips_spread_util_prop_cf_*` value is not yet reconciled with the
+scalar purpose controls. Purpose currently selects the shifted/induced
+mechanism split; it does not reweight candidates inside either mechanism.
 :::
 
 ## Weights and represented totals
@@ -401,10 +486,10 @@ in the counterfactual report for validation.
 | Mode-specific user count | Weekly target users | Adds new-user or ex-user statuses among existing people. |
 | Mean age + sex proportion | Five age categories and sex marginal | Weights candidate people changing status. |
 | Mean PA + sex proportion | Five PA categories and sex marginal | Weights candidate people using their pre-change PA. |
-| Current/new-user percentage | Scalar profile value | **Planned:** parsed but not currently used to partition the target. |
+| Current/new-user percentage | Scalar profile value | **Planned:** parsed but not yet used to jointly assign trip ownership and user status. |
 | Mode-specific trip count | Weekly target trip rows | Shifts existing trips and adds induced recreational trips. |
 | Mean trip distance | Five distance-category target or smooth mean preference | Weights plausible trip candidates. |
-| Utilitarian proportion | Purpose marginal | **Planned:** parsed but not currently included in candidate weights. |
+| Utilitarian proportion | Purpose/mechanism split | Sets shifted versus induced shares for scalar Tab 4 purpose controls; compact spread-purpose reconciliation remains planned. |
 | Car diversion percentage | Expected car share among shifted trips | Rebalances car versus other source-mode candidate pools. |
 | Basic distance/duration target | Aggregate exposure target | **Planned:** no allocation to people/trips. |
 | Basic mode share target | Aggregate shares | **Planned:** no conversion to per-mode trip targets. |
@@ -419,8 +504,8 @@ for empirical validation.
 
 ## Priority methodological TODOs
 
-1. **Trip purpose targeting:** apply the Tab 4 utilitarian/recreational target
-   in trip candidate selection and verify the realized split.
+1. **Trip purpose validation:** reconcile scalar and compact spread-purpose
+   controls and report the requested and realized shifted/induced split.
 2. **Candidate-weight calibration:** decide whether category weights should be
    calibrated as target share divided by candidate prevalence, or replaced by
    exact/near-exact quota sampling. Test on large and sparse geographies.

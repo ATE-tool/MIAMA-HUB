@@ -238,7 +238,16 @@ miama_default_config <- function(dataset_size = NULL) {
       base_timeframe = "week",
       mmet_per_hour = MIAMA_MMET_PER_HOUR
     ),
-    # 5. Tab 3/4 spread category definitions -------------------------------
+    # 5. Counterfactual mechanism assumptions ------------------------------
+    counterfactual = list(
+      trips = list(
+        # Used when no Tab 4 purpose split is supplied. A mixed purpose split
+        # maps its recreational share to induced trips in the current v1 model.
+        # Shifted percentage is always the complement (100 - induced).
+        induced_trips_percent_default = 10
+      )
+    ),
+    # 6. Tab 3/4 spread category definitions -------------------------------
     spread = list(
       age = list(
         ids = c("age_18_29", "age_30_39", "age_40_49", "age_50_59", "age_60_plus"),
@@ -263,7 +272,7 @@ miama_default_config <- function(dataset_size = NULL) {
         right = TRUE
       )
     ),
-    # 6. Tab 5 results metadata ---------------------------------------------
+    # 7. Tab 5 results metadata ---------------------------------------------
     # This catalogue is stable and available before health data are loaded.
     # Use `get_health_outcome_options()` to turn it into a UI-ready table or
     # validate it against the columns of a particular HM outcome source.
@@ -281,11 +290,11 @@ miama_default_config <- function(dataset_size = NULL) {
         )
       )
     ),
-    # 7. Stable UI option metadata ------------------------------------------
+    # 8. Stable UI option metadata ------------------------------------------
     # Data-derived reference values remain elsewhere; these are only the
     # canonical IDs, labels, and defaults used to construct controls.
     options = .miama_default_ui_options(),
-    # 8. Data sources --------------------------------------------------------
+    # 9. Data sources --------------------------------------------------------
     sources = list(
       sp_attributes = p$sp_attributes,
       sp_trips      = p$sp_trips,
@@ -305,13 +314,13 @@ miama_default_config <- function(dataset_size = NULL) {
         lookup_cycle = p$hm_lookup_cycle_death_share
       )
     ),
-    # 9. Runtime cache -------------------------------------------------------
+    # 10. Runtime cache ------------------------------------------------------
     cache = list(
       enabled = TRUE,
       refresh = FALSE,
       dir     = p$cache_dir
     ),
-    # 10. Generated output locations ---------------------------------------
+    # 11. Generated output locations ---------------------------------------
     output = list(
       root      = p$output_root,
       lookup    = p$output_lookup,
