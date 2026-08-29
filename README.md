@@ -454,6 +454,25 @@ The shared population total is operational as well as explanatory: it defines
 the assessed person rows, the eligible non-user pool, and population-based rate
 denominators. Mode-specific REF/CF rows determine active-mode user targets.
 
+#### MIAMA-UI integration contract
+
+The UI should use the two profile-building methods at distinct transitions:
+
+1. At the end of Tab 1, call `build_reference_profile_defaults()` once to load
+   the selected geography and populate the baseline defaults used in Tab 2.
+2. After saving the current Tab 2 controls and before rendering Tab 3, call
+   `build_refinement_profile_defaults()` to build the staged REF and CF
+   snapshots and replace the advanced population/spread defaults.
+3. When moving from Tab 3 to Tab 4, save the edited profile values but do not
+   call `build_reference_profile_defaults()` again. Rebuilding geography
+   defaults at this point would overwrite the staged Tab 2-to-Tab 3 handoff.
+
+HUB owns source-data loading, REF scoping, CF staging, population estimation,
+category metadata, and profile defaults. MIAMA-UI owns rendering controls,
+reactive updates, and persisting user edits into `input_value`/`is_filled`.
+The UI should not copy REF defaults into CF fields itself; HUB initializes the
+no-change CF defaults while preserving genuine submitted CF values.
+
 Before this call, MIAMA-UI must copy the selected Tab 1 setup values into
 `mdata[["profile"]]`, especially `geo_level`, `geo_id` for non-England
 geographies, `ui_version`, `modes`, `intervention_type`, and `data_source`.

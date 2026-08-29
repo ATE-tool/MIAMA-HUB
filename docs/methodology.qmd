@@ -286,6 +286,14 @@ to its own staged value. Manual values can still be entered independently after
 this operation. Advanced distribution sliders do not change table counts; they
 change the weights used to select rows for CF behavioral changes.
 
+Operationally, MIAMA-UI first saves the Tab 2 controls into the profile and
+then calls `build_refinement_profile_defaults()` before rendering Tab 3. HUB
+returns the independently staged REF and CF defaults, backups, and category
+metadata; the UI renders and persists subsequent edits. Entry to Tab 4 does
+not rebuild geography defaults, because doing so would replace the staged
+snapshots with the original baseline. REF-to-CF default mirroring is likewise
+owned by HUB rather than repeated in modal-specific UI code.
+
 ```{mermaid}
 flowchart LR
   A[Full LAD baseline donor pool] --> B[Geography defaults]
