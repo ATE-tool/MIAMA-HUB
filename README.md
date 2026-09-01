@@ -123,6 +123,10 @@ Primary UI-facing methods:
   applies filled Tab 2 REF and CF inputs to synthpop-only staged snapshots,
   summarizes those exact scopes, and writes the resulting Tab 3 population and
   spread values into advanced `default_value` fields. No HM data are loaded.
+- `build_trip_refinement_profile_defaults(profile = NULL, seed = 1L, refresh = FALSE)`:
+  applies the final Tab 3 population values to staged REF and CF synthpop
+  snapshots and writes row-consistent trip totals and spread defaults for Tab 4.
+  No HM data are loaded.
 - `build_results(profile = NULL, seed = 1L, refresh = FALSE)`: runs the current
   end-to-end calculation from the fully filled profile. It builds
   counterfactual data from the synthpop reference data, applies the HM
@@ -151,7 +155,11 @@ attr(mdata[["profile"]], "reference_defaults_report")
 mdata[["profile"]] <- hub$build_refinement_profile_defaults(mdata[["profile"]])
 attr(mdata[["profile"]], "refinement_defaults_report")
 
-# After the UI has collected Tab 3/4 refinements:
+# After Tab 3 and before displaying Tab 4:
+mdata[["profile"]] <- hub$build_trip_refinement_profile_defaults(mdata[["profile"]])
+attr(mdata[["profile"]], "trip_refinement_defaults_report")
+
+# After the UI has collected Tab 4 refinements:
 result <- hub$build_results(mdata[["profile"]])
 ```
 
@@ -445,7 +453,8 @@ The Tab 3 table is initialized from the staged REF and CF snapshots. Both sides
 remain independently editable. Basic percentage and age/PA-category controls
 scale **both** scenarios from preserved staged backups, so they change the
 overall appraisal reach without erasing the Tab 2 REF/CF contrast. Category
-counts in `additional_data` contain separate REF and CF columns. Repeated slider
+counts use `additional_data$ref` and `additional_data$cf`; each contains absolute
+row counts for its scenario. Repeated slider
 movement does not compound rounded values. A later manual table edit overrides
 the generated value until a refinement control is moved again. Advanced age,
 sex, and PA sliders leave counts alone and modify CF candidate sampling weights.
@@ -463,9 +472,11 @@ The UI should use the two profile-building methods at distinct transitions:
 2. After saving the current Tab 2 controls and before rendering Tab 3, call
    `build_refinement_profile_defaults()` to build the staged REF and CF
    snapshots and replace the advanced population/spread defaults.
-3. When moving from Tab 3 to Tab 4, save the edited profile values but do not
-   call `build_reference_profile_defaults()` again. Rebuilding geography
-   defaults at this point would overwrite the staged Tab 2-to-Tab 3 handoff.
+3. After saving Tab 3 and before rendering Tab 4, call
+   `build_trip_refinement_profile_defaults()`. It applies the final Tab 3
+   population scopes and initializes Tab 4 from matching REF/CF trip snapshots.
+   Do not call `build_reference_profile_defaults()` again; that would overwrite
+   the staged handoff with geography-wide defaults.
 
 HUB owns source-data loading, REF scoping, CF staging, population estimation,
 category metadata, and profile defaults. MIAMA-UI owns rendering controls,
@@ -506,16 +517,20 @@ control is not invented dynamically.
 Tab 3's `pop_target_age_groups` and `pop_target_pa_groups` are different: their
 categorical selections remain in `default_value`, while HUB replaces their
 `additional_data` with counts derived from the filtered synthetic population.
-For every configured category, the payload contains `pop_tot` plus
-mode-specific `pop_walk`, `pop_bike`, `pop_ebike`, and `pop_pt` counts. Age
-categories come from `age1year` and `cfg$spread$age`; PA categories come first
+Under both `additional_data$ref` and `additional_data$cf`, every configured
+category contains absolute `pop_tot`, `pop_walk`, `pop_bike`, `pop_ebike`, and
+`pop_pt` row counts. Age categories come from `age1year` and
+`cfg$population_refinement$age`; PA categories come first
 from `mmets`, then `mmet_wkhr`, or otherwise reconstructed weekly MMET-hours
 from walking, cycling, and sport activity using configured intensities. Mode
 counts use the corresponding person-level duration column when available, with
 trip evidence as the supported fallback. Unavailable mode evidence produces
 `NA` rather than zero and is recorded in the extraction notes. These values are
 synthetic-profile row counts; population scaling is applied later in results,
-not to this UI metadata.
+not to this UI metadata. The category sets are exhaustive: under-18 and
+other/unknown age groups, and an unknown PA group, prevent records from silently
+falling outside all choices. The five-bin `cfg$spread` categories remain separate
+because the spread-bar redistribution functions require exactly five bins.
 
 The writer is schema-driven. A profile control whose `additional_data` contains
 `default_value_backup` is treated as a normal default field with a backup;
@@ -1201,16 +1216,12 @@ units, so no precedence rule is needed while exactly one branch is filled. The
 distance/duration allocation rule still requires an explicit modelling decision
 before it should affect health outcomes.
 
-Trip counts have an explicit two-level contract. UI reference values,
-counterfactual targets, result tables, and plots use weighted weekly trips.
-Counterfactual sampling operates on physical synthetic-population rows. HUB
-converts a weighted target to a row target by applying the requested
-reference-to-counterfactual ratio to the reference active-row count. Shifted
-rows retain their existing `weight_tripXhh`; induced rows retain the sampled
-donor weight. The counterfactual report stores the submitted weighted target,
-derived row target, and mean reference weight. Realized weighted totals can
-differ slightly because rows are indivisible, but converge on the requested
-ratio in larger samples.
+Trip counts have one explicit contract: one synthetic trip row is one trip
+record. UI reference values, counterfactual targets, sampling, result tables,
+and plots all use weekly row counts. `weight_tripXhh` remains source metadata but
+does not change these targets. Shifted rows retain their source metadata and
+induced rows retain sampled donor metadata. Health-result population expansion
+is configured separately from this trip-count contract.
 
 Parameter naming follows the same distinction used elsewhere in the package:
 `*_ref` values are measured from filtered reference data, while `*_default`
@@ -1445,7 +1456,7 @@ The primary returned objects are:
 | `result$results_data$results_table` | Table aggregated according to the profile's initial Tab 5 selections. Useful for exports and initial tables. |
 | `result$plot_data$health_cube` | Canonical interactive health source, grouped by outcome, cycle, age group, gender, and mode. It contains `all_modes` rows and attributed mode rows. |
 | `result$plot_data$mode_attribution` | Compact audit table of mode-specific MMET changes and their shares of the net MMET change. |
-| `result$plot_data$trip_mode_distribution` | Reference/counterfactual weighted trip totals and shares by broad mode. |
+| `result$plot_data$trip_mode_distribution` | Reference/counterfactual trip-record totals and shares by broad mode. |
 | `result$plot_data$spreads` | Reference/counterfactual spread payloads described in the Tab 3/4 section. |
 
 `result$plot_data` and `result$results_data$plot_data` refer to the same compact
@@ -1560,7 +1571,7 @@ MIAMAHUB::results_plot_health_impacts(
 )
 ```
 
-For weighted trip-mode shares:
+For trip-record mode shares:
 
 ```r
 MIAMAHUB::results_plot_trip_mode_distribution(
@@ -1629,7 +1640,7 @@ frame per plot:
   gender, and mode plots.
 - `mode_attribution` is the compact audit table behind the mode split. It
   reports changed individuals, MMET deltas, and net MMET shares by mode.
-- `trip_mode_distribution` contains reference and counterfactual weighted trip
+- `trip_mode_distribution` contains reference and counterfactual trip-record
   totals and proportions for Walking, Cycling, Public transport, Driving, and
   Other. It remains separate because its rows represent travel modes and
   scenarios, whereas `health_cube` rows represent health-model strata.
@@ -1737,7 +1748,7 @@ profile, cfg, ...)`. Its return value contains:
 | `headline_metrics` | Mortality, disease, and cumulative life-year headline fields. |
 | `results_table` | Health result table grouped according to the bundle's initial selection snapshot. |
 | `timeline_annual` / `timeline_cumulative` | Both timeline representations using the same outcome/population/mode snapshot. |
-| `trip_mode_distribution` | Reference/counterfactual weighted trips and mode shares for the snapshot's modes. |
+| `trip_mode_distribution` | Reference/counterfactual trip records and mode shares for the snapshot's modes. |
 | `assumptions` | Sign conventions, population scaling, cycle handling, and current limitations. |
 | `amat_inputs` | Explicitly provisional field/value mapping pending the agreed AMAT schema. |
 | `amat_health_timeline` | Annual ref/cf values, technical differences, benefit-oriented differences, and cumulative differences for deaths, diseases, LY, HLY, and HALY. |
@@ -1874,7 +1885,7 @@ Tab 5 structure is deliberately limited to two core and four advanced views:
   health deltas attributed to walking, cycling, and other activity according to
   their individual-level MMET contributions.
 - Advanced 4, `results_plot_trip_mode_distribution()`: reference and
-  counterfactual weighted trip shares or weekly weighted totals by mode.
+  counterfactual trip-record shares or weekly row totals by mode.
 
 Each function provides data-aware defaults for `title`, `subtitle`, `caption`,
 `x_label`, and `y_label`; callers can override any of them. `NULL` uses the
@@ -1883,11 +1894,11 @@ from the plot request and data: health plots distinguish deaths, disease cases,
 and mixed health outcomes; total plots are cumulative across the available
 model cycles; timeline plots are annual or cumulative according to
 `timeline_type`; trip shares are displayed as
-percentages; and trip totals are weighted trips per reference week. Label
+percentages; and trip totals are trip records per reference week. Label
 overrides change presentation only and never transform the numeric values.
 The same semantics are used in the embedded `tooltip_text` aesthetic. Health
 tooltips identify the outcome, scenario or grouping, model year where relevant,
-and requested metric; trip tooltips identify mode, scenario, and weighted count
+and requested metric; trip tooltips identify mode, scenario, and row count
 or share.
 
 For attributable health plots, `prevented_value = reference - counterfactual`

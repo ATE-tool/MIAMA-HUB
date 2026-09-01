@@ -498,8 +498,8 @@ write_results_report <- function(exports,
     headline_value("disease_cases_prevented")
   )
   units <- c(
-    NA, NA, NA, NA, "people", "weighted trips/week", "weighted trips/week",
-    "weighted trips/week", "weighted trips/week", "deaths", "HALYs", "disease cases"
+    NA, NA, NA, NA, "people", "trip records/week", "trip records/week",
+    "trip records/week", "trip records/week", "deaths", "HALYs", "disease cases"
   )
 
   data.frame(

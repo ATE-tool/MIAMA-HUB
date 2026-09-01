@@ -78,6 +78,10 @@ get_results_options <- function(cfg = NULL) {
   defaults <- miama_default_config()
   age <- cfg$spread$age %||% defaults$spread$age
   pa <- cfg$spread$pa %||% defaults$spread$pa
+  population_age <- cfg$population_refinement$age %||%
+    defaults$population_refinement$age
+  population_pa <- cfg$population_refinement$pa %||%
+    defaults$population_refinement$pa
   distance <- cfg$spread$trip_distance %||% defaults$spread$trip_distance
   configured <- utils::modifyList(
     .miama_default_ui_options(),
@@ -87,16 +91,33 @@ get_results_options <- function(cfg = NULL) {
   c(
     list(
       age_groups = list(
+        values = stats::setNames(
+          as.character(population_age$ids),
+          as.character(population_age$labels)
+        ),
+        default = as.character(population_age$ids)
+      ),
+      spread_age_groups = list(
         values = stats::setNames(as.character(age$ids), as.character(age$labels)),
         default = as.character(age$ids)
       ),
       population_age_groups = list(
-        values = stats::setNames(paste0("pop_", as.character(age$ids)), as.character(age$labels)),
-        default = paste0("pop_", as.character(age$ids))
+        values = stats::setNames(
+          paste0("pop_", as.character(population_age$ids)),
+          as.character(population_age$labels)
+        ),
+        default = paste0("pop_", as.character(population_age$ids))
       ),
       pa_categories = list(
         values = stats::setNames(as.character(pa$ids), as.character(pa$labels)),
         default = as.character(pa$ids)
+      ),
+      population_pa_groups = list(
+        values = stats::setNames(
+          as.character(population_pa$ids),
+          as.character(population_pa$labels)
+        ),
+        default = as.character(population_pa$ids)
       ),
       trip_distance_categories = list(
         values = stats::setNames(as.character(distance$ids), as.character(distance$labels)),

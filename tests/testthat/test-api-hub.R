@@ -315,13 +315,13 @@ test_that("category population defaults are written to additional data", {
   profile <- list(
     pop_target_age_groups = list(
       default_value = "pop_age_18_29",
-      additional_data = list(),
+      additional_data = list(ref = list(), cf = list()),
       is_filled = FALSE,
       input_value = NULL
     ),
     pop_target_pa_groups = list(
       default_value = "moderate",
-      additional_data = list(),
+      additional_data = list(ref = list(), cf = list()),
       is_filled = FALSE,
       input_value = NULL
     )
@@ -335,9 +335,11 @@ test_that("category population defaults are written to additional data", {
     )
   )
 
-  expect_identical(out$pop_target_age_groups$additional_data, age_data)
+  expect_identical(out$pop_target_age_groups$additional_data$ref, age_data)
+  expect_identical(out$pop_target_age_groups$additional_data$cf, age_data)
   expect_identical(out$pop_target_age_groups$default_value, "pop_age_18_29")
-  expect_identical(out$pop_target_pa_groups$additional_data, pa_data)
+  expect_identical(out$pop_target_pa_groups$additional_data$ref, pa_data)
+  expect_identical(out$pop_target_pa_groups$additional_data$cf, pa_data)
   expect_identical(out$pop_target_pa_groups$default_value, "moderate")
   expect_setequal(
     attr(out, "reference_defaults_report")$additional_data_fields,
@@ -707,6 +709,9 @@ test_that("Hub exposes lightweight assessment and option metadata", {
 
   expect_equal(hub$get_assessment_period(), 40L)
   expect_true("age_groups" %in% hub$get_ui_options())
-  expect_identical(hub$get_ui_options("age_groups")$value, hub$cfg$spread$age$ids)
+  expect_identical(
+    hub$get_ui_options("age_groups")$value,
+    hub$cfg$population_refinement$age$ids
+  )
   expect_true("metric" %in% names(hub$get_results_options()))
 })

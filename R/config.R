@@ -150,6 +150,32 @@
   )
 }
 
+.miama_default_population_refinement <- function() {
+  list(
+    age = list(
+      ids = c(
+        "age_under_18", "age_18_29", "age_30_39", "age_40_49",
+        "age_50_59", "age_60_plus", "age_other"
+      ),
+      labels = c(
+        "Under 18", "18-29", "30-39", "40-49", "50-59", "60+",
+        "Other/unknown"
+      ),
+      breaks = c(-Inf, 18, 30, 40, 50, 60, Inf),
+      other_id = "age_other",
+      right = FALSE
+    ),
+    pa = list(
+      ids = c("sedentary", "low", "moderate", "high", "very_high", "unknown"),
+      labels = c("Sedentary", "Low", "Moderate", "High", "Very High", "Unknown"),
+      breaks = c(-Inf, 0, 10, 25, 50, Inf),
+      other_id = "unknown",
+      unit = "mmet_wkhr",
+      right = TRUE
+    )
+  )
+}
+
 .miama_dataset_size <- function(dataset_size = NULL) {
   if (is.null(dataset_size)) {
     dataset_size <- Sys.getenv("MIAMA_DATASET_SIZE", unset = "sample")
@@ -272,7 +298,11 @@ miama_default_config <- function(dataset_size = NULL) {
         right = TRUE
       )
     ),
-    # 7. Tab 5 results metadata ---------------------------------------------
+    # 7. Exhaustive Tab 3 population-filter categories ----------------------
+    # These categories cover every assessed person. They are separate from
+    # the fixed five-category spread definitions used by the slider plots.
+    population_refinement = .miama_default_population_refinement(),
+    # 8. Tab 5 results metadata ---------------------------------------------
     # This catalogue is stable and available before health data are loaded.
     # Use `get_health_outcome_options()` to turn it into a UI-ready table or
     # validate it against the columns of a particular HM outcome source.
@@ -290,11 +320,11 @@ miama_default_config <- function(dataset_size = NULL) {
         )
       )
     ),
-    # 8. Stable UI option metadata ------------------------------------------
+    # 9. Stable UI option metadata ------------------------------------------
     # Data-derived reference values remain elsewhere; these are only the
     # canonical IDs, labels, and defaults used to construct controls.
     options = .miama_default_ui_options(),
-    # 9. Data sources --------------------------------------------------------
+    # 10. Data sources -------------------------------------------------------
     sources = list(
       sp_attributes = p$sp_attributes,
       sp_trips      = p$sp_trips,
@@ -314,13 +344,13 @@ miama_default_config <- function(dataset_size = NULL) {
         lookup_cycle = p$hm_lookup_cycle_death_share
       )
     ),
-    # 10. Runtime cache ------------------------------------------------------
+    # 11. Runtime cache ------------------------------------------------------
     cache = list(
       enabled = TRUE,
       refresh = FALSE,
       dir     = p$cache_dir
     ),
-    # 11. Generated output locations ---------------------------------------
+    # 12. Generated output locations ---------------------------------------
     output = list(
       root      = p$output_root,
       lookup    = p$output_lookup,

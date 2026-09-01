@@ -94,7 +94,7 @@ physical-activity measures still matter.
 | Trip mode | `trip_mainmode`, walking and cycling component fields | Identify active trips and record mode switches. |
 | Trip amount | raw and mode-specific distance and duration | Preserve plausible observed journeys and calculate added or removed active minutes. |
 | Trip purpose | `trip_purpose`, derived `trip_utilitarian` | Distinguish travel needs from discretionary recreational travel. |
-| Trip representation | `weight_tripXhh` | Weight reference trip summaries; treatment of weights in counterfactual row changes remains provisional. |
+| Trip representation | one trip row per record; `weight_tripXhh` retained as source metadata | Define current appraisal trip counts and preserve a future route to weighted reporting. |
 
 Mode-user indicators are derived from positive weekly walking or cycling time,
 with trip evidence used where appropriate. Active-trip indicators use the
@@ -224,16 +224,19 @@ Trip counts can be converted between day, week, and year; user-count conversion
 currently uses a factor of one because repeat-user behavior outside the
 observed week is not identified by the data.
 
-Two Tab 3 selectors also receive derived `additional_data`. For each configured
-age group and PA group, HUB records the number of filtered synthetic people in
-the category (`pop_tot`) and the numbers identified as walking, cycling,
+Two Tab 3 selectors also receive derived `additional_data`. Separate `ref` and
+`cf` payloads hold absolute synthetic-row counts for each staged scenario. For
+each configured age group and PA group, HUB records the number of people in the
+category (`pop_tot`) and the numbers identified as walking, cycling,
 e-biking, or walk-to-public-transport users. Age groups use `age1year` and the
 configured age cut points. PA groups use weekly MMET-hours from `mmets` or
 `mmet_wkhr`; if neither is present, HUB reconstructs the value from walking,
 cycling, and sport hours and their configured intensities. Mode-user status is
 identified from person-level mode duration where available, with trip evidence
 as fallback. Missing evidence is retained as `NA`, not interpreted as no users.
-These metadata populate labels/context for category choices while leaving the
+The categories exhaust the staged population: age includes under-18 and
+other/unknown groups, while PA includes an unknown group. These metadata
+populate labels/context for category choices while leaving the
 selector's categorical `default_value` unchanged. They are counts in the
 filtered synthetic profile; population expansion factors are applied to health
 results rather than to these selector metadata.
@@ -264,7 +267,7 @@ N_{assessed} = N_{source}
      {\sum_m V^{REF}_{source,m}},
 $$
 
-where $V$ is mode users for user-count input and weighted weekly trips for
+where $V$ is mode users for user-count input and weekly trip rows for
 trip-count input. Pooling the selected modes avoids making either walking or
 cycling the sole population anchor. People using multiple modes contribute to
 both sums consistently. HUB also reports each standalone mode estimate because
@@ -280,8 +283,8 @@ its generated default does not become a new constraint.
 The left and right Tab 3 columns start as the staged REF and CF snapshots. Both
 remain editable. Basic percentage and age/PA-category controls scale both
 snapshots from preserved staged backups, retaining the REF/CF contrast while
-changing the overall assessment reach. HUB supplies separate REF and CF counts
-by category in `additional_data`; the UI applies each scenario's selected share
+changing the overall assessment reach. HUB supplies separate absolute counts in
+`additional_data$ref` and `additional_data$cf`; the UI applies the selected categories
 to its own staged value. Manual values can still be entered independently after
 this operation. Advanced distribution sliders do not change table counts; they
 change the weights used to select rows for CF behavioral changes.
@@ -289,9 +292,11 @@ change the weights used to select rows for CF behavioral changes.
 Operationally, MIAMA-UI first saves the Tab 2 controls into the profile and
 then calls `build_refinement_profile_defaults()` before rendering Tab 3. HUB
 returns the independently staged REF and CF defaults, backups, and category
-metadata; the UI renders and persists subsequent edits. Entry to Tab 4 does
-not rebuild geography defaults, because doing so would replace the staged
-snapshots with the original baseline. REF-to-CF default mirroring is likewise
+metadata; the UI renders and persists subsequent edits. After saving Tab 3 it
+calls `build_trip_refinement_profile_defaults()`, which applies the final Tab 3
+population scopes and initializes Tab 4 trip values. It does not rebuild
+geography defaults, because doing so would replace the staged snapshots with the
+original baseline. REF-to-CF default mirroring is likewise
 owned by HUB rather than repeated in modal-specific UI code.
 
 ```{mermaid}
@@ -475,17 +480,15 @@ scalar purpose controls. Purpose currently selects the shifted/induced
 mechanism split; it does not reweight candidates inside either mechanism.
 :::
 
-## Weights and represented totals
+## Count units and represented totals
 
-Reference values, UI targets, and results use weighted weekly trips based on
-`weight_tripXhh`. Sampling itself operates on physical synthetic-population
-rows. HUB converts the requested weighted change to a row target using the
-mode-specific reference ratio: a 20% increase in weighted trips requests an
-approximately 20% increase in active rows. Shifted rows keep their existing
-weights and induced rows retain the sampled donor weight. Because rows are
-indivisible, the realized weighted total can differ slightly from the target;
-the discrepancy should become small in adequately sized samples and is retained
-in the counterfactual report for validation.
+The current appraisal contract is deliberately direct: one synthetic person row
+is one user record and one synthetic trip row is one trip record. Reference
+defaults, UI trip targets, counterfactual sampling, result trip totals, and mode
+shares therefore do not apply `weight_tripXhh`. Distance and duration totals sum
+the corresponding values across included trip rows. Source weights remain in
+the data for future methodological work, but they do not change current count
+targets. Health-result population expansion is a separate configured operation.
 
 # What each refinement currently controls
 
@@ -526,9 +529,9 @@ for empirical validation.
 5. **PA targeting semantics:** decide whether PA categories refer to pre-change
    activity, post-change total activity, or mode-specific added activity, then
    align sampling and UI wording.
-6. **Trip weights:** define whether targets represent physical synthetic rows,
-   weighted trips, or actual population trips; update shifts and induced trips
-   accordingly.
+6. **Trip weights:** validate the current one-row/one-record interpretation and
+   decide whether a future reporting layer should expose survey-weighted or
+   population-expanded estimates separately from sampling targets.
 7. **Basic distance/duration and mode share:** translate these inputs into
    operational user/trip targets or clearly mark them as non-modeling inputs.
 8. **Short-term effects:** implement a time-limited intervention effect rather

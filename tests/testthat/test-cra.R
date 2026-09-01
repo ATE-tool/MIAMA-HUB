@@ -1,9 +1,3 @@
-test_that("health impacts defaults to an empty data frame", {
-  payload <- build_ui_return_payload()
-
-  expect_equal(nrow(payload$health_impacts), 0)
-})
-
 test_that("death-share path prefers sample outcome table for sample workflows", {
   tmp <- withr::local_tempdir()
   hub_root <- file.path(tmp, "MIAMA-HUB")

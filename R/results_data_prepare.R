@@ -813,7 +813,10 @@ prepare_results_data <- function(
   if (paste0(scenario_scope, "_in_scope") %in% names(trips)) {
     trips <- trips[.true_values(trips[[paste0(scenario_scope, "_in_scope")]]), , drop = FALSE]
   }
-  weights <- .trip_weights(trips)
+  # Appraisal trip counts use the transparent row-count contract: one
+  # synthetic trip row is one trip record. Survey weights remain available in
+  # the source data but do not alter UI targets or result trip totals.
+  weights <- rep(1, nrow(trips))
   mode <- .results_trip_mode_group(trips$trip_mainmode)
   totals <- stats::aggregate(weights, by = list(mode = mode), FUN = sum, na.rm = TRUE)
   names(totals)[names(totals) == "x"] <- "trips"
@@ -968,24 +971,28 @@ prepare_results_data <- function(
 
 .results_age_group_levels <- function(cfg = NULL) {
   cfg <- cfg %||% miama_default_config()
-  spec <- cfg$spread$age %||% miama_default_config()$spread$age
+  spec <- cfg$population_refinement$age %||%
+    miama_default_config()$population_refinement$age
+  classified_ids <- setdiff(as.character(spec$ids), spec$other_id %||% character(0))
+  lower <- upper <- rep(NA_real_, length(spec$ids))
+  classified_rows <- match(classified_ids, spec$ids)
+  lower[classified_rows] <- as.numeric(spec$breaks[-length(spec$breaks)])
+  upper[classified_rows] <- as.numeric(spec$breaks[-1])
   data.frame(
     id = as.character(spec$ids),
     label = as.character(spec$labels),
-    lower = as.numeric(spec$breaks[-length(spec$breaks)]),
-    upper = as.numeric(spec$breaks[-1]),
+    lower = lower,
+    upper = upper,
     stringsAsFactors = FALSE
   )
 }
 
 .results_age_group <- function(age, cfg = NULL) {
   cfg <- cfg %||% miama_default_config()
-  spec <- cfg$spread$age %||% miama_default_config()$spread$age
-  category <- .spread_cut(age, spec$breaks, right = spec$right)
-  out <- rep(NA_character_, length(category))
-  keep <- !is.na(category)
-  out[keep] <- spec$ids[category[keep]]
-  out
+  spec <- cfg$population_refinement$age %||%
+    miama_default_config()$population_refinement$age
+  category <- .population_refinement_categories(age, spec)
+  as.character(spec$ids[category])
 }
 
 .results_divide_or_na <- function(numerator, denominator) {

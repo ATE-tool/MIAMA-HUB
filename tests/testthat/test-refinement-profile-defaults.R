@@ -25,8 +25,8 @@ test_that("refinement defaults summarize staged Tab 2 REF and CF snapshots", {
     pop_target_age_groups = profile_field(default = "pop_age_18_29"),
     pop_target_pa_groups = profile_field(default = "sedentary")
   )
-  profile$pop_target_age_groups$additional_data <- list()
-  profile$pop_target_pa_groups$additional_data <- list()
+  profile$pop_target_age_groups$additional_data <- list(ref = list(), cf = list())
+  profile$pop_target_pa_groups$additional_data <- list(ref = list(), cf = list())
   reference_data <- list(
     ind = data.frame(
       census_id = 1:6,
@@ -56,11 +56,11 @@ test_that("refinement defaults summarize staged Tab 2 REF and CF snapshots", {
   expect_true("input_value" %in% names(updated$pop_total_ref_advanced))
   expect_equal(updated$pop_number_ref_walk_advanced$additional_data$default_value_backup, 1)
   expect_equal(
-    updated$pop_target_age_groups$additional_data$pop_age_18_29$pop_walk,
+    updated$pop_target_age_groups$additional_data$ref$pop_age_18_29$pop_walk,
     1
   )
   expect_equal(
-    updated$pop_target_age_groups$additional_data$pop_age_18_29$pop_walk_cf,
+    updated$pop_target_age_groups$additional_data$cf$pop_age_18_29$pop_walk,
     2
   )
   expect_equal(sum(hub$refinement_reference_data$ind$ref_user_scope_walk), 1)
@@ -70,6 +70,26 @@ test_that("refinement defaults summarize staged Tab 2 REF and CF snapshots", {
     2
   )
   expect_true("pop_number_ref_walk_advanced" %in% report$updated_fields)
+})
+
+test_that("Tab 3 age and PA categories exhaust each staged population", {
+  ind <- data.frame(
+    census_id = 1:8,
+    age1year = c(NA, 10, 18, 29, 30, 59, 60, 95),
+    female = 0,
+    walktime_wkhr = c(0, 1, 0, 1, 0, 1, 0, 1),
+    cycletime_wkhr = 0,
+    sport_wkhr = 0,
+    mmets = c(NA, 0, 5, 10, 25, 50, 75, 100)
+  )
+
+  values <- .reference_tab3_category_values(ind, trips = NULL)
+
+  expect_equal(sum(vapply(values$age, `[[`, integer(1), "pop_tot")), nrow(ind))
+  expect_equal(sum(vapply(values$pa, `[[`, integer(1), "pop_tot")), nrow(ind))
+  expect_equal(values$age$pop_age_other$pop_tot, 1)
+  expect_equal(values$age$pop_age_under_18$pop_tot, 1)
+  expect_equal(values$pa$unknown$pop_tot, 1)
 })
 
 test_that("unchanged rendered advanced defaults defer to filled Tab 2 values", {
@@ -129,4 +149,67 @@ test_that("advanced slider values become counterfactual sampling targets", {
     sum(spread_category_props_from_bars(ref_bars)[4:5])
   )
   expect_true(all(c("sex", "age") %in% target$constraints))
+})
+
+test_that("Tab 3 handoff stages row-count trip defaults for Tab 4", {
+  profile <- list(
+    ui_version = profile_field("advanced", TRUE),
+    geo_level = profile_field("lad", TRUE),
+    geo_id = profile_field("E08000035", TRUE),
+    modes = profile_field("walking", TRUE),
+    at_data_unit = profile_field("users", TRUE),
+    users_count_ref_walk = profile_field(2, TRUE),
+    users_count_cf_walk = profile_field(2, TRUE),
+    pop_total_ref_advanced = profile_field(default = 3, backup = TRUE),
+    pop_total_cf_advanced = profile_field(default = 3, backup = TRUE),
+    pop_number_ref_walk_advanced = profile_field(default = 2, backup = TRUE),
+    pop_number_cf_walk_advanced = profile_field(default = 2, backup = TRUE),
+    trips_number_total_ref = profile_field(),
+    trips_number_total_cf = profile_field(),
+    trips_number_ref_walk = profile_field(),
+    trips_number_cf_walk = profile_field(),
+    trips_spread_mean_ref_walk = profile_field(),
+    trips_spread_mean_cf_walk = profile_field(),
+    trips_spread_util_prop_ref_walk = profile_field(),
+    trips_spread_util_prop_cf_walk = profile_field(),
+    trips_spread_bars_ref_walk = profile_field(),
+    trips_diversion_total_trips = profile_field(),
+    trips_diversion_trips_n = profile_field(),
+    trips_diversion_distance_total = profile_field(),
+    trips_diversion_duration_total = profile_field()
+  )
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:3,
+      age1year = c(20, 30, 40),
+      female = c(0, 1, 0),
+      walktime_wkhr = c(1, 1, 0),
+      cycletime_wkhr = 0,
+      sport_wkhr = 0,
+      mmets = c(5, 10, 0)
+    ),
+    trips = data.frame(
+      census_id = 1:3,
+      nts_tripid = 11:13,
+      trip_mainmode = c("Walk", "Walk", "Car"),
+      trip_distraw_km = c(1, 2, 3),
+      trip_durationraw_min = c(10, 20, 15),
+      trip_walkdist_km = c(1, 2, 0),
+      trip_walktime_min = c(10, 20, 0),
+      trip_purpose = c("Commuting", "Leisure", "Shopping"),
+      weight_tripXhh = c(10, 20, 30)
+    )
+  )
+  hub <- Hub$new(cfg = miama_default_config())
+  hub$reference_default_data <- reference_data
+
+  updated <- hub$build_trip_refinement_profile_defaults(profile, seed = 3)
+  report <- attr(updated, "trip_refinement_defaults_report")
+
+  expect_equal(updated$trips_number_total_ref$default_value, 3)
+  expect_equal(updated$trips_number_total_cf$default_value, 3)
+  expect_equal(updated$trips_number_ref_walk$default_value, 2)
+  expect_equal(updated$trips_number_cf_walk$default_value, 2)
+  expect_false(updated$trips_number_ref_walk$is_filled)
+  expect_true("trips_number_ref_walk" %in% report$updated_fields)
 })

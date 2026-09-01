@@ -10,7 +10,9 @@
 #    `default_value` fields.
 # 3. `build_refinement_profile_defaults()` applies Tab 2 inputs to staged REF
 #    and CF synthpop snapshots and writes their summaries into Tab 3 defaults.
-# 4. `build_results()` receives the filled profile after UI counterfactual
+# 4. `build_trip_refinement_profile_defaults()` applies the final Tab 3
+#    population values and writes staged REF/CF trip summaries into Tab 4.
+# 5. `build_results()` receives the filled profile after UI counterfactual
 #    inputs have been collected, builds counterfactual data from the synthpop
 #    reference data, applies HM health outcomes, and returns profile, data
 #    objects, result tables, and plot-ready data.
@@ -204,6 +206,35 @@ Hub <- R6::R6Class(
       self$request <- receive_appraisal_inputs(staged$profile)
       self$appraisal_inputs <- self$request$appraisal_inputs_in
       attr(self$appraisal_inputs, "refinement_defaults_report") <- staged$report
+      self$appraisal_inputs
+    },
+
+    build_trip_refinement_profile_defaults = function(profile = NULL,
+                                                      seed = 1L,
+                                                      refresh = FALSE) {
+      if (!is.null(profile)) {
+        self$set_appraisal_inputs(profile)
+      }
+      private$.require_request()
+
+      if (isTRUE(refresh) || is.null(self$reference_default_data)) {
+        self$build_reference_default_data()
+      }
+
+      staged <- prepare_trip_refinement_profile_defaults(
+        reference_data = self$reference_default_data,
+        profile = self$appraisal_inputs,
+        reference_request = self$request$reference_request,
+        cfg = self$cfg,
+        seed = seed
+      )
+      self$refinement_reference_data <- staged$reference_data
+      self$refinement_counterfactual_data <- staged$counterfactual_data
+      self$refinement_report <- staged$report
+
+      self$request <- receive_appraisal_inputs(staged$profile)
+      self$appraisal_inputs <- self$request$appraisal_inputs_in
+      attr(self$appraisal_inputs, "trip_refinement_defaults_report") <- staged$report
       self$appraisal_inputs
     },
 

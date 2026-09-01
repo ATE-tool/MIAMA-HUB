@@ -24,7 +24,7 @@
 #   MMET contribution. Absolute reference/counterfactual burdens remain all-mode.
 #
 # Advanced 4 -- Travel by mode
-#   Reference and counterfactual weighted trip totals or shares by travel mode.
+#   Reference and counterfactual trip-row totals or shares by travel mode.
 #   This remains distinct from the MMET-attributed health-by-mode view.
 #
 # Label and unit contract:
@@ -39,8 +39,8 @@
 #   result group. Cycle 0 is excluded before plot data are constructed.
 # - Reference/counterfactual health values are modelled deaths, disease cases,
 #   or the generic "health outcomes" when both types occur in one plot.
-# - Trip shares are proportions (displayed as percentages); trip counts are sums
-#   of `weight_tripXhh` when available and therefore are labelled weighted trips.
+# - Trip shares are proportions (displayed as percentages); trip counts follow
+#   the appraisal contract that one synthetic trip row is one trip record.
 #
 # UI contract:
 # - `results_filter_health_data()` filters and aggregates the compact health cube
@@ -645,9 +645,9 @@ results_plot_trip_mode_distribution <- function(
 
 .results_trip_tooltip <- function(data, value) {
   value_name <- if (identical(value, "proportion")) {
-    "Share of weighted trips"
+    "Share of trip records"
   } else {
-    "Weighted trips per reference week"
+    "Trip records per reference week"
   }
   value_text <- if (identical(value, "proportion")) {
     .results_tooltip_number(100 * data$proportion, percent = TRUE)
@@ -808,19 +808,19 @@ results_plot_trip_mode_distribution <- function(
     title = .results_resolve_plot_label(title, "Reference and counterfactual travel by mode"),
     subtitle = .results_resolve_plot_label(
       subtitle,
-      if (is_share) "Share of weighted trips within each scenario" else "Weighted weekly trip totals"
+      if (is_share) "Share of trip records within each scenario" else "Weekly trip-record totals"
     ),
     caption = .results_resolve_plot_label(
       caption,
       paste(
-        "Trip totals use weight_tripXhh where available; shifted and induced rows retain their source/donor weights.",
+        "One synthetic trip row is treated as one trip record; survey weights do not alter these totals.",
         "Reference = without scheme; counterfactual = with scheme."
       )
     ),
     x = .results_resolve_plot_label(x_label, "Travel mode"),
     y = .results_resolve_plot_label(
       y_label,
-      if (is_share) "Share of weighted trips (%)" else "Weighted trips per reference week"
+      if (is_share) "Share of trip records (%)" else "Trip records per reference week"
     )
   )
 }

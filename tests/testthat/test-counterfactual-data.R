@@ -1,10 +1,3 @@
-test_that("counterfactual payload defaults are empty but well formed", {
-  payload <- build_ui_return_payload()
-
-  expect_type(payload$counterfactual_summaries, "list")
-  expect_s3_class(payload$health_impacts, "data.frame")
-})
-
 test_that("init_counterfactual_data copies reference data shape", {
   reference_data <- list(
     ind = data.frame(census_id = 1:2, walktime_wkhr = c(1, 0)),
@@ -557,7 +550,7 @@ test_that("simultaneous walking and cycling targets are mode-order invariant", {
   }
 })
 
-test_that("induced walking trips retain donor trip weights", {
+test_that("trip targets count physical rows while induced rows retain donor metadata", {
   reference_data <- list(
     ind = data.frame(census_id = 1:5, walktime_wkhr = c(1, 0, 0, 0, 0)),
     trips = data.frame(
@@ -586,16 +579,12 @@ test_that("induced walking trips retain donor trip weights", {
   )
 
   induced <- counterfactual_data$trips$cf_induced
-  expect_equal(sum(induced), 1)
-  expect_equal(counterfactual_data$trips$weight_tripXhh[induced], 2)
-  expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$induced_n, 1)
-  expect_equal(
-    counterfactual_data$counterfactual_report$changes[[1]]$target_base_week_weighted_count,
-    12
-  )
+  expect_equal(sum(induced), 7)
+  expect_true(all(counterfactual_data$trips$weight_tripXhh[induced] == 2))
+  expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$induced_n, 7)
   expect_equal(
     counterfactual_data$counterfactual_report$changes[[1]]$target_physical_row_count,
-    6
+    12
   )
 })
 

@@ -1,19 +1,3 @@
-test_that("build_ui_return_payload exposes compact named sections", {
-  payload <- build_ui_return_payload(
-    ui_updates = list(example = 1),
-    reference_summaries = list(example = 2)
-  )
-
-  expect_type(payload, "list")
-  expect_true(all(c(
-    "ui_updates",
-    "reference_summaries",
-    "counterfactual_summaries",
-    "health_impacts",
-    "state"
-  ) %in% names(payload)))
-})
-
 test_that("build_mock_appraisal_inputs returns canonical dev fields", {
   mock <- build_mock_appraisal_inputs()
 
@@ -171,7 +155,7 @@ test_that("extract_reference_ui_values derives Tab 2 trip reference fields", {
   expect_equal(values$ui_updates$pop_total_ref_advanced, 2)
   expect_equal(values$ui_updates$population_size, 2)
   expect_equal(values$ui_updates$trips_count_ref_walk, 1)
-  expect_equal(values$ui_updates$trips_count_ref_bike, 3)
+  expect_equal(values$ui_updates$trips_count_ref_bike, 2)
 })
 
 test_that("extract_reference_ui_values scales Tab 2 trip counts by timeframe", {
@@ -208,9 +192,9 @@ test_that("extract_reference_ui_values scales Tab 2 trip counts by timeframe", {
   )
 
   expect_equal(day_values$ui_updates$trips_count_ref_walk, 1 / 7)
-  expect_equal(day_values$ui_updates$trips_count_ref_bike, 3 / 7)
+  expect_equal(day_values$ui_updates$trips_count_ref_bike, 2 / 7)
   expect_equal(year_values$ui_updates$trips_count_ref_walk, 52.1775)
-  expect_equal(year_values$ui_updates$trips_count_ref_bike, 3 * 52.1775)
+  expect_equal(year_values$ui_updates$trips_count_ref_bike, 2 * 52.1775)
 })
 
 test_that("extract_reference_ui_values derives summary geo_name where possible", {
@@ -281,10 +265,10 @@ test_that("extract_reference_ui_values derives mode-share reference fields", {
     )
   )
 
-  expect_equal(values$ui_updates$mode_share_total_trips, 4)
-  expect_equal(values$ui_updates$mode_share_total_trips_basic, 4)
-  expect_equal(values$ui_updates$mode_share_ref_walk, 25)
-  expect_equal(values$ui_updates$mode_share_ref_bike, 75)
+  expect_equal(values$ui_updates$mode_share_total_trips, 3)
+  expect_equal(values$ui_updates$mode_share_total_trips_basic, 3)
+  expect_equal(values$ui_updates$mode_share_ref_walk, 100 / 3)
+  expect_equal(values$ui_updates$mode_share_ref_bike, 200 / 3)
   expect_true(all(c("mode_share_ref_ebike", "mode_share_ref_pt") %in% names(values$ui_updates)))
   expect_true(is.na(values$ui_updates$mode_share_ref_ebike))
   expect_true(is.na(values$ui_updates$mode_share_ref_pt))
@@ -511,17 +495,19 @@ test_that("extract_reference_ui_values derives Tab 4 trip reference fields", {
     )
   )
 
-  expect_equal(values$ui_updates$trips_number_total_ref, 4)
+  expect_equal(values$ui_updates$trips_number_total_ref, 3)
   expect_equal(values$ui_updates$trips_number_ref_walk, 1)
-  expect_equal(values$ui_updates$trips_number_ref_bike, 3)
+  expect_equal(values$ui_updates$trips_number_ref_bike, 2)
   expect_equal(values$ui_updates$trips_spread_mean_ref_walk, 3.5)
   expect_equal(values$ui_updates$trips_spread_util_prop_ref_walk, 1)
+  # The spread slider mean is reconstructed from configured category midpoints,
+  # not from the raw two-row arithmetic mean.
   expect_equal(values$ui_updates$trips_spread_mean_ref_bike, 7.5)
-  expect_equal(values$ui_updates$trips_spread_util_prop_ref_bike, 2 / 3)
-  expect_equal(values$ui_updates$trips_diversion_total_trips, 4)
-  expect_equal(values$ui_updates$trips_diversion_trips_n, 4)
-  expect_equal(values$ui_updates$trips_diversion_distance_total, 19)
-  expect_equal(values$ui_updates$trips_diversion_duration_total, 130)
+  expect_equal(values$ui_updates$trips_spread_util_prop_ref_bike, 1 / 2)
+  expect_equal(values$ui_updates$trips_diversion_total_trips, 3)
+  expect_equal(values$ui_updates$trips_diversion_trips_n, 3)
+  expect_equal(values$ui_updates$trips_diversion_distance_total, 13)
+  expect_equal(values$ui_updates$trips_diversion_duration_total, 90)
 
   diversion_values <- extract_reference_ui_values(
     reference_data,

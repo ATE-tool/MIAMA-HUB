@@ -336,7 +336,7 @@ extract_reference_ui_values <- function(
   }
 
   keep <- spec$trip_filter(trips) & !is.na(trips$nts_tripid)
-  total <- .weighted_sum(rep(1, nrow(trips)), trips, keep)
+  total <- sum(keep, na.rm = TRUE)
   total <- convert_timeframe_value("week", total, timeframe, datatype = "trips")
 
   if (identical(denominator, "mean")) {
@@ -462,7 +462,7 @@ extract_reference_ui_values <- function(
   keep <- spec$trip_filter(trips)
   total <- convert_timeframe_value(
     "week",
-    .weighted_sum(trips[[value_col]], trips, keep),
+    sum(.as_plain_numeric(trips[[value_col]])[keep], na.rm = TRUE),
     timeframe,
     datatype = "trips"
   )
@@ -470,7 +470,7 @@ extract_reference_ui_values <- function(
   if (identical(denominator, "average_per_person")) {
     total <- .divide_or_na(total, population_size)
   } else if (identical(denominator, "average_per_trip")) {
-    trip_count <- .weighted_sum(rep(1, nrow(trips)), trips, keep)
+    trip_count <- sum(keep, na.rm = TRUE)
     converted_trip_count <- convert_timeframe_value(
       "week", trip_count, timeframe, datatype = "trips"
     )
@@ -547,14 +547,14 @@ extract_reference_ui_values <- function(
 .mode_share_denominator <- function(trips, total_unit) {
   valid <- !is.na(trips$nts_tripid)
   list(
-    total_trips = .weighted_sum(rep(1, nrow(trips)), trips, valid),
+    total_trips = sum(valid, na.rm = TRUE),
     total_distance = if ("trip_distraw_km" %in% names(trips)) {
-      .weighted_sum(trips$trip_distraw_km, trips, valid)
+      sum(.as_plain_numeric(trips$trip_distraw_km)[valid], na.rm = TRUE)
     } else {
       NA_real_
     },
     total_duration = if ("trip_durationraw_min" %in% names(trips)) {
-      .weighted_sum(trips$trip_durationraw_min, trips, valid)
+      sum(.as_plain_numeric(trips$trip_durationraw_min)[valid], na.rm = TRUE)
     } else {
       NA_real_
     },
@@ -582,17 +582,17 @@ extract_reference_ui_values <- function(
     if (is.na(distance_col) || !distance_col %in% names(trips)) {
       return(NA_real_)
     }
-    return(.weighted_sum(trips[[distance_col]], trips, keep))
+    return(sum(.as_plain_numeric(trips[[distance_col]])[keep], na.rm = TRUE))
   }
 
   if (identical(total_unit, "duration")) {
     if (is.na(duration_col) || !duration_col %in% names(trips)) {
       return(NA_real_)
     }
-    return(.weighted_sum(trips[[duration_col]], trips, keep))
+    return(sum(.as_plain_numeric(trips[[duration_col]])[keep], na.rm = TRUE))
   }
 
-  .weighted_sum(rep(1, nrow(trips)), trips, keep)
+  sum(keep, na.rm = TRUE)
 }
 
 .mode_share_car_numerator <- function(trips, total_unit) {
@@ -606,17 +606,17 @@ extract_reference_ui_values <- function(
     if (!"trip_distraw_km" %in% names(trips)) {
       return(NA_real_)
     }
-    return(.weighted_sum(trips$trip_distraw_km, trips, keep))
+    return(sum(.as_plain_numeric(trips$trip_distraw_km)[keep], na.rm = TRUE))
   }
 
   if (identical(total_unit, "duration")) {
     if (!"trip_durationraw_min" %in% names(trips)) {
       return(NA_real_)
     }
-    return(.weighted_sum(trips$trip_durationraw_min, trips, keep))
+    return(sum(.as_plain_numeric(trips$trip_durationraw_min)[keep], na.rm = TRUE))
   }
 
-  .weighted_sum(rep(1, nrow(trips)), trips, keep)
+  sum(keep, na.rm = TRUE)
 }
 
 .mode_share_pie_default <- function(ui_updates) {
@@ -738,6 +738,7 @@ extract_reference_ui_values <- function(
 }
 
 .reference_tab3_category_values <- function(ind, trips, cfg = NULL) {
+  cfg <- cfg %||% miama_default_config()
   mode_suffixes <- c(
     walking = "walk",
     cycling = "bike",
@@ -778,29 +779,30 @@ extract_reference_ui_values <- function(
     }), category_names)
   }
 
+  age_spec <- cfg$population_refinement$age %||%
+    miama_default_config()$population_refinement$age
   age_values <- if ("age1year" %in% names(ind)) {
     age <- .as_plain_numeric(ind$age1year)
-    age_spec <- .spread_category_spec(cfg, "age") %||% miama_default_config()$spread$age
-    age_categories <- .spread_cut(age, age_spec$breaks, right = age_spec$right)
+    age_categories <- .population_refinement_categories(age, age_spec)
     age_names <- paste0("pop_", age_spec$ids)
     category_counts(
       age_categories,
       age_names
     )
   } else {
-    age_spec <- .spread_category_spec(cfg, "age") %||% miama_default_config()$spread$age
     .empty_tab3_category_values(
       paste0("pop_", age_spec$ids)
     )
   }
 
-  pa_names <- c("sedentary", "low", "moderate", "high", "very_high")
+  pa_spec <- cfg$population_refinement$pa %||%
+    miama_default_config()$population_refinement$pa
+  pa_names <- pa_spec$ids
   pa <- .spread_pa_values(ind)
   pa_values <- if (is.null(pa)) {
     .empty_tab3_category_values(pa_names)
   } else {
-    pa_spec <- .spread_category_spec(cfg, "pa") %||% miama_default_config()$spread$pa
-    category_counts(.spread_cut(pa, pa_spec$breaks, right = pa_spec$right), pa_names)
+    category_counts(.population_refinement_categories(pa, pa_spec), pa_names)
   }
 
   unavailable_modes <- names(mode_filters)[!vapply(mode_filters, `[[`, logical(1), "available")]
@@ -815,6 +817,30 @@ extract_reference_ui_values <- function(
   }
 
   list(age = age_values, pa = pa_values, notes = notes)
+}
+
+.population_refinement_categories <- function(values, spec) {
+  ids <- as.character(spec$ids)
+  other_id <- as.character(spec$other_id %||% character(0))
+  classified_ids <- setdiff(ids, other_id)
+  if (length(spec$breaks) != length(classified_ids) + 1L) {
+    stop(
+      "Population-refinement category breaks must define one more boundary ",
+      "than classified category IDs.",
+      call. = FALSE
+    )
+  }
+
+  cut_categories <- as.integer(.spread_cut(
+    .as_plain_numeric(values),
+    spec$breaks,
+    right = isTRUE(spec$right)
+  ))
+  categories <- match(classified_ids, ids)[cut_categories]
+  if (length(other_id) == 1L) {
+    categories[is.na(categories)] <- match(other_id, ids)
+  }
+  categories
 }
 
 .empty_tab3_category_values <- function(category_names) {
@@ -975,13 +1001,7 @@ extract_reference_ui_values <- function(
 }
 
 .trip_weights <- function(trips) {
-  weights <- rep(1, nrow(trips))
-  if ("weight_tripXhh" %in% names(trips)) {
-    weights <- .as_plain_numeric(trips$weight_tripXhh)
-    weights[is.na(weights)] <- 0
-  }
-
-  weights
+  rep(1, nrow(trips))
 }
 
 .utilitarian_trip_filter <- function(trip_purpose) {

@@ -107,7 +107,7 @@ apply_reference_appraisal_scope <- function(reference_data,
       target_rows <- if (is.null(target$value)) {
         length(candidates)
       } else {
-        .reference_weighted_trip_target_rows(target, out$trips, active)
+        .reference_trip_target_rows(target)
       }
       selected <- .sample_reference_rows(candidates, target_rows, seed + spec$seed_offset + 500L)
       ref_col <- .reference_trip_scope_col(mode, "ref")
@@ -284,9 +284,7 @@ apply_reference_appraisal_scope <- function(reference_data,
       }
       active <- spec$trip_filter(reference_data$trips) &
         !is.na(reference_data$trips$nts_tripid)
-      baseline <- .weighted_sum(
-        rep(1, nrow(reference_data$trips)), reference_data$trips, active
-      )
+      baseline <- sum(active, na.rm = TRUE)
       requested <- convert_timeframe_value(
         target$timeframe, target$value, "week", datatype = "trips"
       )
@@ -340,9 +338,7 @@ apply_reference_appraisal_scope <- function(reference_data,
     if (!.trip_evidence_available_for_counterfactual(reference_data$trips, spec)) next
     active <- spec$trip_filter(reference_data$trips) &
       !is.na(reference_data$trips$nts_tripid)
-    target_rows <- .reference_weighted_trip_target_rows(
-      trip_targets[[mode]], reference_data$trips, active
-    )
+    target_rows <- .reference_trip_target_rows(trip_targets[[mode]])
     selected <- .sample_reference_rows(
       which(active), target_rows, seed + spec$seed_offset + 400L
     )
@@ -481,16 +477,13 @@ apply_reference_appraisal_scope <- function(reference_data,
   sample(rows, n, replace = FALSE)
 }
 
-.reference_weighted_trip_target_rows <- function(target, trips, active) {
+.reference_trip_target_rows <- function(target) {
   value <- target$value
   if (identical(target$denominator, "mean")) {
     stop("Reference trip scope with a mean denominator is not implemented; provide a total.", call. = FALSE)
   }
   weekly <- convert_timeframe_value(target$timeframe, value, "week", datatype = "trips")
-  weights <- if ("weight_tripXhh" %in% names(trips)) .as_plain_numeric(trips$weight_tripXhh) else rep(1, nrow(trips))
-  mean_weight <- mean(weights[active & is.finite(weights) & weights > 0], na.rm = TRUE)
-  if (!is.finite(mean_weight) || mean_weight <= 0) mean_weight <- 1
-  as.integer(round(weekly / mean_weight))
+  as.integer(round(weekly))
 }
 
 .reference_user_scope_col <- function(mode, scenario = c("ref", "cf")) {

@@ -53,7 +53,12 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
 
     has_backup <- .profile_field_has_default_backup(out[[field_name]])
     if ("additional_data" %in% names(out[[field_name]]) && !has_backup) {
-      out[[field_name]]$additional_data <- ui_updates[[field_name]]
+      if (.profile_field_has_scenario_additional_data(out[[field_name]])) {
+        out[[field_name]]$additional_data$ref <- ui_updates[[field_name]]
+        out[[field_name]]$additional_data$cf <- ui_updates[[field_name]]
+      } else {
+        out[[field_name]]$additional_data <- ui_updates[[field_name]]
+      }
       additional_data_updated <- c(additional_data_updated, field_name)
     } else {
       out[[field_name]]$default_value <- ui_updates[[field_name]]
@@ -120,6 +125,11 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
 .profile_field_has_default_backup <- function(field) {
   is.list(field$additional_data) &&
     "default_value_backup" %in% names(field$additional_data)
+}
+
+.profile_field_has_scenario_additional_data <- function(field) {
+  is.list(field$additional_data) &&
+    all(c("ref", "cf") %in% names(field$additional_data))
 }
 
 .reference_cf_field <- function(field_name) {

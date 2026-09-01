@@ -22,16 +22,29 @@ test_that("assessment period and UI option catalogues come from config", {
   expect_equal(get_assessment_period(cfg), 40L)
   expect_true(all(c(
     "age_groups", "pa_categories", "trip_distance_categories", "gender",
+    "population_age_groups", "population_pa_groups",
     "results_modes", "temporal_aggregation", "population_aggregation",
     "impact_type", "metric", "timeline_type", "timeframe"
   ) %in% get_ui_options(cfg = cfg)))
-  expect_identical(get_ui_options("age_groups", cfg)$value, cfg$spread$age$ids)
+  expect_identical(
+    get_ui_options("age_groups", cfg)$value,
+    cfg$population_refinement$age$ids
+  )
+  expect_identical(get_ui_options("spread_age_groups", cfg)$value, cfg$spread$age$ids)
   expect_identical(get_ui_options("pa_categories", cfg)$value, cfg$spread$pa$ids)
+  expect_identical(
+    get_ui_options("population_age_groups", cfg)$value,
+    paste0("pop_", cfg$population_refinement$age$ids)
+  )
+  expect_identical(
+    get_ui_options("population_pa_groups", cfg)$value,
+    cfg$population_refinement$pa$ids
+  )
   expect_true(all(get_ui_options("gender", cfg)$default))
 
   results_options <- get_results_options(cfg)
   expect_equal(results_options$assessment_period_years, 40L)
-  expect_identical(results_options$age_groups$value, cfg$spread$age$ids)
+  expect_identical(results_options$age_groups$value, cfg$population_refinement$age$ids)
   expect_true(all(c("attributable", "cf_vs_ref") %in% results_options$impact_type$value))
   expect_true("prevented_per_100000" %in% results_options$metric$value)
 })
@@ -140,7 +153,10 @@ test_that("prepare_results_data aggregates filtered health outcomes", {
   expect_true(any(grepl("Mode-specific MMET attribution was unavailable", out$results_report$notes)))
   expect_identical(
     out$plot_data$age_group_levels$id,
-    c("age_18_29", "age_30_39", "age_40_49", "age_50_59", "age_60_plus")
+    c(
+      "age_under_18", "age_18_29", "age_30_39", "age_40_49",
+      "age_50_59", "age_60_plus", "age_other"
+    )
   )
 })
 
@@ -149,11 +165,14 @@ test_that("results age groups use the configured Tab 3 boundaries", {
 
   expect_identical(
     .results_age_group(c(17, 18, 29, 30, 39, 40, 49, 50, 59, 60, 90), cfg),
-    c(NA, "age_18_29", "age_18_29", "age_30_39", "age_30_39",
+    c("age_under_18", "age_18_29", "age_18_29", "age_30_39", "age_30_39",
       "age_40_49", "age_40_49", "age_50_59", "age_50_59",
       "age_60_plus", "age_60_plus")
   )
-  expect_identical(.results_age_group_levels(cfg)$label, cfg$spread$age$labels)
+  expect_identical(
+    .results_age_group_levels(cfg)$label,
+    cfg$population_refinement$age$labels
+  )
 })
 
 test_that("mode-attributed health deltas reconcile to the all-mode total", {
@@ -370,12 +389,12 @@ test_that("result plotting functions return ggplot objects", {
   expect_s3_class(mode_plot, "ggplot")
   expect_equal(mode_plot$labels$title, "Reference and counterfactual travel by mode")
   expect_equal(mode_plot$labels$x, "Travel mode")
-  expect_equal(mode_plot$labels$y, "Share of weighted trips (%)")
-  expect_match(mode_plot$data$tooltip_text, "Share of weighted trips: .+%")
+  expect_equal(mode_plot$labels$y, "Share of trip records (%)")
+  expect_match(mode_plot$data$tooltip_text, "Share of trip records: .+%")
   trip_total_plot <- results_plot_trip_mode_distribution(results_data, value = "trips")
-  expect_equal(trip_total_plot$labels$y, "Weighted trips per reference week")
+  expect_equal(trip_total_plot$labels$y, "Trip records per reference week")
   expect_equal(trip_total_plot$data$value_label, c("10", "12", "4", "6"))
-  expect_match(trip_total_plot$data$tooltip_text, "Weighted trips per reference week")
+  expect_match(trip_total_plot$data$tooltip_text, "Trip records per reference week")
 })
 
 test_that("results_filter_health_data supports interactive Tab 5 filters", {

@@ -55,6 +55,59 @@ prepare_refinement_profile_defaults <- function(reference_data,
   )
 }
 
+prepare_trip_refinement_profile_defaults <- function(reference_data,
+                                                     profile,
+                                                     reference_request = list(),
+                                                     cfg = NULL,
+                                                     seed = 1L) {
+  assert_named_list(reference_data, "reference_data")
+  assert_named_list(profile, "profile")
+
+  stage_values <- .tab3_stage_input_values(profile)
+  scoped_reference <- apply_reference_appraisal_scope(
+    reference_data,
+    appraisal_input_values = stage_values,
+    seed = seed,
+    cfg = cfg
+  )
+  staged_counterfactual <- apply_counterfactual_ui_values(
+    init_counterfactual_data(scoped_reference),
+    stage_values,
+    reference_data = scoped_reference,
+    constants = miama_counterfactual_defaults(cfg),
+    seed = seed
+  )
+
+  reference_view <- materialize_appraisal_scope(scoped_reference, "ref")
+  counterfactual_view <- materialize_appraisal_scope(staged_counterfactual, "cf")
+  ref_values <- extract_reference_ui_values(
+    reference_view, reference_request, stage_values, cfg = cfg
+  )
+  cf_values <- extract_reference_ui_values(
+    counterfactual_view, reference_request, stage_values, cfg = cfg
+  )
+
+  updates <- .trip_refinement_profile_updates(
+    ref_values$ui_updates,
+    cf_values$ui_updates
+  )
+  updated_profile <- apply_refinement_defaults_to_profile(profile, updates)
+  report <- attr(updated_profile, "refinement_defaults_report")
+  report$reference_scope_report <- scoped_reference$reference_scope_report
+  report$counterfactual_report <- staged_counterfactual$counterfactual_report
+  report$seed <- as.integer(seed)
+  attr(updated_profile, "trip_refinement_defaults_report") <- report
+
+  list(
+    profile = updated_profile,
+    reference_data = scoped_reference,
+    counterfactual_data = staged_counterfactual,
+    reference_view = reference_view,
+    counterfactual_view = counterfactual_view,
+    report = report
+  )
+}
+
 .tab2_stage_input_values <- function(profile) {
   values <- extract_input_values(profile)
 
@@ -93,6 +146,23 @@ prepare_refinement_profile_defaults <- function(reference_data,
     }
   }
 
+  values
+}
+
+.tab3_stage_input_values <- function(profile) {
+  values <- extract_input_values(profile)
+
+  # Tab 4 controls may contain stale hidden values from an earlier visit. They
+  # must not alter the Tab 3 population snapshots used to initialize Tab 4.
+  tab4_fields <- grep(
+    paste0(
+      "^(trips_number_(total_)?(ref|cf)|trips_spread_|",
+      "trips_diversion_|trips_dist_value$|trips_purpose_)"
+    ),
+    names(values),
+    value = TRUE
+  )
+  values[tab4_fields] <- rep(list(NULL), length(tab4_fields))
   values
 }
 
@@ -167,13 +237,10 @@ materialize_appraisal_scope <- function(data, scenario = c("ref", "cf")) {
 
   for (field_name in c("pop_target_age_groups", "pop_target_pa_groups")) {
     if (is.list(ref_updates[[field_name]]) && is.list(cf_updates[[field_name]])) {
-      combined <- ref_updates[[field_name]]
-      for (category in intersect(names(combined), names(cf_updates[[field_name]]))) {
-        cf_category <- cf_updates[[field_name]][[category]]
-        names(cf_category) <- paste0(names(cf_category), "_cf")
-        combined[[category]] <- c(combined[[category]], cf_category)
-      }
-      updates[[field_name]] <- combined
+      updates[[field_name]] <- list(
+        ref = ref_updates[[field_name]],
+        cf = cf_updates[[field_name]]
+      )
     }
   }
 
@@ -203,6 +270,30 @@ materialize_appraisal_scope <- function(data, scenario = c("ref", "cf")) {
   updates
 }
 
+.trip_refinement_profile_updates <- function(ref_updates, cf_updates) {
+  ref_fields <- grep(
+    paste0(
+      "^(trips_number_total_ref|trips_number_ref_|",
+      "trips_spread_(bars|mean|util_prop)_ref_|",
+      "trips_diversion_(total_trips|trips_n|distance_total|duration_total)$)"
+    ),
+    names(ref_updates),
+    value = TRUE
+  )
+  updates <- ref_updates[ref_fields]
+
+  cf_sources <- grep(
+    "^(trips_number_total_ref|trips_number_ref_|trips_spread_(mean|util_prop)_ref_)",
+    names(cf_updates),
+    value = TRUE
+  )
+  for (source in cf_sources) {
+    target <- .reference_cf_field(source)
+    if (!is.na(target)) updates[[target]] <- cf_updates[[source]]
+  }
+  updates
+}
+
 apply_refinement_defaults_to_profile <- function(profile, updates) {
   out <- profile
   updated <- reset <- skipped <- character(0)
@@ -214,7 +305,7 @@ apply_refinement_defaults_to_profile <- function(profile, updates) {
     }
 
     field <- out[[field_name]]
-    if (grepl("^pop_(total|number)_(ref|cf).*_advanced$", field_name)) {
+    if (.refinement_field_resets_input(field_name)) {
       # Preserve the canonical field shape. `$<- NULL` would delete the list
       # element, causing later schema accessors to treat the whole field as a
       # submitted value.
@@ -225,7 +316,12 @@ apply_refinement_defaults_to_profile <- function(profile, updates) {
 
     if ("additional_data" %in% names(field) &&
         !.profile_field_has_default_backup(field)) {
-      field$additional_data <- updates[[field_name]]
+      if (.profile_field_has_scenario_additional_data(field)) {
+        field$additional_data$ref <- updates[[field_name]]$ref
+        field$additional_data$cf <- updates[[field_name]]$cf
+      } else {
+        field$additional_data <- updates[[field_name]]
+      }
     } else {
       field$default_value <- updates[[field_name]]
       if (.profile_field_has_default_backup(field)) {
@@ -242,6 +338,17 @@ apply_refinement_defaults_to_profile <- function(profile, updates) {
     skipped_fields = unique(skipped)
   )
   out
+}
+
+.refinement_field_resets_input <- function(field_name) {
+  grepl(
+    paste0(
+      "^pop_(total|number)_(ref|cf).*_advanced$|",
+      "^trips_number_(total_)?(ref|cf)|",
+      "^trips_spread_(mean|util_prop)_(ref|cf)_"
+    ),
+    field_name
+  )
 }
 
 .drop_unmodified_advanced_population_values <- function(values, profile) {
