@@ -449,8 +449,10 @@ requested and source sums, and per-mode estimates remain available in
 bounded below by every explicit mode-user count and cannot exceed the source
 population.
 
-The Tab 3 table is initialized from the staged REF and CF snapshots. Both sides
-remain independently editable. Basic percentage and age/PA-category controls
+The Tab 3 table is initialized from the staged REF and CF snapshots. The person
+boundary is fixed across REF and CF: people do not enter or leave the appraisal
+population. Mode-specific user counts remain independently editable. Basic
+percentage and age/PA-category controls
 scale **both** scenarios from preserved staged backups, so they change the
 overall appraisal reach without erasing the Tab 2 REF/CF contrast. Category
 counts use `additional_data$ref` and `additional_data$cf`; each contains absolute
@@ -461,7 +463,9 @@ sex, and PA sliders leave counts alone and modify CF candidate sampling weights.
 
 The shared population total is operational as well as explanatory: it defines
 the assessed person rows, the eligible non-user pool, and population-based rate
-denominators. Mode-specific REF/CF rows determine active-mode user targets.
+denominators. In the basic non-user Tab 2 routes, `pop_total_ref_basic` is the
+single editable total; the legacy `pop_total_cf_basic` is accepted only when it
+equals REF. Mode-specific REF/CF rows determine active-mode user targets.
 
 #### MIAMA-UI integration contract
 

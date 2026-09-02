@@ -283,8 +283,9 @@ remain defaults, not submitted inputs. A genuinely edited Tab 3 value takes
 precedence over Tab 2, while an unchanged rendered control that merely equals
 its generated default does not become a new constraint.
 
-The left and right Tab 3 columns start as the staged REF and CF snapshots. Both
-remain editable. Basic percentage and age/PA-category controls scale both
+The left and right Tab 3 columns start as the staged REF and CF snapshots. The
+assessed person boundary is shared: CF does not add or remove people. The
+mode-specific user counts remain editable. Basic percentage and age/PA-category controls scale both
 snapshots from preserved staged backups, retaining the REF/CF contrast while
 changing the overall assessment reach. HUB supplies separate absolute counts in
 `additional_data$ref` and `additional_data$cf`; the UI applies the selected categories
@@ -409,10 +410,11 @@ not yet operational because the number of distinct recipients of added trip
 exposure and the synchronization of trip- and person-level user status still
 need one canonical implementation.
 
-The aggregate CF population total is a presentation summary. Row-level
-behavioral changes are controlled by the mode-specific CF user targets. People
-who remain behaviorally unchanged are not removed from health denominators
-merely to force the displayed aggregate CF total.
+The total population is one shared system boundary, not a counterfactual
+intervention target. Basic Tab 2 therefore has one editable assessed-population
+total. A legacy `pop_total_cf_basic` value is accepted only when it equals the
+REF value. Row-level behavioral changes are controlled by mode-specific CF user
+targets. People do not enter or leave the health denominator between scenarios.
 
 Reference distributions are represented as a 5 x 2 table: five configured age
 or PA categories crossed with sex. The app displays the table as paired bars.
@@ -460,7 +462,7 @@ snapshot does not alter behavior, MMET exposure, or health trajectories; it
 only sets the system boundary for the appraisal.
 
 Counterfactual data begin as a one-to-one copy of this flagged baseline. CF
-scope initially equals REF scope. New users are sampled from baseline non-users
+scope equals REF scope throughout. New users are sampled from genuine baseline non-users
 inside that assessed population, so user growth changes behavior without
 expanding the population boundary. Existing trips can
 be switched only for people in CF scope, while induced trips are assigned to CF

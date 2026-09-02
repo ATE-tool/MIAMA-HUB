@@ -50,7 +50,7 @@ test_that("apply_counterfactual_ui_values increases walking users from non-users
   expect_true(nrow(counterfactual_data$counterfactual_report$comparison$changed_ind_rows) > 0)
 })
 
-test_that("scaled REF non-users remain eligible for a feasible CF user target", {
+test_that("CF user growth selects genuine baseline non-users", {
   reference_data <- list(
     ind = data.frame(
       census_id = 1:4,
@@ -70,18 +70,20 @@ test_that("scaled REF non-users remain eligible for a feasible CF user target", 
     appraisal_input_values = list(
       ui_version = "advanced",
       modes = "walking",
-      pop_number_cf_walk_advanced = 4
+      pop_number_cf_walk_advanced = 3
     ),
     reference_data = reference_data,
     seed = 10
   )
 
-  expect_equal(sum(counterfactual_data$ind$cf_user_scope_walk), 4)
+  expect_equal(sum(counterfactual_data$ind$cf_user_scope_walk), 3)
   expect_equal(
     sum(counterfactual_data$ind$cf_user_scope_walk &
           counterfactual_data$ind$walktime_wkhr > 0),
-    4
+    3
   )
+  changed <- which(counterfactual_data$ind$cf_user_change == "new_users")
+  expect_true(all(reference_data$ind$walktime_wkhr[changed] == 0))
 })
 
 test_that("blank basic user target does not mask advanced target", {
@@ -127,6 +129,18 @@ test_that("user targets are selected from the active UI field family", {
   expect_equal(advanced$value, 9)
   expect_equal(advanced$field, "pop_number_cf_bike_advanced")
   expect_equal(advanced$alias_field, "pop_number_cf_bike_advanced")
+
+  basic_population <- .cf_user_target(c(values, list(
+    ui_version = "basic", at_data_unit = "trips"
+  )), "bike")
+  expect_equal(basic_population$value, 5)
+  expect_equal(basic_population$field, "pop_number_cf_bike_basic")
+
+  basic_users <- .cf_user_target(c(values, list(
+    ui_version = "basic", at_data_unit = "users"
+  )), "bike")
+  expect_equal(basic_users$value, 4)
+  expect_equal(basic_users$field, "users_count_cf_bike")
 })
 
 test_that("weekly trips-per-user assumptions drive new-user trip targets", {

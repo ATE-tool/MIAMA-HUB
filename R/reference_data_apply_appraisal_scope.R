@@ -22,6 +22,7 @@ apply_reference_appraisal_scope <- function(reference_data,
   modes <- normalize_active_modes(.ui_value(appraisal_input_values, "modes", character(0)))
   modes <- intersect(modes, c("walking", "cycling"))
   if (length(modes) == 0) modes <- c("walking", "cycling")
+  .validate_shared_basic_population(appraisal_input_values)
 
   tab2_conversion <- .derive_tab2_trip_count_targets(
     appraisal_input_values,
@@ -159,6 +160,9 @@ apply_reference_appraisal_scope <- function(reference_data,
       pooled_requested = person_target$pooled_requested,
       pooled_baseline = person_target$pooled_baseline,
       pooled_ratio = person_target$pooled_ratio,
+      unadjusted_value = person_target$unadjusted_value,
+      user_margin_bounds = person_target$user_margin_bounds,
+      adjusted_for_user_margins = person_target$adjusted_for_user_margins,
       mode_estimates = person_target$mode_estimates
     ),
     users = user_report,
@@ -181,16 +185,20 @@ apply_reference_appraisal_scope <- function(reference_data,
                                            trip_targets) {
   default_n <- nrow(reference_data$ind)
   version <- if (identical(.ui_value(values, "ui_version", "basic"), "advanced")) "advanced" else "basic"
+  data_unit <- .ui_value(values, "at_data_unit", NULL)
   fields <- if (identical(version, "advanced")) {
     c("pop_total_ref_advanced", "pop_total_ref_basic")
+  } else if (identical(data_unit, "users")) {
+    # The basic population modal belongs only to non-user Tab 2 routes. Ignore
+    # a retained modal value after the user switches to direct user counts.
+    character(0)
   } else {
-    c("pop_total_ref_basic", "pop_total_ref_advanced")
+    "pop_total_ref_basic"
   }
   explicit <- .first_reference_target(
     values, fields, default = NULL, maximum = default_n,
     label = "reference population", integer = TRUE
   )
-  data_unit <- .ui_value(values, "at_data_unit", NULL)
   if (!is.null(explicit$value)) {
     explicit$method <- "explicit_population"
     explicit$data_unit <- data_unit
@@ -234,6 +242,9 @@ apply_reference_appraisal_scope <- function(reference_data,
   # A pooled estimate can only be operational if it contains every explicitly
   # entered mode-user count.
   target <- max(target, specified_users, 0)
+  unadjusted_target <- target
+  bounds <- .reference_population_user_margin_bounds(reference_data$ind, user_targets)
+  target <- min(max(target, bounds$minimum), bounds$maximum)
   if (target > default_n) {
     stop(
       "Tab 2 reference values imply an assessed population of ", target,
@@ -250,7 +261,56 @@ apply_reference_appraisal_scope <- function(reference_data,
     pooled_requested = pooled_requested,
     pooled_baseline = pooled_baseline,
     pooled_ratio = pooled_ratio,
+    unadjusted_value = unadjusted_target,
+    user_margin_bounds = bounds,
+    adjusted_for_user_margins = target != unadjusted_target,
     mode_estimates = estimates
+  )
+}
+
+.reference_population_user_margin_bounds <- function(ind, user_targets) {
+  specified <- names(user_targets)[!vapply(
+    user_targets, function(x) is.null(x$value), logical(1)
+  )]
+  if (length(specified) == 0) {
+    return(list(minimum = 0L, maximum = nrow(ind)))
+  }
+
+  active <- lapply(specified, function(mode) {
+    .positive_col(ind, .counterfactual_mode_spec(mode)$activity_col)
+  })
+  names(active) <- specified
+  targets <- vapply(user_targets[specified], `[[`, numeric(1), "value")
+
+  if (length(specified) == 1) {
+    mode <- specified[[1]]
+    target <- as.integer(targets[[mode]])
+    return(list(
+      minimum = target,
+      maximum = as.integer(target + sum(!active[[mode]]))
+    ))
+  }
+
+  walk <- active$walking
+  bike <- active$cycling
+  w <- as.integer(targets[["walking"]])
+  b <- as.integer(targets[["cycling"]])
+  both_available <- sum(walk & bike)
+  walk_only_available <- sum(walk & !bike)
+  bike_only_available <- sum(!walk & bike)
+  neither_available <- sum(!walk & !bike)
+  minimum_both <- max(0L, w - walk_only_available, b - bike_only_available)
+  maximum_both <- min(w, b, both_available)
+  if (minimum_both > maximum_both) {
+    stop(
+      "Reference mode-user margins cannot be sampled from the available donor strata.",
+      call. = FALSE
+    )
+  }
+
+  list(
+    minimum = as.integer(w + b - maximum_both),
+    maximum = as.integer(w + b - minimum_both + neither_available)
   )
 }
 
@@ -317,12 +377,19 @@ apply_reference_appraisal_scope <- function(reference_data,
 
 .reference_user_scope_target <- function(values, suffix) {
   version <- if (identical(.ui_value(values, "ui_version", "basic"), "advanced")) "advanced" else "basic"
+  data_unit <- .ui_value(values, "at_data_unit", NULL)
   fields <- if (identical(version, "advanced")) {
     c(
       paste0("pop_number_ref_", suffix, "_advanced"),
       paste0("users_count_ref_", suffix),
       paste0("pop_number_ref_", suffix, "_basic")
     )
+  } else if (identical(data_unit, "users")) {
+    paste0("users_count_ref_", suffix)
+  } else if (isTRUE(data_unit %in% c("trips", "distance", "mode_share"))) {
+    # For trips, distance/duration, and mode share, the optional population
+    # modal is authoritative. Hidden direct-user values must not shadow it.
+    paste0("pop_number_ref_", suffix, "_basic")
   } else {
     c(paste0("users_count_ref_", suffix), paste0("pop_number_ref_", suffix, "_basic"))
   }
@@ -448,7 +515,7 @@ apply_reference_appraisal_scope <- function(reference_data,
       which(active[[mode]]), target_active, seed + 1L
     )
     selected <- c(selected_users, .sample_reference_rows(
-      setdiff(which(eligible), selected_users),
+      which(eligible & !active[[mode]]),
       target_n - target_active,
       seed + 2L
     ))
@@ -470,7 +537,9 @@ apply_reference_appraisal_scope <- function(reference_data,
   )
   strata$neither <- intersect(strata$neither, which(eligible))
   lower <- max(0L, w + b - target_n, w - length(strata$walk), b - length(strata$bike))
-  upper <- min(w, b, length(strata$both))
+  # The remaining rows must come from the neither stratum; otherwise the
+  # realized population would contain more mode users than the modal requests.
+  upper <- min(w, b, length(strata$both), length(strata$neither) - target_n + w + b)
   if (lower > upper) {
     stop("Reference population/user targets cannot be jointly sampled from the available donor strata.", call. = FALSE)
   }
@@ -481,10 +550,40 @@ apply_reference_appraisal_scope <- function(reference_data,
     .sample_reference_rows(strata[[index]], active_counts[[index]], seed + index)
   }), use.names = FALSE)
   c(selected_users, .sample_reference_rows(
-    setdiff(which(eligible), selected_users),
+    strata$neither,
     target_n - length(selected_users),
     seed + 10L
   ))
+}
+
+.validate_shared_basic_population <- function(values) {
+  if (!identical(.ui_value(values, "ui_version", "basic"), "basic") ||
+      identical(.ui_value(values, "at_data_unit", NULL), "users")) {
+    return(invisible(TRUE))
+  }
+
+  ref <- .ui_value(values, "pop_total_ref_basic", NULL)
+  cf <- .ui_value(values, "pop_total_cf_basic", NULL)
+  if (.is_blank_cf_target(cf)) return(invisible(TRUE))
+  if (.is_blank_cf_target(ref)) {
+    stop(
+      "Legacy `pop_total_cf_basic` was supplied without `pop_total_ref_basic`. ",
+      "The basic appraisal now uses one shared REF/CF population total.",
+      call. = FALSE
+    )
+  }
+
+  ref <- suppressWarnings(as.numeric(ref))
+  cf <- suppressWarnings(as.numeric(cf))
+  if (length(ref) != 1 || length(cf) != 1 || !is.finite(ref) || !is.finite(cf) ||
+      as.integer(round(ref)) != as.integer(round(cf))) {
+    stop(
+      "`pop_total_cf_basic` must equal `pop_total_ref_basic`; REF and CF use ",
+      "one fixed assessed population with no population influx.",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
 }
 
 .sample_reference_rows <- function(rows, n, seed) {

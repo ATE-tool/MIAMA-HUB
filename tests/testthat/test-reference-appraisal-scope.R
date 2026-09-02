@@ -34,10 +34,65 @@ test_that("reference scope selects people and users without changing behaviour",
   expect_equal(sum(scoped$ind$ref_in_scope), 4)
   expect_equal(sum(scoped$ind$ref_user_scope_walk), 1)
   expect_equal(sum(scoped$ind$ref_user_scope_bike), 1)
+  expect_equal(sum(scoped$ind$ref_in_scope & scoped$ind$walktime_wkhr > 0), 1)
+  expect_equal(sum(scoped$ind$ref_in_scope & scoped$ind$cycletime_wkhr > 0), 1)
   expect_equal(scoped$ind$walktime_wkhr, original_ind$walktime_wkhr)
   expect_equal(scoped$ind$cycletime_wkhr, original_ind$cycletime_wkhr)
   expect_equal(sum(scoped$trips$ref_in_scope), 8)
   expect_equal(scoped$reference_scope_report$person$donor_population, 6)
+})
+
+test_that("basic population-modal targets override stale user-route values", {
+  values <- list(
+    ui_version = "basic", at_data_unit = "trips",
+    users_count_ref_walk = 4,
+    pop_number_ref_walk_basic = 2
+  )
+
+  target <- .reference_user_scope_target(values, "walk")
+
+  expect_equal(target$field, "pop_number_ref_walk_basic")
+  expect_equal(target$value, 2)
+})
+
+test_that("basic REF and CF population totals must describe one population", {
+  expect_silent(.validate_shared_basic_population(list(
+    ui_version = "basic", at_data_unit = "trips",
+    pop_total_ref_basic = 8, pop_total_cf_basic = 8
+  )))
+  expect_error(
+    .validate_shared_basic_population(list(
+      ui_version = "basic", at_data_unit = "trips",
+      pop_total_ref_basic = 8, pop_total_cf_basic = 5
+    )),
+    "one fixed assessed population"
+  )
+  expect_silent(.validate_shared_basic_population(list(
+    ui_version = "basic", at_data_unit = "users",
+    pop_total_ref_basic = 8, pop_total_cf_basic = 5
+  )))
+})
+
+test_that("single-mode population sampling realizes the requested user margin", {
+  reference_data <- list(ind = data.frame(
+    census_id = 1:10,
+    walktime_wkhr = c(rep(1, 5), rep(0, 5)),
+    cycletime_wkhr = 0
+  ))
+
+  scoped <- apply_reference_appraisal_scope(
+    reference_data,
+    appraisal_input_values = list(
+      ui_version = "basic", at_data_unit = "trips", modes = "walking",
+      pop_total_ref_basic = 6,
+      pop_number_ref_walk_basic = 2
+    ),
+    seed = 4
+  )
+
+  expect_equal(sum(scoped$ind$ref_in_scope), 6)
+  expect_equal(sum(scoped$ind$ref_in_scope & scoped$ind$walktime_wkhr > 0), 2)
+  expect_equal(sum(scoped$ind$ref_user_scope_walk), 2)
 })
 
 test_that("counterfactual user growth starts from scoped REF and draws baseline non-users", {
@@ -293,8 +348,9 @@ test_that("pooled estimate uses source rates rather than the largest mode estima
     seed = 12
   )
 
-  # Pooled source rate: 1000 * (500 + 80) / (950 + 100) = 552.38.
-  expect_equal(sum(scoped$ind$ref_in_scope), 552)
+  # The pooled estimate is 552, but exact margins leave only 50 non-users to
+  # accompany 500 distinct active users, so HUB uses the feasible maximum 550.
+  expect_equal(sum(scoped$ind$ref_in_scope), 550)
   expect_equal(sum(scoped$ind$ref_user_scope_walk), 500)
   expect_equal(sum(scoped$ind$ref_user_scope_bike), 80)
   expect_equal(
@@ -305,6 +361,8 @@ test_that("pooled estimate uses source rates rather than the largest mode estima
     scoped$reference_scope_report$person$mode_estimates$cycling$estimated_people,
     800
   )
+  expect_equal(scoped$reference_scope_report$person$unadjusted_value, 552)
+  expect_true(scoped$reference_scope_report$person$adjusted_for_user_margins)
 })
 
 test_that("induced trip percentage is explicit and independent of purpose", {

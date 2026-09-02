@@ -440,7 +440,10 @@ apply_counterfactual_ui_values <- function(
     } else {
       rep(TRUE, nrow(reference_data$ind))
     }
-    candidate_rows <- which(ref_person_scope & !ref_users)
+    # A new user must be a genuine non-user in the observed baseline. A source
+    # user excluded from a smaller REF user margin is not a new-user candidate.
+    baseline_users <- .positive_col(reference_data$ind, spec$activity_col)
+    candidate_rows <- which(ref_person_scope & !baseline_users)
     candidate_rows <- cf_population_candidate_filter(
       counterfactual_data$ind,
       candidate_rows,
@@ -504,9 +507,16 @@ apply_counterfactual_ui_values <- function(
   users_field <- paste0("users_count_cf_", suffix)
   ui_version <- .ui_value(values, "ui_version", "basic")
   ui_version <- if (identical(ui_version, "advanced")) "advanced" else "basic"
+  data_unit <- .ui_value(values, "at_data_unit", NULL)
   pop_field <- paste0("pop_number_cf_", suffix, "_", ui_version)
   fields <- if (identical(ui_version, "advanced")) {
     c(pop_field, users_field, paste0("pop_number_cf_", suffix, "_basic"))
+  } else if (identical(data_unit, "users")) {
+    users_field
+  } else if (isTRUE(data_unit %in% c("trips", "distance", "mode_share"))) {
+    # The basic population modal supplements non-user volume routes. Its mode
+    # count must take precedence over any retained hidden direct-user value.
+    pop_field
   } else {
     c(users_field, pop_field)
   }
