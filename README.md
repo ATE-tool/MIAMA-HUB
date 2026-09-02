@@ -1361,6 +1361,12 @@ comorbidity-adjusted disability weights (`dw_adj`):
 HALY = LY * (1 - pyld_rate) * (1 - sum(prevalence * dw_adj))
 ```
 
+When no population remains alive in a person-cycle, prevalence disability and
+HALYs are set to zero. Person-cycles above the maximum age represented in the
+HALY parameter tables are retained in the health data but have `NA` HALY
+fields, so they are excluded from HALY summaries without discarding other
+outcomes.
+
 The resulting person-cycle fields are `haly` (reference), `d_haly` (`cf - ref`),
 and, when `include_cf_columns = TRUE`, `haly_cf`. The two small parameter tables
 are packaged under `inst/extdata/data/health_data/haly_parameters`; their paths
