@@ -350,10 +350,22 @@ apply_reference_appraisal_scope <- function(reference_data,
 }
 
 .reference_trip_scope_target <- function(values, suffix) {
-  fields <- c(paste0("trips_count_ref_", suffix), paste0("trips_number_ref_", suffix))
+  tab2_field <- paste0("trips_count_ref_", suffix)
+  tab4_field <- paste0("trips_number_ref_", suffix)
+  advanced <- identical(.ui_value(values, "ui_version", "basic"), "advanced")
+  fields <- if (advanced) c(tab4_field, tab2_field) else c(tab2_field, tab4_field)
   target <- .first_reference_target(values, fields, default = NULL, label = paste(suffix, "reference trips"))
-  target$timeframe <- .ui_value(values, paste0("trips_timeframe_", suffix), "week")
-  target$denominator <- .ui_value(values, paste0("trips_denominator_", suffix), "total")
+  from_tab4 <- identical(target$field, tab4_field)
+  target$timeframe <- if (from_tab4) {
+    "week"
+  } else {
+    .ui_value(values, paste0("trips_timeframe_", suffix), "week")
+  }
+  target$denominator <- if (from_tab4) {
+    "total"
+  } else {
+    .ui_value(values, paste0("trips_denominator_", suffix), "total")
+  }
   target
 }
 

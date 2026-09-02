@@ -574,6 +574,11 @@ apply_counterfactual_ui_values <- function(
   ref_n <- sum(ref_active, na.rm = TRUE)
   delta <- target_base$count - cf_n
 
+  induced_target <- .cf_induced_trips_target(
+    appraisal_input_values,
+    spec$suffix,
+    constants
+  )
   assignment <- .assign_cf_trip_count_delta(
     counterfactual_data = counterfactual_data,
     reference_data = reference_data,
@@ -589,7 +594,7 @@ apply_counterfactual_ui_values <- function(
       spread = constants$spread
     ),
     constants = constants,
-    induced_trips_percent = .cf_induced_trips_percent(args, constants),
+    induced_trips_percent = induced_target$percent,
     car_diversion_target = car_diversion_target,
     diversion_target = .cf_away_diversion_target(constants)
   )
@@ -634,6 +639,8 @@ apply_counterfactual_ui_values <- function(
   change$mode_shift_n <- assignment$mode_shift_n
   change$induced_n <- assignment$induced_n
   change$induced_trips_percent <- assignment$induced_trips_percent
+  change$induced_trips_percent_field <- induced_target$field
+  change$induced_trips_percent_source <- induced_target$source
   change$car_diversion_percent <- car_diversion_target$percent
   change$car_diversion_field <- car_diversion_target$field
   change$realized_car_diversion_percent <- assignment$realized_car_diversion_percent
@@ -775,16 +782,32 @@ apply_counterfactual_ui_values <- function(
   tab2_field <- paste0("trips_count_cf_", suffix)
   tab4_field <- paste0("trips_number_cf_", suffix)
 
-  value <- .ui_value(values, tab2_field, NULL)
-  field <- tab2_field
-  timeframe <- .ui_value(values, paste0("trips_timeframe_", suffix), "week")
-  denominator <- .ui_value(values, paste0("trips_denominator_", suffix), "total")
+  # Tab 4 is the final trip-refinement surface in the advanced workflow, so
+  # its count must override the upstream Tab 2 equivalent. Basic appraisals do
+  # not visit Tab 4 and retain Tab 2 as their canonical source.
+  advanced <- identical(.ui_value(values, "ui_version", "basic"), "advanced")
+  fields <- if (advanced) c(tab4_field, tab2_field) else c(tab2_field, tab4_field)
+  field <- fields[[1]]
+  value <- NULL
+  for (candidate in fields) {
+    candidate_value <- .ui_value(values, candidate, NULL)
+    if (!.is_blank_cf_target(candidate_value)) {
+      field <- candidate
+      value <- candidate_value
+      break
+    }
+  }
 
-  if (.is_blank_cf_target(value)) {
-    value <- .ui_value(values, tab4_field, NULL)
-    field <- tab4_field
-    timeframe <- "week"
-    denominator <- "total"
+  from_tab4 <- identical(field, tab4_field)
+  timeframe <- if (from_tab4) {
+    "week"
+  } else {
+    .ui_value(values, paste0("trips_timeframe_", suffix), "week")
+  }
+  denominator <- if (from_tab4) {
+    "total"
+  } else {
+    .ui_value(values, paste0("trips_denominator_", suffix), "total")
   }
 
   if (.is_blank_cf_target(value)) {
@@ -847,22 +870,38 @@ apply_counterfactual_ui_values <- function(
   )
 }
 
-.cf_induced_trips_percent <- function(args, constants) {
-  type <- tolower(as.character(args$purpose_type %||% ""))[1]
-  if (identical(type, "recreational")) return(100)
-  if (identical(type, "utilitarian")) return(0)
-  if (identical(type, "mixed") && !is.null(args$utilitarian_percent)) {
-    util <- suppressWarnings(as.numeric(args$utilitarian_percent))
-    if (length(util) != 1 || !is.finite(util) || util < 0 || util > 100) {
-      stop("`trips_purpose_util_perc` must be between 0 and 100.", call. = FALSE)
+.cf_induced_trips_target <- function(values, suffix, constants) {
+  fields <- c(
+    paste0("induced_trips_percent_", suffix),
+    "induced_trips_percent"
+  )
+  field <- NULL
+  raw <- NULL
+  for (candidate in fields) {
+    candidate_value <- .ui_value(values, candidate, NULL)
+    if (!.is_blank_cf_target(candidate_value)) {
+      field <- candidate
+      raw <- candidate_value
+      break
     }
-    return(100 - util)
   }
-  value <- suppressWarnings(as.numeric(constants$induced_trips_percent_default))
+
+  source <- "profile"
+  if (is.null(field)) {
+    raw <- constants$induced_trips_percent_default
+    source <- "config_default"
+  }
+  value <- suppressWarnings(as.numeric(raw))
   if (length(value) != 1 || !is.finite(value) || value < 0 || value > 100) {
-    stop("`induced_trips_percent_default` must be between 0 and 100.", call. = FALSE)
+    label <- field %||% "induced_trips_percent_default"
+    stop("`", label, "` must be between 0 and 100.", call. = FALSE)
   }
-  value
+
+  list(
+    percent = value,
+    field = field,
+    source = source
+  )
 }
 
 

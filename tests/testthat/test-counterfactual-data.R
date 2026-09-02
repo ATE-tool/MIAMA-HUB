@@ -651,6 +651,38 @@ test_that("apply_counterfactual_ui_values decreases walking trips by shifting mo
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$role, "shifted_away_trips")
 })
 
+test_that("advanced Tab 4 counterfactual trip counts override Tab 2 counts", {
+  advanced <- .cf_trip_target(
+    list(
+      ui_version = "advanced",
+      trips_count_cf_walk = 20,
+      trips_number_cf_walk = 8,
+      trips_timeframe_walk = "year",
+      trips_denominator_walk = "per_person"
+    ),
+    "walk"
+  )
+  basic <- .cf_trip_target(
+    list(
+      ui_version = "basic",
+      trips_count_cf_walk = 20,
+      trips_number_cf_walk = 8,
+      trips_timeframe_walk = "year",
+      trips_denominator_walk = "per_person"
+    ),
+    "walk"
+  )
+
+  expect_equal(advanced$field, "trips_number_cf_walk")
+  expect_equal(advanced$value, 8)
+  expect_equal(advanced$timeframe, "week")
+  expect_equal(advanced$denominator, "total")
+  expect_equal(basic$field, "trips_count_cf_walk")
+  expect_equal(basic$value, 20)
+  expect_equal(basic$timeframe, "year")
+  expect_equal(basic$denominator, "per_person")
+})
+
 test_that("counterfactual changed trip report handles data.table trip inputs", {
   reference_data <- list(
     trips = data.table::data.table(

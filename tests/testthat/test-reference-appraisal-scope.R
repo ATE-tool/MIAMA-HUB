@@ -113,6 +113,38 @@ test_that("trip-only reference scope derives its mode users from selected trips"
   expect_true(scoped$reference_scope_report$users$walking$derived_from_trip_scope)
 })
 
+test_that("advanced Tab 4 reference trip counts override Tab 2 counts", {
+  advanced <- .reference_trip_scope_target(
+    list(
+      ui_version = "advanced",
+      trips_count_ref_walk = 20,
+      trips_number_ref_walk = 8,
+      trips_timeframe_walk = "year",
+      trips_denominator_walk = "per_person"
+    ),
+    "walk"
+  )
+  basic <- .reference_trip_scope_target(
+    list(
+      ui_version = "basic",
+      trips_count_ref_walk = 20,
+      trips_number_ref_walk = 8,
+      trips_timeframe_walk = "year",
+      trips_denominator_walk = "per_person"
+    ),
+    "walk"
+  )
+
+  expect_equal(advanced$field, "trips_number_ref_walk")
+  expect_equal(advanced$value, 8)
+  expect_equal(advanced$timeframe, "week")
+  expect_equal(advanced$denominator, "total")
+  expect_equal(basic$field, "trips_count_ref_walk")
+  expect_equal(basic$value, 20)
+  expect_equal(basic$timeframe, "year")
+  expect_equal(basic$denominator, "per_person")
+})
+
 test_that("checked age groups constrain both REF scope and CF changes", {
   cfg <- miama_default_config()
   reference_data <- list(
@@ -275,27 +307,31 @@ test_that("pooled estimate uses source rates rather than the largest mode estima
   )
 })
 
-test_that("trip purpose controls the shifted and induced mechanism split", {
+test_that("induced trip percentage is explicit and independent of purpose", {
   constants <- miama_counterfactual_defaults(list(
     spread = miama_default_config()$spread,
     counterfactual = list(trips = list(induced_trips_percent_default = 10))
   ))
   expect_equal(
-    .cf_induced_trips_percent(
-      .cf_trip_distribution_args(list(trips_purpose_type = "utilitarian"), "walk"),
+    .cf_induced_trips_target(
+      list(trips_purpose_type = "utilitarian"),
+      "walk",
       constants
-    ),
-    0
+    )$percent,
+    10
   )
   expect_equal(
-    .cf_induced_trips_percent(
-      .cf_trip_distribution_args(list(
+    .cf_induced_trips_target(
+      list(
         trips_purpose_type = "mixed",
-        trips_purpose_util_perc = 65
-      ), "walk"),
+        trips_purpose_util_perc = 65,
+        induced_trips_percent = 25,
+        induced_trips_percent_walk = 30
+      ),
+      "walk",
       constants
-    ),
-    35
+    )$percent,
+    30
   )
 })
 

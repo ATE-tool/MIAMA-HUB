@@ -267,8 +267,9 @@ miama_default_config <- function(dataset_size = NULL) {
     # 5. Counterfactual mechanism assumptions ------------------------------
     counterfactual = list(
       trips = list(
-        # Used when no Tab 4 purpose split is supplied. A mixed purpose split
-        # maps its recreational share to induced trips in the current v1 model.
+        # Used unless the profile supplies `induced_trips_percent` (or its
+        # mode-specific equivalent). Purpose is a separate trip characteristic
+        # and does not determine whether a trip is shifted or induced.
         # Shifted percentage is always the complement (100 - induced).
         induced_trips_percent_default = 10
       )

@@ -345,6 +345,13 @@ For each assessed mode, Tab 3 can provide:
   and
 - a UI option describing current versus new users.
 
+Direct user-count inputs are authoritative and therefore supersede the
+current/new-user percentage. The percentage is applicable when user counts must
+instead be inferred from trip, distance, duration, or mode-share inputs. It is
+not yet operational because the number of distinct recipients of added trip
+exposure and the synchronization of trip- and person-level user status still
+need one canonical implementation.
+
 The aggregate CF population total is a presentation summary. Row-level
 behavioral changes are controlled by the mode-specific CF user targets. People
 who remain behaviorally unchanged are not removed from health denominators
@@ -449,11 +456,11 @@ the displayed target.
 
 For an increase, the default mechanism treats 90% of additional active trips as
 mode shifts and 10% as induced recreational trips. The explicit parameter is
-`cfg$counterfactual$trips$induced_trips_percent_default`; it is distinct from
-the new-user percentage even when both are set to 10%. A Tab 4 purpose choice overrides that default:
-utilitarian means shifted, recreational means induced, and a mixed
-utilitarian percentage determines the complementary induced percentage. This
-is a v1 operational interpretation of purpose, not an empirical identity.
+`induced_trips_percent` in the submitted profile, optionally overridden by a
+mode-specific field such as `induced_trips_percent_walk`. If neither is
+provided, HUB uses `cfg$counterfactual$trips$induced_trips_percent_default`.
+This mechanism parameter is distinct from both trip purpose and the new-user
+percentage, even when defaults happen to use the same value.
 
 Mode-shift candidates must be existing non-active utilitarian trips. Candidate
 distances are limited to 120% of the maximum observed reference active-mode
@@ -476,8 +483,8 @@ assumed to remain.
 
 ::: {.callout-warning}
 The compact `trips_spread_util_prop_cf_*` value is not yet reconciled with the
-scalar purpose controls. Purpose currently selects the shifted/induced
-mechanism split; it does not reweight candidates inside either mechanism.
+scalar purpose controls. Purpose no longer selects the shifted/induced
+mechanism split and does not yet reweight candidates inside either mechanism.
 :::
 
 ## Count units and represented totals
@@ -500,7 +507,7 @@ targets. Health-result population expansion is a separate configured operation.
 | Current/new-user percentage | Scalar profile value | **Planned:** parsed but not yet used to jointly assign trip ownership and user status. |
 | Mode-specific trip count | Weekly target trip rows | Shifts existing trips and adds induced recreational trips. |
 | Mean trip distance | Five distance-category target or smooth mean preference | Weights plausible trip candidates. |
-| Utilitarian proportion | Purpose/mechanism split | Sets shifted versus induced shares for scalar Tab 4 purpose controls; compact spread-purpose reconciliation remains planned. |
+| Utilitarian proportion | Target trip characteristic | Parsed and reported; purpose-based candidate weighting and compact spread-purpose reconciliation remain planned. |
 | Car diversion percentage | Expected car share among shifted trips | Rebalances car versus other source-mode candidate pools. |
 | Basic distance/duration target | Aggregate exposure target | **Planned:** no allocation to people/trips. |
 | Basic mode share target | Aggregate shares | **Planned:** no conversion to per-mode trip targets. |
@@ -515,8 +522,9 @@ for empirical validation.
 
 ## Priority methodological TODOs
 
-1. **Trip purpose validation:** reconcile scalar and compact spread-purpose
-   controls and report the requested and realized shifted/induced split.
+1. **Trip purpose implementation:** reconcile scalar and compact spread-purpose
+   controls, apply purpose to eligible or induced trip sampling, and report the
+   requested and realized purpose distribution separately from mechanism.
 2. **Candidate-weight calibration:** decide whether category weights should be
    calibrated as target share divided by candidate prevalence, or replaced by
    exact/near-exact quota sampling. Test on large and sparse geographies.

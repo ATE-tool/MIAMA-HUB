@@ -1121,6 +1121,13 @@ the full filtered geography retained as the donor population. E-bike and walk-to
 counterfactual user counts are currently reported as unsupported until the data
 contains dedicated activity columns or agreed classification rules.
 
+An explicit user-count input is authoritative: its CF-minus-REF difference
+already determines how many user-status changes are required. The separate
+current/new-user percentage is intended only for pathways where user counts are
+inferred from trips, distance, duration, or mode share. That percentage remains
+planned until the model assigns added trip exposure to a defined number of
+distinct recipient people and synchronizes their person-level user status.
+
 ### Trips: derive counterfactual number of active mode trips
 The trip-count handler supports `trips_count_cf_*` and `trips_number_cf_*` for
 active-mode trip rows. It converts Tab 2 targets from total or mean-per-person
@@ -1134,13 +1141,12 @@ values into a base-week trip count. Increases are split into two mechanisms:
   recreational purpose.
 
 The explicit mechanism parameter is
-`cfg$counterfactual$trips$induced_trips_percent_default`; shifted trips are its
-complement. This is separate from the percentage of activity assigned to new
-users, even when both defaults happen to be 10%. If Tab 4 supplies a purpose
-type, `utilitarian` maps to all shifted trips, `recreational` maps to all induced
-trips, and a `mixed` utilitarian percentage determines the complementary
-induced percentage. This is the transparent v1 mechanism interpretation; it
-does not claim that every recreational trip must be induced in reality.
+`induced_trips_percent` in the submitted profile, with optional mode-specific
+fields such as `induced_trips_percent_walk`. When neither is supplied, HUB uses
+`cfg$counterfactual$trips$induced_trips_percent_default`; shifted trips are the
+complement. This is separate from both trip purpose and the percentage of
+activity assigned to new users, even when defaults happen to use the same
+number. Purpose fields no longer override the induced-trip parameter.
 
 For increases, Tab 4 may specify a small source-by-target diversion matrix using
 `trips_diversion_car_perc_walk` and `trips_diversion_car_perc_bike`. Each value
@@ -1148,8 +1154,8 @@ is the expected percentage of mode-shift trips into that active target mode
 whose reference mode was car. The residual percentage is sampled from all
 other plausible non-target-mode trips. Distance and car-source weights are
 combined when candidates are sampled, so realized percentages are approximate
-in finite samples. Purpose determines the shifted/induced mechanism split; it
-does not alter candidate weights within a mechanism. Each counterfactual change report records
+in finite samples. Purpose does not currently alter candidate weights within a
+mechanism. Each counterfactual change report records
 `car_diversion_field`, the requested `car_diversion_percent`, and the observed
 `realized_car_diversion_percent` among shifted trips.
 
@@ -1194,8 +1200,8 @@ distance distribution. Older direct category controls can still plug into the
 
 TODO: reconcile `trips_spread_util_prop_cf_*` with the scalar purpose controls
 and add a requested-versus-realized purpose summary. At present, mode-shift
-candidates are utilitarian and induced trips are recreational, so purpose sets
-the mechanism split rather than reweighting candidates within each mechanism.
+candidates are utilitarian and induced trips are recreational, but purpose does
+not determine the requested shifted/induced split.
 
 Basic Tab 2 currently has two additional target forms that are not yet applied
 to counterfactual rows:
