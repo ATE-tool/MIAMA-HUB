@@ -79,6 +79,7 @@ apply_counterfactual_ui_values <- function(
 
   counterfactual_data <- context$counterfactual_data
   report <- .counterfactual_report_init(counterfactual_data)
+  report$tab2_input_conversion <- context$tab2_input_conversion
 
   for (handler in .counterfactual_ui_handler_registry()) {
     result <- handler(counterfactual_data, context)
@@ -137,6 +138,14 @@ apply_counterfactual_ui_values <- function(
     modes <- names(.miama_tab2_mode_specs())
   }
 
+  tab2_conversion <- .derive_tab2_trip_count_targets(
+    appraisal_input_values,
+    reference_data = reference_data,
+    scenario = "cf",
+    modes = modes
+  )
+  appraisal_input_values <- tab2_conversion$values
+
   counterfactual_data <- cf_add_key_indicators(counterfactual_data, modes)
   reference_data <- cf_add_key_indicators(reference_data, modes)
 
@@ -147,6 +156,7 @@ apply_counterfactual_ui_values <- function(
     constants = constants,
     seed = seed,
     modes = modes,
+    tab2_input_conversion = tab2_conversion$report,
     user_sampling_strategy = cf_sampling_strategy_from_ui(appraisal_input_values, scope = "user"),
     trip_sampling_strategy = cf_sampling_strategy_from_ui(appraisal_input_values, scope = "trip")
   )

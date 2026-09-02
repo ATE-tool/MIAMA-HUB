@@ -250,11 +250,13 @@ mode-specific user counts, and distribution anchors are recalculated from that
 snapshot rather than from the complete geography.
 
 If Tab 2 specifies a mode-user count, HUB samples that number of observed users.
-If it specifies only a mode-trip count, HUB samples active trips and derives the
-corresponding mode-user count from the unique owners of those selected trips.
-When neither field changes, the geography-derived baseline remains the
-reference default. Explicit user and trip targets can both be supplied, in
-which case the trip scope is selected within the user scope.
+If it specifies trip volume directly, or indirectly through distance, duration,
+or mode share, HUB converts the input to a weekly mode-trip target, samples
+active trips, and derives the corresponding mode-user count from the unique
+owners of those selected trips. When neither field changes, the
+geography-derived baseline remains the reference default. Explicit user and
+trip targets can both be supplied, in which case the trip scope is selected
+within the user scope.
 
 The Tab 3 total is an estimate of the population represented by those Tab 2
 volumes, not automatically the whole LAD. When no explicit total is supplied,
@@ -267,11 +269,12 @@ N_{assessed} = N_{source}
      {\sum_m V^{REF}_{source,m}},
 $$
 
-where $V$ is mode users for user-count input and weekly trip rows for
-trip-count input. Pooling the selected modes avoids making either walking or
-cycling the sole population anchor. People using multiple modes contribute to
-both sums consistently. HUB also reports each standalone mode estimate because
-strong disagreement between them indicates an internally atypical scenario.
+where $V$ is mode users for user-count input and weekly trip rows for direct or
+converted trip-volume input. Pooling the selected modes avoids making either
+walking or cycling the sole population anchor. People using multiple modes
+contribute to both sums consistently. HUB also reports each standalone mode
+estimate because strong disagreement between them indicates an internally
+atypical scenario.
 
 Tab 2 counterfactual inputs are applied to a synthpop-only copy before Tab 3 is
 shown. This provides a no-health-model preview of the same CF population that
@@ -302,10 +305,10 @@ owned by HUB rather than repeated in modal-specific UI code.
 ```{mermaid}
 flowchart LR
   A[Full LAD baseline donor pool] --> B[Geography defaults]
-  B --> C[Tab 2 REF inputs]
+  B --> C[Tab 2 REF users or converted trip volume]
   C --> D[REF scoped people, users and trips]
   D --> E[Tab 3 reference table and spreads]
-  D --> F[Tab 2 CF inputs]
+  D --> F[Tab 2 CF users or converted trip volume]
   F --> G[Staged CF synthpop snapshot]
   G --> H[Tab 3/4 refinements]
   H --> I[Final CF snapshot]
@@ -328,12 +331,66 @@ The basic interface offers alternative currencies for describing change:
 |---|---|---|
 | Number of mode users | Target number of weekly walking or cycling users | **Implemented** for walking and cycling. |
 | Number of mode trips | Target weekly active-trip count, with UI timeframe and denominator conversion | **Implemented** for walking and cycling. |
-| Distance or duration | Target aggregate or per-person active-travel amount | **Planned:** collected and summarized but not yet allocated to rows or health exposure. |
-| Mode share | Target shares by travel mode | **Planned:** reference and UI values exist, but counterfactual shares do not yet drive trip sampling. |
+| Distance or duration | Target aggregate or per-person active-travel amount | **Implemented** for walking and cycling by conversion to a weekly trip-row target. |
+| Mode share | Target shares by travel mode and a trip, distance, or duration denominator | **Implemented** for walking and cycling by deriving per-mode weekly trip-row targets. |
 
 Only one basic input route is intended to be active at a time. User and trip
 targets use the same counterfactual machinery as the advanced interface; the
 advanced controls add information about who changes and which trips change.
+
+### Converting distance, duration, and mode share
+
+The behavioral model uses one canonical unit for trip-volume manipulation: the
+number of synthetic trip rows in a reference week. Alternative Tab 2 inputs are
+therefore converted before either REF scoping or CF sampling.
+
+For mode $m$, a distance or duration target is first converted to kilometres or
+minutes and then to one week. A per-person input is multiplied by the applicable
+scenario population $N_s$; a total input is already an aggregate. Let $A_{m,s}$
+be that weekly aggregate and let $\bar{a}_{m,REF}$ be the positive mean distance
+or duration among reference trips of mode $m$. The trip-row target is
+
+$$
+T_{m,s} = \operatorname{round}\left(
+  \frac{A_{m,s}}{\bar{a}_{m,REF}}
+\right).
+$$
+
+For mode share, let $p_{m,s}$ be the requested percentage and $D_s$ the selected
+trip, distance, or duration denominator. The mode-specific amount is
+
+$$
+A_{m,s} = D_s \frac{p_{m,s}}{100}.
+$$
+
+If $D_s$ is a trip total, $A_{m,s}$ is rounded directly to a trip-row target.
+If it is total distance or duration, the first equation is used. This makes
+mode share a per-mode sampling quota rather than a separate row-selection
+algorithm.
+
+The converted targets pass through the same constrained trip sampler as direct
+trip-count inputs. Target volume controls how many active-mode rows are needed;
+Tab 4 distance distributions and diversion rates control the relative
+probability that eligible rows are selected. The shifted-versus-induced rule
+controls whether those rows come from existing non-active trips or copied
+active-trip donors. Resulting changes in active minutes are converted to MMET
+exposure through the standard health pathway.
+
+The conversion is an expectation-based approximation. It preserves the
+requested aggregate when sampled rows resemble the reference mean, but it does
+not enforce an exact kilometre or minute total after finite, constrained
+sampling. HUB records all conversion inputs and derived row targets in
+`reference_scope_report$tab2_input_conversion` and
+`counterfactual_report$tab2_input_conversion` so requested and realized values
+can be compared.
+
+An average per trip is not a complete volume specification because it supplies
+no number of trips. HUB therefore rejects `average_per_trip` in this pathway;
+it belongs in Tab 4 as a characteristic constraint unless paired with a second
+volume input. Mode-share distance and duration denominators currently use
+canonical reference-week units of km/week and minutes/week. Explicit UI unit
+and timeframe controls remain a schema refinement if other interpretations are
+to be supported.
 
 ## Refined population specification (Tab 3)
 
@@ -509,8 +566,8 @@ targets. Health-result population expansion is a separate configured operation.
 | Mean trip distance | Five distance-category target or smooth mean preference | Weights plausible trip candidates. |
 | Utilitarian proportion | Target trip characteristic | Parsed and reported; purpose-based candidate weighting and compact spread-purpose reconciliation remain planned. |
 | Car diversion percentage | Expected car share among shifted trips | Rebalances car versus other source-mode candidate pools. |
-| Basic distance/duration target | Aggregate exposure target | **Planned:** no allocation to people/trips. |
-| Basic mode share target | Aggregate shares | **Planned:** no conversion to per-mode trip targets. |
+| Basic distance/duration target | Weekly aggregate km or minutes, total or per person | Converted to a mode-specific weekly trip-row target using the reference mean per active trip, then passed to constrained sampling. |
+| Basic mode share target | Mode percentage plus a trip/distance/duration denominator | Converted to a per-mode weekly trip-row quota, then passed to constrained sampling. |
 
 # Validation, uncertainty, and remaining work
 
@@ -540,8 +597,11 @@ for empirical validation.
 6. **Trip weights:** validate the current one-row/one-record interpretation and
    decide whether a future reporting layer should expose survey-weighted or
    population-expanded estimates separately from sampling targets.
-7. **Basic distance/duration and mode share:** translate these inputs into
-   operational user/trip targets or clearly mark them as non-modeling inputs.
+7. **Alternative-volume calibration:** compare requested versus realized
+   aggregate kilometres/minutes after constrained row sampling; decide whether
+   exact or near-exact aggregate calibration is required. Add explicit UI
+   unit/timeframe controls for mode-share distance and duration denominators if
+   canonical weekly km/min assumptions are insufficient.
 8. **Short-term effects:** implement a time-limited intervention effect rather
    than applying the MMET change to every health cycle.
 9. **Category and intensity review:** validate age, distance, PA cutoffs and
@@ -574,6 +634,7 @@ for empirical validation.
 This description is based on the current implementation, principally:
 
 - `R/reference_data_extract_reference_ui_values.R`
+- `R/tab2_input_conversion.R`
 - `R/reference_data_spread_functions.R`
 - `R/counterfactual_data_sampling_functions.R`
 - `R/counterfactual_data_apply_ui_values.R`

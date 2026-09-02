@@ -23,6 +23,14 @@ apply_reference_appraisal_scope <- function(reference_data,
   modes <- intersect(modes, c("walking", "cycling"))
   if (length(modes) == 0) modes <- c("walking", "cycling")
 
+  tab2_conversion <- .derive_tab2_trip_count_targets(
+    appraisal_input_values,
+    reference_data = out,
+    scenario = "ref",
+    modes = modes
+  )
+  appraisal_input_values <- tab2_conversion$values
+
   user_targets <- stats::setNames(lapply(modes, function(mode) {
     .reference_user_scope_target(appraisal_input_values, .counterfactual_mode_spec(mode)$suffix)
   }), modes)
@@ -155,6 +163,7 @@ apply_reference_appraisal_scope <- function(reference_data,
     ),
     users = user_report,
     trips = trip_report,
+    tab2_input_conversion = tab2_conversion$report,
     population_constraints = population_target$constraints,
     seed = as.integer(seed),
     interpretation = paste(
@@ -257,7 +266,7 @@ apply_reference_appraisal_scope <- function(reference_data,
     spec <- .counterfactual_mode_spec(mode)
     suffix <- spec$suffix
     use_users <- identical(data_unit, "users")
-    use_trips <- identical(data_unit, "trips")
+    use_trips <- data_unit %in% c("trips", "distance", "mode_share")
     if (is.null(data_unit) || !nzchar(data_unit)) {
       use_users <- !is.null(user_targets[[mode]]$value)
       use_trips <- !use_users && !is.null(trip_targets[[mode]]$value)

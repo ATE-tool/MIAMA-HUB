@@ -1005,10 +1005,14 @@ population row count; `population_size` is overridden from the geography
 lookup's scaled population where available.
 
 User-entered `pop_total_ref_*`, `pop_number_ref_*`, `users_count_ref_*`, and
-`trips_count_ref_*` values are applied when results are built. They define an
-appraisal snapshot within the full geography rather than changing observed
-reference behaviour. When no explicit total exists, user/trip volumes imply an
-affected population through the pooled source-rate calculation described above.
+Tab 2 active-travel volume values are applied when results are built. Volume
+may be entered directly as trips or indirectly as distance, duration, or mode
+share. HUB first converts each supported indirect representation to a canonical
+weekly trip-row target, then applies the same reference-scoping machinery used
+for `trips_count_ref_*`. These inputs define an appraisal snapshot within the
+full geography rather than changing observed reference behaviour. When no
+explicit total exists, user/trip volumes imply an affected population through
+the pooled source-rate calculation described above.
 HUB retains the full geography as the source pool and adds
 explicit `ref_in_scope` / `cf_in_scope`, mode-specific user-scope, and
 mode-specific trip-scope flags. The resulting `reference_scope_report` records
@@ -1203,24 +1207,61 @@ and add a requested-versus-realized purpose summary. At present, mode-shift
 candidates are utilitarian and induced trips are recreational, but purpose does
 not determine the requested shifted/induced split.
 
-Basic Tab 2 currently has two additional target forms that are not yet applied
-to counterfactual rows:
+### Canonical conversion of alternative Tab 2 volume inputs
 
-- `mode_share_cf` can be implemented as a thin conversion step: multiply each
-  requested share by the selected total-trip denominator, then pass the derived
-  per-mode counts to the existing trip sampling path. It does not require a new
-  sampling algorithm.
-- `dist_dur_amount_cf_*` is an exposure target rather than a row-count target.
-  Implementing it requires an allocation rule for the number of affected users
-  or trips and the distance/time assigned to each. With trip data, a defensible
-  first version can estimate a trip count from the target exposure and sampled
-  mode-specific trip distance/duration, then reuse the existing constrained
-  sampler. Individual-only appraisals need a separate activity-allocation rule.
+Tab 2 presents trip count, distance/duration, and mode share as alternative
+ways to specify active-travel volume. HUB normalizes the selected route before
+reference scoping or counterfactual sampling. The resulting internal target is
+always a weekly number of walking or cycling trip rows:
 
-The UI presents count, distance/duration, and mode share as alternative input
-units, so no precedence rule is needed while exactly one branch is filled. The
-distance/duration allocation rule still requires an explicit modelling decision
-before it should affect health outcomes.
+1. Distance is converted to kilometres and duration to minutes.
+2. Day or year amounts are converted to a reference week using
+   `convert_timeframe_value()`.
+3. An average-per-person amount is multiplied by the relevant REF or CF person
+   scope; a total amount is used directly.
+4. HUB measures the positive reference mean amount per active-mode trip and
+   calculates `target trip rows = round(weekly total / reference mean per trip)`.
+5. For mode share, HUB first calculates
+   `mode amount = denominator total * mode percent / 100`. A trip denominator
+   is already a trip-row target; distance and duration denominators use the
+   same reference-mean conversion in step 4.
+
+The conversion is applied independently to REF and CF. Derived values are
+written only into the internal flattened request as `trips_count_ref_*` or
+`trips_count_cf_*`; they do not overwrite the user's profile fields. The
+existing trip handler then scopes reference rows or samples counterfactual
+rows, including distance-distribution weights, diversion weights, trip locking,
+and the shifted/induced split. Consequently, mode share determines the
+per-mode sampling quota, while distance/duration determines a quota from the
+requested aggregate amount. The selected row characteristics determine the
+realized aggregate distance or duration and downstream MMET exposure.
+
+The complete conversion assumptions are retained for inspection under
+`reference_scope_report$tab2_input_conversion` and
+`counterfactual_report$tab2_input_conversion`. Each mode entry identifies the
+source and denominator fields, source type and timeframe, canonical unit,
+reference mean per trip, optional population denominator, weekly total, and
+derived trip-row target.
+
+Current limitations are explicit:
+
+- `average_per_trip` distance/duration describes trip characteristics but does
+  not identify total travel volume. HUB rejects it as a Tab 2 volume target;
+  use a total or average per person, or use Tab 4 to refine trip distance.
+- Mode-share distance and duration totals are currently interpreted as
+  canonical reference-week totals in km/week and minutes/week. The UI schema
+  should expose or state those unit/timeframe assumptions if alternatives are
+  required.
+- Conversion creates an integer row target. It does not calibrate selected rows
+  to make realized aggregate kilometres or minutes exactly equal to the input.
+  Finite candidate pools and advanced sampling constraints can therefore cause
+  differences that must be reviewed in the requested-versus-realized report.
+- Walking and cycling are supported. E-bike and public-transport walking need
+  dedicated source columns and agreed classification rules.
+
+Because the UI routes are alternatives, the selected `at_data_unit` controls
+which family is converted. Advanced Tab 4 trip targets retain their established
+precedence over Tab 2-derived targets.
 
 Trip counts have one explicit contract: one synthetic trip row is one trip
 record. UI reference values, counterfactual targets, sampling, result tables,
@@ -1248,10 +1289,12 @@ The R6 `Hub` wrapper exposes this step via `build_counterfactual_data()` and
 
 `R/counterfactual_data_apply_ui_values.R` is structured as a handler registry:
 `apply_counterfactual_ui_values()` builds shared context, then each handler owns
-one conceptual family of UI fields. The first implemented handler is active-mode
-user-count targets. Future handlers should be added for activity amounts,
-population distributions, trip counts, trip mode shifts, trip attributes, and
-diversion rates. Keep each handler's assumptions visible near the handler code,
+one conceptual family of UI fields. Implemented handlers cover active-mode user
+targets and active-mode trip targets. The shared context first converts Tab 2
+distance/duration and mode-share inputs into trip targets, allowing them to use
+the trip handler together with Tab 4 distance and diversion constraints. Future
+handlers can extend purpose and other trip-characteristic constraints without
+duplicating volume conversion. Keep each handler's assumptions visible near the handler code,
 and keep cross-cutting validation, sampling, constants, and report helpers in
 their dedicated outline sections.
 
