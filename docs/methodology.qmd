@@ -185,6 +185,11 @@ HALY_{i,t}=LY_{i,t}(1-pYLD_{i,t})
 \left(1-\sum_d prevalence_{i,t,d}\,dw_{i,t,d}^{adj}\right)
 $$
 
+If nobody remains alive in a person-cycle, both prevalence-related disability
+and HALYs are zero. Cycles beyond the maximum age covered by the parameter
+tables are outside the HALY model and are omitted from HALY summaries, while
+their underlying health-outcome records remain available.
+
 The technical HALY delta is counterfactual minus reference, so a positive value
 already represents a health gain. This differs from adverse incidence outcomes,
 where positive presentation benefits require reversing the technical delta.

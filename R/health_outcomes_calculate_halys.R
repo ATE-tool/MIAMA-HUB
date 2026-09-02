@@ -82,10 +82,13 @@ calculate_health_adjusted_life_years <- function(
   sex <- ifelse(female == 1, 2, 1)
 
   parameter_key <- paste(current_age, sex, sep = "\r")
-  pyld_key <- paste(.as_plain_numeric(pyld$age), .as_plain_numeric(pyld$sex), sep = "\r")
+  pyld_age <- .as_plain_numeric(pyld$age)
+  maximum_haly_age <- max(pyld_age, na.rm = TRUE)
+  modeled_age <- is.finite(current_age) & current_age <= maximum_haly_age
+  pyld_key <- paste(pyld_age, .as_plain_numeric(pyld$sex), sep = "\r")
   pyld_rate <- .as_plain_numeric(pyld$pyld_rate)[match(parameter_key, pyld_key)]
-  if (anyNA(pyld_rate)) {
-    missing_keys <- unique(parameter_key[is.na(pyld_rate)])
+  if (anyNA(pyld_rate[modeled_age])) {
+    missing_keys <- unique(parameter_key[modeled_age & is.na(pyld_rate)])
     stop(
       "HALY pYLD parameters do not cover age/sex keys: ",
       paste(utils::head(missing_keys, 10), collapse = ", "),
@@ -133,15 +136,15 @@ calculate_health_adjusted_life_years <- function(
       sep = "\r"
     )
     dw <- .as_plain_numeric(disability_weights$dw_adj[rows])[match(parameter_key, dw_key)]
-    if (anyNA(dw)) {
+    if (anyNA(dw[modeled_age])) {
       stop("HALY disability weights do not cover disease `", disease, "`.", call. = FALSE)
     }
     prev_dw_ref <- prev_dw_ref + prevalence_alive_ref * dw
     prev_dw_cf <- prev_dw_cf + prevalence_alive_cf * dw
   }
 
-  haly_ref <- alive_ref * (1 - pyld_rate) * (1 - prev_dw_ref)
-  haly_cf <- alive_cf * (1 - pyld_rate) * (1 - prev_dw_cf)
+  haly_ref <- .haly_from_alive(alive_ref, pyld_rate, prev_dw_ref, modeled_age)
+  haly_cf <- .haly_from_alive(alive_cf, pyld_rate, prev_dw_cf, modeled_age)
   calculated <- data.frame(
     original_order = original_order[order_index],
     haly = haly_ref,
@@ -173,6 +176,16 @@ calculate_health_adjusted_life_years <- function(
   out <- numeric(length(prevalence))
   valid <- is.finite(prevalence) & is.finite(alive) & alive > 0
   out[valid] <- prevalence[valid] / alive[valid]
+  out
+}
+
+.haly_from_alive <- function(alive, pyld_rate, prevalence_dw, modeled_age) {
+  out <- rep(NA_real_, length(alive))
+  no_population <- modeled_age & is.finite(alive) & alive <= 0
+  valid <- modeled_age & is.finite(alive) & alive > 0 &
+    is.finite(pyld_rate) & is.finite(prevalence_dw)
+  out[no_population] <- 0
+  out[valid] <- alive[valid] * (1 - pyld_rate[valid]) * (1 - prevalence_dw[valid])
   out
 }
 

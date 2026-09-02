@@ -314,3 +314,38 @@ test_that("HALYs reconstruct prevalence and apply disability adjustments", {
   expect_equal(out$haly_cf, c(0.774, 0.6984), tolerance = 1e-10)
   expect_equal(out$d_haly, c(0, 0.0234), tolerance = 1e-10)
 })
+
+test_that("HALYs handle exhausted populations and ages beyond parameter tables", {
+  diseases <- "diabetes"
+  health <- data.frame(
+    census_id = c(1, 1, 2, 2),
+    cycle = c(0L, 1L, 0L, 1L),
+    age1year = c(40, 40, 100, 100),
+    female = c(0, 0, 0, 0),
+    dead = c(0.4, 0.6, 1, 0),
+    d_dead = c(0, 0, 0, 0),
+    depression_remission = 0,
+    d_depression_remission = 0,
+    diabetes = c(0.2, 0.1, 0.1, 0),
+    d_diabetes = 0,
+    death_share_diabetes = 0.5,
+    d_death_share_diabetes = 0
+  )
+  pyld <- data.frame(
+    age = c(40, 41, 100), sex = 1, pyld_rate = 0.1
+  )
+  dw <- data.frame(
+    age = c(40, 41, 100), sex = 1, disease = "diabetes", dw_adj = 0.2
+  )
+
+  out <- calculate_health_adjusted_life_years(
+    health, pyld, dw, diseases = diseases, include_cf_columns = TRUE
+  )
+
+  expect_equal(out$haly[2], 0)
+  expect_equal(out$haly_cf[2], 0)
+  expect_equal(out$d_haly[2], 0)
+  expect_true(is.na(out$haly[4]))
+  expect_true(is.na(out$haly_cf[4]))
+  expect_true(is.na(out$d_haly[4]))
+})
