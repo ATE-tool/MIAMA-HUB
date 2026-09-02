@@ -18,10 +18,10 @@ apply_reference_appraisal_scope <- function(reference_data,
     stop("Reference appraisal scope requires `reference_data$ind`.", call. = FALSE)
   }
 
-  out <- reference_data
+  out <- .prepare_mode_features(reference_data)
   modes <- normalize_active_modes(.ui_value(appraisal_input_values, "modes", character(0)))
-  modes <- intersect(modes, c("walking", "cycling"))
-  if (length(modes) == 0) modes <- c("walking", "cycling")
+  modes <- intersect(modes, .miama_supported_modes())
+  if (length(modes) == 0) modes <- .miama_supported_modes()
 
   tab2_conversion <- .derive_tab2_trip_count_targets(
     appraisal_input_values,
@@ -440,49 +440,54 @@ apply_reference_appraisal_scope <- function(reference_data,
     )))
   }
 
-  if (length(specified) == 1) {
-    mode <- specified[[1]]
-    target_active <- user_targets[[mode]]$value
-    if (target_active > target_n) stop("Reference user count cannot exceed reference population size.", call. = FALSE)
-    selected_users <- .sample_reference_rows(
-      which(active[[mode]]), target_active, seed + 1L
-    )
-    selected <- c(selected_users, .sample_reference_rows(
-      setdiff(which(eligible), selected_users),
-      target_n - target_active,
-      seed + 2L
-    ))
-    return(selected)
+  requested <- vapply(user_targets[specified], `[[`, numeric(1), "value")
+  if (any(requested > target_n)) {
+    stop("Reference user count cannot exceed reference population size.", call. = FALSE)
   }
 
-  # Walking and cycling are overlapping memberships. Select enough active
-  # donor rows to support both requested margins, then fill the general person
-  # scope from any remaining eligible people. A baseline user may be inside the
-  # person scope but outside a mode-user scope; materialization zeros that mode
-  # outside its explicit scope.
-  walk <- active$walking
-  bike <- active$cycling
-  w <- user_targets$walking$value
-  b <- user_targets$cycling$value
-  strata <- list(
-    both = which(walk & bike), walk = which(walk & !bike),
-    bike = which(!walk & bike), neither = which(!walk & !bike)
-  )
-  strata$neither <- intersect(strata$neither, which(eligible))
-  lower <- max(0L, w + b - target_n, w - length(strata$walk), b - length(strata$bike))
-  upper <- min(w, b, length(strata$both))
-  if (lower > upper) {
-    stop("Reference population/user targets cannot be jointly sampled from the available donor strata.", call. = FALSE)
+  # Build a person scope with enough observed users to satisfy every requested
+  # mode margin. Prioritizing rows that satisfy several outstanding margins
+  # preserves real cross-mode overlap and works for any subset of four modes.
+  selected <- required_rows
+  availability <- vapply(specified, function(mode) sum(active[[mode]]), numeric(1))
+  if (any(requested > availability)) {
+    stop("Reference mode-user targets exceed the available donor populations.", call. = FALSE)
   }
-  expected <- round(w * b / max(target_n, 1L))
-  both_n <- min(max(expected, lower), upper)
-  active_counts <- c(both = both_n, walk = w - both_n, bike = b - both_n)
-  selected_users <- unlist(lapply(seq_along(active_counts), function(index) {
-    .sample_reference_rows(strata[[index]], active_counts[[index]], seed + index)
-  }), use.names = FALSE)
-  c(selected_users, .sample_reference_rows(
-    setdiff(which(eligible), selected_users),
-    target_n - length(selected_users),
+  mode_order <- specified[order(requested / pmax(availability, 1), decreasing = TRUE)]
+  for (index in seq_along(mode_order)) {
+    mode <- mode_order[[index]]
+    deficit <- requested[[mode]] - sum(active[[mode]][selected])
+    if (deficit <= 0) next
+
+    candidates <- which(eligible & active[[mode]] & !seq_len(n) %in% selected)
+    outstanding <- mode_order[vapply(mode_order, function(candidate_mode) {
+      requested[[candidate_mode]] > sum(active[[candidate_mode]][selected])
+    }, logical(1))]
+    overlap_score <- if (length(outstanding) == 0) {
+      rep(0, length(candidates))
+    } else {
+      Reduce(`+`, lapply(outstanding, function(candidate_mode) {
+        as.integer(active[[candidate_mode]][candidates])
+      }))
+    }
+    set.seed(seed + index)
+    candidates <- candidates[order(-overlap_score, stats::runif(length(candidates)))]
+    selected <- unique(c(selected, utils::head(candidates, deficit)))
+  }
+
+  unmet <- vapply(specified, function(mode) {
+    requested[[mode]] - sum(active[[mode]][selected])
+  }, numeric(1))
+  if (any(unmet > 0) || length(selected) > target_n) {
+    stop(
+      "Reference population/user targets cannot be jointly sampled from the available donor overlap.",
+      call. = FALSE
+    )
+  }
+
+  c(selected, .sample_reference_rows(
+    setdiff(which(eligible), selected),
+    target_n - length(selected),
     seed + 10L
   ))
 }

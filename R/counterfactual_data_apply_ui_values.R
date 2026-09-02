@@ -35,8 +35,9 @@
 #   identify the users/trips represented in each snapshot.
 # - Individual donor row counts stay fixed. User-count targets switch eligible
 #   people between current non-user/new user and current user/ex-user states.
-# - Key indicators (`user_walk`, `user_bike`, `trip_activemode`,
-#   `trip_utilitarian`, and CF change flags) are added to the returned data.
+# - Key indicators (`user_walk`, `user_bike`, `user_ebike`, `user_pt`,
+#   `trip_activemode`, `trip_utilitarian`, and CF change flags) are added to the
+#   returned data.
 # - Trip increases are represented as mode shifts for existing utilitarian
 #   non-active trips plus a default 10% induced recreational active trips.
 # - Trip decreases switch active trips away from the active mode rather than
@@ -50,8 +51,9 @@
 # Current constraints:
 # - Counterfactual user-count targets must be finite, non-negative integers after
 #   rounding, and no larger than the assessed REF person scope.
-# - E-bike and walk-to-PT user count changes are accepted only as report notes
-#   until reference data exposes defensible target activity columns.
+# - E-bike reference volume is zero because source bicycle records are retained
+#   as conventional cycling. Cycling supplies donor patterns for e-bike CF
+#   changes. PT contributes physical activity only through access walking.
 #
 # Parameter/constants naming convention:
 # - `*_ref` values are measured from `reference_data`.
@@ -146,8 +148,8 @@ apply_counterfactual_ui_values <- function(
   )
   appraisal_input_values <- tab2_conversion$values
 
-  counterfactual_data <- cf_add_key_indicators(counterfactual_data, modes)
-  reference_data <- cf_add_key_indicators(reference_data, modes)
+  counterfactual_data <- cf_add_key_indicators(.prepare_mode_features(counterfactual_data), modes)
+  reference_data <- cf_add_key_indicators(.prepare_mode_features(reference_data), modes)
 
   list(
     counterfactual_data = counterfactual_data,
@@ -167,9 +169,9 @@ apply_counterfactual_ui_values <- function(
 
 # Handler: active-mode user count targets ----
 # UI fields:
-# - `users_count_cf_walk`, `users_count_cf_bike`
-# - basic UI: `pop_number_cf_walk_basic`, `pop_number_cf_bike_basic`
-# - advanced UI: `pop_number_cf_walk_advanced`, `pop_number_cf_bike_advanced`
+# - `users_count_cf_[walk|bike|ebike|pt]`
+# - basic UI: `pop_number_cf_[walk|bike|ebike|pt]_basic`
+# - advanced UI: `pop_number_cf_[walk|bike|ebike|pt]_advanced`
 #
 # Data manipulation:
 # - Select row IDs from current non-users or current users.
@@ -211,15 +213,15 @@ apply_counterfactual_ui_values <- function(
 
 # Handler: active-mode trip count targets ----
 # UI fields:
-# - `trips_count_cf_walk`, `trips_count_cf_bike`
-# - `trips_number_cf_walk`, `trips_number_cf_bike`
+# - `trips_count_cf_[walk|bike|ebike|pt]`
+# - `trips_number_cf_[walk|bike|ebike|pt]`
 #
 # Related refinement fields used by sampling or recorded in report metadata:
 # - `trips_timeframe_*`, `trips_denominator_*`
 # - `pop_new_current_perc`
 # - `trips_dist_value`, `trips_purpose_type`, `trips_purpose_util_perc`
 # - `trips_spread_mean_cf`, `trips_spread_util_prop_cf`
-# - `trips_diversion_car_perc_walk`, `trips_diversion_car_perc_bike`
+# - `trips_diversion_car_perc_[walk|bike|ebike|pt]`
 #
 # Data manipulation, first-pass:
 # - Convert user-supplied trip target to a base-week count.
@@ -339,7 +341,9 @@ apply_counterfactual_ui_values <- function(
   counterfactual_data <- assignment$counterfactual_data
   car_diversion_target <- .cf_car_diversion_target(
     appraisal_input_values,
-    spec$suffix
+    spec$suffix,
+    mode = spec$mode,
+    constants = constants
   )
   trip_rate <- .cf_positive_mode_assumption(
     appraisal_input_values,
@@ -395,6 +399,8 @@ apply_counterfactual_ui_values <- function(
   change$trip_sampling_fallback <- trip_effect$sampling_fallback
   change$car_diversion_percent <- car_diversion_target$percent
   change$car_diversion_field <- car_diversion_target$field
+  change$source_mode_shares <- car_diversion_target$shares
+  change$source_mode_shares_source <- car_diversion_target$source
   change$realized_car_diversion_percent <- trip_effect$realized_car_diversion_percent
   change$trips_per_user_per_week <- trip_rate$value
   change$trips_per_user_per_week_field <- trip_rate$field
@@ -455,8 +461,11 @@ apply_counterfactual_ui_values <- function(
       weights = weights
     )
     sampling_fallback <- attr(changed_rows, "sampling_fallback")
+    donor_spec <- .mode_proxy_spec(spec)
+    donor_users <- .positive_col(reference_data$ind, donor_spec$activity_col)
     replacement_values <- cf_sample_observed_values(
-      values_ref = reference_data$ind[[spec$activity_col]][ref_users],
+      values_ref = reference_data$ind[[donor_spec$activity_col]][donor_users] *
+        (spec$proxy_duration_factor %||% 1),
       n = length(changed_rows),
       default_value = constants[[spec$default_col]],
       seed = seed + spec$seed_offset + 1000L
@@ -565,7 +574,9 @@ apply_counterfactual_ui_values <- function(
   args <- .cf_trip_distribution_args(appraisal_input_values, spec$suffix)
   car_diversion_target <- .cf_car_diversion_target(
     appraisal_input_values,
-    spec$suffix
+    spec$suffix,
+    mode = spec$mode,
+    constants = constants
   )
   trip_rate <- .cf_positive_mode_assumption(
     appraisal_input_values,
@@ -653,6 +664,8 @@ apply_counterfactual_ui_values <- function(
   change$induced_trips_percent_source <- induced_target$source
   change$car_diversion_percent <- car_diversion_target$percent
   change$car_diversion_field <- car_diversion_target$field
+  change$source_mode_shares <- car_diversion_target$shares
+  change$source_mode_shares_source <- car_diversion_target$source
   change$realized_car_diversion_percent <- assignment$realized_car_diversion_percent
 
   notes <- character(0)
@@ -730,7 +743,8 @@ apply_counterfactual_ui_values <- function(
       spec = spec,
       n = induced_n,
       seed = seed + spec$seed_offset + 3500L,
-      census_ids = .cf_scoped_person_ids(counterfactual_data)
+      census_ids = .cf_scoped_person_ids(counterfactual_data),
+      constants = constants
     )
     counterfactual_data <- induced$counterfactual_data
     changed_rows <- rbind(shifted$changed_rows, induced$changed_rows)
@@ -1054,17 +1068,20 @@ apply_counterfactual_ui_values <- function(
 
   trips <- counterfactual_data$trips
   active <- spec$trip_filter(trips)
-  # A candidate must be inactive in every assessed active mode, not merely
-  # inactive in the target mode. Otherwise processing walking after cycling can
-  # convert newly/currently cycling trips to walking and make results depend on
-  # the order of `modes` in the UI profile.
-  active_any_mode <- rep(FALSE, nrow(trips))
-  if ("trip_activemode" %in% names(trips)) {
-    active_any_mode <- .true_values(trips$trip_activemode)
+  # A configured source-mode distribution may explicitly make another active
+  # mode eligible (for example, cycling or PT diverted to e-bike). Otherwise,
+  # preserve the established rule that active modes do not cannibalize one
+  # another. `cf_trip_locked` always prevents a row being switched twice.
+  active_any_mode <- if ("trip_activemode" %in% names(trips)) {
+    .true_values(trips$trip_activemode)
+  } else {
+    rep(FALSE, nrow(trips))
   }
+  cross_mode_source <- !is.null(car_diversion_target$shares)
   unlocked <- !.true_values(trips$cf_trip_locked)
   candidates <- which(
-    !active & !active_any_mode & unlocked & !is.na(trips$nts_tripid)
+    !active & (cross_mode_source | !active_any_mode) & unlocked &
+      !is.na(trips$nts_tripid)
   )
   if ("cf_in_scope" %in% names(trips)) {
     candidates <- candidates[.true_values(trips$cf_in_scope[candidates])]
@@ -1109,7 +1126,7 @@ apply_counterfactual_ui_values <- function(
     realized_car_diversion_percent <- NA_real_
   }
 
-  trips <- .switch_trips_to_active_mode(trips, rows, spec)
+  trips <- .switch_trips_to_active_mode(trips, rows, spec, constants)
   trips$cf_trip_change[rows] <- "mode_shift_to_active"
   trips$cf_mode_shift[rows] <- TRUE
   trips$cf_trip_locked[rows] <- TRUE
@@ -1133,12 +1150,14 @@ apply_counterfactual_ui_values <- function(
                                       spec,
                                       n,
                                       seed,
-                                      census_ids = NULL) {
+                                      census_ids = NULL,
+                                      constants = NULL) {
   if (n == 0 || is.null(reference_data$trips)) {
     return(list(counterfactual_data = counterfactual_data, changed_rows = .empty_changed_trip_rows(), changed_n = 0L))
   }
 
-  ref_active <- spec$trip_filter(reference_data$trips) & !is.na(reference_data$trips$nts_tripid)
+  donor_spec <- .mode_proxy_spec(spec)
+  ref_active <- donor_spec$trip_filter(reference_data$trips) & !is.na(reference_data$trips$nts_tripid)
   donor_rows <- which(ref_active)
   if (length(donor_rows) == 0) {
     return(list(counterfactual_data = counterfactual_data, changed_rows = .empty_changed_trip_rows(), changed_n = 0L))
@@ -1151,7 +1170,9 @@ apply_counterfactual_ui_values <- function(
     new_rows$census_id <- sample(census_ids, nrow(new_rows), replace = TRUE)
   }
   new_rows <- .assign_new_trip_ids(counterfactual_data$trips, new_rows)
-  new_rows <- .switch_trips_to_active_mode(new_rows, seq_len(nrow(new_rows)), spec)
+  new_rows <- .switch_trips_to_active_mode(
+    new_rows, seq_len(nrow(new_rows)), spec, constants = constants
+  )
   # Preserve the donor weight. Each induced synthetic row represents the same
   # population stratum as its sampled donor; assigning weight 1 would mix row
   # counts and represented trip totals and systematically distort outputs.
@@ -1189,24 +1210,53 @@ apply_counterfactual_ui_values <- function(
   counterfactual_data$ind$census_id[keep]
 }
 
-.switch_trips_to_active_mode <- function(trips, rows, spec) {
+.switch_trips_to_active_mode <- function(trips, rows, spec, constants = NULL) {
   if (length(rows) == 0) {
     return(trips)
   }
   if ("trip_mainmode" %in% names(trips)) {
     trips$trip_mainmode[rows] <- spec$trip_mainmode_value
   }
-  if (!is.na(spec$trip_distance_col) && spec$trip_distance_col %in% names(trips) &&
-      "trip_distraw_km" %in% names(trips)) {
-    trips[[spec$trip_distance_col]][rows] <- trips$trip_distraw_km[rows]
-  }
-  if (!is.na(spec$trip_duration_col) && spec$trip_duration_col %in% names(trips) &&
-      "trip_durationraw_min" %in% names(trips)) {
-    trips[[spec$trip_duration_col]][rows] <- trips$trip_durationraw_min[rows]
+  constants <- constants %||% miama_counterfactual_defaults()
+  if (identical(spec$mode, "pt")) {
+    if (spec$trip_distance_col %in% names(trips)) {
+      existing <- .as_plain_numeric(trips[[spec$trip_distance_col]][rows])
+      trips[[spec$trip_distance_col]][rows] <- ifelse(
+        is.finite(existing) & existing > 0,
+        existing,
+        constants$pt_access_walk_distance_km_default
+      )
+    }
+    if (spec$trip_duration_col %in% names(trips)) {
+      existing <- .as_plain_numeric(trips[[spec$trip_duration_col]][rows])
+      trips[[spec$trip_duration_col]][rows] <- ifelse(
+        is.finite(existing) & existing > 0,
+        existing,
+        constants$pt_access_walk_minutes_default
+      )
+    }
+  } else {
+    if (!is.na(spec$trip_distance_col) && spec$trip_distance_col %in% names(trips) &&
+        "trip_distraw_km" %in% names(trips)) {
+      trips[[spec$trip_distance_col]][rows] <- trips$trip_distraw_km[rows]
+    }
+    if (!is.na(spec$trip_duration_col) && spec$trip_duration_col %in% names(trips)) {
+      if (identical(spec$mode, "ebiking") && "trip_distraw_km" %in% names(trips)) {
+        trips[[spec$trip_duration_col]][rows] <-
+          .as_plain_numeric(trips$trip_distraw_km[rows]) /
+          constants$ebike_speed_kmh * 60
+      } else if ("trip_durationraw_min" %in% names(trips)) {
+        trips[[spec$trip_duration_col]][rows] <- trips$trip_durationraw_min[rows]
+      }
+    }
   }
 
   for (col in setdiff(
-    c("trip_walkdist_km", "trip_walktime_min", "trip_cycledist_km", "trip_cycletime_min"),
+    c(
+      "trip_walkdist_km", "trip_walktime_min",
+      "trip_cycledist_km", "trip_cycletime_min",
+      "trip_ebikedist_km", "trip_ebiketime_min"
+    ),
     c(spec$trip_distance_col, spec$trip_duration_col)
   )) {
     if (col %in% names(trips)) {
@@ -1288,12 +1338,29 @@ apply_counterfactual_ui_values <- function(
 # this scalar lookup with a source-by-target matrix and generalize the candidate
 # weighting helper below. Keep target mode explicit; do not return to one global
 # diversion vector shared by all active modes.
-.cf_car_diversion_target <- function(values, suffix) {
+.cf_car_diversion_target <- function(values,
+                                      suffix,
+                                      mode = NULL,
+                                      constants = NULL) {
   field <- paste0("trips_diversion_car_perc_", suffix)
   raw <- .ui_value(values, field, NULL)
+  configured <- constants$source_mode_shares[[mode]] %||% NULL
+  if (!is.null(configured)) {
+    configured <- as.numeric(configured) |>
+      stats::setNames(names(constants$source_mode_shares[[mode]]))
+    configured <- configured[is.finite(configured) & configured >= 0]
+    if (length(configured) == 0 || sum(configured) <= 0) configured <- NULL
+    if (!is.null(configured)) configured <- configured / sum(configured)
+  }
 
   if (is.null(raw)) {
-    return(list(field = field, percent = NULL, proportion = NULL, source = "unspecified"))
+    return(list(
+      field = field,
+      percent = if (is.null(configured[["driving"]])) NULL else 100 * configured[["driving"]],
+      proportion = configured[["driving"]] %||% NULL,
+      shares = configured,
+      source = if (is.null(configured)) "unspecified" else "config"
+    ))
   }
   if (length(raw) != 1 || !is.finite(suppressWarnings(as.numeric(raw)))) {
     stop("`", field, "` must be one finite percentage.", call. = FALSE)
@@ -1304,10 +1371,25 @@ apply_counterfactual_ui_values <- function(
     stop("`", field, "` must be between 0 and 100.", call. = FALSE)
   }
 
+  shares <- configured
+  if (!is.null(shares)) {
+    non_car <- setdiff(names(shares), "driving")
+    shares[["driving"]] <- percent / 100
+    if (length(non_car) > 0) {
+      denominator <- sum(configured[non_car])
+      shares[non_car] <- if (denominator > 0) {
+        configured[non_car] / denominator * (1 - percent / 100)
+      } else {
+        0
+      }
+    }
+  }
+
   list(
     field = field,
     percent = percent,
     proportion = percent / 100,
+    shares = shares,
     source = "ui"
   )
 }
@@ -1322,10 +1404,31 @@ apply_counterfactual_ui_values <- function(
     car_diversion_target,
     base_weights = rep(1, length(candidates))
 ) {
-  if (length(candidates) == 0 || is.null(car_diversion_target$proportion) ||
+  if (length(candidates) == 0 ||
       !"trip_mainmode" %in% names(trips)) {
     return(base_weights)
   }
+
+  source_shares <- car_diversion_target$shares %||% NULL
+  if (!is.null(source_shares)) {
+    source_mode <- .results_trip_mode_group(trips$trip_mainmode[candidates])
+    base_weights[is.na(base_weights) | base_weights < 0] <- 0
+    totals <- vapply(names(source_shares), function(mode) {
+      sum(base_weights[source_mode == mode], na.rm = TRUE)
+    }, numeric(1))
+    available <- is.finite(totals) & totals > 0 & source_shares > 0
+    if (any(available)) {
+      realized_shares <- source_shares[available] / sum(source_shares[available])
+      weights <- rep(0, length(candidates))
+      for (mode in names(realized_shares)) {
+        rows <- source_mode == mode
+        weights[rows] <- base_weights[rows] * realized_shares[[mode]] / totals[[mode]]
+      }
+      return(weights)
+    }
+  }
+
+  if (is.null(car_diversion_target$proportion)) return(base_weights)
 
   is_car <- .car_trip_filter(trips)[candidates]
   is_car[is.na(is_car)] <- FALSE
@@ -1352,7 +1455,9 @@ apply_counterfactual_ui_values <- function(
 
 .trip_sampling_constraints <- function(trip_target, car_diversion_target) {
   constraints <- trip_target$constraints %||% character(0)
-  if (!is.null(car_diversion_target$proportion)) {
+  if (!is.null(car_diversion_target$shares)) {
+    constraints <- c(constraints, "source_mode_distribution")
+  } else if (!is.null(car_diversion_target$proportion)) {
     constraints <- c(constraints, "source_mode_car")
   }
   unique(constraints)
@@ -1382,12 +1487,13 @@ apply_counterfactual_ui_values <- function(
   if (is.null(trips)) {
     return(numeric(0))
   }
-  active <- spec$trip_filter(trips)
+  donor_spec <- .mode_proxy_spec(spec)
+  active <- donor_spec$trip_filter(trips)
   if ("trip_distraw_km" %in% names(trips)) {
     return(trips$trip_distraw_km[active])
   }
-  if (!is.na(spec$trip_distance_col) && spec$trip_distance_col %in% names(trips)) {
-    return(trips[[spec$trip_distance_col]][active])
+  if (!is.na(donor_spec$trip_distance_col) && donor_spec$trip_distance_col %in% names(trips)) {
+    return(trips[[donor_spec$trip_distance_col]][active])
   }
 
   numeric(0)
@@ -1433,8 +1539,11 @@ apply_counterfactual_ui_values <- function(
 
   user_delta_walking <- activity_delta("walktime_wkhr") * constants$mmet_walking
   user_delta_cycling <- activity_delta("cycletime_wkhr") * constants$mmet_cycling
+  user_delta_ebiking <- activity_delta("ebiketime_wkhr") * constants$mmet_ebiking
+  user_delta_pt <- activity_delta("pttime_wkhr") * constants$mmet_pt
   user_delta_other <- activity_delta("sport_wkhr") * constants$mmet_vigorous
-  user_delta <- user_delta_walking + user_delta_cycling + user_delta_other
+  user_delta <- user_delta_walking + user_delta_cycling + user_delta_ebiking +
+    user_delta_pt + user_delta_other
 
   trip_delta_by_mode <- .counterfactual_trip_mmet_delta_by_mode(
     counterfactual_data$trips,
@@ -1446,6 +1555,8 @@ apply_counterfactual_ui_values <- function(
 
   mode_delta_walking <- user_delta_walking + trip_delta_by_mode$walking
   mode_delta_cycling <- user_delta_cycling + trip_delta_by_mode$cycling
+  mode_delta_ebiking <- user_delta_ebiking + trip_delta_by_mode$ebiking
+  mode_delta_pt <- user_delta_pt + trip_delta_by_mode$pt
 
   # Preserve the HM reference exposure and add only exposure caused by changed
   # activity. Reconstructing MMETs for every person from SP activity columns
@@ -1454,6 +1565,8 @@ apply_counterfactual_ui_values <- function(
   counterfactual_data$ind$cf_trip_mmet_delta <- trip_delta
   counterfactual_data$ind$cf_mmet_delta_walking <- mode_delta_walking
   counterfactual_data$ind$cf_mmet_delta_cycling <- mode_delta_cycling
+  counterfactual_data$ind$cf_mmet_delta_ebiking <- mode_delta_ebiking
+  counterfactual_data$ind$cf_mmet_delta_pt <- mode_delta_pt
   counterfactual_data$ind$cf_mmet_delta_other_activity <- user_delta_other
   counterfactual_data$ind$cf_mmet_delta <- user_delta + trip_delta
   counterfactual_data$ind$mmets <-
@@ -1481,6 +1594,8 @@ apply_counterfactual_ui_values <- function(
   out <- data.frame(
     walking = numeric(length(census_ids)),
     cycling = numeric(length(census_ids)),
+    ebiking = numeric(length(census_ids)),
+    pt = numeric(length(census_ids)),
     stringsAsFactors = FALSE
   )
   if (is.null(cf_trips) || is.null(ref_trips) ||
@@ -1503,8 +1618,11 @@ apply_counterfactual_ui_values <- function(
       values <- suppressWarnings(as.numeric(trips[[spec$trip_duration_col]]))
     } else if ("trip_durationraw_min" %in% names(trips)) {
       values <- suppressWarnings(as.numeric(trips$trip_durationraw_min))
-      values[!spec$trip_filter(trips)] <- 0
     }
+    # Component columns can be shared. In particular, PT uses the walking
+    # component but only where PT is the main mode; applying the mode filter
+    # prevents ordinary walking from being counted again as PT exposure.
+    values[!spec$trip_filter(trips)] <- 0
     values[!is.finite(values) | values < 0] <- 0
     values
   }
@@ -1512,7 +1630,7 @@ apply_counterfactual_ui_values <- function(
   cf_trip_key <- paste(cf_trips$census_id, cf_trips$nts_tripid, sep = "\r")
   ref_trip_key <- paste(ref_trips$census_id, ref_trips$nts_tripid, sep = "\r")
   ref_match <- match(cf_trip_key, ref_trip_key)
-  for (mode in c("walking", "cycling")) {
+  for (mode in .miama_supported_modes()) {
     intensity <- constants[[paste0("mmet_", mode)]]
     cf_minutes <- active_minutes(cf_trips, mode)
     ref_minutes <- numeric(nrow(cf_trips))
@@ -1654,22 +1772,52 @@ apply_counterfactual_ui_values <- function(
 miama_counterfactual_defaults <- function(cfg = NULL) {
   cfg <- cfg %||% miama_default_config()
   intensities <- cfg$physical_activity$mmet_per_hour %||% MIAMA_MMET_PER_HOUR
-  required_intensities <- c("walking", "cycling", "vigorous")
+  if (!"ebiking" %in% names(intensities) && "cycling" %in% names(intensities)) {
+    intensities[["ebiking"]] <- intensities[["cycling"]]
+  }
+  if (!"pt" %in% names(intensities) && "walking" %in% names(intensities)) {
+    intensities[["pt"]] <- intensities[["walking"]]
+  }
+  required_intensities <- c("walking", "cycling", "ebiking", "pt", "vigorous")
   if (!all(required_intensities %in% names(intensities)) ||
       any(!is.finite(as.numeric(intensities[required_intensities])))) {
     stop(
-      "Configured MMET intensities must contain finite walking, cycling, and vigorous values.",
+      "Configured MMET intensities must contain finite walking, cycling, e-biking, PT, and vigorous values.",
       call. = FALSE
     )
+  }
+  source_mode_shares <- cfg$counterfactual$trips$source_mode_shares %||% list()
+  valid_source_modes <- c("walking", "cycling", "ebiking", "pt", "driving", "other")
+  for (target_mode in names(source_mode_shares)) {
+    shares <- source_mode_shares[[target_mode]]
+    if (is.null(names(shares)) || any(!names(shares) %in% valid_source_modes) ||
+        any(!is.finite(shares)) || any(shares < 0) || sum(shares) <= 0) {
+      stop(
+        "Configured source-mode shares for `", target_mode,
+        "` must be a named, non-negative vector with a positive sum.",
+        call. = FALSE
+      )
+    }
+    source_mode_shares[[target_mode]] <- shares / sum(shares)
   }
   list(
     mmet_walking = unname(intensities[["walking"]]),
     mmet_cycling = unname(intensities[["cycling"]]),
+    mmet_ebiking = unname(intensities[["ebiking"]]),
+    mmet_pt = unname(intensities[["pt"]]),
     mmet_vigorous = unname(intensities[["vigorous"]]),
     walktime_wkhr_default = 1,
     cycletime_wkhr_default = 1,
+    ebiketime_wkhr_default = 1,
+    pttime_wkhr_default = cfg$counterfactual$modes$pt$access_walk_minutes_default / 60,
     walktime_wkhr_ex_user_default = 0,
     cycletime_wkhr_ex_user_default = 0,
+    ebiketime_wkhr_ex_user_default = 0,
+    pttime_wkhr_ex_user_default = 0,
+    ebike_speed_kmh = cfg$counterfactual$modes$ebiking$speed_kmh,
+    pt_access_walk_distance_km_default = cfg$counterfactual$modes$pt$access_walk_distance_km_default,
+    pt_access_walk_minutes_default = cfg$counterfactual$modes$pt$access_walk_minutes_default,
+    source_mode_shares = source_mode_shares,
     induced_trips_percent_default = cfg$counterfactual$trips$induced_trips_percent_default %||% 10,
     default_diversion_mode = "car",
     plausible_distance_max_multiplier = 1.2,
@@ -1688,18 +1836,24 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
     mode,
     walking = "walktime_wkhr",
     cycling = "cycletime_wkhr",
+    ebiking = "ebiketime_wkhr",
+    pt = "pttime_wkhr",
     NA_character_
   )
   default_col <- switch(
     mode,
     walking = "walktime_wkhr_default",
     cycling = "cycletime_wkhr_default",
+    ebiking = "ebiketime_wkhr_default",
+    pt = "pttime_wkhr_default",
     NA_character_
   )
   ex_user_default_col <- switch(
     mode,
     walking = "walktime_wkhr_ex_user_default",
     cycling = "cycletime_wkhr_ex_user_default",
+    ebiking = "ebiketime_wkhr_ex_user_default",
+    pt = "pttime_wkhr_ex_user_default",
     NA_character_
   )
   trip_mainmode_value <- switch(
@@ -1725,7 +1879,10 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
     default_col = default_col,
     ex_user_default_col = ex_user_default_col,
     trip_mainmode_value = trip_mainmode_value,
-    seed_offset = seed_offset
+    seed_offset = seed_offset,
+    proxy_mode = if (identical(mode, "ebiking")) "cycling" else NULL,
+    proxy_distance_factor = 1,
+    proxy_duration_factor = 1
   ))
 }
 
@@ -1765,6 +1922,7 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
   columns <- c(
     "cf_user_mmet_delta", "cf_trip_mmet_delta",
     "cf_mmet_delta_walking", "cf_mmet_delta_cycling",
+    "cf_mmet_delta_ebiking", "cf_mmet_delta_pt",
     "cf_mmet_delta_other_activity", "cf_mmet_delta"
   )
   if (is.null(ind) || !all(columns %in% names(ind))) {
@@ -1777,7 +1935,7 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
   data.frame(
     component = c(
       "individual_activity", "trip_activity", "walking",
-      "cycling", "other_activity", "total"
+      "cycling", "ebiking", "pt", "other_activity", "total"
     ),
     changed_individuals = vapply(columns, function(column) {
       sum(is.finite(ind[[column]]) & ind[[column]] != 0)
@@ -1800,7 +1958,10 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
 
 .counterfactual_ind_comparison <- function(reference_ind, counterfactual_ind) {
   cols <- .present_cols(
-    c("walktime_wkhr", "cycletime_wkhr", "sport_wkhr", "mmets", "user_walk", "user_bike"),
+    c(
+      "walktime_wkhr", "cycletime_wkhr", "ebiketime_wkhr", "pttime_wkhr",
+      "sport_wkhr", "mmets", "user_walk", "user_bike", "user_ebike", "user_pt"
+    ),
     reference_ind,
     counterfactual_ind
   )

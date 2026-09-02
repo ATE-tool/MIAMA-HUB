@@ -95,6 +95,22 @@ test_that("mode shares generate per-mode targets for each denominator type", {
   expect_equal(distance$values$trips_count_cf_walk, 15)
 })
 
+test_that("e-bike distance conversion uses cycling as a donor assumption", {
+  converted <- .derive_tab2_trip_count_targets(
+    list(
+      at_data_unit = "distance", modes = "ebiking",
+      ui_dist_dur_type_ebike = "distance", distance_unit_ebike = "km",
+      dist_dur_denominator_ebike = "total", dist_dur_timeframe_ebike = "week",
+      dist_dur_amount_cf_ebike = 8
+    ),
+    tab2_conversion_fixture(),
+    scenario = "cf"
+  )
+
+  expect_equal(converted$values$trips_count_cf_ebike, 2)
+  expect_equal(converted$report$conversions$ebiking$reference_mean_per_trip, 4)
+})
+
 test_that("average per trip is rejected as an incomplete volume input", {
   expect_error(
     .derive_tab2_trip_count_targets(

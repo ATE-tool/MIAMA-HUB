@@ -187,7 +187,7 @@ materialize_appraisal_scope <- function(data, scenario = c("ref", "cf")) {
     }
     out$ind <- out$ind[keep, , drop = FALSE]
 
-    for (mode in intersect(c("walking", "cycling"), names(.miama_tab2_mode_specs()))) {
+    for (mode in intersect(.miama_supported_modes(), names(.miama_tab2_mode_specs()))) {
       spec <- .miama_tab2_mode_specs()[[mode]]
       scope_col <- .reference_user_scope_col(mode, scenario)
       if (!is.na(spec$ind_duration_col) &&
@@ -208,7 +208,7 @@ materialize_appraisal_scope <- function(data, scenario = c("ref", "cf")) {
     }
     out$trips <- out$trips[keep, , drop = FALSE]
 
-    for (mode in intersect(c("walking", "cycling"), names(.miama_tab2_mode_specs()))) {
+    for (mode in intersect(.miama_supported_modes(), names(.miama_tab2_mode_specs()))) {
       spec <- .miama_tab2_mode_specs()[[mode]]
       scope_col <- .reference_trip_scope_col(mode, scenario)
       if (!scope_col %in% names(out$trips)) next

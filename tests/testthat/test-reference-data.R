@@ -236,8 +236,8 @@ test_that("extract_reference_ui_values supports individual-only user counts", {
 
   expect_equal(values$ui_updates$users_count_ref_walk, 2)
   expect_equal(values$ui_updates$users_count_ref_bike, 1)
-  expect_true(is.na(values$ui_updates$users_count_ref_ebike))
-  expect_true("users_count_ref_ebike" %in% values$extraction_report$skipped_fields)
+  expect_equal(values$ui_updates$users_count_ref_ebike, 0)
+  expect_false("users_count_ref_ebike" %in% values$extraction_report$skipped_fields)
 })
 
 test_that("extract_reference_ui_values derives mode-share reference fields", {
@@ -270,7 +270,7 @@ test_that("extract_reference_ui_values derives mode-share reference fields", {
   expect_equal(values$ui_updates$mode_share_ref_walk, 100 / 3)
   expect_equal(values$ui_updates$mode_share_ref_bike, 200 / 3)
   expect_true(all(c("mode_share_ref_ebike", "mode_share_ref_pt") %in% names(values$ui_updates)))
-  expect_true(is.na(values$ui_updates$mode_share_ref_ebike))
+  expect_equal(values$ui_updates$mode_share_ref_ebike, 0)
   expect_true(is.na(values$ui_updates$mode_share_ref_pt))
 })
 

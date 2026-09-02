@@ -46,6 +46,10 @@ MIAMA_SYNTHPOP_PERSON_WEIGHT <- 20
 MIAMA_MMET_PER_HOUR <- c(
   walking = 2.5,
   cycling = 5.8,
+  # Until e-bike-specific evidence is adopted, use cycling intensity 1:1.
+  ebiking = 5.8,
+  # Only walking access to public transport contributes physical activity.
+  pt = 2.5,
   vigorous = 7
 )
 

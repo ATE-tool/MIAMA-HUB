@@ -20,7 +20,7 @@ format:
 
 1. Selects a reference synthetic population and its weekly travel
 2. Applies active-travel assumptions to a counterfactual copy
-3. Converts changed walking/cycling time to MMET exposure
+3. Converts changed active time and PT access walking to MMET exposure
 4. Applies the exposure change to health trajectories
 5. Reports reference minus counterfactual impacts
 
@@ -48,6 +48,8 @@ flowchart LR
 |---|---:|
 | Walking | 2.5 MMET/hour |
 | Cycling | 5.8 MMET/hour |
+| E-biking | 5.8 MMET/hour (cycling proxy) |
+| PT access walking | 2.5 MMET/hour |
 | Other vigorous activity | 7.0 MMET/hour |
 
 $$
@@ -182,7 +184,7 @@ candidate weights.
 - Did requested user/trip changes occur?
 - Were sampling constraints relaxed?
 - Are induced trips and diversion shares reasonable?
-- Do walking/cycling MMET changes have the expected sign and magnitude?
+- Do mode-specific MMET changes have the expected sign and magnitude?
 - Are prevented health outcomes positive for beneficial scenarios?
 - Are HALY gains plausible relative to life-year and disease-incidence changes?
 - Is the geography large enough for stable constrained sampling?

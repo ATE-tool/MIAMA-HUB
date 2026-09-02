@@ -235,6 +235,30 @@ test_that("mode-attributed health deltas reconcile to the all-mode total", {
   expect_equal(combined$prevented_value, 3)
 })
 
+test_that("e-bike and PT health contributions remain separate in results", {
+  counterfactual_data <- list(
+    ind = data.frame(
+      census_id = 1:2,
+      cf_mmet_delta = c(4, 2),
+      cf_mmet_delta_walking = 0,
+      cf_mmet_delta_cycling = 0,
+      cf_mmet_delta_ebiking = c(4, 0),
+      cf_mmet_delta_pt = c(0, 2),
+      cf_mmet_delta_other_activity = 0
+    ),
+    health_outcomes = data.frame(
+      census_id = 1:2, cycle = 1L, age1year = c(30, 60), female = c(0, 1),
+      dead = c(10, 20), d_dead = c(-1, -2), dead_cf = c(9, 18)
+    )
+  )
+  cfg <- utils::modifyList(miama_default_config(), list(population = list(person_weight = 1)))
+  out <- prepare_results_data(counterfactual_data, cfg = cfg)
+  cube <- out$plot_data$health_cube
+
+  expect_equal(sort(unique(cube$mode)), c("all_modes", "ebiking", "pt"))
+  expect_equal(sum(cube$delta_value[cube$mode %in% c("ebiking", "pt")]), -3)
+})
+
 test_that("prepare_results_data supports timeline and population aggregation", {
   counterfactual_data <- list(
     health_outcomes = data.frame(

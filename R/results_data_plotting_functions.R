@@ -857,7 +857,7 @@ results_plot_trip_mode_distribution <- function(
 .results_normalize_plot_modes <- function(modes) {
   map <- c(
     walking = "walking", walk = "walking", cycling = "cycling", bike = "cycling",
-    ebiking = "cycling", ebike = "cycling", pt = "pt", public_transport = "pt",
+    ebiking = "ebiking", ebike = "ebiking", pt = "pt", public_transport = "pt",
     car = "driving", driving = "driving", other = "other"
   )
   unique(unname(map[as.character(modes)]))
@@ -866,7 +866,8 @@ results_plot_trip_mode_distribution <- function(
 .results_health_mode_label <- function(mode) {
   labels <- c(
     all_modes = "All modes", selected_modes = "Selected modes",
-    walking = "Walking", cycling = "Cycling",
+    walking = "Walking", cycling = "Cycling", ebiking = "E-biking",
+    pt = "Public transport",
     other_activity = "Other activity", unattributed = "Unattributed"
   )
   value <- unname(labels[as.character(mode)])

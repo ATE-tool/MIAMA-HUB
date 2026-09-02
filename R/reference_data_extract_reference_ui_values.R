@@ -49,6 +49,7 @@ extract_reference_ui_values <- function(
   assert_named_list(reference_request, "reference_request")
   assert_named_list(appraisal_input_values, "appraisal_input_values")
 
+  reference_data <- .prepare_mode_features(reference_data)
   ind <- reference_data$ind
   trips <- reference_data$trips
 
@@ -263,8 +264,10 @@ extract_reference_ui_values <- function(
       trip_distance_col = "trip_walkdist_km",
       trip_duration_col = "trip_walktime_min",
       needs_trip_mainmode = FALSE,
-      trip_filter = function(trips) .positive_col(trips, "trip_walktime_min") |
-        .positive_col(trips, "trip_walkdist_km")
+      trip_filter = function(trips) {
+        (.positive_col(trips, "trip_walktime_min") |
+           .positive_col(trips, "trip_walkdist_km")) & !.pt_trip_filter(trips)
+      }
     ),
     cycling = list(
       suffix = "bike",
@@ -277,15 +280,17 @@ extract_reference_ui_values <- function(
     ),
     ebiking = list(
       suffix = "ebike",
-      ind_duration_col = NA_character_,
-      trip_distance_col = NA_character_,
-      trip_duration_col = NA_character_,
+      ind_duration_col = "ebiketime_wkhr",
+      trip_distance_col = "trip_ebikedist_km",
+      trip_duration_col = "trip_ebiketime_min",
       needs_trip_mainmode = FALSE,
-      trip_filter = function(trips) rep(FALSE, nrow(trips))
+      proxy_mode = "cycling",
+      trip_filter = function(trips) .positive_col(trips, "trip_ebiketime_min") |
+        .positive_col(trips, "trip_ebikedist_km")
     ),
     pt = list(
       suffix = "pt",
-      ind_duration_col = NA_character_,
+      ind_duration_col = "pttime_wkhr",
       trip_distance_col = "trip_walkdist_km",
       trip_duration_col = "trip_walktime_min",
       needs_trip_mainmode = TRUE,
@@ -623,6 +628,7 @@ extract_reference_ui_values <- function(
   mode_fields <- c(
     car = "mode_share_ref_car",
     bike = "mode_share_ref_bike",
+    ebike = "mode_share_ref_ebike",
     walk = "mode_share_ref_walk",
     pt = "mode_share_ref_pt"
   )
@@ -694,13 +700,15 @@ extract_reference_ui_values <- function(
     pop_fallback <- !.spread_bars_have_data(mode_pop_bars)
     pa_fallback <- !.spread_bars_have_data(mode_pa_bars)
     if (pop_fallback) {
+      proxy <- .miama_tab2_mode_specs()[[mode]]$proxy_mode %||% character(0)
       mode_pop_bars <- reference_population_spread_bars(
-        ind, trips, character(0), fallback_all = TRUE, cfg = cfg
+        ind, trips, proxy, fallback_all = TRUE, cfg = cfg
       )
     }
     if (pa_fallback) {
+      proxy <- .miama_tab2_mode_specs()[[mode]]$proxy_mode %||% character(0)
       mode_pa_bars <- reference_pa_spread_bars(
-        ind, trips, character(0), fallback_all = TRUE, cfg = cfg
+        ind, trips, proxy, fallback_all = TRUE, cfg = cfg
       )
     }
     if (pop_fallback || pa_fallback) {
@@ -907,8 +915,9 @@ extract_reference_ui_values <- function(
     mode_bars <- reference_trip_spread_bars(trips, mode, fallback_all = FALSE, cfg = cfg)
     trip_fallback <- !.spread_bars_have_data(mode_bars)
     if (trip_fallback) {
+      proxy <- .miama_tab2_mode_specs()[[mode]]$proxy_mode %||% character(0)
       mode_bars <- reference_trip_spread_bars(
-        trips, character(0), fallback_all = TRUE, cfg = cfg
+        trips, proxy, fallback_all = TRUE, cfg = cfg
       )
       notes <- c(notes, paste0(
         "No usable mode-specific ", suffix,
@@ -1051,7 +1060,7 @@ extract_reference_ui_values <- function(
   numeric_values <- suppressWarnings(as.numeric(as.character(values)))
   numeric_match <- !is.na(numeric_values) & numeric_values %in% MIAMA_NTS_MAINMODE_PT_CODES
   text_match <- grepl(
-    "public|bus|rail|train|tram|metro|underground|tube|coach",
+    "^pt$|public|bus|rail|train|tram|metro|underground|tube|coach",
     tolower(as.character(values))
   )
   numeric_match | text_match

@@ -850,6 +850,91 @@ test_that("independent active-trip shifts add weekly MMET exposure", {
   )
 })
 
+test_that("e-bike changes use cycling donors without reclassifying reference cycling", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:3, walktime_wkhr = 0,
+      cycletime_wkhr = c(1, 0, 0), sport_wkhr = 0,
+      mmets = c(5.8, 0, 0)
+    ),
+    trips = data.frame(
+      census_id = 1:3, nts_tripid = 11:13,
+      trip_mainmode = c("cycling", "car", "car"),
+      trip_distraw_km = c(4, 4, 4), trip_durationraw_min = c(20, 20, 20),
+      trip_walkdist_km = 0, trip_walktime_min = 0,
+      trip_cycledist_km = c(4, 0, 0), trip_cycletime_min = c(20, 0, 0)
+    )
+  )
+
+  result <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    list(
+      modes = "ebiking", trips_count_cf_ebike = 1,
+      induced_trips_percent = 0
+    ),
+    reference_data,
+    seed = 1
+  )
+
+  expect_equal(sum(reference_data$trips$trip_mainmode == "cycling"), 1)
+  expect_equal(sum(result$trips$trip_mainmode == "ebiking"), 1)
+  expect_lt(sum(result$ind$cf_mmet_delta_cycling), 0)
+  expect_gt(sum(result$ind$cf_mmet_delta_ebiking), 0)
+  expect_equal(
+    sum(result$ind$cf_mmet_delta),
+    sum(result$ind$cf_mmet_delta_cycling + result$ind$cf_mmet_delta_ebiking)
+  )
+})
+
+test_that("configured e-bike source shares balance cycling, PT, and car pools", {
+  trips <- data.frame(
+    trip_mainmode = c(rep("cycling", 2), rep("pt", 3), rep("car", 5))
+  )
+  constants <- miama_counterfactual_defaults()
+  target <- .cf_car_diversion_target(
+    list(), "ebike", mode = "ebiking", constants = constants
+  )
+  weights <- .car_diversion_candidate_weights(
+    trips, seq_len(nrow(trips)), target
+  )
+  source <- .results_trip_mode_group(trips$trip_mainmode)
+  mass <- vapply(c("cycling", "pt", "driving"), function(mode) {
+    sum(weights[source == mode])
+  }, numeric(1))
+
+  expect_equal(unname(target$shares), rep(1 / 3, 3))
+  expect_equal(unname(mass), rep(1 / 3, 3))
+})
+
+test_that("PT changes attribute only configured access-walking MMET", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:3, walktime_wkhr = 0, cycletime_wkhr = 0,
+      sport_wkhr = 0, mmets = 0
+    ),
+    trips = data.frame(
+      census_id = 1:3, nts_tripid = 11:13,
+      trip_mainmode = c("pt", "car", "car"),
+      trip_distraw_km = c(4, 4, 4), trip_durationraw_min = c(20, 20, 20),
+      trip_walkdist_km = c(0.8, 0, 0), trip_walktime_min = c(10, 0, 0),
+      trip_cycledist_km = 0, trip_cycletime_min = 0
+    )
+  )
+
+  result <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    list(modes = "pt", trips_count_cf_pt = 2, induced_trips_percent = 0),
+    reference_data,
+    seed = 1
+  )
+
+  expected <- 10 / 60 * MIAMA_MMET_PER_HOUR[["pt"]]
+  expect_equal(sum(result$trips$trip_mainmode == "pt"), 2)
+  expect_equal(sum(result$ind$cf_mmet_delta_walking), 0)
+  expect_equal(sum(result$ind$cf_mmet_delta_pt), expected)
+  expect_equal(sum(result$ind$cf_mmet_delta), expected)
+})
+
 test_that("trips mirroring a user-status change do not double count MMET exposure", {
   reference_data <- list(
     ind = data.frame(

@@ -20,7 +20,7 @@
   if (is.null(modes)) {
     modes <- normalize_active_modes(.ui_value(values, "modes", character(0)))
   }
-  modes <- intersect(modes, c("walking", "cycling"))
+  modes <- intersect(modes, .miama_supported_modes())
 
   conversions <- list()
   for (mode in modes) {
@@ -166,8 +166,9 @@
 }
 
 .tab2_reference_mode_mean <- function(trips, spec, kind) {
-  active <- spec$trip_filter(trips) & !is.na(trips$nts_tripid)
-  column <- if (identical(kind, "distance")) spec$trip_distance_col else spec$trip_duration_col
+  donor_spec <- .mode_proxy_spec(spec)
+  active <- donor_spec$trip_filter(trips) & !is.na(trips$nts_tripid)
+  column <- if (identical(kind, "distance")) donor_spec$trip_distance_col else donor_spec$trip_duration_col
   if (is.na(column) || !column %in% names(trips)) {
     stop("Reference trips do not contain the required ", kind, " column for `", spec$mode, "`.", call. = FALSE)
   }
@@ -177,7 +178,12 @@
   if (!is.finite(result) || result <= 0) {
     stop("No positive reference ", kind, " values are available for `", spec$mode, "` trips.", call. = FALSE)
   }
-  result
+  factor <- if (identical(spec$mode %||% "", "ebiking")) {
+    if (identical(kind, "distance")) spec$proxy_distance_factor %||% 1 else spec$proxy_duration_factor %||% 1
+  } else {
+    1
+  }
+  result * factor
 }
 
 .tab2_amount_to_trip_rows <- function(total, mean_per_trip, field) {

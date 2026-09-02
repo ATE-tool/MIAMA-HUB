@@ -34,15 +34,16 @@ outcomes.
 
 # Purpose and scope
 
-MIAMA estimates how a proposed intervention may change walking and cycling and
-how the resulting change in physical activity may alter population health over
-time. The current workflow is a comparative scenario model:
+MIAMA estimates how a proposed intervention may change walking, cycling,
+e-biking, and public-transport use and how the resulting change in physical
+activity may alter population health over time. The current workflow is a
+comparative scenario model:
 
 1. select a reference synthetic population and its observed weekly travel;
 2. translate user-entered active-travel assumptions into a counterfactual copy
    of those people and trips;
-3. convert changed walking and cycling time into marginal metabolic-equivalent
-   exposure (MMETs);
+3. convert changed active time, including walking access to public transport,
+   into marginal metabolic-equivalent exposure (MMETs);
 4. apply the MMET change to health-model trajectories; and
 5. report the difference between the reference (without-scheme) and
    counterfactual (with-scheme) scenarios.
@@ -90,16 +91,17 @@ physical-activity measures still matter.
 |---|---|---|
 | Identity and geography | `census_id`, `nts_id`, LAD and region identifiers | Select the appraisal population and link people, trips, and health trajectories. |
 | Demographics | `age1year`, `female`, ethnicity, deprivation, limiting condition | Describe the reference population, constrain counterfactual sampling, and identify health-model strata. |
-| Weekly activity | `walktime_wkhr`, `cycletime_wkhr`, `sport_wkhr` | Person-level weekly hours used to identify mode users and calculate MMET exposure. |
-| Trip mode | `trip_mainmode`, walking and cycling component fields | Identify active trips and record mode switches. |
+| Weekly activity | `walktime_wkhr`, `cycletime_wkhr`, derived e-bike and PT-access fields, `sport_wkhr` | Person-level weekly hours used to identify mode users and calculate MMET exposure. |
+| Trip mode | `trip_mainmode` and mode-component fields | Identify mode trips and record mode switches. |
 | Trip amount | raw and mode-specific distance and duration | Preserve plausible observed journeys and calculate added or removed active minutes. |
 | Trip purpose | `trip_purpose`, derived `trip_utilitarian` | Distinguish travel needs from discretionary recreational travel. |
 | Trip representation | one trip row per record; `weight_tripXhh` retained as source metadata | Define current appraisal trip counts and preserve a future route to weighted reporting. |
 
-Mode-user indicators are derived from positive weekly walking or cycling time,
+Mode-user indicators are derived from positive mode-specific weekly time,
 with trip evidence used where appropriate. Active-trip indicators use the
 mode-specific trip component fields and main-mode coding. HUB adds explicit
-`user_walk`, `user_bike`, `trip_activemode`, and `trip_utilitarian` fields to
+`user_walk`, `user_bike`, `user_ebike`, `user_pt`, `trip_activemode`, and
+`trip_utilitarian` fields to
 make these model currencies inspectable.
 
 ## Weekly physical-activity exposure
@@ -111,6 +113,8 @@ factors are configurable and equal to:
 |---|---:|
 | Walking | 2.5 |
 | Cycling | 5.8 |
+| E-biking | 5.8 (cycling proxy) |
+| PT access walking | 2.5 |
 | Other vigorous activity | 7.0 |
 
 For person-level changes, weekly hours are converted to MMET-week-hours and
@@ -334,10 +338,10 @@ The basic interface offers alternative currencies for describing change:
 
 | Input route | Interpretation | Current modeling status |
 |---|---|---|
-| Number of mode users | Target number of weekly walking or cycling users | **Implemented** for walking and cycling. |
-| Number of mode trips | Target weekly active-trip count, with UI timeframe and denominator conversion | **Implemented** for walking and cycling. |
-| Distance or duration | Target aggregate or per-person active-travel amount | **Implemented** for walking and cycling by conversion to a weekly trip-row target. |
-| Mode share | Target shares by travel mode and a trip, distance, or duration denominator | **Implemented** for walking and cycling by deriving per-mode weekly trip-row targets. |
+| Number of mode users | Target number of weekly mode users | **Implemented** for all four modes. |
+| Number of mode trips | Target weekly mode-trip count, with UI timeframe and denominator conversion | **Implemented** for all four modes. |
+| Distance or duration | Target aggregate or per-person travel amount | **Implemented** for all four modes by conversion to a weekly trip-row target. |
+| Mode share | Target shares by mode and a trip, distance, or duration denominator | **Implemented** for all four modes by deriving per-mode weekly trip-row targets. |
 
 Only one basic input route is intended to be active at a time. User and trip
 targets use the same counterfactual machinery as the advanced interface; the
@@ -524,14 +528,21 @@ provided, HUB uses `cfg$counterfactual$trips$induced_trips_percent_default`.
 This mechanism parameter is distinct from both trip purpose and the new-user
 percentage, even when defaults happen to use the same value.
 
-Mode-shift candidates must be existing non-active utilitarian trips. Candidate
+Mode-shift candidates are existing utilitarian trips. By default, trips already
+active in another assessed mode are excluded. A configured source-mode
+distribution can explicitly make them eligible, as for e-bike shifts from
+cycling or PT. Candidate
 distances are limited to 120% of the maximum observed reference active-mode
 distance to avoid implausible switches. Their sampling probabilities reflect
 the requested distance distribution or, when only a mean is available, a
 smooth preference for distances near that mean. The requested car-source share
-rebalances the car and non-car candidate pools while retaining the distance
-weights. The realized share can differ in finite or constrained samples and is
-reported.
+rebalances source-mode candidate pools while retaining the distance weights.
+For e-biking, the current configuration assigns the non-induced shifts equally
+across cycling, PT, and car because no England-derived split is yet available.
+This source-mode assumption is distinct from the cycling donor profile used to
+impute e-bike characteristics. A UI car-share value overrides the configured
+car share and leaves cycling/PT in their configured relative proportions. The
+realized share can differ in finite or constrained samples and is reported.
 
 Selected trips retain their observed raw distance and duration; the target
 active-mode fields are populated from those raw values. For induced travel,
@@ -570,7 +581,7 @@ targets. Health-result population expansion is a separate configured operation.
 | Mode-specific trip count | Weekly target trip rows | Shifts existing trips and adds induced recreational trips. |
 | Mean trip distance | Five distance-category target or smooth mean preference | Weights plausible trip candidates. |
 | Utilitarian proportion | Target trip characteristic | Parsed and reported; purpose-based candidate weighting and compact spread-purpose reconciliation remain planned. |
-| Car diversion percentage | Expected car share among shifted trips | Rebalances car versus other source-mode candidate pools. |
+| Source-mode diversion | Expected source shares among shifted trips | Uses a UI car-share override where available and configured target-mode shares otherwise. |
 | Basic distance/duration target | Weekly aggregate km or minutes, total or per person | Converted to a mode-specific weekly trip-row target using the reference mean per active trip, then passed to constrained sampling. |
 | Basic mode share target | Mode percentage plus a trip/distance/duration denominator | Converted to a per-mode weekly trip-row quota, then passed to constrained sampling. |
 
@@ -611,9 +622,9 @@ for empirical validation.
    than applying the MMET change to every health cycle.
 9. **Category and intensity review:** validate age, distance, PA cutoffs and
    MMET intensity factors against agreed evidence and document provenance.
-10. **Mode coverage:** establish defensible e-bike and public-transport walking
-    exposure rules; current person-level user changes support walking and
-    cycling only.
+10. **Mode proxy validation:** replace or validate the current 1:1 cycling
+    proxy for e-bike donors and the configured PT access-walking assumptions
+    when mode-specific evidence becomes available.
 11. **Uncertainty analysis:** quantify Monte Carlo variation from sampling and
     parameter uncertainty; a fixed seed currently provides reproducibility but
     not uncertainty intervals.
@@ -627,7 +638,7 @@ for empirical validation.
   selected geography and are not using a sparse-data fallback.
 - Compare requested and realized counterfactual changes in the report.
 - Inspect the number of relaxed sampling selections and induced trip rows.
-- Check the individual walking/cycling MMET components before reviewing health
+- Check the individual mode-specific MMET components before reviewing health
   outcomes.
 - Confirm sign conventions: internal delta is counterfactual minus reference;
   prevented outcomes are reference minus counterfactual.

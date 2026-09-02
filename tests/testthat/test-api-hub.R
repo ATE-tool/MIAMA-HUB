@@ -390,7 +390,7 @@ test_that("reference defaults include age and PA category population counts", {
   expect_equal(updates$pop_target_age_groups$pop_age_18_29$pop_tot, 1)
   expect_equal(updates$pop_target_age_groups$pop_age_40_49$pop_walk, 1)
   expect_equal(updates$pop_target_age_groups$pop_age_30_39$pop_bike, 1)
-  expect_true(is.na(updates$pop_target_age_groups$pop_age_18_29$pop_ebike))
+  expect_equal(updates$pop_target_age_groups$pop_age_18_29$pop_ebike, 0)
   expect_equal(updates$pop_target_pa_groups$sedentary$pop_tot, 1)
   expect_equal(updates$pop_target_pa_groups$very_high$pop_tot, 1)
 })

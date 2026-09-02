@@ -25,8 +25,9 @@
 # Mode attribution:
 # - `all_modes` remains the canonical health-model total.
 # - Mode-specific health deltas are allocated per person in proportion to that
-#   person's signed counterfactual MMET delta from walking, cycling, or other
-#   activity. Absolute reference/counterfactual burdens are not mode-specific.
+#   person's signed counterfactual MMET delta from walking, cycling, e-biking,
+#   public-transport access walking, or other activity. Absolute
+#   reference/counterfactual burdens are not mode-specific.
 # - Life years, healthy life years, and HALYs follow the MIAMA-HM verification
 #   formulas. HALYs are calculated in Step 7 from reconstructed prevalence,
 #   residual pYLD, and comorbidity-adjusted disability weights.
@@ -385,6 +386,8 @@ prepare_results_data <- function(
   mode_columns <- c(
     walking = "cf_mmet_delta_walking",
     cycling = "cf_mmet_delta_cycling",
+    ebiking = "cf_mmet_delta_ebiking",
+    pt = "cf_mmet_delta_pt",
     other_activity = "cf_mmet_delta_other_activity"
   )
   if (!any(mode_columns %in% names(ind))) return(empty)
@@ -617,7 +620,8 @@ prepare_results_data <- function(
     all = "all_modes", all_modes = "all_modes",
     walking = "walking", walk = "walking",
     cycling = "cycling", bike = "cycling",
-    ebiking = "cycling", ebike = "cycling",
+    ebiking = "ebiking", ebike = "ebiking",
+    pt = "pt", public_transport = "pt",
     other_activity = "other_activity", unattributed = "unattributed"
   )
   values <- unname(map[as.character(modes)])
@@ -821,11 +825,11 @@ prepare_results_data <- function(
   totals <- stats::aggregate(weights, by = list(mode = mode), FUN = sum, na.rm = TRUE)
   names(totals)[names(totals) == "x"] <- "trips"
 
-  # Walking and cycling inputs are defined by their mode-specific trip
+# All four mode inputs are defined by their mode-specific trip
   # evidence, not exclusively by `trip_mainmode`. Use the same filters here as
   # reference-default extraction and counterfactual sampling so a weekly target
   # entered in the modal is the quantity displayed in results and exports.
-  active_specs <- .miama_tab2_mode_specs()[c("walking", "cycling")]
+  active_specs <- .miama_tab2_mode_specs()[.miama_supported_modes()]
   for (active_mode in names(active_specs)) {
     if (!.trip_evidence_available_for_counterfactual(trips, active_specs[[active_mode]])) {
       next
@@ -847,7 +851,8 @@ prepare_results_data <- function(
   totals$scenario <- scenario
   totals$proportion <- .results_divide_or_na(totals$trips, sum(totals$trips, na.rm = TRUE))
   labels <- c(
-    walking = "Walking", cycling = "Cycling", pt = "Public transport",
+    walking = "Walking", cycling = "Cycling", ebiking = "E-biking",
+    pt = "Public transport",
     driving = "Driving", other = "Other"
   )
   totals$mode_label <- unname(labels[totals$mode])
@@ -861,16 +866,18 @@ prepare_results_data <- function(
 
   is_walk <- (!is.na(numeric_values) & numeric_values == MIAMA_NTS_MAINMODE_B04[["walk"]]) |
     grepl("walk", text_values)
-  is_bike <- (!is.na(numeric_values) & numeric_values == MIAMA_NTS_MAINMODE_B04[["bicycle"]]) |
-    grepl("bicy|cycl|e[- ]?bike", text_values)
+  is_ebike <- grepl("e[- ]?bike|electric bicy|electric cycl", text_values)
+  is_bike <- ((!is.na(numeric_values) & numeric_values == MIAMA_NTS_MAINMODE_B04[["bicycle"]]) |
+    grepl("bicy|cycl", text_values)) & !is_ebike
   is_pt <- (!is.na(numeric_values) & numeric_values %in% MIAMA_NTS_MAINMODE_PT_CODES) |
-    grepl("public|bus|rail|train|tram|metro|underground|tube|coach", text_values)
+    grepl("^pt$|public|bus|rail|train|tram|metro|underground|tube|coach", text_values)
   is_driving <- (!is.na(numeric_values) & numeric_values %in% MIAMA_NTS_MAINMODE_CAR_CODES) |
     grepl("car|van|driver|passenger|motorcycle|taxi|private", text_values)
 
   out[is_driving] <- "driving"
   out[is_pt] <- "pt"
   out[is_bike] <- "cycling"
+  out[is_ebike] <- "ebiking"
   out[is_walk] <- "walking"
   out
 }

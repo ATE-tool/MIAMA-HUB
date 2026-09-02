@@ -103,7 +103,8 @@ cf_row_delta_plan <- function(cf_row_number, ref_row_number) {
 # Key indicators -------------------------------------------------------------
 # Indicators make the core appraisal currencies visible in the data object.
 
-cf_add_key_indicators <- function(counterfactual_data, modes = c("walking", "cycling")) {
+cf_add_key_indicators <- function(counterfactual_data, modes = .miama_supported_modes()) {
+  counterfactual_data <- .prepare_mode_features(counterfactual_data)
   if (!is.null(counterfactual_data$ind)) {
     counterfactual_data$ind <- cf_add_ind_user_indicators(counterfactual_data$ind)
     if (!"cf_user_change" %in% names(counterfactual_data$ind)) {
@@ -140,11 +141,17 @@ cf_add_ind_user_indicators <- function(ind) {
   if ("cycletime_wkhr" %in% names(ind)) {
     ind$user_bike <- !is.na(ind$cycletime_wkhr) & ind$cycletime_wkhr > 0
   }
+  if ("ebiketime_wkhr" %in% names(ind)) {
+    ind$user_ebike <- !is.na(ind$ebiketime_wkhr) & ind$ebiketime_wkhr > 0
+  }
+  if ("pttime_wkhr" %in% names(ind)) {
+    ind$user_pt <- !is.na(ind$pttime_wkhr) & ind$pttime_wkhr > 0
+  }
 
   ind
 }
 
-cf_add_trip_indicators <- function(trips, modes = c("walking", "cycling")) {
+cf_add_trip_indicators <- function(trips, modes = .miama_supported_modes()) {
   active <- rep(FALSE, nrow(trips))
   for (mode in modes) {
     spec <- .counterfactual_mode_spec(mode)
@@ -722,7 +729,7 @@ cf_trip_mechanism_counts <- function(delta, induced_trips_percent = 10) {
   )
 }
 
-cf_individual_sampling_columns <- function(ind, modes = c("walking", "cycling")) {
+cf_individual_sampling_columns <- function(ind, modes = .miama_supported_modes()) {
   if (is.null(ind)) {
     return(character(0))
   }
@@ -748,7 +755,7 @@ cf_individual_sampling_columns <- function(ind, modes = c("walking", "cycling"))
   unique(cols[cols %in% names(ind)])
 }
 
-cf_trip_sampling_columns <- function(trips, modes = c("walking", "cycling")) {
+cf_trip_sampling_columns <- function(trips, modes = .miama_supported_modes()) {
   if (is.null(trips)) {
     return(character(0))
   }

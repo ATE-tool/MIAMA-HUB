@@ -112,7 +112,7 @@ spread_bar_values_from_slider <- function(ref_bars,
 
 reference_population_spread_bars <- function(ind,
                                              trips = NULL,
-                                             modes = c("walking", "cycling"),
+                                             modes = .miama_supported_modes(),
                                              fallback_all = TRUE,
                                              cfg = NULL) {
   if (is.null(ind) || !"age1year" %in% names(ind) || !"female" %in% names(ind)) {
@@ -149,7 +149,7 @@ reference_population_spread_bars <- function(ind,
 
 reference_pa_spread_bars <- function(ind,
                                      trips = NULL,
-                                     modes = c("walking", "cycling"),
+                                     modes = .miama_supported_modes(),
                                      fallback_all = TRUE,
                                      cfg = NULL) {
   if (is.null(ind) || !"female" %in% names(ind)) {
@@ -189,7 +189,7 @@ reference_pa_spread_bars <- function(ind,
 }
 
 reference_trip_spread_bars <- function(trips,
-                                       modes = c("walking", "cycling"),
+                                       modes = .miama_supported_modes(),
                                        fallback_all = TRUE,
                                        cfg = NULL) {
   if (is.null(trips) || !"trip_distraw_km" %in% names(trips)) {

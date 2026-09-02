@@ -485,6 +485,8 @@ write_results_report <- function(exports,
     "schema_version", "scheme_name", "geography_id", "geography_name",
     "population_size", "walking_trips_reference", "walking_trips_counterfactual",
     "cycling_trips_reference", "cycling_trips_counterfactual",
+    "ebiking_trips_reference", "ebiking_trips_counterfactual",
+    "pt_trips_reference", "pt_trips_counterfactual",
     "premature_deaths_prevented", "halys_gained", "disease_cases_prevented"
   )
   values <- c(
@@ -493,13 +495,15 @@ write_results_report <- function(exports,
     metadata_value("geo_name"), metadata_value("population_size"),
     trip_value("walking", "Reference"), trip_value("walking", "Counterfactual"),
     trip_value("cycling", "Reference"), trip_value("cycling", "Counterfactual"),
+    trip_value("ebiking", "Reference"), trip_value("ebiking", "Counterfactual"),
+    trip_value("pt", "Reference"), trip_value("pt", "Counterfactual"),
     headline_value("premature_deaths_prevented"),
     headline_value("halys_gained"),
     headline_value("disease_cases_prevented")
   )
   units <- c(
-    NA, NA, NA, NA, "people", "trip records/week", "trip records/week",
-    "trip records/week", "trip records/week", "deaths", "HALYs", "disease cases"
+    NA, NA, NA, NA, "people", rep("trip records/week", 8),
+    "deaths", "HALYs", "disease cases"
   )
 
   data.frame(
@@ -507,7 +511,7 @@ write_results_report <- function(exports,
     value = values,
     unit = units,
     source = c(
-      "HUB export", rep("appraisal profile", 4), rep("trip_mode_distribution", 4),
+      "HUB export", rep("appraisal profile", 4), rep("trip_mode_distribution", 8),
       rep("headline_metrics", 3)
     ),
     mapping_status = c("draft", rep("requires AMAT field confirmation", length(fields) - 1)),

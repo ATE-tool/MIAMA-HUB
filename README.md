@@ -442,8 +442,8 @@ estimated people = source people *
   sum(requested mode users or trips) / sum(source mode users or trips)
 ```
 
-This pools walking and cycling rather than choosing the largest standalone
-mode estimate. A person contributing to two modes is represented in both the
+This pools all selected modes rather than choosing the largest standalone mode
+estimate. A person contributing to two modes is represented in both the
 requested and source sums, and per-mode estimates remain available in
 `reference_scope_report$person$mode_estimates` for diagnosis. The estimate is
 bounded below by every explicit mode-user count and cannot exceed the source
@@ -642,24 +642,34 @@ It also covers advanced Tab 3 and Tab 4 reference fields:
   `trips_diversion_trips_n`, `trips_diversion_distance_total`,
   `trips_diversion_duration_total`)
 
-Individual-only values, such as walking and cycling user counts from
-`walktime_wkhr` and `cycletime_wkhr`, can be extracted from `reference_data$ind`
-alone. Trip counts, trip-level distance/duration values, and mode-share values
-require `reference_data$trips`. The returned `extraction_report` records skipped
+Individual-only walking and cycling user counts can be extracted from
+`walktime_wkhr` and `cycletime_wkhr`. PT user activity is derived from the
+walking component of PT main-mode trips and therefore requires trip data.
+E-bike reference user and trip volumes are explicitly zero because the source
+does not distinguish conventional bicycles from e-bikes. Cycling observations
+remain cycling and are used only as donor distributions for e-bike
+counterfactuals, avoiding double counting. Trip counts, trip-level
+distance/duration values, and mode-share values require `reference_data$trips`.
+The returned `extraction_report` records skipped
 fields and notes when a requested UI value cannot be derived from the currently
 available columns. It also includes `spread_bar_values`, a flattened report
 table of every compact reference spread bar payload with its source profile
 field, category, plotted variable, percent, and proportion.
 
-Current data columns distinguish walking and cycling but do not expose a
-dedicated e-bike source. Walk-to-public-transport values are derived only when
-trip-level data includes recognizable public-transport `trip_mainmode` values.
+All four UI modes have an explicit runtime interpretation:
+
+- walking uses the walking component of non-PT trips
+- cycling uses observed bicycle records
+- e-biking starts from zero reference volume and uses cycling donors 1:1 for
+  trip distance, duration, user profiles, and MMET intensity
+- public transport uses PT main-mode records for travel volume, while only the
+  walking-access component contributes physical activity and health exposure
 
 Current threshold assumptions are deliberately simple:
 
 - walking users are individuals with `walktime_wkhr > 0`
 - cycling users are individuals with `cycletime_wkhr > 0`
-- walking trips have `trip_walktime_min > 0` or `trip_walkdist_km > 0`
+- walking trips have positive walking time or distance and are not PT trips
 - cycling trips have `trip_cycletime_min > 0` or `trip_cycledist_km > 0`
 - walk-to-public-transport trips have recognizable public-transport
   `trip_mainmode` values plus positive walking time or distance
@@ -711,9 +721,9 @@ Current reference spread topics:
 
 Tab 3 spread controls are mode-specific. Profile field suffixes follow the UI
 mode naming convention: `walking -> walk`, `cycling -> bike`, `ebiking ->
-ebike`, and public transport/walking-to-PT -> `pt`. Walking and cycling are the
-currently supported production paths; other modes are populated only when the
-required source columns are available.
+ebike`, and public transport/walking-to-PT -> `pt`. All four paths are
+supported. E-bike reference bars use cycling as the donor distribution because
+the source has no separate e-bike observations.
 
 At the end of Tab 1, UI calls:
 
@@ -1053,7 +1063,9 @@ Installed-package code can resolve these files with
 Walking and cycling use their active-trip component columns. Car and public
 transport use mutually exclusive numeric NTS main-mode codes and raw trip
 distance/duration. The available `MainMode_B04` field does not separate e-bike
-from bicycle, so e-bike candidates remain explicitly unavailable. The current
+from bicycle, so independent England-derived e-bike candidates remain
+unavailable; runtime e-bike defaults instead use the documented cycling proxy.
+The current
 `distdur_default_*` field is also ambiguous because it is used for either
 distance or duration; the output reports both candidates with
 `needs_schema_split` rather than selecting one silently. Review these CSVs after
@@ -1095,7 +1107,7 @@ that copy and adds a compact `counterfactual_report`.
 ### Users: derive counterfactual number of active mode users
 The current implementation supports `users_count_cf_*` in the basic UI,
 `pop_number_cf_*_basic` as the basic population-modal alternative, and
-`pop_number_cf_*_advanced` in the advanced UI for walking and cycling. HUB uses
+`pop_number_cf_*_advanced` in the advanced UI for all four modes. HUB uses
 `ui_version` to select the applicable field family. These fields adjust the
 number of individuals with positive mode-specific weekly activity while keeping
 the individual population fixed:
@@ -1105,7 +1117,8 @@ the individual population fixed:
 - if the target is smaller, existing users are sampled as `ex_users`
 - new users receive mode activity values sampled from observed current users
 - ex-users receive configured near-zero defaults, currently `0`
-- returned individual data includes explicit `user_walk` / `user_bike`
+- returned individual data includes explicit `user_walk`, `user_bike`,
+  `user_ebike`, and `user_pt` indicators
   indicators and `cf_user_change`
 - `mmets` is recalculated when present using HM constants:
   changes in `walktime_wkhr`, `cycletime_wkhr`, and `sport_wkhr` are converted
@@ -1121,9 +1134,10 @@ the individual population fixed:
   assumption is absent, observed current-user trip counts remain the fallback.
 
 Targets must be finite, non-negative, rounded integer counts and cannot exceed
-the full filtered geography retained as the donor population. E-bike and walk-to-public-transport
-counterfactual user counts are currently reported as unsupported until the data
-contains dedicated activity columns or agreed classification rules.
+the full filtered geography retained as the donor population. E-bike additions
+sample cycling donor profiles without moving the observed cycling reference
+count. PT additions retain PT as the travel mode but add only configured or
+donor-derived access-walking exposure to MMETs.
 
 An explicit user-count input is authoritative: its CF-minus-REF difference
 already determines how many user-status changes are required. The separate
@@ -1153,7 +1167,7 @@ activity assigned to new users, even when defaults happen to use the same
 number. Purpose fields no longer override the induced-trip parameter.
 
 For increases, Tab 4 may specify a small source-by-target diversion matrix using
-`trips_diversion_car_perc_walk` and `trips_diversion_car_perc_bike`. Each value
+`trips_diversion_car_perc_[walk|bike|ebike|pt]`. Each value
 is the expected percentage of mode-shift trips into that active target mode
 whose reference mode was car. The residual percentage is sampled from all
 other plausible non-target-mode trips. Distance and car-source weights are
@@ -1162,6 +1176,17 @@ in finite samples. Purpose does not currently alter candidate weights within a
 mechanism. Each counterfactual change report records
 `car_diversion_field`, the requested `car_diversion_percent`, and the observed
 `realized_car_diversion_percent` among shifted trips.
+
+Source-mode assumptions are separate from donor-profile assumptions. Because
+the current data cannot identify observed e-bike trips, cycling supplies the
+e-bike activity and trip-characteristic donor profile. It does not imply that
+all e-bike trips came from cycling. In the absence of a UI override,
+`cfg$counterfactual$trips$source_mode_shares$ebiking` assigns shifted e-bike
+trips equally across cycling, PT, and car source pools. The induced-trip share
+is excluded from this split. A supplied `trips_diversion_car_perc_ebike`
+overrides the car share and divides the remainder between cycling and PT in the
+configured relative proportions. The counterfactual report records both the
+source shares and whether they came from configuration or UI.
 
 Decreases do not delete utilitarian travel demand. Instead, sampled active trips
 are shifted away from the active mode using the configured default destination,
@@ -1175,7 +1200,7 @@ Returned trip data includes explicit `trip_activemode`, `trip_utilitarian`,
 indicators. A row is locked as soon as it is shifted, shifted away, or induced;
 later mode handlers cannot select it again. Candidates for an active-mode
 increase also exclude trips already active in another assessed active mode.
-Together these rules prevent walking and cycling targets from cannibalizing
+Together these rules prevent mode targets from cannibalizing
 one another or becoming dependent on their order in the UI profile. The change
 report records actual `mode_shift_n` and `induced_n`, and
 `counterfactual_report$comparison$changed_trip_rows` lists switched or induced
@@ -1256,8 +1281,9 @@ Current limitations are explicit:
   to make realized aggregate kilometres or minutes exactly equal to the input.
   Finite candidate pools and advanced sampling constraints can therefore cause
   differences that must be reviewed in the requested-versus-realized report.
-- Walking and cycling are supported. E-bike and public-transport walking need
-  dedicated source columns and agreed classification rules.
+- E-bike results depend on the configured cycling proxy because no independent
+  e-bike reference observations are available. PT health effects represent
+  access walking only, not in-vehicle PT time.
 
 Because the UI routes are alternatives, the selected `at_data_unit` controls
 which family is converted. Advanced Tab 4 trip targets retain their established
@@ -1967,7 +1993,8 @@ These ggplot functions currently live in HUB so the result contract and example
 presentation can be developed together. MIAMA-UI can call them directly or
 reproduce their styling from the returned data frames. Omit `modes`, or use
 `modes = "all_modes"`, for the canonical combined health result. Pass
-`modes = c("walking", "cycling")` for attributed health deltas. Because mode
+`modes = c("walking", "cycling", "ebiking", "pt")` for attributed health
+deltas. Because mode
 rows do not have separate reference denominators, mode-specific requests use
 prevented counts or prevented counts per 100,000 rather than direct scenario
 totals or percentage reduction.

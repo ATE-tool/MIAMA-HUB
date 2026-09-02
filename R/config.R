@@ -266,12 +266,32 @@ miama_default_config <- function(dataset_size = NULL) {
     ),
     # 5. Counterfactual mechanism assumptions ------------------------------
     counterfactual = list(
+      modes = list(
+        ebiking = list(
+          reference_volume = "zero",
+          donor_mode = "cycling",
+          proxy_distance_factor = 1,
+          proxy_duration_factor = 1,
+          speed_kmh = 15.7
+        ),
+        pt = list(
+          activity_component = "walking_access",
+          access_walk_distance_km_default = 0.8,
+          access_walk_minutes_default = 10
+        )
+      ),
       trips = list(
         # Used unless the profile supplies `induced_trips_percent` (or its
         # mode-specific equivalent). Purpose is a separate trip characteristic
         # and does not determine whether a trip is shifted or induced.
         # Shifted percentage is always the complement (100 - induced).
-        induced_trips_percent_default = 10
+        induced_trips_percent_default = 10,
+        # Source modes apply only to the shifted (non-induced) share of added
+        # trips. These are explicit assumptions where no England-derived
+        # source-mode evidence is currently available.
+        source_mode_shares = list(
+          ebiking = c(cycling = 1 / 3, pt = 1 / 3, driving = 1 / 3)
+        )
       )
     ),
     # 6. Tab 3/4 spread category definitions -------------------------------
