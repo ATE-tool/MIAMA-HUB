@@ -422,16 +422,15 @@ apply_counterfactual_ui_values <- function(
   }
 
   if (delta > 0) {
-    # New users are baseline non-users inside the assessed REF population. The
-    # counterfactual changes behaviour within that fixed population rather than
-    # silently expanding the appraisal boundary with outside donor rows.
-    baseline_users <- .positive_col(reference_data$ind, spec$activity_col)
+    # New CF users are people who are not users in the scaled REF snapshot.
+    # A source-population user excluded while Tab 2 scaled the mode-user scope
+    # is a valid non-user in that snapshot and must remain eligible here.
     ref_person_scope <- if ("ref_in_scope" %in% names(reference_data$ind)) {
       .true_values(reference_data$ind$ref_in_scope)
     } else {
       rep(TRUE, nrow(reference_data$ind))
     }
-    candidate_rows <- which(ref_person_scope & !baseline_users)
+    candidate_rows <- which(ref_person_scope & !ref_users)
     candidate_rows <- cf_population_candidate_filter(
       counterfactual_data$ind,
       candidate_rows,

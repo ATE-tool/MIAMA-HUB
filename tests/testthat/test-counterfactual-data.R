@@ -50,6 +50,40 @@ test_that("apply_counterfactual_ui_values increases walking users from non-users
   expect_true(nrow(counterfactual_data$counterfactual_report$comparison$changed_ind_rows) > 0)
 })
 
+test_that("scaled REF non-users remain eligible for a feasible CF user target", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:4,
+      walktime_wkhr = c(1, 2, 0, 0),
+      cycletime_wkhr = 0,
+      sport_wkhr = 0,
+      mmets = c(2.5, 5, 0, 0),
+      ref_in_scope = TRUE,
+      cf_in_scope = TRUE,
+      ref_user_scope_walk = c(TRUE, FALSE, FALSE, FALSE),
+      cf_user_scope_walk = c(TRUE, FALSE, FALSE, FALSE)
+    )
+  )
+
+  counterfactual_data <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    appraisal_input_values = list(
+      ui_version = "advanced",
+      modes = "walking",
+      pop_number_cf_walk_advanced = 4
+    ),
+    reference_data = reference_data,
+    seed = 10
+  )
+
+  expect_equal(sum(counterfactual_data$ind$cf_user_scope_walk), 4)
+  expect_equal(
+    sum(counterfactual_data$ind$cf_user_scope_walk &
+          counterfactual_data$ind$walktime_wkhr > 0),
+    4
+  )
+})
+
 test_that("blank basic user target does not mask advanced target", {
   reference_data <- list(
     ind = data.frame(
