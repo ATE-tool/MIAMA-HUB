@@ -4,8 +4,9 @@
 #
 # Counterfactual principle:
 # - `counterfactual_data` starts as a 1:1 copy of `reference_data`.
-# - Individual-level changes keep the population fixed. Existing rows switch
-#   between current user, new user, ex-user, or unchanged status.
+# - Source rows remain fixed, but the assessed CF scope may expand beyond REF.
+#   Eligible baseline non-users from the retained geography can be recruited as
+#   new users without duplicating synthetic people.
 # - Utilitarian trip demand is treated as fixed. Active-travel trip increases
 #   are mostly existing non-active trips shifting mode, plus a small default
 #   share of induced recreational trips that add new trip rows.

@@ -482,22 +482,41 @@ snapshot does not alter behavior, MMET exposure, or health trajectories; it
 only sets the system boundary for the appraisal.
 
 Counterfactual data begin as a one-to-one copy of this flagged baseline. CF
-scope initially equals REF scope. New users are sampled from baseline non-users
-inside that assessed population, so user growth changes behavior without
-expanding the population boundary. Existing trips can
-be switched only for people in CF scope, while induced trips are assigned to CF
-scope. All behavioral changes are made only in the CF copy.
+scope initially equals REF scope. New users are sampled first from baseline
+non-users inside that assessed population. If more are needed, baseline
+non-users from the retained LAD source pool are recruited and added to CF scope.
+No synthetic person is duplicated: the same source row supplies that person's
+original and counterfactual exposure. Existing trips can be switched only for
+people in CF scope, while induced trips are assigned to CF scope. All behavioral
+changes are made only in the CF copy; REF scope and behavior remain unchanged.
 
 The random seed is fixed by the calling workflow, making a run reproducible for
 the same data and inputs. Sampling is without replacement when selecting people
 or existing trips. Induced trips and donor activity values may be sampled with
 replacement.
 
+The distinction between an appraisal boundary and the source pool is important.
+REF must be constructible as an observed subset: its mode-user counts must fit
+inside REF total population, and its trips must be observed among selected
+people. CF is not subject to the smaller REF population ceiling. It can recruit
+eligible non-users from the rest of the retained geography. Only exhaustion of
+that full eligible pool makes a CF user target infeasible. HUB reports such
+input incompatibilities separately from programming errors, with requested and
+available counts and the implicated profile fields.
+
 ## Changing the number of users
 
 If the counterfactual target exceeds the reference user count, HUB samples
-existing non-users and marks them as `new_users`. If it is lower, HUB samples
-existing users and marks them as `ex_users`.
+baseline non-users and marks them as `new_users`. It exhausts eligible
+candidates already inside the assessed population before recruiting from the
+rest of the retained LAD. If the target is lower, HUB samples existing users
+and marks them as `ex_users`; those people remain members of CF scope.
+
+A CF target is not capped by the smaller scaled REF population. Its practical
+upper bound is the current CF users plus baseline non-users that remain eligible
+under the selected population refinements. If that geographic donor pool is
+insufficient, HUB returns a structured appraisal-input error with the requested
+and available counts.
 
 Candidate probabilities combine the available mode-specific Tab 3 constraints:
 

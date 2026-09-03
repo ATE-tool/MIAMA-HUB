@@ -50,18 +50,25 @@ test_that("apply_counterfactual_ui_values increases walking users from non-users
   expect_true(nrow(counterfactual_data$counterfactual_report$comparison$changed_ind_rows) > 0)
 })
 
-test_that("scaled REF non-users remain eligible for a feasible CF user target", {
+test_that("CF user targets recruit baseline non-users beyond scaled REF", {
   reference_data <- list(
     ind = data.frame(
-      census_id = 1:4,
-      walktime_wkhr = c(1, 2, 0, 0),
+      census_id = 1:6,
+      walktime_wkhr = c(1, 0, 0, 0, 0, 0),
       cycletime_wkhr = 0,
       sport_wkhr = 0,
-      mmets = c(2.5, 5, 0, 0),
-      ref_in_scope = TRUE,
-      cf_in_scope = TRUE,
-      ref_user_scope_walk = c(TRUE, FALSE, FALSE, FALSE),
-      cf_user_scope_walk = c(TRUE, FALSE, FALSE, FALSE)
+      mmets = c(2.5, 0, 0, 0, 0, 0),
+      ref_in_scope = c(TRUE, TRUE, FALSE, FALSE, FALSE, FALSE),
+      cf_in_scope = c(TRUE, TRUE, FALSE, FALSE, FALSE, FALSE),
+      ref_user_scope_walk = c(TRUE, FALSE, FALSE, FALSE, FALSE, FALSE),
+      cf_user_scope_walk = c(TRUE, FALSE, FALSE, FALSE, FALSE, FALSE)
+    ),
+    trips = data.frame(
+      census_id = 1:6,
+      nts_tripid = 1:6,
+      walktime_wkhr = c(1, 0, 0, 0, 0, 0),
+      ref_in_scope = c(TRUE, TRUE, FALSE, FALSE, FALSE, FALSE),
+      cf_in_scope = c(TRUE, TRUE, FALSE, FALSE, FALSE, FALSE)
     )
   )
 
@@ -82,6 +89,62 @@ test_that("scaled REF non-users remain eligible for a feasible CF user target", 
           counterfactual_data$ind$walktime_wkhr > 0),
     4
   )
+  expect_equal(sum(counterfactual_data$ind$cf_in_scope), 4)
+  expect_equal(sum(counterfactual_data$trips$cf_in_scope), 4)
+  expect_equal(sum(counterfactual_data$ind$ref_in_scope), 2)
+  expect_equal(sum(counterfactual_data$trips$ref_in_scope), 2)
+  expect_equal(
+    counterfactual_data$counterfactual_report$changes[[1]]$cf_scope_added_n,
+    2
+  )
+})
+
+test_that("CF user targets report an exhausted geographic non-user pool", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:3,
+      walktime_wkhr = c(1, 1, 0),
+      cycletime_wkhr = 0,
+      sport_wkhr = 0,
+      mmets = c(2.5, 2.5, 0),
+      ref_in_scope = c(TRUE, FALSE, FALSE),
+      cf_in_scope = c(TRUE, FALSE, FALSE),
+      ref_user_scope_walk = c(TRUE, FALSE, FALSE),
+      cf_user_scope_walk = c(TRUE, FALSE, FALSE)
+    )
+  )
+
+  expect_error(
+    apply_counterfactual_ui_values(
+      init_counterfactual_data(reference_data),
+      appraisal_input_values = list(
+        ui_version = "advanced",
+        modes = "walking",
+        pop_number_cf_walk_advanced = 3
+      ),
+      reference_data = reference_data,
+      seed = 10
+    ),
+    "only 1 eligible baseline non-users"
+  )
+})
+
+test_that("health exposure includes people recruited beyond REF scope", {
+  reference_ind <- data.frame(
+    census_id = 1:3,
+    age1year = c(30, 40, 50),
+    female = c(0, 1, 0),
+    mmets = c(2, 3, 1),
+    ref_in_scope = c(TRUE, FALSE, FALSE)
+  )
+  counterfactual_ind <- reference_ind
+  counterfactual_ind$cf_in_scope <- c(TRUE, FALSE, TRUE)
+  counterfactual_ind$mmets <- c(2, 3, 4)
+
+  exposure <- .counterfactual_health_exposure(reference_ind, counterfactual_ind)
+
+  expect_equal(exposure$census_id, c(1, 3))
+  expect_equal(exposure$mmets_delta, c(0, 3))
 })
 
 test_that("blank basic user target does not mask advanced target", {
@@ -355,7 +418,7 @@ test_that("explicit Tab 4 trip totals cap trips inferred from new users", {
   )
 })
 
-test_that("apply_counterfactual_ui_values validates user-count targets", {
+test_that("apply_counterfactual_ui_values validates geographic donor capacity", {
   reference_data <- list(
     ind = data.frame(
       census_id = 1:2,
@@ -372,7 +435,7 @@ test_that("apply_counterfactual_ui_values validates user-count targets", {
       ),
       reference_data = reference_data
     ),
-    "cannot exceed"
+    "only 1 eligible baseline non-users"
   )
 })
 

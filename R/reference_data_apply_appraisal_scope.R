@@ -6,7 +6,8 @@
 # The full geography remains in the object as an immutable source from which an
 # assessed population is sampled. Scope flags identify that population and the
 # observed mode users/trips represented by the Tab 2 values. Counterfactual
-# changes are subsequently made within the same assessed population.
+# processing starts from this scope and may recruit baseline non-users from the
+# retained geography when a CF mode-user target requires them.
 
 apply_reference_appraisal_scope <- function(reference_data,
                                              appraisal_input_values = list(),
@@ -116,6 +117,29 @@ apply_reference_appraisal_scope <- function(reference_data,
         length(candidates)
       } else {
         .reference_trip_target_rows(target)
+      }
+      if (target_rows > length(candidates)) {
+        .abort_appraisal_input(
+          paste0(
+            "The reference ", mode, " trip target is ", target_rows,
+            " trips per week, but the selected reference population contains only ",
+            length(candidates), " eligible observed trips owned by its ",
+            sum(owner_user_scope & out$trips$ref_in_scope, na.rm = TRUE),
+            " mode-user trip records."
+          ),
+          stage = "reference_scope",
+          fields = c(target$field, user_targets[[mode]]$field, person_target$field),
+          hint = paste0(
+            "Reduce the reference trip target, or increase the reference total population",
+            " or ", mode, " user count."
+          ),
+          details = list(
+            mode = mode,
+            requested_trips = target_rows,
+            available_trips = length(candidates),
+            reference_population = person_target$value
+          )
+        )
       }
       selected <- .sample_reference_rows(candidates, target_rows, seed + spec$seed_offset + 500L)
       ref_col <- .reference_trip_scope_col(mode, "ref")
@@ -420,20 +444,27 @@ apply_reference_appraisal_scope <- function(reference_data,
   target_n <- as.integer(target_n)
   eligible <- seq_len(n) %in% eligible_rows
   if (target_n > sum(eligible)) {
-    stop(
-      "The requested reference population (", target_n,
-      ") exceeds the ", sum(eligible),
-      " people eligible under the selected Tab 3 population categories.",
-      call. = FALSE
+    .abort_appraisal_input(
+      paste0(
+        "The requested reference population is ", target_n, ", but only ",
+        sum(eligible), " people satisfy the selected population categories."
+      ),
+      stage = "reference_scope",
+      fields = "pop_total_ref_advanced",
+      hint = "Increase the reference population, or include more age/physical-activity categories."
     )
   }
   required_rows <- intersect(unique(required_rows), which(eligible))
   if (length(required_rows) > target_n) {
-    stop(
-      "The selected reference trips require ", length(required_rows),
-      " unique owners, exceeding the inferred reference population of ",
-      target_n, ".",
-      call. = FALSE
+    .abort_appraisal_input(
+      paste0(
+        "The requested reference trips belong to ", length(required_rows),
+        " different people, which cannot fit inside the reference population of ",
+        target_n, "."
+      ),
+      stage = "reference_scope",
+      fields = "pop_total_ref_advanced",
+      hint = "Increase the reference population or reduce the reference trip totals."
     )
   }
   if (target_n == n && all(eligible)) return(seq_len(n))
@@ -452,7 +483,20 @@ apply_reference_appraisal_scope <- function(reference_data,
 
   requested <- vapply(user_targets[specified], `[[`, numeric(1), "value")
   if (any(requested > target_n)) {
-    stop("Reference user count cannot exceed reference population size.", call. = FALSE)
+    invalid <- specified[requested > target_n]
+    summary <- paste0(invalid, "=", requested[invalid], collapse = ", ")
+    .abort_appraisal_input(
+      paste0(
+        "Reference mode-user counts (", summary,
+        ") cannot exceed the reference population of ", target_n, "."
+      ),
+      stage = "reference_scope",
+      fields = c(
+        vapply(user_targets[invalid], `[[`, character(1), "field"),
+        "pop_total_ref_advanced"
+      ),
+      hint = "Increase the reference population or reduce the listed reference user counts."
+    )
   }
 
   # Build a person scope with enough observed users to satisfy every requested
@@ -461,7 +505,18 @@ apply_reference_appraisal_scope <- function(reference_data,
   selected <- required_rows
   availability <- vapply(specified, function(mode) sum(active[[mode]]), numeric(1))
   if (any(requested > availability)) {
-    stop("Reference mode-user targets exceed the available donor populations.", call. = FALSE)
+    invalid <- specified[requested > availability]
+    summary <- paste0(
+      invalid, " requested=", requested[invalid],
+      ", available=", availability[invalid],
+      collapse = "; "
+    )
+    .abort_appraisal_input(
+      paste0("Reference mode-user targets exceed the observed donor pool: ", summary, "."),
+      stage = "reference_scope",
+      fields = vapply(user_targets[invalid], `[[`, character(1), "field"),
+      hint = "Reduce the listed reference user counts or broaden the selected population categories."
+    )
   }
   mode_order <- specified[order(requested / pmax(availability, 1), decreasing = TRUE)]
   for (index in seq_along(mode_order)) {
@@ -489,9 +544,26 @@ apply_reference_appraisal_scope <- function(reference_data,
     requested[[mode]] - sum(active[[mode]][selected])
   }, numeric(1))
   if (any(unmet > 0) || length(selected) > target_n) {
-    stop(
-      "Reference population/user targets cannot be jointly sampled from the available donor overlap.",
-      call. = FALSE
+    unmet <- unmet[unmet > 0]
+    summary <- if (length(unmet) > 0) {
+      paste0(names(unmet), " short by ", unmet, collapse = ", ")
+    } else {
+      paste0("at least ", length(selected), " people are required")
+    }
+    .abort_appraisal_input(
+      paste0(
+        "The reference population of ", target_n,
+        " cannot jointly contain the requested mode-user combination (", summary, ")."
+      ),
+      stage = "reference_scope",
+      fields = c(
+        vapply(user_targets[specified], `[[`, character(1), "field"),
+        "pop_total_ref_advanced"
+      ),
+      hint = paste0(
+        "Mode users can overlap, but the observed donor population does not contain enough of the requested overlap. ",
+        "Increase the reference population or reduce one or more mode-user counts."
+      )
     )
   }
 

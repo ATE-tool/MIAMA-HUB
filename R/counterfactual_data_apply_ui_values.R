@@ -31,10 +31,10 @@
 #
 # Current scope:
 # - The full geography is the source from which the assessed REF person scope is
-#   sampled. CF starts with the same person boundary; mode-specific scope flags
-#   identify the users/trips represented in each snapshot.
-# - Individual donor row counts stay fixed. User-count targets switch eligible
-#   people between current non-user/new user and current user/ex-user states.
+#   sampled. CF starts with that boundary, but may recruit baseline non-users
+#   from the retained geography when its user target exceeds the REF scope.
+# - Individual source rows stay fixed. Recruitment expands `cf_in_scope`; it
+#   does not duplicate people or alter the reference snapshot.
 # - Key indicators (`user_walk`, `user_bike`, `user_ebike`, `user_pt`,
 #   `trip_activemode`, `trip_utilitarian`, and CF change flags) are added to the
 #   returned data.
@@ -50,7 +50,8 @@
 #
 # Current constraints:
 # - Counterfactual user-count targets must be finite, non-negative integers after
-#   rounding, and no larger than the assessed REF person scope.
+#   rounding. Increases are limited by eligible baseline non-users in the full
+#   filtered geography, not by the smaller assessed REF person scope.
 # - E-bike reference volume is zero because source bicycle records are retained
 #   as conventional cycling. Cycling supplies donor patterns for e-bike CF
 #   changes. PT contributes physical activity only through access walking.
@@ -295,13 +296,7 @@ apply_counterfactual_ui_values <- function(
 
   .require_cf_user_count_columns(counterfactual_data, reference_data, spec)
 
-  ref_person_scope <- if ("ref_in_scope" %in% names(reference_data$ind)) {
-    .true_values(reference_data$ind$ref_in_scope)
-  } else {
-    rep(TRUE, nrow(reference_data$ind))
-  }
-  pop_total_ref <- sum(ref_person_scope)
-  target <- .validate_cf_user_target(target, pop_total_ref, spec)
+  target <- .validate_cf_user_target(target, spec)
 
   ref_scope_col <- .reference_user_scope_col(mode, "ref")
   cf_scope_col <- .reference_user_scope_col(mode, "cf")
@@ -401,6 +396,7 @@ apply_counterfactual_ui_values <- function(
   change$relevant_attributes <- assignment$relevant_attributes
   change$sampling_constraints <- assignment$sampling_constraints
   change$sampling_fallback <- assignment$sampling_fallback
+  change$cf_scope_added_n <- assignment$cf_scope_added_n
   change$user_trip_shift_target_n <- trip_effect$trip_shift_target_n
   change$user_trip_shift_n <- trip_effect$trip_shift_n
   change$trip_sampling_fallback <- trip_effect$sampling_fallback
@@ -441,34 +437,76 @@ apply_counterfactual_ui_values <- function(
       sampling_strategy = sampling_strategy,
       sampling_constraints = population_target$constraints %||% character(0),
       sampling_fallback = NULL,
+      cf_scope_added_n = 0L,
       relevant_attributes = cf_individual_sampling_columns(reference_data$ind, spec$mode)
     ))
   }
 
   if (delta > 0) {
-    # New CF users are people who are not users in the scaled REF snapshot.
-    # A source-population user excluded while Tab 2 scaled the mode-user scope
-    # is a valid non-user in that snapshot and must remain eligible here.
-    ref_person_scope <- if ("ref_in_scope" %in% names(reference_data$ind)) {
-      .true_values(reference_data$ind$ref_in_scope)
+    # Prefer non-users already inside the assessed CF population. If that pool
+    # is too small, recruit additional baseline non-users from the retained
+    # geographic source population and add them to `cf_in_scope`.
+    cf_person_scope <- if ("cf_in_scope" %in% names(counterfactual_data$ind)) {
+      .true_values(counterfactual_data$ind$cf_in_scope)
     } else {
-      rep(TRUE, nrow(reference_data$ind))
+      rep(TRUE, nrow(counterfactual_data$ind))
     }
-    candidate_rows <- which(ref_person_scope & !ref_users)
+    source_non_users <- !.positive_col(reference_data$ind, spec$activity_col)
+    candidate_rows <- which(!cf_users & source_non_users)
     candidate_rows <- cf_population_candidate_filter(
       counterfactual_data$ind,
       candidate_rows,
       population_target,
       select_inside = TRUE
     )
-    weights <- cf_individual_candidate_weights(counterfactual_data$ind, candidate_rows, population_target)
-    changed_rows <- cf_sample_candidate_indices(
-      candidate_rows,
-      delta,
-      seed + spec$seed_offset,
-      weights = weights
+    if (length(candidate_rows) < delta) {
+      current_n <- sum(cf_users, na.rm = TRUE)
+      .abort_appraisal_input(
+        paste0(
+          "The counterfactual ", spec$mode, " user target is ", current_n + delta,
+          ", but only ", length(candidate_rows),
+          " eligible baseline non-users are available in the filtered geographic population."
+        ),
+        stage = "counterfactual_users",
+        fields = c(
+          paste0("pop_number_cf_", spec$suffix, "_advanced"),
+          paste0("users_count_cf_", spec$suffix)
+        ),
+        hint = "Reduce the counterfactual user target or broaden the population refinements.",
+        details = list(
+          mode = spec$mode,
+          current_users = current_n,
+          requested_users = current_n + delta,
+          eligible_new_users = length(candidate_rows)
+        )
+      )
+    }
+    inside_candidates <- candidate_rows[cf_person_scope[candidate_rows]]
+    outside_candidates <- candidate_rows[!cf_person_scope[candidate_rows]]
+    inside_n <- min(delta, length(inside_candidates))
+    outside_n <- delta - inside_n
+    inside_rows <- .sample_cf_user_candidates(
+      counterfactual_data$ind,
+      inside_candidates,
+      inside_n,
+      population_target,
+      seed + spec$seed_offset
     )
-    sampling_fallback <- attr(changed_rows, "sampling_fallback")
+    outside_rows <- .sample_cf_user_candidates(
+      counterfactual_data$ind,
+      outside_candidates,
+      outside_n,
+      population_target,
+      seed + spec$seed_offset + 500L
+    )
+    changed_rows <- c(inside_rows$rows, outside_rows$rows)
+    cf_scope_added_n <- length(outside_rows$rows)
+    sampling_fallback <- list(
+      inside_ref_scope = inside_rows$sampling_fallback,
+      recruited_from_source = outside_rows$sampling_fallback
+    )
+    sampling_fallback <- sampling_fallback[!vapply(sampling_fallback, is.null, logical(1))]
+    if (length(sampling_fallback) == 0) sampling_fallback <- NULL
     donor_spec <- .mode_proxy_spec(spec)
     donor_users <- .positive_col(reference_data$ind, donor_spec$activity_col)
     replacement_values <- cf_sample_observed_values(
@@ -487,6 +525,22 @@ apply_counterfactual_ui_values <- function(
       population_target,
       select_inside = FALSE
     )
+    if (length(candidate_rows) < abs(delta)) {
+      current_n <- sum(cf_users, na.rm = TRUE)
+      .abort_appraisal_input(
+        paste0(
+          "The counterfactual ", spec$mode, " user target is ", current_n + delta,
+          ", which requires removing ", abs(delta), " users, but only ",
+          length(candidate_rows), " current users are eligible under the population refinements."
+        ),
+        stage = "counterfactual_users",
+        fields = c(
+          paste0("pop_number_cf_", spec$suffix, "_advanced"),
+          paste0("users_count_cf_", spec$suffix)
+        ),
+        hint = "Increase the counterfactual user target or broaden the population refinements."
+      )
+    }
     weights <- cf_individual_candidate_weights(counterfactual_data$ind, candidate_rows, population_target)
     changed_rows <- cf_sample_candidate_indices(
       candidate_rows,
@@ -497,10 +551,22 @@ apply_counterfactual_ui_values <- function(
     sampling_fallback <- attr(changed_rows, "sampling_fallback")
     replacement_values <- rep(constants[[spec$ex_user_default_col]], length(changed_rows))
     role <- "ex_users"
+    cf_scope_added_n <- 0L
   }
 
   counterfactual_data$ind[[spec$activity_col]][changed_rows] <- replacement_values
   counterfactual_data$ind$cf_user_change[changed_rows] <- role
+  if (delta > 0 && "cf_in_scope" %in% names(counterfactual_data$ind)) {
+    counterfactual_data$ind$cf_in_scope[changed_rows] <- TRUE
+  }
+  if (delta > 0 && !is.null(counterfactual_data$trips) &&
+      "cf_in_scope" %in% names(counterfactual_data$trips) &&
+      "census_id" %in% names(counterfactual_data$trips)) {
+    recruited_ids <- counterfactual_data$ind$census_id[changed_rows]
+    counterfactual_data$trips$cf_in_scope[
+      counterfactual_data$trips$census_id %in% recruited_ids
+    ] <- TRUE
+  }
   scope_col <- .reference_user_scope_col(spec$mode, "cf")
   if (scope_col %in% names(counterfactual_data$ind)) {
     counterfactual_data$ind[[scope_col]][changed_rows] <- delta > 0
@@ -513,8 +579,18 @@ apply_counterfactual_ui_values <- function(
     sampling_strategy = sampling_strategy,
     sampling_constraints = population_target$constraints %||% character(0),
     sampling_fallback = sampling_fallback,
+    cf_scope_added_n = cf_scope_added_n,
     relevant_attributes = cf_individual_sampling_columns(reference_data$ind, spec$mode)
   )
+}
+
+.sample_cf_user_candidates <- function(ind, candidate_rows, n, population_target, seed) {
+  if (n == 0) {
+    return(list(rows = integer(0), sampling_fallback = NULL))
+  }
+  weights <- cf_individual_candidate_weights(ind, candidate_rows, population_target)
+  rows <- cf_sample_candidate_indices(candidate_rows, n, seed, weights = weights)
+  list(rows = rows, sampling_fallback = attr(rows, "sampling_fallback"))
 }
 
 .cf_user_target <- function(values, suffix) {
@@ -1763,7 +1839,7 @@ apply_counterfactual_ui_values <- function(
   invisible(TRUE)
 }
 
-.validate_cf_user_target <- function(target, pop_total_ref, spec) {
+.validate_cf_user_target <- function(target, spec) {
   if (!is.numeric(target) || length(target) != 1 || !is.finite(target)) {
     stop("Counterfactual target for mode `", spec$mode, "` must be one finite number.", call. = FALSE)
   }
@@ -1772,14 +1848,6 @@ apply_counterfactual_ui_values <- function(
   if (target < 0) {
     stop("Counterfactual target for mode `", spec$mode, "` cannot be negative.", call. = FALSE)
   }
-  if (target > pop_total_ref) {
-    stop(
-      "Counterfactual target for mode `", spec$mode, "` (", target,
-      ") cannot exceed assessed reference population size (", pop_total_ref, ").",
-      call. = FALSE
-    )
-  }
-
   target
 }
 

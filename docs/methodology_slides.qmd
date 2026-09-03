@@ -117,7 +117,8 @@ $$
 
 **User increase**
 
-- sample existing non-users as new users
+- use eligible baseline non-users inside REF first
+- recruit any shortfall from the retained LAD and expand CF scope
 - probability weights combine sex, age, and PA targets
 - sample weekly mode activity from observed current users
 - shift plausible trips for selected people where trip data exist

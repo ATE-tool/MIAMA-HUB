@@ -1136,15 +1136,15 @@ health trajectory. It only determines which observed rows count in the assessed
 REF snapshot. When no REF field was edited, all flags reproduce the previous
 full-geography behavior.
 
-CF starts from these flags. Added users are sampled from baseline non-users
-inside the assessed REF person scope; CF does not silently expand the appraisal
-boundary with outside rows. Existing trips are eligible for switching only for
-people in CF scope. The reference data remain unchanged and
-only CF assignments change activity and MMET exposure. Cycle health data are
-then loaded/calculated only for the final CF person scope, so unchanged donor
-rows outside the appraisal do not enter result denominators. `build_results()`
-returns the scope diagnostics as `reference_scope_report` as well as attaching
-them to `reference_data`.
+CF starts from these flags. Added users are taken first from eligible baseline
+non-users already inside REF scope. If that pool is insufficient, HUB recruits
+eligible baseline non-users from the retained geographic source population and
+marks them `cf_in_scope`. This expands the assessed CF boundary without
+duplicating synthetic people or changing REF. Existing trips become eligible
+for switching only for people in CF scope. Cycle health data are calculated for
+the final CF scope, comparing each included person's original exposure with
+their CF exposure. `build_results()` returns the scope diagnostics as
+`reference_scope_report` as well as attaching them to `reference_data`.
 
 ### Initialize counterfactual data
 `init_counterfactual_data()` starts Step 6 by returning a 1:1 copy of filtered
@@ -1152,22 +1152,51 @@ them to `reference_data`.
 `apply_counterfactual_ui_values()`, which applies supported `_cf_` inputs to
 that copy and adds a compact `counterfactual_report`.
 
+### Feasibility rules and sampling sources
+
+The current person/trip rules are:
+
+1. **REF is an observed subset.** REF inputs select people and trips from the
+   filtered geography without changing behavior. A REF mode-user count cannot
+   exceed REF total population, and requested REF trips must be observable
+   among the selected people's source trips.
+2. **CF starts from REF.** Every REF person initially belongs to CF and keeps
+   their original behavior until selected for a change.
+3. **More CF users may expand CF.** Eligible baseline non-users already in CF
+   scope are converted first. Any shortfall is sampled from baseline non-users
+   elsewhere in the retained geography; those people and their existing trips
+   are then marked `cf_in_scope`.
+4. **Fewer CF users do not remove residents.** Selected current users become
+   ex-users, but remain in CF scope with their other behavior intact.
+5. **More CF trips use shifts plus induction.** Existing eligible utilitarian
+   trips in CF scope are switched first according to the configured mechanism;
+   the induced share and any shift shortfall are represented by added trip rows.
+6. **Fewer CF trips switch trips away.** Eligible active-mode rows are changed
+   to a configured alternative mode. A locked trip cannot be switched twice.
+
+Consequently, a small REF population is not itself an error when CF is larger.
+An input is infeasible only when the full filtered geography lacks enough
+eligible source rows, or when REF values cannot describe an observed subset.
+These failures use class `miama_appraisal_input_error` and include the relevant
+profile fields, requested/available counts, and a user-facing correction hint.
+
 ### Users: derive counterfactual number of active mode users
 The current implementation supports `users_count_cf_*` in the basic UI,
 `pop_number_cf_*_basic` as the basic population-modal alternative, and
 `pop_number_cf_*_advanced` in the advanced UI for all four modes. HUB uses
 `ui_version` to select the applicable field family. These fields adjust the
-number of individuals with positive mode-specific weekly activity while keeping
-the individual population fixed:
+number of individuals with positive mode-specific weekly activity. The source
+population remains fixed, while assessed CF scope may grow when people outside
+scaled REF are recruited:
 
 - if the counterfactual target is larger than the current reference count,
-  existing non-users are sampled as `new_users`
+  eligible baseline non-users are sampled as `new_users`; in-scope candidates
+  are used first and any shortfall is recruited from the retained geography
 - if the target is smaller, existing users are sampled as `ex_users`
 - new users receive mode activity values sampled from observed current users
 - ex-users receive configured near-zero defaults, currently `0`
 - returned individual data includes explicit `user_walk`, `user_bike`,
-  `user_ebike`, and `user_pt` indicators
-  indicators and `cf_user_change`
+  `user_ebike`, and `user_pt` indicators plus `cf_user_change`
 - `mmets` is recalculated when present using HM constants:
   changes in `walktime_wkhr`, `cycletime_wkhr`, and `sport_wkhr` are converted
   to MMET deltas using factors 2.5, 5.8, and 7 respectively. These deltas are
@@ -1181,8 +1210,9 @@ the individual population fixed:
   HUB calculates `new trips = new users * weekly trips per user`. If that
   assumption is absent, observed current-user trip counts remain the fallback.
 
-Targets must be finite, non-negative, rounded integer counts and cannot exceed
-the full filtered geography retained as the donor population. E-bike additions
+Targets must be finite, non-negative, rounded integer counts. A target is
+feasible when the current CF users plus eligible baseline non-users in the full
+filtered geography can supply it. E-bike additions
 sample cycling donor profiles without moving the observed cycling reference
 count. PT additions retain PT as the travel mode but add only configured or
 donor-derived access-walking exposure to MMETs.
