@@ -472,6 +472,34 @@ test_that("trip plot data groups numeric NTS main modes for presentation", {
   expect_equal(sum(out$proportion[out$scenario == "Reference"]), 1)
 })
 
+test_that("trip plot data preserves zero-mode rows for an empty REF scope", {
+  trips <- data.frame(
+    trip_mainmode = c(1, 2),
+    trip_walktime_min = c(10, 0),
+    trip_walkdist_km = c(1, 0),
+    trip_cycletime_min = c(0, 15),
+    trip_cycledist_km = c(0, 4),
+    ref_in_scope = FALSE,
+    cf_in_scope = TRUE,
+    ref_trip_scope_walk = FALSE,
+    cf_trip_scope_walk = c(TRUE, FALSE),
+    ref_trip_scope_bike = FALSE,
+    cf_trip_scope_bike = c(FALSE, TRUE)
+  )
+
+  out <- .results_trip_mode_distribution(
+    reference_data = list(trips = trips),
+    counterfactual_data = list(trips = trips)
+  )
+
+  ref <- out[out$scenario == "Reference", , drop = FALSE]
+  expect_equal(ref$trips[ref$mode == "walking"], 0)
+  expect_equal(ref$trips[ref$mode == "cycling"], 0)
+  expect_true(all(is.na(ref$proportion)))
+  expect_equal(out$trips[out$scenario == "Counterfactual" & out$mode == "walking"], 1)
+  expect_equal(out$trips[out$scenario == "Counterfactual" & out$mode == "cycling"], 1)
+})
+
 test_that("Hub builds results data from counterfactual health outcomes", {
   hub <- Hub$new(cfg = list())
   hub$set_appraisal_inputs(build_mock_appraisal_inputs(

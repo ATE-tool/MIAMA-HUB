@@ -822,10 +822,15 @@ prepare_results_data <- function(
   # the source data but do not alter UI targets or result trip totals.
   weights <- rep(1, nrow(trips))
   mode <- .results_trip_mode_group(trips$trip_mainmode)
-  totals <- stats::aggregate(weights, by = list(mode = mode), FUN = sum, na.rm = TRUE)
-  names(totals)[names(totals) == "x"] <- "trips"
+  totals <- if (nrow(trips) == 0) {
+    data.frame(mode = character(0), trips = numeric(0))
+  } else {
+    out <- stats::aggregate(weights, by = list(mode = mode), FUN = sum, na.rm = TRUE)
+    names(out)[names(out) == "x"] <- "trips"
+    out
+  }
 
-# All four mode inputs are defined by their mode-specific trip
+  # All four mode inputs are defined by their mode-specific trip
   # evidence, not exclusively by `trip_mainmode`. Use the same filters here as
   # reference-default extraction and counterfactual sampling so a weekly target
   # entered in the modal is the quantity displayed in results and exports.
