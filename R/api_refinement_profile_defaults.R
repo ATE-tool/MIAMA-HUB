@@ -28,10 +28,18 @@ prepare_refinement_profile_defaults <- function(reference_data,
   reference_view <- materialize_appraisal_scope(scoped_reference, "ref")
   counterfactual_view <- materialize_appraisal_scope(staged_counterfactual, "cf")
   ref_values <- extract_reference_ui_values(
-    reference_view, reference_request, stage_values, cfg = cfg
+    reference_view,
+    reference_request,
+    stage_values,
+    cfg = cfg,
+    spread_fallback_data = reference_data
   )
   cf_values <- extract_reference_ui_values(
-    counterfactual_view, reference_request, stage_values, cfg = cfg
+    counterfactual_view,
+    reference_request,
+    stage_values,
+    cfg = cfg,
+    spread_fallback_data = reference_data
   )
 
   updates <- .refinement_profile_updates(
@@ -81,10 +89,18 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
   reference_view <- materialize_appraisal_scope(scoped_reference, "ref")
   counterfactual_view <- materialize_appraisal_scope(staged_counterfactual, "cf")
   ref_values <- extract_reference_ui_values(
-    reference_view, reference_request, stage_values, cfg = cfg
+    reference_view,
+    reference_request,
+    stage_values,
+    cfg = cfg,
+    spread_fallback_data = reference_data
   )
   cf_values <- extract_reference_ui_values(
-    counterfactual_view, reference_request, stage_values, cfg = cfg
+    counterfactual_view,
+    reference_request,
+    stage_values,
+    cfg = cfg,
+    spread_fallback_data = reference_data
   )
 
   updates <- .trip_refinement_profile_updates(

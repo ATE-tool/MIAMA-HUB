@@ -72,6 +72,60 @@ test_that("refinement defaults summarize staged Tab 2 REF and CF snapshots", {
   expect_true("pop_number_ref_walk_advanced" %in% report$updated_fields)
 })
 
+test_that("zero reference mode users retain usable Tab 3 spread defaults", {
+  profile <- list(
+    ui_version = profile_field("advanced", TRUE),
+    geo_level = profile_field("lad", TRUE),
+    geo_id = profile_field("E08000035", TRUE),
+    modes = profile_field("walking", TRUE),
+    at_data_unit = profile_field("users", TRUE),
+    users_count_ref_walk = profile_field(0, TRUE),
+    users_count_cf_walk = profile_field(1, TRUE),
+    pop_total_ref_advanced = profile_field(default = 4, backup = TRUE),
+    pop_total_cf_advanced = profile_field(default = 4, backup = TRUE),
+    pop_number_ref_walk_advanced = profile_field(default = 0, backup = TRUE),
+    pop_number_cf_walk_advanced = profile_field(default = 1, backup = TRUE),
+    pop_spread_age_mean_ref_walk = profile_field(),
+    pop_spread_age_mean_cf_walk = profile_field(),
+    pop_spread_sex_prop_ref_walk = profile_field(),
+    pop_spread_sex_prop_cf_walk = profile_field(),
+    pop_spread_bars_ref_walk = profile_field(),
+    pop_spread_pa_mean_ref_walk = profile_field(),
+    pop_spread_pa_mean_cf_walk = profile_field(),
+    pop_spread_pa_sex_prop_ref_walk = profile_field(),
+    pop_spread_pa_sex_prop_cf_walk = profile_field(),
+    pop_spread_pa_bars_ref_walk = profile_field(),
+    pa_spread_bars_ref_walk = profile_field(),
+    pop_target_age_groups = profile_field(default = "pop_age_18_29"),
+    pop_target_pa_groups = profile_field(default = "sedentary")
+  )
+  profile$pop_target_age_groups$additional_data <- list(ref = list(), cf = list())
+  profile$pop_target_pa_groups$additional_data <- list(ref = list(), cf = list())
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:4,
+      age1year = c(20, 30, 40, 50),
+      female = c(0, 1, 0, 1),
+      walktime_wkhr = c(1, 0, 0, 0),
+      cycletime_wkhr = 0,
+      sport_wkhr = 0,
+      mmets = c(5, 10, 20, 30)
+    )
+  )
+  hub <- Hub$new(cfg = miama_default_config())
+  hub$reference_default_data <- reference_data
+
+  updated <- hub$build_refinement_profile_defaults(profile, seed = 2)
+
+  expect_equal(updated$pop_number_ref_walk_advanced$default_value, 0)
+  expect_true(is.finite(updated$pop_spread_age_mean_ref_walk$default_value))
+  expect_true(is.finite(updated$pop_spread_sex_prop_ref_walk$default_value))
+  expect_true(is.finite(updated$pop_spread_pa_mean_ref_walk$default_value))
+  expect_true(is.finite(updated$pop_spread_pa_sex_prop_ref_walk$default_value))
+  expect_true(.spread_bars_have_data(updated$pop_spread_bars_ref_walk$default_value))
+  expect_true(.spread_bars_have_data(updated$pop_spread_pa_bars_ref_walk$default_value))
+})
+
 test_that("Tab 3 age and PA categories exhaust each staged population", {
   ind <- data.frame(
     census_id = 1:8,
@@ -241,6 +295,40 @@ test_that("Tab 3 handoff stages row-count trip defaults for Tab 4", {
   expect_equal(updated$trips_number_cf_walk$default_value, 2)
   expect_false(updated$trips_number_ref_walk$is_filled)
   expect_true("trips_number_ref_walk" %in% report$updated_fields)
+})
+
+test_that("zero reference trips retain usable Tab 4 spread defaults", {
+  empty_trips <- data.frame(
+    census_id = integer(),
+    nts_tripid = integer(),
+    trip_mainmode = character(),
+    trip_distraw_km = numeric(),
+    trip_durationraw_min = numeric(),
+    trip_walkdist_km = numeric(),
+    trip_walktime_min = numeric(),
+    trip_purpose = character()
+  )
+  source_trips <- data.frame(
+    census_id = 1:3,
+    nts_tripid = 11:13,
+    trip_mainmode = c("Walk", "Car", "Bus"),
+    trip_distraw_km = c(1, 5, 3),
+    trip_durationraw_min = c(10, 20, 15),
+    trip_walkdist_km = c(1, 0, 0.5),
+    trip_walktime_min = c(10, 0, 5),
+    trip_purpose = c("Commuting", "Shopping", "Leisure")
+  )
+  values <- extract_reference_ui_values(
+    reference_data = list(ind = NULL, trips = empty_trips),
+    appraisal_input_values = list(modes = "walking"),
+    spread_fallback_data = list(ind = NULL, trips = source_trips)
+  )$ui_updates
+
+  expect_equal(values$trips_number_total_ref, 0)
+  expect_equal(values$trips_number_ref_walk, 0)
+  expect_true(is.finite(values$trips_spread_mean_ref_walk))
+  expect_true(is.finite(values$trips_spread_util_prop_ref_walk))
+  expect_true(.spread_bars_have_data(values$trips_spread_bars_ref_walk))
 })
 
 test_that("Tab 3 population refinement replaces an infeasible upstream trip quota", {

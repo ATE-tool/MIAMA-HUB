@@ -36,7 +36,8 @@ extract_reference_ui_values <- function(
     reference_data,
     reference_request = list(),
     appraisal_input_values = list(),
-    cfg = NULL
+    cfg = NULL,
+    spread_fallback_data = NULL
 ) {
   if (length(reference_request) == 0 && is.null(names(reference_request))) {
     names(reference_request) <- character(0)
@@ -50,6 +51,9 @@ extract_reference_ui_values <- function(
   assert_named_list(appraisal_input_values, "appraisal_input_values")
 
   reference_data <- .prepare_mode_features(reference_data)
+  if (!is.null(spread_fallback_data)) {
+    assert_named_list(spread_fallback_data, "spread_fallback_data")
+  }
   ind <- reference_data$ind
   trips <- reference_data$trips
 
@@ -125,11 +129,23 @@ extract_reference_ui_values <- function(
   ui_updates <- utils::modifyList(ui_updates, result$ui_updates)
   report$notes <- c(report$notes, result$notes)
 
-  tab3_result <- .reference_tab3_population_values(ind, trips, context, cfg = cfg)
+  tab3_result <- .reference_tab3_population_values(
+    ind,
+    trips,
+    context,
+    cfg = cfg,
+    fallback_ind = spread_fallback_data$ind %||% NULL,
+    fallback_trips = spread_fallback_data$trips %||% NULL
+  )
   ui_updates <- utils::modifyList(ui_updates, tab3_result$ui_updates)
   report$notes <- c(report$notes, tab3_result$notes)
 
-  tab4_result <- .reference_tab4_trip_values(trips, context, cfg = cfg)
+  tab4_result <- .reference_tab4_trip_values(
+    trips,
+    context,
+    cfg = cfg,
+    fallback_trips = spread_fallback_data$trips %||% NULL
+  )
   ui_updates <- utils::modifyList(ui_updates, tab4_result$ui_updates)
   report$notes <- c(report$notes, tab4_result$notes)
 
@@ -665,7 +681,12 @@ extract_reference_ui_values <- function(
   "trips"
 }
 
-.reference_tab3_population_values <- function(ind, trips, context, cfg = NULL) {
+.reference_tab3_population_values <- function(ind,
+                                              trips,
+                                              context,
+                                              cfg = NULL,
+                                              fallback_ind = NULL,
+                                              fallback_trips = NULL) {
   ui_updates <- list()
   notes <- character(0)
 
@@ -700,6 +721,9 @@ extract_reference_ui_values <- function(
     pop_fallback <- !.spread_bars_have_data(mode_pop_bars)
     pa_fallback <- !.spread_bars_have_data(mode_pa_bars)
     if (pop_fallback) {
+      # An empty mode vector deliberately selects no mode rows, which makes
+      # the spread helper fall back to all assessed people. E-bike retains its
+      # explicit cycling proxy before that broader fallback is considered.
       proxy <- .miama_tab2_mode_specs()[[mode]]$proxy_mode %||% character(0)
       mode_pop_bars <- reference_population_spread_bars(
         ind, trips, proxy, fallback_all = TRUE, cfg = cfg
@@ -711,10 +735,23 @@ extract_reference_ui_values <- function(
         ind, trips, proxy, fallback_all = TRUE, cfg = cfg
       )
     }
+    if (!.spread_bars_have_data(mode_pop_bars) && !is.null(fallback_ind)) {
+      proxy <- .miama_tab2_mode_specs()[[mode]]$proxy_mode %||% character(0)
+      mode_pop_bars <- reference_population_spread_bars(
+        fallback_ind, fallback_trips, proxy, fallback_all = TRUE, cfg = cfg
+      )
+    }
+    if (!.spread_bars_have_data(mode_pa_bars) && !is.null(fallback_ind)) {
+      proxy <- .miama_tab2_mode_specs()[[mode]]$proxy_mode %||% character(0)
+      mode_pa_bars <- reference_pa_spread_bars(
+        fallback_ind, fallback_trips, proxy, fallback_all = TRUE, cfg = cfg
+      )
+    }
     if (pop_fallback || pa_fallback) {
       notes <- c(notes, paste0(
         "No usable mode-specific ", suffix,
-        " spread was available; empty Tab 3 defaults use the filtered population distribution."
+        " spread was available; empty Tab 3 defaults use the assessed population ",
+        "distribution, or the geographic baseline when the assessed REF scope is empty."
       ))
     }
 
@@ -858,7 +895,10 @@ extract_reference_ui_values <- function(
   }), category_names)
 }
 
-.reference_tab4_trip_values <- function(trips, context, cfg = NULL) {
+.reference_tab4_trip_values <- function(trips,
+                                        context,
+                                        cfg = NULL,
+                                        fallback_trips = NULL) {
   ui_updates <- list()
   notes <- character(0)
 
@@ -919,9 +959,15 @@ extract_reference_ui_values <- function(
       mode_bars <- reference_trip_spread_bars(
         trips, proxy, fallback_all = TRUE, cfg = cfg
       )
+      if (!.spread_bars_have_data(mode_bars) && !is.null(fallback_trips)) {
+        mode_bars <- reference_trip_spread_bars(
+          fallback_trips, proxy, fallback_all = TRUE, cfg = cfg
+        )
+      }
       notes <- c(notes, paste0(
         "No usable mode-specific ", suffix,
-        " trip spread was available; Tab 4 defaults use all filtered trips."
+        " trip spread was available; Tab 4 defaults use all assessed trips, ",
+        "or geographic baseline trips when the assessed REF scope is empty."
       ))
     }
     ui_updates[[paste0("trips_spread_bars_ref_", suffix)]] <- mode_bars
