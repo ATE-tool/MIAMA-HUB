@@ -309,6 +309,52 @@ test_that("new walking users shift trips using the configured weekly trip rate",
   expect_equal(sum(counterfactual_data$trips$trip_walkdist_km > 0), 3)
 })
 
+test_that("explicit Tab 4 trip totals cap trips inferred from new users", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:2,
+      walktime_wkhr = c(1, 0),
+      cycletime_wkhr = 0,
+      sport_wkhr = 0,
+      mmets = c(2.5, 0)
+    ),
+    trips = data.frame(
+      census_id = c(1, 2, 2),
+      nts_tripid = c(11, 21, 22),
+      trip_mainmode = c("walking", "car", "car"),
+      trip_distraw_km = 1,
+      trip_durationraw_min = 10,
+      trip_walkdist_km = c(1, 0, 0),
+      trip_walktime_min = c(10, 0, 0),
+      trip_cycledist_km = 0,
+      trip_cycletime_min = 0
+    )
+  )
+
+  result <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    appraisal_input_values = list(
+      ui_version = "advanced",
+      modes = "walking",
+      pop_number_cf_walk_advanced = 2,
+      trips_number_cf_walk = 1,
+      default_trips_per_user_per_week_walk = 2
+    ),
+    reference_data = reference_data,
+    seed = 16
+  )
+
+  active <- .counterfactual_mode_spec("walking")$trip_filter(result$trips)
+  expect_equal(sum(active), 1)
+  expect_equal(sum(result$ind$walktime_wkhr > 0), 2)
+  expect_equal(result$counterfactual_report$changes[[1]]$user_trip_shift_target_n, 0)
+  expect_equal(result$counterfactual_report$changes[[1]]$explicit_trip_count, 1)
+  expect_match(
+    paste(result$counterfactual_report$notes, collapse = " "),
+    "explicit trip target is 1"
+  )
+})
+
 test_that("apply_counterfactual_ui_values validates user-count targets", {
   reference_data <- list(
     ind = data.frame(

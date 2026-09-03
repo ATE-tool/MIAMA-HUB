@@ -89,8 +89,8 @@ $$
 |---|---|---|
 | Basic | Mode users | Implemented |
 | Basic | Mode trips | Implemented |
-| Basic | Distance/duration | Planned allocation |
-| Basic | Mode share | Planned conversion |
+| Basic | Distance/duration | Implemented via weekly trip-row conversion |
+| Basic | Mode share | Implemented via per-mode weekly trip-row quotas |
 | Advanced population | User count + age/sex + PA/sex | Implemented as sampling constraints |
 | Advanced trips | Trip count + distance + purpose + car diversion | Partly implemented |
 
@@ -152,8 +152,8 @@ $$
 
 ::: {.callout-warning}
 Candidate weights are not yet calibrated for category prevalence in the
-eligible pool. The purpose slider is parsed but not yet included in trip
-candidate weights.
+eligible pool. The separate purpose route is being retired: shifted existing
+trips are treated as utilitarian and induced trips as recreational.
 :::
 
 ## Important current limitations
@@ -162,20 +162,20 @@ candidate weights.
 - “Current vs new users” input is not yet operational
 - Weighted trip targets are converted to proportional physical-row targets;
   shifted and induced rows retain source/donor weights
-- Basic mode-share and distance/duration routes do not yet change outcomes
 - Only long-term persistence is implemented
-- Walking/cycling are the defensible person-level active modes
-- Sampling uncertainty is not yet quantified
+- E-bike donor and public-transport access-walking assumptions need validation
+- Sampling uncertainty has an initial simulation analysis but is not yet part
+  of production uncertainty reporting
 
 ## Validation priorities
 
-1. Apply and verify trip-purpose targeting
+1. Operationalize and verify current/new-user allocation
 2. Compare requested and realized distributions
 3. Calibrate probabilities or implement near-exact quotas
-4. Define PA and current/new-user semantics
-5. Compare requested and realized weighted trip targets
-6. Operationalize remaining basic input routes
-7. Add short-term effects and uncertainty analysis
+4. Define final PA-target semantics
+5. Compare requested and realized trip, distance, and duration targets
+6. Validate e-bike and public-transport proxy assumptions
+7. Add short-term effects and production uncertainty reporting
 8. Validate against observed data and established appraisal tools
 
 ## What early testers should inspect

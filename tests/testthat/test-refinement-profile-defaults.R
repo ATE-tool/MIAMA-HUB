@@ -213,3 +213,95 @@ test_that("Tab 3 handoff stages row-count trip defaults for Tab 4", {
   expect_false(updated$trips_number_ref_walk$is_filled)
   expect_true("trips_number_ref_walk" %in% report$updated_fields)
 })
+
+test_that("Tab 3 population refinement replaces an infeasible upstream trip quota", {
+  profile <- list(
+    ui_version = profile_field("advanced", TRUE),
+    geo_level = profile_field("lad", TRUE),
+    geo_id = profile_field("E08000035", TRUE),
+    modes = profile_field("walking", TRUE),
+    at_data_unit = profile_field("trips", TRUE),
+    trips_count_ref_walk = profile_field(3, TRUE),
+    trips_count_cf_walk = profile_field(3, TRUE),
+    pop_total_ref_advanced = profile_field(1, TRUE, 1, TRUE),
+    pop_total_cf_advanced = profile_field(1, TRUE, 1, TRUE),
+    pop_number_ref_walk_advanced = profile_field(1, TRUE, 1, TRUE),
+    pop_number_cf_walk_advanced = profile_field(1, TRUE, 1, TRUE),
+    trips_number_total_ref = profile_field(),
+    trips_number_total_cf = profile_field(),
+    trips_number_ref_walk = profile_field(),
+    trips_number_cf_walk = profile_field(),
+    trips_spread_mean_ref_walk = profile_field(),
+    trips_spread_mean_cf_walk = profile_field(),
+    trips_spread_util_prop_ref_walk = profile_field(),
+    trips_spread_util_prop_cf_walk = profile_field(),
+    trips_spread_bars_ref_walk = profile_field(),
+    trips_diversion_total_trips = profile_field(),
+    trips_diversion_trips_n = profile_field(),
+    trips_diversion_distance_total = profile_field(),
+    trips_diversion_duration_total = profile_field()
+  )
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:3,
+      age1year = c(20, 30, 40),
+      female = c(0, 1, 0),
+      walktime_wkhr = 1,
+      cycletime_wkhr = 0,
+      sport_wkhr = 0,
+      mmets = 2.5
+    ),
+    trips = data.frame(
+      census_id = 1:3,
+      nts_tripid = 11:13,
+      trip_mainmode = "Walk",
+      trip_distraw_km = 1,
+      trip_durationraw_min = 10,
+      trip_walkdist_km = 1,
+      trip_walktime_min = 10,
+      trip_purpose = "Commuting"
+    )
+  )
+  hub <- Hub$new(cfg = miama_default_config())
+  hub$reference_default_data <- reference_data
+
+  updated <- hub$build_trip_refinement_profile_defaults(profile, seed = 3)
+
+  # The final one-person Tab 3 scope owns one observed trip. The original
+  # three-trip Tab 2 target must not be forced back into that reduced scope.
+  expect_equal(updated$trips_number_total_ref$default_value, 1)
+  expect_equal(updated$trips_number_total_cf$default_value, 1)
+  expect_equal(updated$trips_number_ref_walk$default_value, 1)
+  expect_equal(updated$trips_number_cf_walk$default_value, 1)
+  expect_equal(sum(hub$refinement_reference_data$ind$ref_in_scope), 1)
+  expect_equal(sum(hub$refinement_reference_data$trips$ref_in_scope), 1)
+
+  # Staging is internal: the submitted Tab 2 profile values remain available
+  # for audit and are not rewritten by the transition.
+  expect_equal(updated$trips_count_ref_walk$input_value, 3)
+  expect_equal(updated$trips_count_cf_walk$input_value, 3)
+})
+
+test_that("Tab 2 staging ignores downstream Tab 4 trip values", {
+  profile <- list(
+    modes = profile_field("walking", TRUE),
+    at_data_unit = profile_field("trips", TRUE),
+    trips_count_ref_walk = profile_field(2, TRUE),
+    trips_count_cf_walk = profile_field(3, TRUE),
+    trips_number_ref_walk = profile_field(99, TRUE, 99, TRUE),
+    trips_number_cf_walk = profile_field(100, TRUE, 100, TRUE),
+    trips_number_total_ref = profile_field(99, TRUE, 99, TRUE),
+    trips_spread_mean_ref_walk = profile_field(10, TRUE, 10, TRUE),
+    trips_diversion_trips_n = profile_field(20, TRUE, 20, TRUE)
+  )
+
+  values <- .tab2_stage_input_values(profile)
+
+  expect_equal(values$trips_count_ref_walk, 2)
+  expect_equal(values$trips_count_cf_walk, 3)
+  expect_null(values$trips_number_ref_walk)
+  expect_null(values$trips_number_cf_walk)
+  expect_null(values$trips_number_total_ref)
+  expect_null(values$trips_spread_mean_ref_walk)
+  expect_null(values$trips_diversion_trips_n)
+})

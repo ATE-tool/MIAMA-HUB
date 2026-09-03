@@ -350,6 +350,12 @@ apply_counterfactual_ui_values <- function(
     "default_trips_per_user_per_week",
     spec$suffix
   )
+  explicit_trip_target <- .cf_trip_target(appraisal_input_values, spec$suffix)
+  explicit_trip_count <- if (is.null(explicit_trip_target$value)) {
+    NULL
+  } else {
+    .validate_cf_trip_target(explicit_trip_target, reference_data, spec)$count
+  }
   trip_effect <- .apply_user_status_trip_effects(
     counterfactual_data = counterfactual_data,
     reference_data = reference_data,
@@ -365,7 +371,8 @@ apply_counterfactual_ui_values <- function(
     ),
     car_diversion_target = car_diversion_target,
     diversion_target = .cf_away_diversion_target(constants),
-    trips_per_user_per_week = trip_rate$value
+    trips_per_user_per_week = trip_rate$value,
+    explicit_trip_count = explicit_trip_count
   )
   counterfactual_data <- trip_effect$counterfactual_data
   counterfactual_data <- cf_add_key_indicators(counterfactual_data, spec$mode)
@@ -404,6 +411,7 @@ apply_counterfactual_ui_values <- function(
   change$realized_car_diversion_percent <- trip_effect$realized_car_diversion_percent
   change$trips_per_user_per_week <- trip_rate$value
   change$trips_per_user_per_week_field <- trip_rate$field
+  change$explicit_trip_count <- explicit_trip_count
 
   list(
     counterfactual_data = counterfactual_data,
@@ -755,8 +763,20 @@ apply_counterfactual_ui_values <- function(
     realized_car_diversion_percent <- shifted$realized_car_diversion_percent
   } else {
     unlocked <- !.true_values(counterfactual_data$trips$cf_trip_locked)
+    removal_candidates <- which(cf_active & unlocked)
+    if (length(removal_candidates) < abs(delta)) {
+      current_n <- sum(cf_active, na.rm = TRUE)
+      stop(
+        "Counterfactual trip target for mode `",
+        spec$mode, "` requires removing ", abs(delta), " active rows (current ",
+        current_n, ", target ", current_n + delta, "), but only ",
+        length(removal_candidates), " active rows remain eligible and unlocked. ",
+        "Check whether user and trip refinements define compatible targets.",
+        call. = FALSE
+      )
+    }
     remove_rows <- cf_sample_candidate_indices(
-      which(cf_active & unlocked),
+      removal_candidates,
       abs(delta),
       seed + spec$seed_offset + 4000L
     )
@@ -948,7 +968,8 @@ apply_counterfactual_ui_values <- function(
     trip_target,
     car_diversion_target,
     diversion_target,
-    trips_per_user_per_week = NULL
+    trips_per_user_per_week = NULL,
+    explicit_trip_count = NULL
 ) {
   notes <- character(0)
   if (length(changed_rows) == 0 || is.null(counterfactual_data$trips) ||
@@ -1004,6 +1025,31 @@ apply_counterfactual_ui_values <- function(
       seed = seed + spec$seed_offset + 2300L,
       trips_per_user_per_week = trips_per_user_per_week
     )
+    if (!is.null(explicit_trip_count)) {
+      current_active <- spec$trip_filter(counterfactual_data$trips) &
+        !is.na(counterfactual_data$trips$nts_tripid)
+      scope_col <- .reference_trip_scope_col(spec$mode, "cf")
+      if (scope_col %in% names(counterfactual_data$trips)) {
+        current_active <- current_active &
+          .true_values(counterfactual_data$trips[[scope_col]])
+      }
+      remaining_to_target <- max(
+        0L,
+        as.integer(explicit_trip_count) - sum(current_active, na.rm = TRUE)
+      )
+      inferred_target <- trip_shift_target_n
+      trip_shift_target_n <- min(trip_shift_target_n, remaining_to_target)
+      if (trip_shift_target_n < inferred_target) {
+        notes <- c(
+          notes,
+          paste0(
+            "User-derived `", spec$mode, "` trips were capped at ",
+            trip_shift_target_n, " because the explicit trip target is ",
+            explicit_trip_count, "."
+          )
+        )
+      }
+    }
     shifted <- .shift_nonactive_trips_to_mode(
       counterfactual_data = counterfactual_data,
       reference_data = reference_data,

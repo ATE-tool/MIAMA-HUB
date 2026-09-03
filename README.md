@@ -10,6 +10,31 @@ README remains the developer-facing integration reference.
 `MIAMA-HUB` is a standalone R package that acts as the integration layer
 between `MIAMA-UI` and `MIAMA-HM`.
 
+## README guide
+
+This developer reference follows the appraisal from setup through results:
+
+1. [Architecture and API](#1-architecture-and-api) explains package ownership,
+   profile objects, and the session-scoped `Hub` interface.
+2. [Tab 1: Set up the appraisal](#2-tab-1-set-up-the-appraisal) covers
+   geography, modes, timeframes, and summary values.
+3. [Runtime configuration and source loading](#3-runtime-configuration-and-source-loading)
+   explains configuration, request mapping, and efficient data access.
+4. [Tabs 2-4: Specify and refine active travel](#4-tabs-2-4-specify-and-refine-active-travel)
+   documents reference defaults, staged REF/CF snapshots, population
+   refinement, trip refinement, and spread controls.
+5. [Build the counterfactual and health effects](#5-build-the-counterfactual-and-health-effects)
+   describes row sampling, trip changes, MMET exposure, and health lookup.
+6. [Tab 5: Present and export results](#6-tab-5-present-and-export-results)
+   documents result tables, plots, filters, headline metrics, and exports.
+7. [Data packaging, deployment, and performance](#7-data-packaging-deployment-and-performance)
+   covers packaged profiles, external full data, manifests, and profiling.
+
+For a report-style methodological account, see
+[`docs/methodology.qmd`](docs/methodology.qmd). A concise handoff of recently
+changed UI conditions is in
+[`docs/ui_condition_contract_issue.md`](docs/ui_condition_contract_issue.md).
+
 The package is intended to:
 
 - receive `appraisal_inputs` from the UI
@@ -19,7 +44,9 @@ The package is intended to:
 - prepare comparative risk assessment inputs and summaries
 - return compact UI-ready values and result objects
 
-## Design
+## 1. Architecture and API
+
+### Package responsibilities
 
 `MIAMA-HUB` is a library, not an app. The package should be callable from
 `MIAMA-UI`, but also from standalone R workflows when a valid
@@ -34,7 +61,7 @@ The current scaffold organizes package code into six responsibilities:
 - CRA
 - shared utilities
 
-## Core Objects
+### Core objects
 
 The scaffold is built around the following internal objects:
 
@@ -46,7 +73,7 @@ The scaffold is built around the following internal objects:
 - `health_impacts`
 - `ui_return_payload`
 
-## High-Level Flow
+### End-to-end flow
 
 1. Receive `appraisal_inputs`
 2. Normalize and map inputs into internal request specs
@@ -61,7 +88,7 @@ The scaffold is built around the following internal objects:
 See [inst/workflows/dev_workflow.R](inst/workflows/dev_workflow.R) for the
 active development orchestration flow.
 
-## Profile objects and the API boundary
+### Profile objects and the API boundary
 
 For now, the `receive_appraisal_inputs()` function is an internal **R-level API
 boundary**, not a web API. Its job is to accept the active MIAMA-UI profile
@@ -102,7 +129,7 @@ letting `MIAMA-UI` remain the source of truth for interactive input definition.
 The `request` object is therefore a HUB-internal convenience view, not an object
 that MIAMA-UI needs to manage directly.
 
-## R6 Hub method outline
+### R6 Hub method outline
 
 The R6 `Hub` object is the intended session-scoped interface for MIAMA-UI. It is
 initialized with runtime configuration only. Profile objects are supplied to
@@ -126,7 +153,10 @@ Primary UI-facing methods:
 - `build_trip_refinement_profile_defaults(profile = NULL, seed = 1L, refresh = FALSE)`:
   applies the final Tab 3 population values to staged REF and CF synthpop
   snapshots and writes row-consistent trip totals and spread defaults for Tab 4.
-  No HM data are loaded.
+  At this transition the final Tab 3 person/user scope is authoritative: an
+  upstream Tab 2 trip quota is not reimposed inside a subsequently reduced
+  population. Tab 4 defaults are measured from the trips owned by the final
+  staged REF and CF populations. No HM data are loaded.
 - `build_results(profile = NULL, seed = 1L, refresh = FALSE)`: runs the current
   end-to-end calculation from the fully filled profile. It builds
   counterfactual data from the synthpop reference data, applies the HM
@@ -187,7 +217,7 @@ Developer helpers such as `load_reference_sources()`, `build_reference_data()`,
 workflow scripts and targeted testing. New MIAMA-UI integration should prefer
 the primary methods above, with `request` treated as HUB-internal state.
 
-## `config` versus `request`
+### Configuration versus appraisal request
 
 `MIAMA-HUB` now distinguishes between two different concepts:
 
@@ -216,7 +246,9 @@ Instead, `results_request$res_aggregation` maps to the HM dataset suffix:
 
 This keeps appraisal logic in the request layer and runtime concerns in config.
 
-## Geographic levels and options
+## 2. Tab 1: Set up the appraisal
+
+### Geographic levels and options
 
 `MIAMA-HUB` exposes lightweight geography helpers for UI select controls:
 
@@ -267,7 +299,7 @@ geo_details$administrative_location_id
 geo_details$population_size_synth_scaled
 ```
 
-## Timeframe value conversion
+### Timeframe value conversion
 
 `convert_timeframe_value()` is the shared HUB/UI converter for values expressed
 per day, week, or year. It is exported and does not require a `Hub` object or
@@ -294,7 +326,7 @@ us replace those factors later without changing UI call sites. HUB reference
 extraction and counterfactual normalization call the same function, preventing
 UI display conversions from diverging from calculation conversions.
 
-## Tab 1 appraisal summary values
+### Appraisal summary values
 
 The Tab 1 summary should reuse canonical user-selected fields where they already
 exist, rather than creating duplicate summary-only parameter names. In
@@ -327,7 +359,9 @@ normalization: when omitted it defaults to `"user"`. For fields populated by HUB
 rather than typed by the user, set it explicitly to `"derived"` so UI code and
 developers can distinguish display values from user inputs.
 
-## Current development workflow for `appraisal_inputs`
+## 3. Runtime configuration and source loading
+
+### Current development workflow for `appraisal_inputs`
 
 Direct package-to-UI wiring is not finished yet. For development, `MIAMA-HUB`
 uses a small helper, `build_mock_appraisal_inputs()`, which creates a **minimal
@@ -345,7 +379,7 @@ to:
 The intent is to expand this mock incrementally as new modules are implemented,
 rather than copying the full UI schema into `MIAMA-HUB`.
 
-## Configuration orientation
+### Configuration orientation
 
 `miama_default_config()` is the main developer-facing index of configurable
 HUB behavior. Its top-level sections distinguish workflow controls (`workflow`,
@@ -361,7 +395,7 @@ and all cancers explicitly list all columns that are summed. Results
 preparation consumes this same catalogue, so UI choices and calculations do
 not maintain separate hard-coded mappings.
 
-## Request-driven source loading
+### Request-driven source loading
 
 `load_reference_sources()` now accepts both config and request sections.
 
@@ -386,7 +420,22 @@ garbage collection after the read block. This avoids large parallel decode
 buffers in memory-constrained Shiny/Connect sessions. Set
 `cfg$arrow$cpu_count = NULL` to leave Arrow's current thread setting unchanged.
 
-## Reference UI value extraction
+## 4. Tabs 2-4: Specify and refine active travel
+
+The three input and refinement tabs operate on one staged appraisal rather
+than independent datasets:
+
+| Tab | User-facing question | HUB transition |
+|---|---|---|
+| Tab 2 | How much active travel is assessed in REF and CF? | Convert the selected users, trips, distance/duration, or mode-share route into staged REF and CF person/trip scopes. |
+| Tab 3 | Who is represented and who changes? | Recalculate population counts and distributions from the Tab 2 scopes, then apply population-level refinements and candidate weights. |
+| Tab 4 | Which trips change? | Measure row-consistent trip defaults from the final Tab 3 person/user scopes, then apply trip distance, induced-trip, and source-mode assumptions. |
+
+The profile is the handoff object at every transition. An applicable submitted
+`input_value` takes precedence over a HUB-generated `default_value`; inactive
+conditional fields must not be marked as submitted by the UI.
+
+### Reference UI value extraction
 
 `extract_reference_ui_values()` derives compact status-quo values from filtered
 `reference_data`. The low-level function still returns a named `ui_updates`
@@ -941,10 +990,10 @@ higher-priority constraints:
   mode-specific individual sampling, while its male/female split is available
   for display and reporting.
 - `trips_spread_bars_cf_*` supplies the cf distance-category marginal for
-  mode-specific trip-shift sampling. Its utilitarian proportion is parsed and
-  reported but is not yet applied to candidate weights; existing shifted trips
-  are currently restricted to utilitarian candidates and induced rows are
-  classified as recreational.
+  mode-specific trip-shift sampling. Existing shifted trips are restricted to
+  utilitarian candidates and induced rows are classified as recreational. The
+  legacy utilitarian-proportion component is descriptive and is not an
+  independent sampling constraint.
 - If those compact payloads are absent, the older permissive hooks remain:
   `agecat_1_prop_cf` ... `agecat_5_prop_cf` and `distcat_1_prop_cf` ...
   `distcat_5_prop_cf`.
@@ -973,8 +1022,7 @@ records this fallback. This keeps Tab 3/4 controls renderable while making clear
 that the displayed distribution is not mode-specific in that edge case.
 
 The counterfactual report records which sampling constraints were active for a
-change in `sampling_constraints`, e.g. `sex`, `age`, `pa`, `distance`, or
-`purpose`.
+change in `sampling_constraints`, e.g. `sex`, `age`, `pa`, or `distance`.
 
 Remaining clarifications:
 
@@ -1078,7 +1126,7 @@ The R6 `Hub` wrapper still exposes developer helpers
 fields. `get_population_size()` and `get_appraisal_summary_values()` are
 convenience helpers for development and summary displays.
 
-## Counterfactual data initialization and UI application
+## 5. Build the counterfactual and health effects
 
 ### Reference appraisal scope
 Before initializing CF, `apply_reference_appraisal_scope()` interprets submitted
@@ -1220,24 +1268,25 @@ components `cf_mmet_delta_walking`, `cf_mmet_delta_cycling`, and
 `counterfactual_report$mmet_exposure`.
 
 Advanced Tab 4 fields such as `trips_dist_value`,
-`trips_spread_mean_cf`, `trips_spread_util_prop_cf`, and the diversion
-percentage fields are parsed and recorded. When compact cf spread bars are
+`trips_spread_mean_cf`, `induced_trips_percent`, and the diversion percentage
+fields are parsed and recorded. When compact cf spread bars are
 available, distance-based candidate selection uses the configured five-category
 distance distribution. Older direct category controls can still plug into the
 `agecat_1_prop_cf` ... `agecat_5_prop_cf` and `distcat_1_prop_cf` ...
 `distcat_5_prop_cf` hooks, or the corresponding `_perc_cf` fields.
 
-TODO: reconcile `trips_spread_util_prop_cf_*` with the scalar purpose controls
-and add a requested-versus-realized purpose summary. At present, mode-shift
-candidates are utilitarian and induced trips are recreational, but purpose does
-not determine the requested shifted/induced split.
+The intended simplified contract does not expose purpose as a second mechanism
+control: shifted existing trips are utilitarian and induced trips are normally
+recreational. Legacy scalar and spread-purpose fields should be retired in
+coordination with MIAMA-UI. The requested-versus-realized audit should report
+the purpose distribution implied by the mechanism.
 
 ### Canonical conversion of alternative Tab 2 volume inputs
 
 Tab 2 presents trip count, distance/duration, and mode share as alternative
 ways to specify active-travel volume. HUB normalizes the selected route before
 reference scoping or counterfactual sampling. The resulting internal target is
-always a weekly number of walking or cycling trip rows:
+always a weekly number of walking, cycling, e-bike, or PT trip rows:
 
 1. Distance is converted to kilometres and duration to minutes.
 2. Day or year amounts are converted to a reference week using
@@ -1319,8 +1368,8 @@ one conceptual family of UI fields. Implemented handlers cover active-mode user
 targets and active-mode trip targets. The shared context first converts Tab 2
 distance/duration and mode-share inputs into trip targets, allowing them to use
 the trip handler together with Tab 4 distance and diversion constraints. Future
-handlers can extend purpose and other trip-characteristic constraints without
-duplicating volume conversion. Keep each handler's assumptions visible near the handler code,
+handlers can extend other trip-characteristic constraints without duplicating
+volume conversion. Keep each handler's assumptions visible near the handler code,
 and keep cross-cutting validation, sampling, constants, and report helpers in
 their dedicated outline sections.
 
@@ -1421,7 +1470,7 @@ and releases `health_outcomes` after constructing compact `health_impacts` and
 
 Future work: add `scheme_effect_duration = "shortterm"`.
 
-## Results data and Tab 5 plots
+## 6. Tab 5: Present and export results
 
 `prepare_results_data()` prepares compact Step 8 outputs for MIAMA-UI. The
 expensive reference, counterfactual, and HM steps run before this function;
@@ -1999,7 +2048,9 @@ rows do not have separate reference denominators, mode-specific requests use
 prevented counts or prevented counts per 100,000 rather than direct scenario
 totals or percentage reduction.
 
-## Synthetic population parquet conversion
+## 7. Data packaging, deployment, and performance
+
+### Synthetic population parquet conversion
 
 Runtime synthpop sources are parquet datasets. Legacy `.dta` files are only
 supported as optional local conversion inputs and are not required by the HUB
@@ -2019,7 +2070,7 @@ created by `build_geo_lookup(overwrite = TRUE)` or lazily by
 `data/lookup/geo_options.rds`. For package deployments, a copy of the
 full-derived lookup is stored under `inst/extdata/data/lookup/geo_options.rds`.
 
-## Later adjustments needed
+### Development integration backlog
 
 The current `appraisal_inputs` setup is deliberately temporary and dev-focused.
 Later work should:
@@ -2033,7 +2084,7 @@ Later work should:
 5. revisit the optimal timing of HM joins relative to counterfactual generation
 6. keep `DESCRIPTION` updated whenever new package dependencies are introduced
 
-## Data locations
+### Runtime data profiles and locations
 
 Dataset scope is a runtime/deployment setting, not an appraisal input. Set it
 before creating the HUB configuration:

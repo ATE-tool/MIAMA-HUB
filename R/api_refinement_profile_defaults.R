@@ -111,14 +111,21 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
 .tab2_stage_input_values <- function(profile) {
   values <- extract_input_values(profile)
 
-  # Tab 3 controls may already exist as hidden Shiny inputs. They must not
-  # become upstream constraints while preparing the first Tab 3 display.
-  advanced <- grep(
-    "^pop_(total|number)_(ref|cf).*_advanced$",
+  # Tab 3 and Tab 4 controls may already contain defaults or stale hidden
+  # Shiny inputs. Neither tab is an upstream source while the Tab 2 snapshot
+  # is being staged. In particular, `trips_number_*` (Tab 4) must not outrank
+  # the `trips_count_*` values submitted in Tab 2.
+  downstream_fields <- grep(
+    paste0(
+      "^(pop_(total|number)_(ref|cf).*_advanced|",
+      "pop_spread_|pop_target_|pa_spread_|",
+      "trips_number_|trips_spread_|trips_diversion_|",
+      "trips_dist_value$|trips_purpose_)"
+    ),
     names(values),
     value = TRUE
   )
-  values[advanced] <- rep(list(NULL), length(advanced))
+  values[downstream_fields] <- rep(list(NULL), length(downstream_fields))
 
   modes <- normalize_active_modes(.ui_value(values, "modes", character(0)))
   modes <- intersect(modes, names(.miama_tab2_mode_specs()))
@@ -163,6 +170,21 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
     value = TRUE
   )
   values[tab4_fields] <- rep(list(NULL), length(tab4_fields))
+
+  # Tab 3 is the final person/user scope presented before Tab 4. If it reduces
+  # that scope, an upstream Tab 2 trip quota may no longer fit among trips owned
+  # by the remaining people. Reapplying the old quota would either fail or undo
+  # the population refinement. Stage this transition as a user-scope request,
+  # discard only the flattened Tab 2 trip-count targets, and let Tab 4 defaults
+  # be measured from the trips belonging to the final Tab 3 REF/CF snapshots.
+  tab2_trip_fields <- grep(
+    "^trips_count_(ref|cf)_",
+    names(values),
+    value = TRUE
+  )
+  values[tab2_trip_fields] <- rep(list(NULL), length(tab2_trip_fields))
+  values$at_data_unit <- "users"
+
   values
 }
 

@@ -348,6 +348,16 @@ apply_reference_appraisal_scope <- function(reference_data,
     active <- spec$trip_filter(reference_data$trips) &
       !is.na(reference_data$trips$nts_tripid)
     target_rows <- .reference_trip_target_rows(trip_targets[[mode]])
+    available_rows <- sum(active, na.rm = TRUE)
+    if (target_rows > available_rows) {
+      stop(
+        "Reference trip target `", trip_targets[[mode]]$field, "` for mode `",
+        mode, "` requests ", target_rows, " rows per reference week, but only ",
+        available_rows, " eligible baseline rows are available. ",
+        "Reduce the reference value or rebuild the reference defaults for the current geography.",
+        call. = FALSE
+      )
+    }
     selected <- .sample_reference_rows(
       which(active), target_rows, seed + spec$seed_offset + 400L
     )

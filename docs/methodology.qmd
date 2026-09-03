@@ -311,6 +311,13 @@ geography defaults, because doing so would replace the staged snapshots with the
 original baseline. REF-to-CF default mirroring is likewise
 owned by HUB rather than repeated in modal-specific UI code.
 
+The final Tab 3 person and mode-user counts take precedence at this handoff. If
+Tab 3 reduces the population, HUB does not attempt to force the original Tab 2
+trip quota into a smaller set of eligible people. It instead measures the
+observed trips owned by the final staged REF and CF populations and uses those
+row-consistent counts as the starting values in Tab 4. Any subsequent Tab 4
+trip-count edit becomes the final trip target used for results.
+
 ```{mermaid}
 flowchart LR
   A[Full LAD baseline donor pool] --> B[Geography defaults]
@@ -449,12 +456,18 @@ For each assessed mode, Tab 4 can provide:
 
 - a target number of weekly active trips;
 - a target mean trip distance;
-- a target proportion of utilitarian trips; and
+- the percentage of additional trips that are newly induced rather than
+  shifted from existing travel; and
 - the percentage of new active-mode shifts expected to come from car.
 
 Trip spread bars use five configured distance categories crossed with
-utilitarian/recreational purpose. The same slider redistribution method is used
-for display and for reconstructing internal counterfactual distance targets.
+utilitarian/recreational purpose for descriptive display. The same slider
+redistribution method is used for reconstructing internal counterfactual
+distance targets. Purpose is not a separate sampling target in the intended
+contract: shifted existing trips must be utilitarian, while newly induced trips
+are normally recreational. The legacy purpose input route should therefore be
+retired in coordination with MIAMA-UI rather than developed into a second
+mechanism control.
 The configured distance groups are 0--2, 2--5, 5--10, 10--30, and 30+ km.
 
 # Counterfactual sampling and redistribution
@@ -554,10 +567,11 @@ For a decrease, sampled active trips are switched to the configured alternative
 mode, currently car. Rows are not deleted because the underlying travel need is
 assumed to remain.
 
-::: {.callout-warning}
-The compact `trips_spread_util_prop_cf_*` value is not yet reconciled with the
-scalar purpose controls. Purpose no longer selects the shifted/induced
-mechanism split and does not yet reweight candidates inside either mechanism.
+::: {.callout-note}
+Legacy scalar and spread-purpose controls may still be present in the profile
+schema. They are not authoritative sampling inputs. The explicit
+`induced_trips_percent` controls the mechanism split, from which purpose is
+inferred.
 :::
 
 ## Count units and represented totals
@@ -580,7 +594,8 @@ targets. Health-result population expansion is a separate configured operation.
 | Current/new-user percentage | Scalar profile value | **Planned:** parsed but not yet used to jointly assign trip ownership and user status. |
 | Mode-specific trip count | Weekly target trip rows | Shifts existing trips and adds induced recreational trips. |
 | Mean trip distance | Five distance-category target or smooth mean preference | Weights plausible trip candidates. |
-| Utilitarian proportion | Target trip characteristic | Parsed and reported; purpose-based candidate weighting and compact spread-purpose reconciliation remain planned. |
+| Induced-trip percentage | Share of added trips that do not replace an existing trip | Splits additions between induced recreational rows and shifted existing utilitarian rows. |
+| Purpose display | Descriptive utilitarian/recreational distribution | Derived from the trip mechanism; legacy purpose inputs are scheduled for coordinated retirement. |
 | Source-mode diversion | Expected source shares among shifted trips | Uses a UI car-share override where available and configured target-mode shares otherwise. |
 | Basic distance/duration target | Weekly aggregate km or minutes, total or per person | Converted to a mode-specific weekly trip-row target using the reference mean per active trip, then passed to constrained sampling. |
 | Basic mode share target | Mode percentage plus a trip/distance/duration denominator | Converted to a per-mode weekly trip-row quota, then passed to constrained sampling. |
@@ -595,18 +610,18 @@ for empirical validation.
 
 ## Priority methodological TODOs
 
-1. **Trip purpose implementation:** reconcile scalar and compact spread-purpose
-   controls, apply purpose to eligible or induced trip sampling, and report the
-   requested and realized purpose distribution separately from mechanism.
+1. **Current/new-user implementation:** assign added trip exposure to current
+   versus new users, synchronize person-level user status, and make explicit
+   user-count inputs authoritative over the percentage.
 2. **Candidate-weight calibration:** decide whether category weights should be
    calibrated as target share divided by candidate prevalence, or replaced by
    exact/near-exact quota sampling. Test on large and sparse geographies.
 3. **Final-distribution validation:** report requested versus realized age,
    sex, PA, distance, purpose, and source-mode distributions after all changes,
    not only the constraints supplied to the sampler.
-4. **New versus current users:** implement the UI percentage explicitly and
-   define whether spread controls describe new users, all affected users, or
-   the complete counterfactual mode-user population.
+4. **Purpose simplification:** retire legacy purpose controls in UI and HUB,
+   retain the explicit induced-trip percentage, and report the realized
+   utilitarian/recreational split derived from mechanism.
 5. **PA targeting semantics:** decide whether PA categories refer to pre-change
    activity, post-change total activity, or mode-specific added activity, then
    align sampling and UI wording.
