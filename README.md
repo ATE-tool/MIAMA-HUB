@@ -687,9 +687,8 @@ It also covers advanced Tab 3 and Tab 4 reference fields:
 - mode-specific trip distribution anchors (`trips_spread_mean_ref_*`,
   `trips_spread_util_prop_ref_*`)
 - mode-specific compact trip spread bars (`trips_spread_bars_ref_*`)
-- diversion denominators (`trips_diversion_total_trips`,
-  `trips_diversion_trips_n`, `trips_diversion_distance_total`,
-  `trips_diversion_duration_total`)
+- target-specific source-mode diversion pies
+  (`trips_diversion_sources_[walk|bike|ebike|pt]`)
 
 Individual-only walking and cycling user counts can be extracted from
 `walktime_wkhr` and `cycletime_wkhr`. PT user activity is derived from the
@@ -1327,16 +1326,30 @@ complement. This is separate from both trip purpose and the percentage of
 activity assigned to new users, even when defaults happen to use the same
 number. Purpose fields no longer override the induced-trip parameter.
 
-For increases, Tab 4 may specify a small source-by-target diversion matrix using
-`trips_diversion_car_perc_[walk|bike|ebike|pt]`. Each value
-is the expected percentage of mode-shift trips into that active target mode
-whose reference mode was car. The residual percentage is sampled from all
-other plausible non-target-mode trips. Distance and car-source weights are
-combined when candidates are sampled, so realized percentages are approximate
-in finite samples. Purpose does not currently alter candidate weights within a
-mechanism. Each counterfactual change report records
-`car_diversion_field`, the requested `car_diversion_percent`, and the observed
-`realized_car_diversion_percent` among shifted trips.
+For increases, Tab 4 specifies one source-mode distribution for each assessed
+target mode using `trips_diversion_sources_[walk|bike|ebike|pt]`. For example,
+`trips_diversion_sources_bike` answers: among existing trips shifted to cycling,
+what percentage previously used car, walking, e-bike, public transport, or
+another mode? Cycling itself is excluded from that pie. These percentages apply
+only to the mode-shift mechanism; induced trips are controlled separately by
+`induced_trips_percent`.
+
+HUB combines the requested source shares with distance/spread weights when it
+samples eligible utilitarian donor trips. It renormalizes across source modes
+that actually have eligible candidates, so finite samples and unavailable donor
+pools can make realized shares differ from requested shares. Each change report
+records `diversion_source_field`, requested `source_mode_shares`, their source,
+and `realized_source_mode_shares`. Diversion pies are count-based conditional
+distributions and therefore require no total-trip, distance, or duration
+denominator.
+
+The basic Tab 2 path does not require a diversion modal. If no pie was submitted,
+HUB first checks `cfg$counterfactual$trips$source_mode_shares` for the target
+mode. If no configured split exists, it derives a neutral default from the mode
+composition of eligible utilitarian trips outside the assessed active modes in
+the reference scope. This prevents one basic-mode target from consuming rows
+needed by another. Thus the default reflects donor availability rather than
+claiming an empirically observed intervention diversion rate.
 
 Source-mode assumptions are separate from donor-profile assumptions. Because
 the current data cannot identify observed e-bike trips, cycling supplies the
@@ -1344,17 +1357,13 @@ e-bike activity and trip-characteristic donor profile. It does not imply that
 all e-bike trips came from cycling. In the absence of a UI override,
 `cfg$counterfactual$trips$source_mode_shares$ebiking` assigns shifted e-bike
 trips equally across cycling, PT, and car source pools. The induced-trip share
-is excluded from this split. A supplied `trips_diversion_car_perc_ebike`
-overrides the car share and divides the remainder between cycling and PT in the
-configured relative proportions. The counterfactual report records both the
-source shares and whether they came from configuration or UI.
+is excluded from this split. A submitted `trips_diversion_sources_ebike` pie
+replaces that configured distribution.
 
 Decreases do not delete utilitarian travel demand. Instead, sampled active trips
 are shifted away from the active mode using the configured default destination,
 currently `car`. This reverse-direction assumption is deliberately separate
-from the car-to-active-mode percentages. A future full diversion matrix can add
-other source-by-target fields without changing the target-specific field
-convention.
+from the source distributions used for increases.
 
 Returned trip data includes explicit `trip_activemode`, `trip_utilitarian`,
 `cf_trip_change`, `cf_mode_shift`, `cf_induced`, and `cf_trip_locked`

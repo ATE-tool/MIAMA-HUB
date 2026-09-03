@@ -392,6 +392,23 @@ controls whether those rows come from existing non-active trips or copied
 active-trip donors. Resulting changes in active minutes are converted to MMET
 exposure through the standard health pathway.
 
+Tab 4 presents one source-mode diversion pie for each assessed target mode. A
+cycling pie, for example, describes the previous modes of existing trips that
+will shift to cycling; cycling itself is excluded. The pies apply only to shifted
+trips, while `induced_trips_percent` controls newly created trips separately.
+HUB uses these target-specific shares as donor sampling weights and records both
+requested and realized source-mode distributions. Defaults come from configured
+assumptions where available, otherwise from eligible local donor-trip
+composition. The pies are count-based conditional distributions and do not need
+a separate trip, distance, or duration denominator.
+
+This same fallback covers appraisals that stop at the basic Tab 2 mode-share
+input. In the absence of a submitted Tab 4 pie, HUB uses a configured
+target-specific split where one exists; otherwise it uses eligible utilitarian
+reference donors outside the assessed active modes. This avoids order-dependent
+competition between basic active-mode targets. It is a neutral sampling
+fallback, not an empirical estimate of intervention diversion behavior.
+
 The conversion is an expectation-based approximation. It preserves the
 requested aggregate when sampled rows resemble the reference mean, but it does
 not enforce an exact kilometre or minute total after finite, constrained
@@ -632,7 +649,7 @@ targets. Health-result population expansion is a separate configured operation.
 | Mean trip distance | Five distance-category target or smooth mean preference | Weights plausible trip candidates. |
 | Induced-trip percentage | Share of added trips that do not replace an existing trip | Splits additions between induced recreational rows and shifted existing utilitarian rows. |
 | Purpose display | Descriptive utilitarian/recreational distribution | Derived from the trip mechanism; legacy purpose inputs are scheduled for coordinated retirement. |
-| Source-mode diversion | Expected source shares among shifted trips | Uses a UI car-share override where available and configured target-mode shares otherwise. |
+| Source-mode diversion | Target-specific expected source shares among shifted trips | Uses one source-mode pie per assessed target mode; unavailable donor pools are omitted and remaining shares renormalized. |
 | Basic distance/duration target | Weekly aggregate km or minutes, total or per person | Converted to a mode-specific weekly trip-row target using the reference mean per active trip, then passed to constrained sampling. |
 | Basic mode share target | Mode percentage plus a trip/distance/duration denominator | Converted to a per-mode weekly trip-row quota, then passed to constrained sampling. |
 

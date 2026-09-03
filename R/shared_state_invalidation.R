@@ -14,8 +14,7 @@ invalidate_hub_state <- function(state = list(), changed_fields = character()) {
   reference_default_fields <- c(
     heavy_reload_fields,
     "ui_version", "modes", "at_data_unit", "trips_refine_method",
-    "ui_mode_share_show_options", "mode_share_total_unit",
-    "ui_trips_diversion_show_options", "trips_diversion_basis"
+    "trips_refine_choice", "ui_mode_share_show_options", "mode_share_total_unit"
   )
   reference_default_patterns <- paste0(
     "^(",

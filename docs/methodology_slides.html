@@ -442,7 +442,7 @@
   <meta name="generator" content="quarto-1.8.25">
 
   <meta name="author" content="MIAMA project team">
-  <meta name="dcterms.date" content="2026-08-27">
+  <meta name="dcterms.date" content="2026-09-03">
   <title>How MIAMA links active travel to health</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3896,14 +3896,14 @@ MIAMA project team
 </div>
 </div>
 
-  <p class="date">2026-08-27</p>
+  <p class="date">2026-09-03</p>
 </section>
 <section id="what-the-model-does" class="slide level2">
 <h2>What the model does</h2>
 <ol type="1">
 <li>Selects a reference synthetic population and its weekly travel</li>
 <li>Applies active-travel assumptions to a counterfactual copy</li>
-<li>Converts changed walking/cycling time to MMET exposure</li>
+<li>Converts changed active time and PT access walking to MMET exposure</li>
 <li>Applies the exposure change to health trajectories</li>
 <li>Reports reference minus counterfactual impacts</li>
 </ol>
@@ -3955,6 +3955,14 @@ MIAMA project team
 <td style="text-align: right;">5.8 MMET/hour</td>
 </tr>
 <tr class="odd">
+<td>E-biking</td>
+<td style="text-align: right;">5.8 MMET/hour (cycling proxy)</td>
+</tr>
+<tr class="even">
+<td>PT access walking</td>
+<td style="text-align: right;">2.5 MMET/hour</td>
+</tr>
+<tr class="odd">
 <td>Other vigorous activity</td>
 <td style="text-align: right;">7.0 MMET/hour</td>
 </tr>
@@ -3975,6 +3983,21 @@ MIAMA project team
 <li>Internal delta: counterfactual minus reference</li>
 <li>Presentation impact: reference minus counterfactual</li>
 <li>Current assessment period: <strong>40 years</strong>, excluding cycle 0</li>
+</ul>
+</section>
+<section id="health-adjusted-life-years-halys" class="slide level2">
+<h2>Health-adjusted life years (HALYs)</h2>
+<ul>
+<li>HALYs are distinct from healthy life years (HLYs)</li>
+<li>Reconstruct annual disease prevalence from incidence, deaths, death share, and depression remission/exits</li>
+<li>Calculate reference and counterfactual prevalence separately</li>
+<li>Adjust life years for residual pYLD and comorbidity-adjusted disease weights</li>
+</ul>
+<p><span class="math display">\[
+HALY=LY(1-pYLD)\left(1-\sum_d prevalence_d\,dw_d^{adj}\right)
+\]</span></p>
+<ul>
+<li>Positive <code>d_haly = HALY_cf - HALY_ref</code> means a health gain</li>
 </ul>
 </section>
 <section id="ways-users-can-specify-change" class="slide level2">
@@ -4006,12 +4029,12 @@ MIAMA project team
 <tr class="odd">
 <td>Basic</td>
 <td>Distance/duration</td>
-<td>Planned allocation</td>
+<td>Implemented via weekly trip-row conversion</td>
 </tr>
 <tr class="even">
 <td>Basic</td>
 <td>Mode share</td>
-<td>Planned conversion</td>
+<td>Implemented via per-mode weekly trip-row quotas</td>
 </tr>
 <tr class="odd">
 <td>Advanced population</td>
@@ -4020,7 +4043,7 @@ MIAMA project team
 </tr>
 <tr class="even">
 <td>Advanced trips</td>
-<td>Trip count + distance + purpose + car diversion</td>
+<td>Trip count + distance + purpose + target-specific source diversion</td>
 <td>Partly implemented</td>
 </tr>
 </tbody>
@@ -4049,7 +4072,8 @@ MIAMA project team
 <h2>Sampling people</h2>
 <p><strong>User increase</strong></p>
 <ul>
-<li>sample existing non-users as new users</li>
+<li>use eligible baseline non-users inside REF first</li>
+<li>recruit any shortfall from the retained LAD and expand CF scope</li>
 <li>probability weights combine sex, age, and PA targets</li>
 <li>sample weekly mode activity from observed current users</li>
 <li>shift plausible trips for selected people where trip data exist</li>
@@ -4094,7 +4118,7 @@ MIAMA project team
 <p><strong>Warning</strong></p>
 </div>
 <div class="callout-content">
-<p>Candidate weights are not yet calibrated for category prevalence in the eligible pool. The purpose slider is parsed but not yet included in trip candidate weights.</p>
+<p>Candidate weights are not yet calibrated for category prevalence in the eligible pool. The separate purpose route is being retired: shifted existing trips are treated as utilitarian and induced trips as recreational.</p>
 </div>
 </div>
 </div>
@@ -4105,22 +4129,21 @@ MIAMA project team
 <li>PA target selects candidates using <strong>pre-change</strong> PA; final PA can differ</li>
 <li>“Current vs new users” input is not yet operational</li>
 <li>Weighted trip targets are converted to proportional physical-row targets; shifted and induced rows retain source/donor weights</li>
-<li>Basic mode-share and distance/duration routes do not yet change outcomes</li>
 <li>Only long-term persistence is implemented</li>
-<li>Walking/cycling are the defensible person-level active modes</li>
-<li>Sampling uncertainty is not yet quantified</li>
+<li>E-bike donor and public-transport access-walking assumptions need validation</li>
+<li>Sampling uncertainty has an initial simulation analysis but is not yet part of production uncertainty reporting</li>
 </ul>
 </section>
 <section id="validation-priorities" class="slide level2">
 <h2>Validation priorities</h2>
 <ol type="1">
-<li>Apply and verify trip-purpose targeting</li>
+<li>Operationalize and verify current/new-user allocation</li>
 <li>Compare requested and realized distributions</li>
 <li>Calibrate probabilities or implement near-exact quotas</li>
-<li>Define PA and current/new-user semantics</li>
-<li>Compare requested and realized weighted trip targets</li>
-<li>Operationalize remaining basic input routes</li>
-<li>Add short-term effects and uncertainty analysis</li>
+<li>Define final PA-target semantics</li>
+<li>Compare requested and realized trip, distance, and duration targets</li>
+<li>Validate e-bike and public-transport proxy assumptions</li>
+<li>Add short-term effects and production uncertainty reporting</li>
 <li>Validate against observed data and established appraisal tools</li>
 </ol>
 </section>
@@ -4131,8 +4154,9 @@ MIAMA project team
 <li>Did requested user/trip changes occur?</li>
 <li>Were sampling constraints relaxed?</li>
 <li>Are induced trips and diversion shares reasonable?</li>
-<li>Do walking/cycling MMET changes have the expected sign and magnitude?</li>
+<li>Do mode-specific MMET changes have the expected sign and magnitude?</li>
 <li>Are prevented health outcomes positive for beneficial scenarios?</li>
+<li>Are HALY gains plausible relative to life-year and disease-incidence changes?</li>
 <li>Is the geography large enough for stable constrained sampling?</li>
 </ul>
 </section>

@@ -123,8 +123,7 @@ extract_reference_ui_values <- function(
     trips = trips,
     modes = context$mode_share_modes,
     total_unit = .reference_mode_share_total_unit(context$values),
-    show_options = isTRUE(.ui_value(context$values, "ui_mode_share_show_options", FALSE)) ||
-      isTRUE(.ui_value(context$values, "ui_trips_diversion_show_options", FALSE))
+    show_options = isTRUE(.ui_value(context$values, "ui_mode_share_show_options", FALSE))
   )
   ui_updates <- utils::modifyList(ui_updates, result$ui_updates)
   report$notes <- c(report$notes, result$notes)
@@ -667,17 +666,6 @@ extract_reference_ui_values <- function(
     return(.ui_value(values, "mode_share_total_unit", "trips"))
   }
 
-  diversion_show_options <- isTRUE(.ui_value(values, "ui_trips_diversion_show_options", FALSE))
-  if (isTRUE(diversion_show_options)) {
-    basis <- .ui_value(values, "trips_diversion_basis", "total_trips")
-    return(switch(
-      basis,
-      total_distance = "distance",
-      total_duration = "duration",
-      "trips"
-    ))
-  }
-
   "trips"
 }
 
@@ -904,11 +892,6 @@ extract_reference_ui_values <- function(
 
   if (is.null(trips) || !"nts_tripid" %in% names(trips)) {
     ui_updates$trips_number_total_ref <- NA_real_
-    ui_updates$trips_diversion_total_trips <- NA_real_
-    ui_updates$trips_diversion_trips_n <- NA_real_
-    ui_updates$trips_diversion_distance_total <- NA_real_
-    ui_updates$trips_diversion_duration_total <- NA_real_
-
     for (mode in context$modes) {
       if (mode %in% names(.miama_tab2_mode_specs())) {
         ui_updates[[paste0("trips_number_ref_", .miama_mode_suffix(mode))]] <- NA_real_
@@ -973,14 +956,111 @@ extract_reference_ui_values <- function(
     ui_updates[[paste0("trips_spread_bars_ref_", suffix)]] <- mode_bars
     ui_updates[[paste0("trips_spread_mean_ref_", suffix)]] <- spread_mean_from_bars(mode_bars)
     ui_updates[[paste0("trips_spread_util_prop_ref_", suffix)]] <- spread_first_variable_prop_from_bars(mode_bars)
+
+    ui_updates[[paste0("trips_diversion_sources_", suffix)]] <-
+      .reference_diversion_source_pie(
+        trips = trips,
+        target_mode = mode,
+        cfg = cfg,
+        fallback_trips = fallback_trips
+      )
   }
 
-  ui_updates$trips_diversion_total_trips <- denominator$total_trips
-  ui_updates$trips_diversion_trips_n <- denominator$total_trips
-  ui_updates$trips_diversion_distance_total <- denominator$total_distance
-  ui_updates$trips_diversion_duration_total <- denominator$total_duration
-
   list(ui_updates = ui_updates, notes = notes)
+}
+
+.reference_diversion_source_pie <- function(trips,
+                                             target_mode,
+                                             cfg = NULL,
+                                             fallback_trips = NULL) {
+  cfg <- cfg %||% miama_default_config()
+  configured <- cfg$counterfactual$trips$source_mode_shares[[target_mode]] %||% NULL
+  shares <- .normalize_diversion_source_shares(configured, target_mode)
+
+  if (is.null(shares)) {
+    shares <- .observed_diversion_source_shares(trips, target_mode)
+  }
+  if (is.null(shares) && !is.null(fallback_trips)) {
+    shares <- .observed_diversion_source_shares(fallback_trips, target_mode)
+  }
+
+  internal_modes <- setdiff(
+    c("driving", "cycling", "ebiking", "walking", "pt", "other"),
+    target_mode
+  )
+  if (is.null(shares)) {
+    shares <- stats::setNames(rep(1 / length(internal_modes), length(internal_modes)), internal_modes)
+  }
+  shares <- shares[intersect(internal_modes, names(shares))]
+  shares <- shares / sum(shares)
+
+  ui_names <- c(
+    driving = "car", cycling = "bike", ebiking = "ebike",
+    walking = "walk", pt = "pt", other = "other"
+  )
+  stats::setNames(
+    lapply(as.numeric(shares), function(value) list(percent = 100 * value)),
+    unname(ui_names[names(shares)])
+  )
+}
+
+.observed_diversion_source_shares <- function(trips,
+                                               target_mode,
+                                               exclude_assessed_active = FALSE) {
+  if (is.null(trips) || nrow(trips) == 0 || !"nts_tripid" %in% names(trips) ||
+      !"trip_mainmode" %in% names(trips)) {
+    return(NULL)
+  }
+  spec <- .miama_tab2_mode_specs()[[target_mode]]
+  if (is.null(spec)) return(NULL)
+
+  valid <- !is.na(trips$nts_tripid)
+  target_active <- if (.trip_evidence_available(trips, spec)) {
+    spec$trip_filter(trips)
+  } else {
+    rep(FALSE, nrow(trips))
+  }
+  utilitarian <- if ("trip_purpose" %in% names(trips)) {
+    .utilitarian_trip_filter(trips$trip_purpose)
+  } else {
+    rep(TRUE, nrow(trips))
+  }
+  keep <- valid & !target_active & utilitarian
+  if (isTRUE(exclude_assessed_active) && "trip_activemode" %in% names(trips)) {
+    keep <- keep & !.true_values(trips$trip_activemode)
+  }
+  if ("ref_in_scope" %in% names(trips)) {
+    keep <- keep & .true_values(trips$ref_in_scope)
+  }
+  if (!any(keep, na.rm = TRUE)) return(NULL)
+
+  source_mode <- .results_trip_mode_group(trips$trip_mainmode[keep])
+  counts <- table(source_mode)
+  shares <- as.numeric(counts) / sum(counts)
+  stats::setNames(shares, names(counts))
+}
+
+.normalize_diversion_source_shares <- function(shares, target_mode = NULL) {
+  if (is.null(shares) || length(shares) == 0 || is.null(names(shares))) return(NULL)
+
+  aliases <- c(
+    car = "driving", driving = "driving", bike = "cycling", cycling = "cycling",
+    ebike = "ebiking", ebiking = "ebiking", walk = "walking", walking = "walking",
+    pt = "pt", other = "other"
+  )
+  normalized_names <- unname(aliases[tolower(names(shares))])
+  values <- vapply(shares, function(value) {
+    if (is.list(value)) value <- value$percent %||% NA_real_
+    suppressWarnings(as.numeric(value)[1])
+  }, numeric(1))
+  keep <- !is.na(normalized_names) & is.finite(values) & values >= 0
+  if (!any(keep)) return(NULL)
+
+  values <- tapply(values[keep], normalized_names[keep], sum)
+  values <- stats::setNames(as.numeric(values), names(values))
+  if (!is.null(target_mode)) values <- values[names(values) != target_mode]
+  if (length(values) == 0 || sum(values) <= 0) return(NULL)
+  values / sum(values)
 }
 
 .selected_mode_individual_filter <- function(ind, trips, modes) {

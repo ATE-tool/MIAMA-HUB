@@ -363,7 +363,7 @@ materialize_appraisal_scope <- function(data, scenario = c("ref", "cf")) {
     paste0(
       "^(trips_number_total_ref|trips_number_ref_|",
       "trips_spread_(bars|mean|util_prop)_ref_|",
-      "trips_diversion_(total_trips|trips_n|distance_total|duration_total)$)"
+      "trips_diversion_sources_)"
     ),
     names(ref_updates),
     value = TRUE

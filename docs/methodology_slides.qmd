@@ -92,7 +92,7 @@ $$
 | Basic | Distance/duration | Implemented via weekly trip-row conversion |
 | Basic | Mode share | Implemented via per-mode weekly trip-row quotas |
 | Advanced population | User count + age/sex + PA/sex | Implemented as sampling constraints |
-| Advanced trips | Trip count + distance + purpose + car diversion | Partly implemented |
+| Advanced trips | Trip count + distance + purpose + target-specific source diversion | Partly implemented |
 
 ## Five-category spread controls
 

@@ -222,7 +222,7 @@ apply_counterfactual_ui_values <- function(
 # - `pop_new_current_perc`
 # - `trips_dist_value`, `trips_purpose_type`, `trips_purpose_util_perc`
 # - `trips_spread_mean_cf`, `trips_spread_util_prop_cf`
-# - `trips_diversion_car_perc_[walk|bike|ebike|pt]`
+# - `trips_diversion_sources_[walk|bike|ebike|pt]`
 #
 # Data manipulation, first-pass:
 # - Convert user-supplied trip target to a base-week count.
@@ -236,7 +236,7 @@ apply_counterfactual_ui_values <- function(
 # - Counts follow the one-row/one-record contract; survey weights do not alter
 #   UI targets or the number of rows sampled.
 # - Some advanced controls still remain report-only; spread bars and the
-#   mode-specific car-source share are used as sampling constraints.
+#   target-specific source-mode distribution are used as sampling constraints.
 .apply_cf_active_trip_count_handler <- function(counterfactual_data, context) {
   changes <- list()
   notes <- character(0)
@@ -334,11 +334,12 @@ apply_counterfactual_ui_values <- function(
   )
 
   counterfactual_data <- assignment$counterfactual_data
-  car_diversion_target <- .cf_car_diversion_target(
+  source_diversion_target <- .cf_source_diversion_target(
     appraisal_input_values,
     spec$suffix,
     mode = spec$mode,
-    constants = constants
+    constants = constants,
+    trips = reference_data$trips
   )
   trip_rate <- .cf_positive_mode_assumption(
     appraisal_input_values,
@@ -364,7 +365,7 @@ apply_counterfactual_ui_values <- function(
       spec$suffix,
       spread = constants$spread
     ),
-    car_diversion_target = car_diversion_target,
+    source_diversion_target = source_diversion_target,
     diversion_target = .cf_away_diversion_target(constants),
     trips_per_user_per_week = trip_rate$value,
     explicit_trip_count = explicit_trip_count
@@ -400,11 +401,10 @@ apply_counterfactual_ui_values <- function(
   change$user_trip_shift_target_n <- trip_effect$trip_shift_target_n
   change$user_trip_shift_n <- trip_effect$trip_shift_n
   change$trip_sampling_fallback <- trip_effect$sampling_fallback
-  change$car_diversion_percent <- car_diversion_target$percent
-  change$car_diversion_field <- car_diversion_target$field
-  change$source_mode_shares <- car_diversion_target$shares
-  change$source_mode_shares_source <- car_diversion_target$source
-  change$realized_car_diversion_percent <- trip_effect$realized_car_diversion_percent
+  change$diversion_source_field <- source_diversion_target$field
+  change$source_mode_shares <- source_diversion_target$shares
+  change$source_mode_shares_source <- source_diversion_target$source
+  change$realized_source_mode_shares <- trip_effect$realized_source_mode_shares
   change$trips_per_user_per_week <- trip_rate$value
   change$trips_per_user_per_week_field <- trip_rate$field
   change$explicit_trip_count <- explicit_trip_count
@@ -656,11 +656,12 @@ apply_counterfactual_ui_values <- function(
   .require_cf_trip_count_columns(counterfactual_data, reference_data, spec)
 
   args <- .cf_trip_distribution_args(appraisal_input_values, spec$suffix)
-  car_diversion_target <- .cf_car_diversion_target(
+  source_diversion_target <- .cf_source_diversion_target(
     appraisal_input_values,
     spec$suffix,
     mode = spec$mode,
-    constants = constants
+    constants = constants,
+    trips = reference_data$trips
   )
   trip_rate <- .cf_positive_mode_assumption(
     appraisal_input_values,
@@ -700,7 +701,7 @@ apply_counterfactual_ui_values <- function(
     ),
     constants = constants,
     induced_trips_percent = induced_target$percent,
-    car_diversion_target = car_diversion_target,
+    source_diversion_target = source_diversion_target,
     diversion_target = .cf_away_diversion_target(constants)
   )
 
@@ -746,11 +747,10 @@ apply_counterfactual_ui_values <- function(
   change$induced_trips_percent <- assignment$induced_trips_percent
   change$induced_trips_percent_field <- induced_target$field
   change$induced_trips_percent_source <- induced_target$source
-  change$car_diversion_percent <- car_diversion_target$percent
-  change$car_diversion_field <- car_diversion_target$field
-  change$source_mode_shares <- car_diversion_target$shares
-  change$source_mode_shares_source <- car_diversion_target$source
-  change$realized_car_diversion_percent <- assignment$realized_car_diversion_percent
+  change$diversion_source_field <- source_diversion_target$field
+  change$source_mode_shares <- source_diversion_target$shares
+  change$source_mode_shares_source <- source_diversion_target$source
+  change$realized_source_mode_shares <- assignment$realized_source_mode_shares
 
   notes <- character(0)
   if (length(args$advanced_fields_present) > 0) {
@@ -785,7 +785,7 @@ apply_counterfactual_ui_values <- function(
     trip_target,
     constants,
     induced_trips_percent,
-    car_diversion_target,
+    source_diversion_target,
     diversion_target
 ) {
   relevant_attributes <- cf_trip_sampling_columns(reference_data$trips, spec$mode)
@@ -796,13 +796,13 @@ apply_counterfactual_ui_values <- function(
       changed_rows = data.frame(),
       role = "unchanged",
       sampling_strategy = sampling_strategy,
-      sampling_constraints = .trip_sampling_constraints(trip_target, car_diversion_target),
+      sampling_constraints = .trip_sampling_constraints(trip_target, source_diversion_target),
       sampling_fallback = NULL,
       relevant_attributes = relevant_attributes,
       mode_shift_n = 0L,
       induced_n = 0L,
       induced_trips_percent = induced_trips_percent,
-      realized_car_diversion_percent = NA_real_
+      realized_source_mode_shares = NULL
     ))
   }
 
@@ -814,7 +814,7 @@ apply_counterfactual_ui_values <- function(
       spec = spec,
       n = mechanisms$mode_shift_n,
       trip_target = trip_target,
-      car_diversion_target = car_diversion_target,
+      source_diversion_target = source_diversion_target,
       constants = constants,
       seed = seed + spec$seed_offset + 3000L,
       exposure_source = "trip_target"
@@ -836,7 +836,7 @@ apply_counterfactual_ui_values <- function(
     mode_shift_n <- shifted$changed_n
     induced_n <- induced$changed_n
     sampling_fallback <- shifted$sampling_fallback
-    realized_car_diversion_percent <- shifted$realized_car_diversion_percent
+    realized_source_mode_shares <- shifted$realized_source_mode_shares
   } else {
     unlocked <- !.true_values(counterfactual_data$trips$cf_trip_locked)
     removal_candidates <- which(cf_active & unlocked)
@@ -878,7 +878,7 @@ apply_counterfactual_ui_values <- function(
     mode_shift_n <- -length(remove_rows)
     induced_n <- 0L
     sampling_fallback <- attr(remove_rows, "sampling_fallback")
-    realized_car_diversion_percent <- NA_real_
+    realized_source_mode_shares <- NULL
   }
 
   counterfactual_data <- cf_add_key_indicators(counterfactual_data, spec$mode)
@@ -888,13 +888,13 @@ apply_counterfactual_ui_values <- function(
     changed_rows = changed_rows,
     role = role,
     sampling_strategy = sampling_strategy,
-    sampling_constraints = .trip_sampling_constraints(trip_target, car_diversion_target),
+    sampling_constraints = .trip_sampling_constraints(trip_target, source_diversion_target),
     sampling_fallback = sampling_fallback,
     relevant_attributes = relevant_attributes,
     mode_shift_n = mode_shift_n,
     induced_n = induced_n,
     induced_trips_percent = induced_trips_percent,
-    realized_car_diversion_percent = realized_car_diversion_percent
+    realized_source_mode_shares = realized_source_mode_shares
   )
 }
 
@@ -1042,7 +1042,7 @@ apply_counterfactual_ui_values <- function(
     constants,
     seed,
     trip_target,
-    car_diversion_target,
+    source_diversion_target,
     diversion_target,
     trips_per_user_per_week = NULL,
     explicit_trip_count = NULL
@@ -1059,7 +1059,7 @@ apply_counterfactual_ui_values <- function(
       trip_shift_target_n = 0L,
       trip_shift_n = 0L,
       sampling_fallback = NULL,
-      realized_car_diversion_percent = NA_real_
+      realized_source_mode_shares = NULL
     ))
   }
 
@@ -1067,7 +1067,7 @@ apply_counterfactual_ui_values <- function(
   trip_shift_target_n <- 0L
   trip_shift_n <- 0L
   sampling_fallback <- NULL
-  realized_car_diversion_percent <- NA_real_
+  realized_source_mode_shares <- NULL
   if (identical(role, "ex_users")) {
     active <- spec$trip_filter(counterfactual_data$trips)
     unlocked <- !.true_values(counterfactual_data$trips$cf_trip_locked)
@@ -1089,7 +1089,7 @@ apply_counterfactual_ui_values <- function(
       trip_shift_target_n = length(trip_rows),
       trip_shift_n = length(trip_rows),
       sampling_fallback = NULL,
-      realized_car_diversion_percent = NA_real_
+      realized_source_mode_shares = NULL
     ))
   }
 
@@ -1132,7 +1132,7 @@ apply_counterfactual_ui_values <- function(
       spec = spec,
       n = trip_shift_target_n,
       trip_target = trip_target,
-      car_diversion_target = car_diversion_target,
+      source_diversion_target = source_diversion_target,
       constants = constants,
       seed = seed + spec$seed_offset + 2500L,
       census_ids = changed_ids,
@@ -1141,7 +1141,7 @@ apply_counterfactual_ui_values <- function(
     counterfactual_data <- shifted$counterfactual_data
     trip_shift_n <- shifted$changed_n
     sampling_fallback <- shifted$sampling_fallback
-    realized_car_diversion_percent <- shifted$realized_car_diversion_percent
+    realized_source_mode_shares <- shifted$realized_source_mode_shares
     if (!is.null(sampling_fallback)) {
       notes <- c(notes, .sampling_fallback_note(sampling_fallback, paste0(spec$mode, " trip")))
     }
@@ -1162,7 +1162,7 @@ apply_counterfactual_ui_values <- function(
     trip_shift_target_n = trip_shift_target_n,
     trip_shift_n = trip_shift_n,
     sampling_fallback = sampling_fallback %||% NULL,
-    realized_car_diversion_percent = realized_car_diversion_percent
+    realized_source_mode_shares = realized_source_mode_shares
   )
 }
 
@@ -1172,7 +1172,7 @@ apply_counterfactual_ui_values <- function(
     spec,
     n,
     trip_target,
-    car_diversion_target,
+    source_diversion_target,
     constants,
     seed,
     census_ids = NULL,
@@ -1184,7 +1184,7 @@ apply_counterfactual_ui_values <- function(
       changed_rows = .empty_changed_trip_rows(),
       changed_n = 0L,
       sampling_fallback = NULL,
-      realized_car_diversion_percent = NA_real_
+      realized_source_mode_shares = NULL
     ))
   }
 
@@ -1199,7 +1199,7 @@ apply_counterfactual_ui_values <- function(
   } else {
     rep(FALSE, nrow(trips))
   }
-  cross_mode_source <- !is.null(car_diversion_target$shares)
+  cross_mode_source <- !is.null(source_diversion_target$shares)
   unlocked <- !.true_values(trips$cf_trip_locked)
   candidates <- which(
     !active & (cross_mode_source | !active_any_mode) & unlocked &
@@ -1228,25 +1228,21 @@ apply_counterfactual_ui_values <- function(
       changed_rows = .empty_changed_trip_rows(),
       changed_n = 0L,
       sampling_fallback = NULL,
-      realized_car_diversion_percent = NA_real_
+      realized_source_mode_shares = NULL
     ))
   }
 
   shift_n <- min(n, length(candidates))
   weights <- cf_trip_candidate_weights(trips, candidates, active_distances, trip_target)
-  weights <- .car_diversion_candidate_weights(
+  weights <- .source_diversion_candidate_weights(
     trips,
     candidates,
-    car_diversion_target,
+    source_diversion_target,
     base_weights = weights
   )
   rows <- cf_sample_candidate_indices(candidates, shift_n, seed, weights = weights)
   sampling_fallback <- attr(rows, "sampling_fallback")
-  source_car <- .car_trip_filter(trips)[rows]
-  realized_car_diversion_percent <- 100 * mean(source_car, na.rm = TRUE)
-  if (!is.finite(realized_car_diversion_percent)) {
-    realized_car_diversion_percent <- NA_real_
-  }
+  realized_source_mode_shares <- .realized_source_mode_shares(trips, rows)
 
   trips <- .switch_trips_to_active_mode(trips, rows, spec, constants)
   trips$cf_trip_change[rows] <- "mode_shift_to_active"
@@ -1263,7 +1259,7 @@ apply_counterfactual_ui_values <- function(
     changed_rows = changed_rows,
     changed_n = length(rows),
     sampling_fallback = sampling_fallback,
-    realized_car_diversion_percent = realized_car_diversion_percent
+    realized_source_mode_shares = realized_source_mode_shares
   )
 }
 
@@ -1452,78 +1448,54 @@ apply_counterfactual_ui_values <- function(
   sum(observed_counts[sampled_pos])
 }
 
-# Returns the car-source share for shifts into one active target mode. This is
-# the initial, small diversion matrix: source mode is fixed to car, while the
-# target mode is encoded by the field suffix (`_walk`, `_bike`, ...).
-#
-# TODO: If UI inputs later distinguish every source and target mode, replace
-# this scalar lookup with a source-by-target matrix and generalize the candidate
-# weighting helper below. Keep target mode explicit; do not return to one global
-# diversion vector shared by all active modes.
-.cf_car_diversion_target <- function(values,
-                                      suffix,
-                                      mode = NULL,
-                                      constants = NULL) {
-  field <- paste0("trips_diversion_car_perc_", suffix)
+# Returns the requested source-mode distribution for shifts into one target
+# mode. The target is encoded by the field suffix; its own source share is
+# removed because an existing target-mode trip cannot shift into itself.
+.cf_source_diversion_target <- function(values,
+                                         suffix,
+                                         mode = NULL,
+                                         constants = NULL,
+                                         trips = NULL) {
+  field <- paste0("trips_diversion_sources_", suffix)
   raw <- .ui_value(values, field, NULL)
   configured <- constants$source_mode_shares[[mode]] %||% NULL
-  if (!is.null(configured)) {
-    configured <- as.numeric(configured) |>
-      stats::setNames(names(constants$source_mode_shares[[mode]]))
-    configured <- configured[is.finite(configured) & configured >= 0]
-    if (length(configured) == 0 || sum(configured) <= 0) configured <- NULL
-    if (!is.null(configured)) configured <- configured / sum(configured)
-  }
 
-  if (is.null(raw)) {
-    return(list(
-      field = field,
-      percent = if (is.null(configured[["driving"]])) NULL else 100 * configured[["driving"]],
-      proportion = configured[["driving"]] %||% NULL,
-      shares = configured,
-      source = if (is.null(configured)) "unspecified" else "config"
-    ))
-  }
-  if (length(raw) != 1 || !is.finite(suppressWarnings(as.numeric(raw)))) {
-    stop("`", field, "` must be one finite percentage.", call. = FALSE)
-  }
-
-  percent <- as.numeric(raw)
-  if (percent < 0 || percent > 100) {
-    stop("`", field, "` must be between 0 and 100.", call. = FALSE)
-  }
-
-  shares <- configured
-  if (!is.null(shares)) {
-    non_car <- setdiff(names(shares), "driving")
-    shares[["driving"]] <- percent / 100
-    if (length(non_car) > 0) {
-      denominator <- sum(configured[non_car])
-      shares[non_car] <- if (denominator > 0) {
-        configured[non_car] / denominator * (1 - percent / 100)
-      } else {
-        0
-      }
+  if (!is.null(raw)) {
+    shares <- .normalize_diversion_source_shares(raw, target_mode = mode)
+    if (is.null(shares)) {
+      stop(
+        "`", field, "` must contain non-negative source-mode percentages with a positive total.",
+        call. = FALSE
+      )
     }
+    return(list(field = field, shares = shares, source = "ui"))
   }
 
+  shares <- .normalize_diversion_source_shares(configured, target_mode = mode)
+  source <- if (is.null(shares)) "unconstrained" else "config"
+  if (is.null(shares)) {
+    shares <- .observed_diversion_source_shares(
+      trips,
+      target_mode = mode,
+      exclude_assessed_active = TRUE
+    )
+    if (!is.null(shares)) source <- "reference_donor_composition"
+  }
   list(
     field = field,
-    percent = percent,
-    proportion = percent / 100,
     shares = shares,
-    source = "ui"
+    source = source
   )
 }
 
-# Assigns candidate weights so car and non-car source pools have the requested
-# expected shares while preserving the distance/purpose weights applied by the
-# trip sampler. If either pool is absent, available candidates remain eligible
-# and the requested share cannot be matched exactly.
-.car_diversion_candidate_weights <- function(
+# Assigns each available source-mode pool its requested probability mass while
+# preserving distance and spread weights within that pool. Requested modes with
+# no eligible candidates are omitted and the remaining positive shares are
+# renormalized; the realized distribution is reported after sampling.
+.source_diversion_candidate_weights <- function(
     trips,
     candidates,
-    car_diversion_target,
+    source_diversion_target,
     base_weights = rep(1, length(candidates))
 ) {
   if (length(candidates) == 0 ||
@@ -1531,56 +1503,42 @@ apply_counterfactual_ui_values <- function(
     return(base_weights)
   }
 
-  source_shares <- car_diversion_target$shares %||% NULL
-  if (!is.null(source_shares)) {
-    source_mode <- .results_trip_mode_group(trips$trip_mainmode[candidates])
-    base_weights[is.na(base_weights) | base_weights < 0] <- 0
-    totals <- vapply(names(source_shares), function(mode) {
-      sum(base_weights[source_mode == mode], na.rm = TRUE)
-    }, numeric(1))
-    available <- is.finite(totals) & totals > 0 & source_shares > 0
-    if (any(available)) {
-      realized_shares <- source_shares[available] / sum(source_shares[available])
-      weights <- rep(0, length(candidates))
-      for (mode in names(realized_shares)) {
-        rows <- source_mode == mode
-        weights[rows] <- base_weights[rows] * realized_shares[[mode]] / totals[[mode]]
-      }
-      return(weights)
-    }
-  }
+  source_shares <- source_diversion_target$shares %||% NULL
+  if (is.null(source_shares)) return(base_weights)
 
-  if (is.null(car_diversion_target$proportion)) return(base_weights)
-
-  is_car <- .car_trip_filter(trips)[candidates]
-  is_car[is.na(is_car)] <- FALSE
-  n_car <- sum(is_car)
-  n_other <- length(candidates) - n_car
-  target_car <- car_diversion_target$proportion
-
-  if (n_car == 0 || n_other == 0) {
-    return(base_weights)
-  }
-
+  source_mode <- .results_trip_mode_group(trips$trip_mainmode[candidates])
   base_weights[is.na(base_weights) | base_weights < 0] <- 0
-  car_total <- sum(base_weights[is_car])
-  other_total <- sum(base_weights[!is_car])
-  if (car_total == 0 || other_total == 0) {
-    return(base_weights)
-  }
+  totals <- vapply(names(source_shares), function(mode) {
+    sum(base_weights[source_mode == mode], na.rm = TRUE)
+  }, numeric(1))
+  available <- is.finite(totals) & totals > 0 & source_shares > 0
+  if (!any(available)) return(base_weights)
 
-  weights <- base_weights
-  weights[is_car] <- weights[is_car] * target_car / car_total
-  weights[!is_car] <- weights[!is_car] * (1 - target_car) / other_total
+  available_shares <- source_shares[available]
+  available_shares <- available_shares / sum(available_shares)
+  weights <- rep(0, length(candidates))
+  for (source in names(available_shares)) {
+    rows <- source_mode == source
+    weights[rows] <- base_weights[rows] * available_shares[[source]] / totals[[source]]
+  }
   weights
 }
 
-.trip_sampling_constraints <- function(trip_target, car_diversion_target) {
+.realized_source_mode_shares <- function(trips, rows) {
+  if (length(rows) == 0 || !"trip_mainmode" %in% names(trips)) return(NULL)
+
+  source_mode <- .results_trip_mode_group(trips$trip_mainmode[rows])
+  source_mode <- source_mode[!is.na(source_mode)]
+  if (length(source_mode) == 0) return(NULL)
+
+  counts <- table(source_mode)
+  stats::setNames(as.numeric(counts) / sum(counts), names(counts))
+}
+
+.trip_sampling_constraints <- function(trip_target, source_diversion_target) {
   constraints <- trip_target$constraints %||% character(0)
-  if (!is.null(car_diversion_target$shares)) {
+  if (!is.null(source_diversion_target$shares)) {
     constraints <- c(constraints, "source_mode_distribution")
-  } else if (!is.null(car_diversion_target$proportion)) {
-    constraints <- c(constraints, "source_mode_car")
   }
   unique(constraints)
 }

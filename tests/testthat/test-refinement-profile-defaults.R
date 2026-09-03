@@ -256,10 +256,7 @@ test_that("Tab 3 handoff stages row-count trip defaults for Tab 4", {
     trips_spread_util_prop_ref_walk = profile_field(),
     trips_spread_util_prop_cf_walk = profile_field(),
     trips_spread_bars_ref_walk = profile_field(),
-    trips_diversion_total_trips = profile_field(),
-    trips_diversion_trips_n = profile_field(),
-    trips_diversion_distance_total = profile_field(),
-    trips_diversion_duration_total = profile_field()
+    trips_diversion_sources_walk = profile_field()
   )
   reference_data <- list(
     ind = data.frame(
@@ -293,6 +290,7 @@ test_that("Tab 3 handoff stages row-count trip defaults for Tab 4", {
   expect_equal(updated$trips_number_total_cf$default_value, 3)
   expect_equal(updated$trips_number_ref_walk$default_value, 2)
   expect_equal(updated$trips_number_cf_walk$default_value, 2)
+  expect_equal(updated$trips_diversion_sources_walk$default_value$car$percent, 100)
   expect_false(updated$trips_number_ref_walk$is_filled)
   expect_true("trips_number_ref_walk" %in% report$updated_fields)
 })
@@ -353,10 +351,7 @@ test_that("Tab 3 population refinement replaces an infeasible upstream trip quot
     trips_spread_util_prop_ref_walk = profile_field(),
     trips_spread_util_prop_cf_walk = profile_field(),
     trips_spread_bars_ref_walk = profile_field(),
-    trips_diversion_total_trips = profile_field(),
-    trips_diversion_trips_n = profile_field(),
-    trips_diversion_distance_total = profile_field(),
-    trips_diversion_duration_total = profile_field()
+    trips_diversion_sources_walk = profile_field()
   )
   reference_data <- list(
     ind = data.frame(
@@ -409,7 +404,10 @@ test_that("Tab 2 staging ignores downstream Tab 4 trip values", {
     trips_number_cf_walk = profile_field(100, TRUE, 100, TRUE),
     trips_number_total_ref = profile_field(99, TRUE, 99, TRUE),
     trips_spread_mean_ref_walk = profile_field(10, TRUE, 10, TRUE),
-    trips_diversion_trips_n = profile_field(20, TRUE, 20, TRUE)
+    trips_diversion_sources_walk = profile_field(
+      list(car = list(percent = 100)), TRUE,
+      list(car = list(percent = 100)), TRUE
+    )
   )
 
   values <- .tab2_stage_input_values(profile)
@@ -420,5 +418,5 @@ test_that("Tab 2 staging ignores downstream Tab 4 trip values", {
   expect_null(values$trips_number_cf_walk)
   expect_null(values$trips_number_total_ref)
   expect_null(values$trips_spread_mean_ref_walk)
-  expect_null(values$trips_diversion_trips_n)
+  expect_null(values$trips_diversion_sources_walk)
 })

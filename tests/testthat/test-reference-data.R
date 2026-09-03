@@ -479,6 +479,7 @@ test_that("extract_reference_ui_values derives Tab 4 trip reference fields", {
       weight_tripXhh = c(1, 1, 2),
       trip_distraw_km = c(2, 5, 6),
       trip_durationraw_min = c(20, 30, 40),
+      trip_mainmode = c("Walk", "Cycle", "Cycle"),
       trip_purpose = c("Commuting", "Leisure", "Shopping"),
       trip_walkdist_km = c(2, 0, 0),
       trip_walktime_min = c(20, 0, 0),
@@ -504,10 +505,8 @@ test_that("extract_reference_ui_values derives Tab 4 trip reference fields", {
   # not from the raw two-row arithmetic mean.
   expect_equal(values$ui_updates$trips_spread_mean_ref_bike, 7.5)
   expect_equal(values$ui_updates$trips_spread_util_prop_ref_bike, 1 / 2)
-  expect_equal(values$ui_updates$trips_diversion_total_trips, 3)
-  expect_equal(values$ui_updates$trips_diversion_trips_n, 3)
-  expect_equal(values$ui_updates$trips_diversion_distance_total, 13)
-  expect_equal(values$ui_updates$trips_diversion_duration_total, 90)
+  expect_equal(values$ui_updates$trips_diversion_sources_walk$bike$percent, 100)
+  expect_equal(values$ui_updates$trips_diversion_sources_bike$walk$percent, 100)
 
   diversion_values <- extract_reference_ui_values(
     reference_data,

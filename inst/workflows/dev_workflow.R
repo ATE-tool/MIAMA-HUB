@@ -221,9 +221,12 @@ dev_cf_scenario <- list(
   user_targets = c(cycling = 155, walking = 2247),
   weighted_trip_targets = c(cycling = 1500, walking = 50000),
   induced_trips_percent = 10,
-  # NA uses HUB's existing/default car-diversion behavior. Set named percentages
-  # such as c(walking = 70, cycling = 85) to test explicit diversion assumptions.
-  car_diversion_percent = c(walking = NA_real_, cycling = NA_real_),
+  # Optional source-mode shares for the shifted (non-induced) trips entering
+  # each target mode. Names use HUB modes and values may be proportions or
+  # percentages, for example:
+  # list(walking = c(driving = 70, pt = 20, other = 10))
+  # An absent target uses the profile/configured source distribution.
+  source_mode_shares = list(),
   # Leave empty to preserve the reference spread bars exactly. To test a slider
   # change, provide exact UI field names, for example:
   # list(pop_spread_age_mean_cf_walk = 45,
@@ -330,9 +333,25 @@ build_dev_counterfactual_inputs <- function(values, reference_ui_values, referen
       )
     }
 
-    diversion <- scenario$car_diversion_percent[[mode]]
-    if (!is.null(diversion) && length(diversion) == 1L && is.finite(diversion)) {
-      values[[paste0("trips_diversion_car_perc_", suffix)]] <- diversion
+    source_shares <- scenario$source_mode_shares[[mode]]
+    if (!is.null(source_shares)) {
+      source_names <- c(
+        driving = "car", cycling = "bike", ebiking = "ebike",
+        walking = "walk", pt = "pt", other = "other"
+      )
+      source_shares <- source_shares[names(source_shares) != mode]
+      if (length(source_shares) == 0 || any(!is.finite(source_shares)) ||
+          any(source_shares < 0) || sum(source_shares) <= 0) {
+        stop("Invalid source-mode shares for target mode: ", mode, call. = FALSE)
+      }
+      if (sum(source_shares) <= 1 + sqrt(.Machine$double.eps)) {
+        source_shares <- 100 * source_shares
+      }
+      source_shares <- 100 * source_shares / sum(source_shares)
+      values[[paste0("trips_diversion_sources_", suffix)]] <- stats::setNames(
+        lapply(as.numeric(source_shares), function(percent) list(percent = percent)),
+        unname(source_names[names(source_shares)])
+      )
     }
   }
 

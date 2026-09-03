@@ -521,7 +521,7 @@ test_that("induced trips preserve unlabeled numeric purpose and set recreational
   expect_true(all(!counterfactual_data$trips$trip_utilitarian[induced]))
 })
 
-test_that("car diversion shares are specific to each active target mode", {
+test_that("source-mode diversion shares are specific to each active target mode", {
   reference_data <- list(
     ind = data.frame(census_id = 1:3),
     trips = data.frame(
@@ -543,7 +543,9 @@ test_that("car diversion shares are specific to each active target mode", {
       trips_count_cf_walk = 2,
       trips_timeframe_walk = "week",
       trips_denominator_walk = "total",
-      trips_diversion_car_perc_walk = 100
+      trips_diversion_sources_walk = list(
+        car = list(percent = 100), pt = list(percent = 0)
+      )
     ),
     reference_data = reference_data,
     seed = 21
@@ -555,7 +557,9 @@ test_that("car diversion shares are specific to each active target mode", {
       trips_count_cf_walk = 2,
       trips_timeframe_walk = "week",
       trips_denominator_walk = "total",
-      trips_diversion_car_perc_walk = 0
+      trips_diversion_sources_walk = list(
+        car = list(percent = 0), pt = list(percent = 100)
+      )
     ),
     reference_data = reference_data,
     seed = 21
@@ -566,14 +570,18 @@ test_that("car diversion shares are specific to each active target mode", {
   expect_equal(from_other$trips$trip_mainmode[2], "car driver")
   expect_equal(from_other$trips$trip_mainmode[3], "walking")
   expect_equal(
-    from_car$counterfactual_report$changes[[1]]$car_diversion_field,
-    "trips_diversion_car_perc_walk"
+    from_car$counterfactual_report$changes[[1]]$diversion_source_field,
+    "trips_diversion_sources_walk"
   )
   expect_equal(
-    from_car$counterfactual_report$changes[[1]]$realized_car_diversion_percent,
-    100
+    from_car$counterfactual_report$changes[[1]]$source_mode_shares[["driving"]],
+    1
   )
-  expect_true("source_mode_car" %in%
+  expect_equal(
+    from_car$counterfactual_report$changes[[1]]$realized_source_mode_shares[["driving"]],
+    1
+  )
+  expect_true("source_mode_distribution" %in%
     from_car$counterfactual_report$changes[[1]]$sampling_constraints)
 })
 
@@ -1000,10 +1008,10 @@ test_that("configured e-bike source shares balance cycling, PT, and car pools", 
     trip_mainmode = c(rep("cycling", 2), rep("pt", 3), rep("car", 5))
   )
   constants <- miama_counterfactual_defaults()
-  target <- .cf_car_diversion_target(
+  target <- .cf_source_diversion_target(
     list(), "ebike", mode = "ebiking", constants = constants
   )
-  weights <- .car_diversion_candidate_weights(
+  weights <- .source_diversion_candidate_weights(
     trips, seq_len(nrow(trips)), target
   )
   source <- .results_trip_mode_group(trips$trip_mainmode)
@@ -1013,6 +1021,25 @@ test_that("configured e-bike source shares balance cycling, PT, and car pools", 
 
   expect_equal(unname(target$shares), rep(1 / 3, 3))
   expect_equal(unname(mass), rep(1 / 3, 3))
+})
+
+test_that("basic trip inputs derive source shares from reference donors", {
+  trips <- data.frame(
+    nts_tripid = 1:4,
+    trip_mainmode = c("walking", "car", "car", "bus"),
+    trip_purpose = rep("Commuting", 4),
+    trip_walktime_min = c(10, 0, 0, 0),
+    trip_walkdist_km = c(1, 0, 0, 0)
+  )
+
+  target <- .cf_source_diversion_target(
+    list(), "walk", mode = "walking",
+    constants = miama_counterfactual_defaults(), trips = trips
+  )
+
+  expect_equal(target$source, "reference_donor_composition")
+  expect_equal(target$shares[["driving"]], 2 / 3)
+  expect_equal(target$shares[["pt"]], 1 / 3)
 })
 
 test_that("PT changes attribute only configured access-walking MMET", {
