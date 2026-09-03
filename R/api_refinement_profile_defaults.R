@@ -159,6 +159,12 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
 .tab3_stage_input_values <- function(profile) {
   values <- extract_input_values(profile)
 
+  # Category counts are already stored in the profile from the Tab 2 -> Tab 3
+  # staging call. Reconstruct the table targets here as well as in Shiny so a
+  # quick click on "Next" cannot submit the pre-refinement table values before
+  # updateNumericInput() has reached the browser.
+  values <- .apply_tab3_category_counts(values, profile)
+
   # Tab 4 controls may contain stale hidden values from an earlier visit. They
   # must not alter the Tab 3 population snapshots used to initialize Tab 4.
   tab4_fields <- grep(
@@ -184,6 +190,50 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
   )
   values[tab2_trip_fields] <- rep(list(NULL), length(tab2_trip_fields))
   values$at_data_unit <- "users"
+
+  values
+}
+
+.apply_tab3_category_counts <- function(values, profile) {
+  method <- .ui_value(values, "pop_refine_method", NULL)
+  field_name <- switch(
+    method %||% "",
+    pop_age = "pop_target_age_groups",
+    pop_pa_level = "pop_target_pa_groups",
+    NULL
+  )
+  if (is.null(field_name) || is.null(profile[[field_name]]$additional_data)) {
+    return(values)
+  }
+
+  selected <- as.character(.ui_value(values, field_name, character(0)))
+  if (length(selected) == 0) return(values)
+  modes <- normalize_active_modes(.ui_value(values, "modes", character(0)))
+  modes <- intersect(modes, names(.miama_tab2_mode_specs()))
+
+  for (scenario in c("ref", "cf")) {
+    scenario_data <- profile[[field_name]]$additional_data[[scenario]]
+    selected_data <- scenario_data[intersect(selected, names(scenario_data))]
+    if (length(selected_data) == 0) next
+
+    total <- sum(vapply(selected_data, function(x) {
+      suppressWarnings(as.numeric(x$pop_tot %||% NA_real_))
+    }, numeric(1)), na.rm = FALSE)
+    if (is.finite(total)) {
+      values[[paste0("pop_total_", scenario, "_advanced")]] <- total
+    }
+
+    for (mode in modes) {
+      suffix <- .miama_mode_suffix(mode)
+      key <- paste0("pop_", suffix)
+      mode_total <- sum(vapply(selected_data, function(x) {
+        suppressWarnings(as.numeric(x[[key]] %||% NA_real_))
+      }, numeric(1)), na.rm = FALSE)
+      if (is.finite(mode_total)) {
+        values[[paste0("pop_number_", scenario, "_", suffix, "_advanced")]] <- mode_total
+      }
+    }
+  }
 
   values
 }

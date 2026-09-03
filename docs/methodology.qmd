@@ -504,6 +504,23 @@ that full eligible pool makes a CF user target infeasible. HUB reports such
 input incompatibilities separately from programming errors, with requested and
 available counts and the implicated profile fields.
 
+Age and PA category selections are treated as hard inclusion criteria. If a
+previous REF table value is stale, HUB reconstructs scenario-specific total and
+mode-user values from the absolute category counts stored in the profile during
+Tab 2 -> Tab 3 staging. This duplicates the UI calculation deliberately and
+removes dependence on browser update timing. If stored counts are unavailable
+or remain infeasible, the category selection takes precedence: HUB caps stale
+REF totals and impossible REF mode-user margins to observed eligible capacity.
+Submitted and used values are retained in the scope report. HUB does not sample
+people with replacement or relax selected categories, because either response
+would alter the population represented by the appraisal.
+
+The final category-refined snapshot is currently reconstructed from eligible
+source rows using the staged category totals and a reproducible seed. It is not
+guaranteed to preserve literal row identity from the intermediate Tab 2 draw.
+This distinction should be revisited if variance analysis indicates that exact
+nested sampling materially changes results.
+
 ## Changing the number of users
 
 If the counterfactual target exceeds the reference user count, HUB samples

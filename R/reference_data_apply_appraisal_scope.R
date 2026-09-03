@@ -55,6 +55,15 @@ apply_reference_appraisal_scope <- function(reference_data,
     population_target,
     select_inside = TRUE
   )
+  reconciled_targets <- .reconcile_reference_category_capacity(
+    ind = out$ind,
+    person_target = person_target,
+    user_targets = user_targets,
+    eligible_rows = eligible_people,
+    population_target = population_target
+  )
+  person_target <- reconciled_targets$person_target
+  user_targets <- reconciled_targets$user_targets
   required_trip_owners <- .reference_trip_owner_requirements(
     reference_data = out,
     modes = modes,
@@ -175,6 +184,8 @@ apply_reference_appraisal_scope <- function(reference_data,
   out$reference_scope_report <- list(
     person = list(
       field = person_target$field,
+      submitted = reconciled_targets$adjustments$population$requested %||%
+        person_target$value,
       requested = person_target$value,
       realized = sum(out$ind$ref_in_scope),
       donor_population = nrow(out$ind),
@@ -189,6 +200,7 @@ apply_reference_appraisal_scope <- function(reference_data,
     trips = trip_report,
     tab2_input_conversion = tab2_conversion$report,
     population_constraints = population_target$constraints,
+    category_capacity_adjustments = reconciled_targets$adjustments,
     seed = as.integer(seed),
     interpretation = paste(
       "Scope flags select the assessed reference snapshot; observed activity",
@@ -196,6 +208,73 @@ apply_reference_appraisal_scope <- function(reference_data,
     )
   )
   out
+}
+
+.reconcile_reference_category_capacity <- function(ind,
+                                                   person_target,
+                                                   user_targets,
+                                                   eligible_rows,
+                                                   population_target) {
+  has_category_filter <- !is.null(population_target$selected_age_categories) ||
+    !is.null(population_target$selected_pa_categories)
+  if (!has_category_filter) {
+    return(list(
+      person_target = person_target,
+      user_targets = user_targets,
+      adjustments = list()
+    ))
+  }
+
+  eligible <- seq_len(nrow(ind)) %in% eligible_rows
+  adjustments <- list()
+  eligible_n <- sum(eligible)
+  if (person_target$value > eligible_n) {
+    adjustments$population <- list(
+      field = person_target$field,
+      requested = person_target$value,
+      used = eligible_n,
+      reason = "selected_population_categories"
+    )
+    person_target$value <- eligible_n
+  }
+
+  for (mode in names(user_targets)) {
+    target <- user_targets[[mode]]
+    if (is.null(target$value)) next
+    spec <- .counterfactual_mode_spec(mode)
+    eligible_active_n <- sum(eligible & .positive_col(ind, spec$activity_col))
+    available_n <- min(person_target$value, eligible_active_n)
+    if (target$value > available_n) {
+      adjustments[[paste0("users_", mode)]] <- list(
+        field = target$field,
+        requested = target$value,
+        used = available_n,
+        reason = "selected_population_categories"
+      )
+      target$value <- available_n
+      user_targets[[mode]] <- target
+    }
+  }
+
+  if (length(adjustments) > 0) {
+    summary <- vapply(adjustments, function(x) {
+      paste0(x$field %||% "inferred population", ": ", x$requested, " -> ", x$used)
+    }, character(1))
+    warning(
+      paste0(
+        "Selected population categories contain fewer distinct source rows than stale REF targets. ",
+        "HUB used the available category counts instead (",
+        paste(summary, collapse = "; "), ")."
+      ),
+      call. = FALSE
+    )
+  }
+
+  list(
+    person_target = person_target,
+    user_targets = user_targets,
+    adjustments = adjustments
+  )
 }
 
 .reference_person_scope_target <- function(values,
@@ -451,7 +530,7 @@ apply_reference_appraisal_scope <- function(reference_data,
       ),
       stage = "reference_scope",
       fields = "pop_total_ref_advanced",
-      hint = "Increase the reference population, or include more age/physical-activity categories."
+      hint = "Reduce the reference population or include more age/physical-activity categories."
     )
   }
   required_rows <- intersect(unique(required_rows), which(eligible))

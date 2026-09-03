@@ -187,6 +187,44 @@ test_that("checked age groups constrain both REF scope and CF changes", {
   expect_equal(sum(cf$ind$cf_in_scope), 2)
 })
 
+test_that("category selections cap stale REF table targets to eligible rows", {
+  cfg <- miama_default_config()
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:6,
+      age1year = c(20, 25, 35, 45, 55, 65),
+      walktime_wkhr = c(1, 0, 1, 0, 0, 0),
+      cycletime_wkhr = 0
+    )
+  )
+
+  expect_warning(
+    scoped <- apply_reference_appraisal_scope(
+      reference_data,
+      appraisal_input_values = list(
+        ui_version = "advanced",
+        modes = "walking",
+        pop_refine_method = "pop_age",
+        pop_target_age_groups = "pop_age_18_29",
+        pop_total_ref_advanced = 5,
+        pop_number_ref_walk_advanced = 3
+      ),
+      seed = 3,
+      cfg = cfg
+    ),
+    "used the available category counts"
+  )
+
+  expect_equal(sum(scoped$ind$ref_in_scope), 2)
+  expect_equal(sum(scoped$ind$ref_user_scope_walk), 1)
+  expect_equal(scoped$reference_scope_report$person$submitted, 5)
+  expect_equal(scoped$reference_scope_report$person$requested, 2)
+  expect_equal(
+    scoped$reference_scope_report$category_capacity_adjustments$users_walking$used,
+    1
+  )
+})
+
 test_that("Tab 2 user counts imply an affected population when no total is supplied", {
   reference_data <- list(ind = data.frame(
     census_id = 1:10,

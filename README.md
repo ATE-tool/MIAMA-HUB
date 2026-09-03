@@ -1154,7 +1154,45 @@ that copy and adds a compact `counterfactual_report`.
 
 ### Feasibility rules and sampling sources
 
-The current person/trip rules are:
+It helps to distinguish four populations that otherwise look like one number in
+the UI:
+
+1. **Geographic source population.** This is every synthetic person loaded for
+   the selected geography (for example, all 5,000 rows in the packaged Leeds
+   profile). HUB keeps these rows available as evidence and possible donors.
+2. **Scaled REF population.** Tab 2 describes the amount of existing active
+   travel being assessed. HUB translates the entered users/trips/distance or
+   duration into a population boundary and samples that many distinct source
+   people. This is a selection operation, not a behavior change.
+3. **Refined REF population.** Tab 3 may narrow the scaled REF boundary. A
+   percentage changes its size. Age and PA checkboxes are hard eligibility
+   rules: an unchecked category cannot be sampled. HUB reconstructs the table
+   totals from the category counts stored during Tab 2 -> Tab 3 staging, then
+   draws a row-consistent snapshot from eligible source people. Advanced
+   age/sex/PA spread controls instead change sampling probabilities; they are
+   not hard quotas.
+4. **CF population.** CF starts as a copy of refined REF. HUB then changes user
+   and trip status. It can recruit baseline non-users from outside REF, but still
+   inside the geographic source population.
+
+HUB constructs the snapshots in this order:
+
+1. Read the submitted REF total, mode-user totals, and active-trip totals.
+2. Identify source people allowed by the selected Tab 3 categories.
+3. Select distinct REF people without replacement while meeting the requested
+   mode-user margins and retaining owners required by REF trip inputs.
+4. Flag the selected people's observed trips as REF trips, then select the
+   requested active-mode trip rows. Their original behavior and health exposure
+   remain unchanged.
+5. Copy the REF flags to initialize CF.
+6. Apply CF user changes. In-scope baseline non-users are used first; additional
+   baseline non-users are recruited from the geographic source pool when needed.
+7. Apply CF trip changes. Existing eligible trips are switched where possible;
+   configured induced trips are represented as additional trip rows.
+8. Recalculate active-travel exposure/MMETs for changed people and compare their
+   CF health trajectories with their original trajectories.
+
+The operational rules are:
 
 1. **REF is an observed subset.** REF inputs select people and trips from the
    filtered geography without changing behavior. A REF mode-user count cannot
@@ -1179,6 +1217,51 @@ An input is infeasible only when the full filtered geography lacks enough
 eligible source rows, or when REF values cannot describe an observed subset.
 These failures use class `miama_appraisal_input_error` and include the relevant
 profile fields, requested/available counts, and a user-facing correction hint.
+
+#### What happens when a requested sample cannot be drawn?
+
+HUB does not use one generic fallback because different shortages mean different
+things:
+
+- **Stale REF total after category selection:** HUB reconstructs REF and CF
+  population-table values directly from the selected categories and the
+  scenario-specific absolute counts stored in profile `additional_data`. This
+  avoids relying on the timing of a Shiny `updateNumericInput()` message. If
+  those stored counts are unavailable or still inconsistent, the category
+  selection is the more specific instruction: HUB caps impossible REF totals
+  and mode-user margins to observed eligible capacity, emits a warning, and
+  records submitted and used values in
+  `reference_scope_report$category_capacity_adjustments`.
+- **Too few positive sampling weights:** category membership is still eligible,
+  but preferred age/sex/PA weighting cannot fill the sample. HUB takes all
+  positive-weight candidates and samples the unavoidable remainder uniformly.
+  This relaxation is recorded in the counterfactual report.
+- **Too few CF non-users in scaled REF:** this is not an error. HUB recruits the
+  shortfall from eligible baseline non-users elsewhere in the geographic source
+  population and expands `cf_in_scope`.
+- **Too few eligible people in the full geography:** HUB stops. Automatically
+  duplicating people or ignoring selected categories would change the appraisal
+  question and bias uncertainty, so this requires a revised target or categories.
+- **Too few observed REF trips:** HUB stops because REF cannot contain trips that
+  were not observed among its selected people.
+- **Too few switchable CF trips:** HUB uses the available mode-shift trips and
+  represents the shortfall as induced trips. The realized mechanism counts are
+  retained in the counterfactual report.
+
+For example, the message “requested REF population 3,475; 2,939 satisfy the
+selected categories” means that `3,475` remained in the submitted population
+table while the age/PA checkboxes described a smaller eligible group. HUB now
+first replaces `3,475` with the selected-category total stored in the profile.
+If that total is unavailable, it uses at most the `2,939` eligible source rows
+and reports the adjustment. It never samples the same person twice.
+
+Current implementation nuance: category totals are measured from the staged
+Tab 2 snapshot, but the final refined snapshot is reconstructed from eligible
+source rows using those totals and the same seed. It is therefore row-consistent
+and reproducible, but is not guaranteed to be a literal nested subset of the
+first intermediate random draw. Preserving exact row identity across that
+handoff remains a possible refinement if simulation testing shows a material
+effect.
 
 ### Users: derive counterfactual number of active mode users
 The current implementation supports `users_count_cf_*` in the basic UI,

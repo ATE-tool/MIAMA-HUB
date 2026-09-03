@@ -110,6 +110,35 @@ test_that("unchanged rendered advanced defaults defer to filled Tab 2 values", {
   expect_equal(target$value, 1)
 })
 
+test_that("Tab 3 staging reconstructs category-refined table values in HUB", {
+  profile <- list(
+    modes = profile_field("walking", TRUE),
+    pop_refine_method = profile_field("pop_age", TRUE),
+    pop_target_age_groups = profile_field(c("pop_age_18_29", "pop_age_30_39"), TRUE),
+    pop_total_ref_advanced = profile_field(3475, TRUE),
+    pop_total_cf_advanced = profile_field(3475, TRUE),
+    pop_number_ref_walk_advanced = profile_field(1200, TRUE),
+    pop_number_cf_walk_advanced = profile_field(1300, TRUE)
+  )
+  profile$pop_target_age_groups$additional_data <- list(
+    ref = list(
+      pop_age_18_29 = list(pop_tot = 1000, pop_walk = 300),
+      pop_age_30_39 = list(pop_tot = 900, pop_walk = 250)
+    ),
+    cf = list(
+      pop_age_18_29 = list(pop_tot = 1000, pop_walk = 350),
+      pop_age_30_39 = list(pop_tot = 900, pop_walk = 300)
+    )
+  )
+
+  values <- .tab3_stage_input_values(profile)
+
+  expect_equal(values$pop_total_ref_advanced, 1900)
+  expect_equal(values$pop_total_cf_advanced, 1900)
+  expect_equal(values$pop_number_ref_walk_advanced, 550)
+  expect_equal(values$pop_number_cf_walk_advanced, 650)
+})
+
 test_that("advanced slider values become counterfactual sampling targets", {
   ref_matrix <- matrix(
     c(20, 10, 15, 10, 5, 5, 10, 5, 10, 10),
