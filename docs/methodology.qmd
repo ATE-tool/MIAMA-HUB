@@ -285,6 +285,18 @@ contribute to both sums consistently. HUB also reports each standalone mode
 estimate because strong disagreement between them indicates an internally
 atypical scenario.
 
+When all applicable REF volumes are zero but at least one CF volume is positive,
+the REF equation cannot define a usable person boundary. HUB then applies the
+same equation to the CF target and uses that non-zero estimate for the shared
+staging scope. If a positive CF mode has no observable source rate, as may occur
+for e-bike, the full geographic person pool is retained instead. This fallback
+does not invent REF activity: REF mode-user and trip counts remain zero. It only
+keeps enough people and their observed trips available to construct the CF
+snapshot. A positive explicit population still takes precedence; a submitted
+zero population is overridden only when positive CF activity requires support.
+The rule applies equally to users, direct trips, and trip targets converted from
+distance, duration, or mode share.
+
 Tab 2 counterfactual inputs are applied to a synthpop-only copy before Tab 3 is
 shown. This provides a no-health-model preview of the same CF population that
 will later receive Tab 3 and Tab 4 refinements. Values written into the profile
@@ -391,6 +403,12 @@ probability that eligible rows are selected. The shifted-versus-induced rule
 controls whether those rows come from existing non-active trips or copied
 active-trip donors. Resulting changes in active minutes are converted to MMET
 exposure through the standard health pathway.
+
+In a zero-REF scenario, owners of the trip rows actually shifted or induced are
+recorded as CF mode users even when integer rounding of the preferred new-user
+percentage initially selects no recipients. This keeps the Tab 3 population
+summary consistent with the realized CF trip snapshot without adding individual
+activity exposure a second time.
 
 An explicitly edited Tab 4 trip count is the final trip-volume target and
 therefore overrides the corresponding Tab 2 value. A displayed Tab 4 value

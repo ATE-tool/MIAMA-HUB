@@ -31,6 +31,14 @@ apply_reference_appraisal_scope <- function(reference_data,
     modes = modes
   )
   appraisal_input_values <- tab2_conversion$values
+  cf_tab2_conversion <- .derive_tab2_trip_count_targets(
+    appraisal_input_values,
+    reference_data = out,
+    scenario = "cf",
+    modes = modes
+  )
+  appraisal_input_values <- cf_tab2_conversion$values
+  tab2_conversion$report$counterfactual <- cf_tab2_conversion$report
 
   user_targets <- stats::setNames(lapply(modes, function(mode) {
     .reference_user_scope_target(appraisal_input_values, .counterfactual_mode_spec(mode)$suffix)
@@ -38,12 +46,32 @@ apply_reference_appraisal_scope <- function(reference_data,
   trip_targets <- stats::setNames(lapply(modes, function(mode) {
     .reference_trip_scope_target(appraisal_input_values, .counterfactual_mode_spec(mode)$suffix)
   }), modes)
+  cf_user_targets <- stats::setNames(lapply(modes, function(mode) {
+    spec <- .counterfactual_mode_spec(mode)
+    target <- .cf_user_target(appraisal_input_values, spec$suffix)
+    if (!is.null(target$value)) {
+      target$value <- .validate_cf_user_target(target$value, spec)
+    }
+    target
+  }), modes)
+  cf_trip_targets <- stats::setNames(lapply(modes, function(mode) {
+    spec <- .counterfactual_mode_spec(mode)
+    target <- .cf_trip_target(appraisal_input_values, spec$suffix)
+    if (!is.null(target$value)) {
+      target$value <- .validate_cf_trip_target(target, out, spec)$count
+      target$timeframe <- "week"
+      target$denominator <- "total"
+    }
+    target
+  }), modes)
   person_target <- .reference_person_scope_target(
     appraisal_input_values,
     reference_data = out,
     modes = modes,
     user_targets = user_targets,
-    trip_targets = trip_targets
+    trip_targets = trip_targets,
+    cf_user_targets = cf_user_targets,
+    cf_trip_targets = cf_trip_targets
   )
   population_target <- cf_population_sampling_target(
     appraisal_input_values,
@@ -187,6 +215,7 @@ apply_reference_appraisal_scope <- function(reference_data,
     person = list(
       field = person_target$field,
       submitted = reconciled_targets$adjustments$population$requested %||%
+        person_target$submitted_population %||%
         person_target$value,
       requested = person_target$value,
       realized = sum(out$ind$ref_in_scope),
@@ -196,7 +225,10 @@ apply_reference_appraisal_scope <- function(reference_data,
       pooled_requested = person_target$pooled_requested,
       pooled_baseline = person_target$pooled_baseline,
       pooled_ratio = person_target$pooled_ratio,
-      mode_estimates = person_target$mode_estimates
+      mode_estimates = person_target$mode_estimates,
+      counterfactual_mode_estimates = person_target$counterfactual_mode_estimates,
+      supporting_scenario = person_target$supporting_scenario,
+      submitted_population = person_target$submitted_population
     ),
     users = user_report,
     trips = trip_report,
@@ -283,7 +315,9 @@ apply_reference_appraisal_scope <- function(reference_data,
                                            reference_data,
                                            modes,
                                            user_targets,
-                                           trip_targets) {
+                                           trip_targets,
+                                           cf_user_targets,
+                                           cf_trip_targets) {
   default_n <- nrow(reference_data$ind)
   version <- if (identical(.ui_value(values, "ui_version", "basic"), "advanced")) "advanced" else "basic"
   fields <- if (identical(version, "advanced")) {
@@ -296,13 +330,16 @@ apply_reference_appraisal_scope <- function(reference_data,
     label = "reference population", integer = TRUE
   )
   data_unit <- .ui_value(values, "at_data_unit", NULL)
-  if (!is.null(explicit$value)) {
+  if (!is.null(explicit$value) && explicit$value > 0) {
     explicit$method <- "explicit_population"
     explicit$data_unit <- data_unit
     explicit$pooled_requested <- NA_real_
     explicit$pooled_baseline <- NA_real_
     explicit$pooled_ratio <- NA_real_
     explicit$mode_estimates <- list()
+    explicit$counterfactual_mode_estimates <- list()
+    explicit$supporting_scenario <- "explicit"
+    explicit$submitted_population <- explicit$value
     return(explicit)
   }
 
@@ -313,49 +350,114 @@ apply_reference_appraisal_scope <- function(reference_data,
     user_targets = user_targets,
     trip_targets = trip_targets
   )
-  usable <- vapply(estimates, function(x) is.finite(x$estimated_people), logical(1))
-  if (!any(usable)) {
+  cf_estimates <- .reference_population_mode_estimates(
+    reference_data = reference_data,
+    modes = modes,
+    data_unit = data_unit,
+    user_targets = cf_user_targets,
+    trip_targets = cf_trip_targets
+  )
+  ref_summary <- .pooled_population_estimate(estimates, default_n, scenario = "ref")
+  cf_summary <- .pooled_population_estimate(cf_estimates, default_n, scenario = "cf")
+
+  summaries <- Filter(function(x) is.finite(x$target), list(ref_summary, cf_summary))
+  if (length(summaries) == 0) {
     return(list(
       field = NULL, value = default_n, method = "full_geography_fallback",
       data_unit = data_unit, pooled_requested = NA_real_,
       pooled_baseline = NA_real_, pooled_ratio = NA_real_,
-      mode_estimates = estimates
+      mode_estimates = estimates,
+      counterfactual_mode_estimates = cf_estimates,
+      supporting_scenario = "fallback",
+      submitted_population = explicit$value
     ))
   }
 
-  # Pool the selected-mode rates observed in the source population. Summing
-  # both the requested and baseline mode volumes treats a person who uses two
-  # modes consistently on both sides and avoids choosing one mode as the sole
-  # population anchor. Per-mode estimates remain in the report for audit.
-  pooled_requested <- sum(vapply(
-    estimates[usable], `[[`, numeric(1), "requested"
-  ))
-  pooled_baseline <- sum(vapply(
-    estimates[usable], `[[`, numeric(1), "baseline"
-  ))
-  pooled_ratio <- pooled_requested / pooled_baseline
-  target <- as.integer(round(default_n * pooled_ratio))
+  # A positive REF volume defines the assessment boundary, preserving the
+  # established interpretation that CF changes occur within (or recruit into)
+  # that reference snapshot. CF becomes the population anchor only when REF
+  # cannot provide a non-zero estimate; this is the zero-reference fallback.
+  supporting <- if (is.finite(ref_summary$target) && ref_summary$target > 0) {
+    ref_summary
+  } else if (is.finite(cf_summary$target) && cf_summary$target > 0) {
+    cf_summary
+  } else {
+    summaries[[1]]
+  }
+  target <- supporting$target
   specified_users <- vapply(user_targets, function(x) x$value %||% 0, numeric(1))
   # A pooled estimate can only be operational if it contains every explicitly
   # entered mode-user count.
   target <- max(target, specified_users, 0)
-  if (target > default_n) {
+  if (identical(supporting$scenario, "ref") && target > default_n) {
     stop(
       "Tab 2 reference values imply an assessed population of ", target,
       ", exceeding the available donor population of ", default_n, ".",
       call. = FALSE
     )
   }
+  # CF activity can exceed the source activity rate because trips are shifted or
+  # induced and non-users can become users. It cannot require more distinct
+  # synthetic people than the available geography, so use the whole source pool.
+  target <- min(target, default_n)
 
   list(
-    field = NULL,
+    field = explicit$field,
     value = target,
-    method = "pooled_source_mode_rate_population",
+    method = if (!is.null(explicit$value) && explicit$value == 0 && target > 0) {
+      "counterfactual_activity_support_override"
+    } else if (identical(supporting$scenario, "cf")) {
+      "pooled_source_mode_rate_population_cf_support"
+    } else {
+      "pooled_source_mode_rate_population"
+    },
     data_unit = data_unit,
+    pooled_requested = supporting$pooled_requested,
+    pooled_baseline = supporting$pooled_baseline,
+    pooled_ratio = supporting$pooled_ratio,
+    mode_estimates = estimates,
+    counterfactual_mode_estimates = cf_estimates,
+    supporting_scenario = supporting$scenario,
+    submitted_population = explicit$value
+  )
+}
+
+.pooled_population_estimate <- function(estimates, source_population, scenario) {
+  requested <- vapply(estimates, function(x) x$requested %||% NA_real_, numeric(1))
+  positive <- is.finite(requested) & requested > 0
+  usable <- vapply(estimates, function(x) {
+    is.finite(x$estimated_people) && is.finite(x$baseline) && x$baseline > 0
+  }, logical(1))
+
+  # A positive target with no observed rate (notably e-bike in current source
+  # data) cannot be converted to a smaller population defensibly.
+  if (any(positive & !usable)) {
+    return(list(
+      target = as.integer(source_population),
+      pooled_requested = sum(requested[positive]),
+      pooled_baseline = NA_real_,
+      pooled_ratio = NA_real_,
+      scenario = scenario
+    ))
+  }
+  if (!any(usable)) {
+    return(list(
+      target = NA_real_, pooled_requested = NA_real_,
+      pooled_baseline = NA_real_, pooled_ratio = NA_real_, scenario = scenario
+    ))
+  }
+
+  # Pool selected-mode source rates so people using multiple modes are treated
+  # consistently. The CF estimate is retained as a fallback for a zero REF.
+  pooled_requested <- sum(vapply(estimates[usable], `[[`, numeric(1), "requested"))
+  pooled_baseline <- sum(vapply(estimates[usable], `[[`, numeric(1), "baseline"))
+  pooled_ratio <- pooled_requested / pooled_baseline
+  list(
+    target = as.integer(round(source_population * pooled_ratio)),
     pooled_requested = pooled_requested,
     pooled_baseline = pooled_baseline,
     pooled_ratio = pooled_ratio,
-    mode_estimates = estimates
+    scenario = scenario
   )
 }
 

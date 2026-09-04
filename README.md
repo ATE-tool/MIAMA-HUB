@@ -1165,6 +1165,16 @@ health trajectory. It only determines which observed rows count in the assessed
 REF snapshot. When no REF field was edited, all flags reproduce the previous
 full-geography behavior.
 
+A zero REF activity value is valid and means that the assessed reference
+snapshot contains no users or trips of that mode. It must not imply that the
+appraisal contains no people when CF activity is positive. In that edge case,
+HUB applies the same source-rate population estimate to the CF user or converted
+weekly-trip target. If the source has no observable rate for a positive CF mode
+(notably e-bike), it retains the full geographic person pool as the defensible
+fallback. Direct trips, distance, duration, and mode-share inputs all pass
+through this rule. A positive explicit population remains authoritative; an
+explicit zero is overridden only when needed to support positive CF activity.
+
 CF starts from these flags. Added users are taken first from eligible baseline
 non-users already inside REF scope. If that pool is insufficient, HUB recruits
 eligible baseline non-users from the retained geographic source population and
@@ -1207,6 +1217,8 @@ the UI:
 HUB constructs the snapshots in this order:
 
 1. Read the submitted REF total, mode-user totals, and active-trip totals.
+   If REF activity implies zero people while CF is positive, derive the person
+   boundary from CF volume instead.
 2. Identify source people allowed by the selected Tab 3 categories.
 3. Select distinct REF people without replacement while meeting the requested
    mode-user margins and retaining owners required by REF trip inputs.
@@ -1268,6 +1280,10 @@ things:
 - **Too few CF non-users in scaled REF:** this is not an error. HUB recruits the
   shortfall from eligible baseline non-users elsewhere in the geographic source
   population and expands `cf_in_scope`.
+- **Zero REF with positive CF activity:** this is not an empty appraisal. HUB
+  infers a non-zero person boundary from the CF user or trip-equivalent volume;
+  if no source rate exists, it uses the full geographic person pool. REF mode
+  users/trips remain zero, while realized CF trip owners are marked as CF users.
 - **Too few eligible people in the full geography:** HUB stops. Automatically
   duplicating people or ignoring selected categories would change the appraisal
   question and bias uncertainty, so this requires a revised target or categories.

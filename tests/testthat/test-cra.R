@@ -281,6 +281,28 @@ test_that("apply_counterfactual_health_outcomes handles reduced mmets with negat
   expect_equal(out$health_outcomes$dead + out$health_outcomes$d_dead, 9.7)
 })
 
+test_that("MMET lookup accepts an empty appraisal scope", {
+  hm_cycle_outcomes <- data.frame(
+    census_id = numeric(0), mr_decile = integer(0), cycle = integer(0),
+    mmets_cycle = numeric(0), dead = numeric(0)
+  )
+  hm_cycle_lookup <- data.frame(
+    age1year = 40L, female = 0, mr_decile = 1L, cycle = 0L,
+    mmets_lo = 0, mmets_hi = 100, outcome = "d_dead_per_mmet", slope = 0.1
+  )
+  exposure <- data.frame(
+    census_id = numeric(0), age1year = integer(0), female = numeric(0),
+    mmets_ref = numeric(0), mmets_cf_ind = numeric(0), mmets_delta = numeric(0)
+  )
+
+  out <- .apply_mmet_delta_lookup(
+    hm_cycle_outcomes, hm_cycle_lookup, exposure, include_cf_columns = FALSE
+  )
+
+  expect_equal(nrow(out), 0)
+  expect_true("d_dead" %in% names(out))
+})
+
 test_that("HALYs reconstruct prevalence and apply disability adjustments", {
   diseases <- "diabetes"
   health <- data.frame(

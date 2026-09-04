@@ -759,10 +759,22 @@ apply_counterfactual_ui_values <- function(
 
   counterfactual_data <- assignment$counterfactual_data
   if (is.null(explicit_user_target$value)) {
+    # Trip-driven scenarios may start with no REF users, in which case the
+    # preferred current/new split can initially yield no recipient IDs after
+    # integer rounding. The owners of the trips actually changed are users by
+    # construction and must be represented in the CF user scope shown in Tab 3.
+    realized_owner_ids <- unique(c(
+      user_allocation$ids,
+      .changed_trip_census_ids(assignment$changed_rows)
+    ))
+    realized_owner_ids <- realized_owner_ids[!is.na(realized_owner_ids)]
+    user_allocation$ids <- realized_owner_ids
+    user_allocation$target_users <- length(realized_owner_ids)
+    user_allocation$report$target_users <- length(realized_owner_ids)
     counterfactual_data <- .set_cf_mode_user_scope(
       counterfactual_data,
       spec,
-      user_allocation$ids
+      realized_owner_ids
     )
   }
   updated_scope <- if (cf_scope_col %in% names(counterfactual_data$trips)) .true_values(counterfactual_data$trips[[cf_scope_col]]) else TRUE

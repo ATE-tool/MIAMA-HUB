@@ -134,6 +134,49 @@ test_that("zero reference mode users retain usable Tab 3 spread defaults", {
   expect_true(.spread_bars_have_data(updated$pop_spread_pa_bars_ref_walk$default_value))
 })
 
+test_that("zero REF trips use CF volume to populate a non-zero Tab 3 population", {
+  profile <- list(
+    ui_version = profile_field("advanced", TRUE),
+    modes = profile_field("walking", TRUE),
+    at_data_unit = profile_field("trips", TRUE),
+    trips_count_ref_walk = profile_field(0, TRUE),
+    trips_count_cf_walk = profile_field(2, TRUE),
+    trips_timeframe_walk = profile_field("week", TRUE),
+    trips_denominator_walk = profile_field("total", TRUE),
+    pop_total_ref_basic = profile_field(),
+    pop_total_cf_basic = profile_field(),
+    pop_total_ref_advanced = profile_field(default = 0, backup = TRUE),
+    pop_total_cf_advanced = profile_field(default = 0, backup = TRUE),
+    pop_number_ref_walk_advanced = profile_field(default = 0, backup = TRUE),
+    pop_number_cf_walk_advanced = profile_field(default = 0, backup = TRUE)
+  )
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:10, age1year = 20:29, female = rep(0:1, 5),
+      walktime_wkhr = c(rep(1, 4), rep(0, 6)), cycletime_wkhr = 0,
+      sport_wkhr = 0, mmets = 0
+    ),
+    trips = data.frame(
+      census_id = 1:10, nts_tripid = 1:10,
+      trip_mainmode = c(rep("Walk", 4), rep("Car", 6)),
+      trip_distraw_km = 1, trip_durationraw_min = 10,
+      trip_walkdist_km = c(rep(1, 4), rep(0, 6)),
+      trip_walktime_min = c(rep(10, 4), rep(0, 6)),
+      trip_cycledist_km = 0, trip_cycletime_min = 0,
+      trip_purpose = "Commuting", weight_tripXhh = 1
+    )
+  )
+
+  staged <- prepare_refinement_profile_defaults(
+    reference_data, profile, seed = 9
+  )
+
+  expect_equal(staged$profile$pop_total_ref_advanced$default_value, 5)
+  expect_equal(staged$profile$pop_total_cf_advanced$default_value, 5)
+  expect_equal(staged$profile$pop_number_ref_walk_advanced$default_value, 0)
+  expect_gt(staged$profile$pop_number_cf_walk_advanced$default_value, 0)
+})
+
 test_that("Tab 3 age and PA categories exhaust each staged population", {
   ind <- data.frame(
     census_id = 1:8,

@@ -318,6 +318,132 @@ test_that("Tab 2 trip totals imply population and mode users from trip owners", 
   expect_equal(sum(scoped$ind$ref_user_scope_walk), 2)
 })
 
+test_that("positive CF trips supply a population boundary when REF trips are zero", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:10,
+      walktime_wkhr = c(rep(1, 4), rep(0, 6)),
+      cycletime_wkhr = 0
+    ),
+    trips = data.frame(
+      census_id = 1:10,
+      nts_tripid = 1:10,
+      trip_mainmode = c(rep("Walk", 4), rep("Car", 6)),
+      trip_distraw_km = 1,
+      trip_durationraw_min = 10,
+      trip_walkdist_km = c(rep(1, 4), rep(0, 6)),
+      trip_walktime_min = c(rep(10, 4), rep(0, 6)),
+      trip_cycledist_km = 0,
+      trip_cycletime_min = 0,
+      trip_purpose = "Commuting",
+      weight_tripXhh = 1
+    )
+  )
+  values <- list(
+    at_data_unit = "trips", modes = "walking",
+    trips_count_ref_walk = 0,
+    trips_count_cf_walk = 2,
+    trips_timeframe_walk = "week",
+    trips_denominator_walk = "total"
+  )
+
+  scoped <- apply_reference_appraisal_scope(reference_data, values, seed = 9)
+  counterfactual <- apply_counterfactual_ui_values(
+    init_counterfactual_data(scoped), values,
+    reference_data = scoped, seed = 9
+  )
+
+  expect_equal(sum(scoped$ind$ref_in_scope), 5)
+  expect_equal(sum(scoped$trips$ref_trip_scope_walk), 0)
+  expect_equal(sum(scoped$ind$ref_user_scope_walk), 0)
+  expect_equal(scoped$reference_scope_report$person$supporting_scenario, "cf")
+  expect_equal(
+    scoped$reference_scope_report$person$method,
+    "pooled_source_mode_rate_population_cf_support"
+  )
+  expect_equal(
+    sum(counterfactual$trips$cf_trip_scope_walk &
+          counterfactual$trips$trip_walkdist_km > 0),
+    2
+  )
+  expect_gt(sum(counterfactual$ind$cf_in_scope), 0)
+})
+
+test_that("explicit zero population is overridden only to support positive CF activity", {
+  reference_data <- list(ind = data.frame(
+    census_id = 1:10,
+    walktime_wkhr = c(rep(1, 4), rep(0, 6)),
+    cycletime_wkhr = 0
+  ))
+
+  scoped <- apply_reference_appraisal_scope(
+    reference_data,
+    appraisal_input_values = list(
+      at_data_unit = "users", modes = "walking",
+      pop_total_ref_basic = 0,
+      users_count_ref_walk = 0,
+      users_count_cf_walk = 2
+    ),
+    seed = 10
+  )
+
+  expect_equal(sum(scoped$ind$ref_in_scope), 5)
+  expect_equal(scoped$reference_scope_report$person$submitted, 0)
+  expect_equal(scoped$reference_scope_report$person$submitted_population, 0)
+  expect_equal(
+    scoped$reference_scope_report$person$method,
+    "counterfactual_activity_support_override"
+  )
+})
+
+test_that("all trip-derived Tab 2 units use CF volume when REF volume is zero", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:10,
+      walktime_wkhr = c(rep(1, 4), rep(0, 6)),
+      cycletime_wkhr = 0
+    ),
+    trips = data.frame(
+      census_id = 1:10, nts_tripid = 1:10,
+      trip_mainmode = c(rep("Walk", 4), rep("Car", 6)),
+      trip_distraw_km = 1, trip_durationraw_min = 10,
+      trip_walkdist_km = c(rep(1, 4), rep(0, 6)),
+      trip_walktime_min = c(rep(10, 4), rep(0, 6)),
+      trip_cycledist_km = 0, trip_cycletime_min = 0
+    )
+  )
+  cases <- list(
+    distance = list(
+      at_data_unit = "distance", ui_dist_dur_type_walk = "distance",
+      dist_dur_amount_ref_walk = 0, dist_dur_amount_cf_walk = 2,
+      dist_dur_denominator_walk = "total", dist_dur_timeframe_walk = "week",
+      distance_unit_walk = "km"
+    ),
+    duration = list(
+      at_data_unit = "distance", ui_dist_dur_type_walk = "duration",
+      dist_dur_amount_ref_walk = 0, dist_dur_amount_cf_walk = 20,
+      dist_dur_denominator_walk = "total", dist_dur_timeframe_walk = "week",
+      duration_unit_walk = "mins"
+    ),
+    mode_share = list(
+      at_data_unit = "mode_share",
+      mode_share_ref = list(walk = list(percent = 0)),
+      mode_share_cf = list(walk = list(percent = 20)),
+      mode_share_total_trips_basic = 10
+    )
+  )
+
+  for (case in cases) {
+    scoped <- apply_reference_appraisal_scope(
+      reference_data,
+      appraisal_input_values = c(list(modes = "walking"), case),
+      seed = 11
+    )
+    expect_equal(sum(scoped$ind$ref_in_scope), 5)
+    expect_equal(scoped$reference_scope_report$person$supporting_scenario, "cf")
+  }
+})
+
 test_that("multiple modes use their pooled source-population rate", {
   reference_data <- list(ind = data.frame(
     census_id = 1:10,

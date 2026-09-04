@@ -340,7 +340,7 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL,
 
   delta_cols <- .lookup_delta_columns(hm_cycle_lookup)
   for (col in delta_cols) {
-    cycle_data[[col]] <- 0
+    cycle_data[[col]] <- numeric(nrow(cycle_data))
   }
 
   changed <- cycle_data$mmets_new != cycle_data$mmets_cycle
