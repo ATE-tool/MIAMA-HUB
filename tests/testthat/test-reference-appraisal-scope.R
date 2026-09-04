@@ -318,6 +318,50 @@ test_that("Tab 2 trip totals imply population and mode users from trip owners", 
   expect_equal(sum(scoped$ind$ref_user_scope_walk), 2)
 })
 
+test_that("trip targets can exceed person and donor-row capacity", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:10,
+      walktime_wkhr = c(rep(1, 8), rep(0, 2)),
+      cycletime_wkhr = 0
+    ),
+    trips = data.frame(
+      census_id = 1:10,
+      nts_tripid = 1:10,
+      trip_mainmode = c(rep("Walk", 8), rep("Car", 2)),
+      trip_distraw_km = 1,
+      trip_durationraw_min = 10,
+      trip_walkdist_km = c(rep(1, 8), rep(0, 2)),
+      trip_walktime_min = c(rep(10, 8), rep(0, 2)),
+      trip_cycledist_km = 0,
+      trip_cycletime_min = 0,
+      weight_tripXhh = 1
+    )
+  )
+
+  expect_warning(
+    scoped <- apply_reference_appraisal_scope(
+      reference_data,
+      appraisal_input_values = list(
+        at_data_unit = "trips", modes = "walking",
+        trips_count_ref_walk = 12,
+        trips_timeframe_walk = "week",
+        trips_denominator_walk = "total",
+        pop_total_ref_basic = 3
+      ),
+      seed = 9
+    ),
+    "donor trip patterns with replacement"
+  )
+
+  expect_equal(sum(scoped$ind$ref_in_scope), 3)
+  expect_equal(sum(scoped$trips$ref_trip_scope_walk), 12)
+  expect_lte(sum(scoped$ind$ref_user_scope_walk), 3)
+  expect_equal(scoped$reference_scope_report$person$required_trip_owners, 8)
+  expect_equal(scoped$reference_scope_report$person$retained_trip_owners, 3)
+  expect_true(scoped$reference_scope_report$person$trip_owner_patterns_reassigned)
+})
+
 test_that("positive CF trips supply a population boundary when REF trips are zero", {
   reference_data <- list(
     ind = data.frame(

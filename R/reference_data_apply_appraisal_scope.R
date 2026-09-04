@@ -101,6 +101,18 @@ apply_reference_appraisal_scope <- function(reference_data,
     trip_targets = trip_targets,
     seed = seed
   )
+  required_trip_owner_count <- length(required_trip_owners)
+  if (required_trip_owner_count > person_target$value) {
+    # Trip-authoritative routes may describe more observed donor owners than the
+    # inferred assessed population can contain. Retain a representative subset
+    # of owners here; missing trip rows are recreated from donor patterns below
+    # and assigned to users inside the fixed person scope.
+    required_trip_owners <- .sample_reference_rows(
+      required_trip_owners,
+      person_target$value,
+      seed + 350L
+    )
+  }
   selected_people <- .sample_reference_people(
     out$ind,
     target_n = person_target$value,
@@ -159,15 +171,32 @@ apply_reference_appraisal_scope <- function(reference_data,
       }
       expanded <- list(rows_added = 0L)
       if (target_rows > length(candidates)) {
+        recipient_ids <- out$ind$census_id[
+          out$ind$ref_in_scope &
+            .true_values(out$ind[[.reference_user_scope_col(mode, "ref")]])
+        ]
+        if (target_rows > 0L && length(recipient_ids) == 0L &&
+            is.null(user_targets[[mode]]$value)) {
+          # A small trip-derived population can contain no observed user of a
+          # rare mode. The trip target itself establishes one such user; donor
+          # patterns can then be assigned without expanding the person scope.
+          recipient_rows <- .sample_reference_rows(
+            which(out$ind$ref_in_scope),
+            1L,
+            seed + spec$seed_offset + 425L
+          )
+          user_ref_col <- .reference_user_scope_col(mode, "ref")
+          user_cf_col <- .reference_user_scope_col(mode, "cf")
+          out$ind[[user_ref_col]][recipient_rows] <- TRUE
+          out$ind[[user_cf_col]][recipient_rows] <- TRUE
+          recipient_ids <- out$ind$census_id[recipient_rows]
+        }
         expanded <- .expand_reference_trip_candidates(
           reference_data = out,
           mode = mode,
           candidates = candidates,
           target_n = target_rows,
-          recipient_ids = out$ind$census_id[
-            out$ind$ref_in_scope &
-              .true_values(out$ind[[.reference_user_scope_col(mode, "ref")]])
-          ],
+          recipient_ids = recipient_ids,
           seed = seed + spec$seed_offset + 450L
         )
         out <- expanded$reference_data
@@ -228,7 +257,11 @@ apply_reference_appraisal_scope <- function(reference_data,
       mode_estimates = person_target$mode_estimates,
       counterfactual_mode_estimates = person_target$counterfactual_mode_estimates,
       supporting_scenario = person_target$supporting_scenario,
-      submitted_population = person_target$submitted_population
+      submitted_population = person_target$submitted_population,
+      required_trip_owners = required_trip_owner_count,
+      retained_trip_owners = length(required_trip_owners),
+      trip_owner_patterns_reassigned = required_trip_owner_count >
+        length(required_trip_owners)
     ),
     users = user_report,
     trips = trip_report,
@@ -659,17 +692,9 @@ apply_reference_appraisal_scope <- function(reference_data,
       !is.na(reference_data$trips$nts_tripid)
     target_rows <- .reference_trip_target_rows(trip_targets[[mode]])
     available_rows <- sum(active, na.rm = TRUE)
-    if (target_rows > available_rows) {
-      stop(
-        "Reference trip target `", trip_targets[[mode]]$field, "` for mode `",
-        mode, "` requests ", target_rows, " rows per reference week, but only ",
-        available_rows, " eligible baseline rows are available. ",
-        "Reduce the reference value or rebuild the reference defaults for the current geography.",
-        call. = FALSE
-      )
-    }
     selected <- .sample_reference_rows(
-      which(active), target_rows, seed + spec$seed_offset + 400L
+      which(active), min(target_rows, available_rows),
+      seed + spec$seed_offset + 400L
     )
     required_ids <- c(required_ids, reference_data$trips$census_id[selected])
   }
