@@ -392,6 +392,20 @@ controls whether those rows come from existing non-active trips or copied
 active-trip donors. Resulting changes in active minutes are converted to MMET
 exposure through the standard health pathway.
 
+An explicitly edited Tab 4 trip count is the final trip-volume target and
+therefore overrides the corresponding Tab 2 value. A displayed Tab 4 value
+that remains identical to its generated default is not treated as an edit;
+HUB retains the Tab 2 target in that case. Diversion settings are independent
+of this precedence rule because they influence source-trip selection rather
+than trip volume.
+
+Tab 4 defaults are measured from the separate staged REF and CF snapshots
+created after Tab 2. With no Tab 3 population change, these snapshots pass
+through unchanged. When Tab 3 changes the population scope, HUB re-scopes each
+existing snapshot independently before measuring its trips. This preserves
+the scenario-specific behavior already introduced by users, trips,
+distance/duration, or mode-share inputs.
+
 Tab 4 presents one source-mode diversion pie for each assessed target mode. A
 cycling pie, for example, describes the previous modes of existing trips that
 will shift to cycling; cycling itself is excluded. The pies apply only to shifted
@@ -427,6 +441,14 @@ to be supported.
 
 ## Refined population specification (Tab 3)
 
+The population equivalents inferred from Tab 2 are shared by the optional Tab
+2 basic population modal and the Tab 3 handoff. HUB writes the staged counts to
+both the `*_basic` and `*_advanced` profile fields. Consequently, opening the
+basic modal after supplying mode shares should show the pooled Tab 2 population
+estimate and the corresponding REF/CF mode-user counts, not an unrelated copy
+of the full geographic source defaults. Non-user input routes retain the same
+total population in REF and CF while allowing mode-user counts to differ.
+
 For each assessed mode, Tab 3 can provide:
 
 - a target number of affected mode users;
@@ -437,15 +459,34 @@ For each assessed mode, Tab 3 can provide:
 
 Direct user-count inputs are authoritative and therefore supersede the
 current/new-user percentage. The percentage is applicable when user counts must
-instead be inferred from trip, distance, duration, or mode-share inputs. It is
-not yet operational because the number of distinct recipients of added trip
-exposure and the synchronization of trip- and person-level user status still
-need one canonical implementation.
+instead be inferred from trip, distance, duration, or mode-share inputs. HUB
+divides the absolute change in weekly trips by the profile's mode-specific
+weekly trips-per-user assumption to estimate a trip-equivalent affected count.
+Existing users of that mode absorb the current-user share of additional trips;
+only the selected percentage is added to the mode-user population. E-bike uses
+current active-travel users as its proxy current-user pool because no reference
+e-bike users are observed. This changes the mode-user scope shown in Tab 3,
+while health exposure remains attached to changed trip minutes to prevent
+double counting.
+
+When an explicit counterfactual mode-user count exceeds its reference count,
+all current mode users are retained and the difference is recruited from
+eligible baseline non-users across the full retained geographic source. The
+realized current/new split is therefore determined by the explicit counts and
+may exceed the preferred new-user percentage. HUB reports that realized split
+and adds a non-fatal note when this occurs; it rejects the request only when the
+filtered geographic source does not contain enough eligible distinct people.
 
 The aggregate CF population total is a presentation summary. Row-level
 behavioral changes are controlled by the mode-specific CF user targets. People
 who remain behaviorally unchanged are not removed from health denominators
 merely to force the displayed aggregate CF total.
+
+When Tab 3 is initialized, its current/new-user slider uses the realized split
+from the CF snapshot staged from Tab 2. For multiple assessed modes, HUB pools
+the mode-user memberships represented by each change. This is a mode-membership
+summary rather than a count of mutually exclusive people because one person may
+use more than one mode.
 
 Reference distributions are represented as a 5 x 2 table: five configured age
 or PA categories crossed with sex. The app displays the table as paired bars.
@@ -486,6 +527,12 @@ are normally recreational. The legacy purpose input route should therefore be
 retired in coordination with MIAMA-UI rather than developed into a second
 mechanism control.
 The configured distance groups are 0--2, 2--5, 5--10, 10--30, and 30+ km.
+
+When Tab 4 is initialized, its induced-trip slider uses the realized proportion
+of added CF trip rows that were induced rather than shifted. This is deliberately
+separate from the Tab 3 people split. If no trip addition has yet produced a
+realized mechanism split, the effective Tab 3 current/new-user percentage is
+used only as the initial Tab 4 assumption.
 
 # Counterfactual sampling and redistribution
 
@@ -644,7 +691,7 @@ targets. Health-result population expansion is a separate configured operation.
 | Mode-specific user count | Weekly target users | Adds new-user or ex-user statuses among existing people. |
 | Mean age + sex proportion | Five age categories and sex marginal | Weights candidate people changing status. |
 | Mean PA + sex proportion | Five PA categories and sex marginal | Weights candidate people using their pre-change PA. |
-| Current/new-user percentage | Scalar profile value | **Planned:** parsed but not yet used to jointly assign trip ownership and user status. |
+| Current/new-user percentage | Scalar profile value | For trip-derived inputs, divides additional mode users between existing active-travel users and people with no current active travel; explicit user counts take precedence. |
 | Mode-specific trip count | Weekly target trip rows | Shifts existing trips and adds induced recreational trips. |
 | Mean trip distance | Five distance-category target or smooth mean preference | Weights plausible trip candidates. |
 | Induced-trip percentage | Share of added trips that do not replace an existing trip | Splits additions between induced recreational rows and shifted existing utilitarian rows. |
@@ -663,9 +710,10 @@ for empirical validation.
 
 ## Priority methodological TODOs
 
-1. **Current/new-user implementation:** assign added trip exposure to current
-   versus new users, synchronize person-level user status, and make explicit
-   user-count inputs authoritative over the percentage.
+1. **Current/new-user validation:** compare the trips-per-user conversion and
+   realized current/new allocation with empirical intervention evidence,
+   especially where one candidate pool is too small and the other fills the
+   shortfall.
 2. **Candidate-weight calibration:** decide whether category weights should be
    calibrated as target share divided by candidate prevalence, or replaced by
    exact/near-exact quota sampling. Test on large and sparse geographies.

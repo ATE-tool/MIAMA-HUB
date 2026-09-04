@@ -223,6 +223,8 @@ Hub <- R6::R6Class(
 
       staged <- prepare_trip_refinement_profile_defaults(
         reference_data = self$reference_default_data,
+        staged_reference_data = self$refinement_reference_data,
+        staged_counterfactual_data = self$refinement_counterfactual_data,
         profile = self$appraisal_inputs,
         reference_request = self$request$reference_request,
         cfg = self$cfg,
@@ -798,6 +800,10 @@ Hub <- R6::R6Class(
     .counterfactual_input_values = function() {
       values <- self$request$appraisal_input_values
       values <- .drop_unmodified_advanced_population_values(
+        values,
+        self$appraisal_inputs
+      )
+      values <- .drop_unmodified_trip_refinement_values(
         values,
         self$appraisal_inputs
       )

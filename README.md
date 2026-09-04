@@ -480,6 +480,12 @@ defaults from those row-level snapshots. The returned
 `refinement_defaults_report` records updated fields, reset hidden inputs, the
 scope and counterfactual reports, and the seed.
 
+The Tab 3 `pop_new_current_perc` slider is initialized from the realized
+current/new-user split in that staged CF snapshot when additional mode users
+were produced. The calculation pools mode-user memberships across assessed
+modes and is recorded as `realized_new_user_percent` in the refinement report.
+If there is no positive user change, the configured/profile default is retained.
+
 For user-count input, each mode-specific Tab 3 row is the corresponding Tab 2
 count. For trip-count input, it is the number of unique people owning the
 selected active-mode trips. Unless the user supplied an explicit population
@@ -508,6 +514,14 @@ movement does not compound rounded values. A later manual table edit overrides
 the generated value until a refinement control is moved again. Advanced age,
 sex, and PA sliders leave counts alone and modify CF candidate sampling weights.
 
+The same staged totals and mode-user counts are also written to the Tab 2 basic
+population fields (`pop_total_*_basic` and `pop_number_*_*_basic`). Therefore,
+when the optional basic population modal is opened after entering trips,
+distance/duration, or mode shares, its starting values should describe the
+Tab 2-implied appraisal population rather than reverting to the complete source
+geography. For non-user input routes, REF and CF total population remain equal;
+the mode-specific counts describe the different REF and CF travel snapshots.
+
 The shared population total is operational as well as explanatory: it defines
 the assessed person rows, the eligible non-user pool, and population-based rate
 denominators. Mode-specific REF/CF rows determine active-mode user targets.
@@ -526,6 +540,13 @@ The UI should use the two profile-building methods at distinct transitions:
    population scopes and initializes Tab 4 from matching REF/CF trip snapshots.
    Do not call `build_reference_profile_defaults()` again; that would overwrite
    the staged handoff with geography-wide defaults.
+
+The Tab 4 `induced_trips_percent` slider is initialized from the realized share
+of added CF trips represented by induced rows. This may differ from the Tab 3
+new-user percentage because people and trips are separate mechanisms. When no
+trip addition has yet established a realized split, HUB uses the effective Tab
+3 `pop_new_current_perc` value as the Tab 4 starting assumption. The source and
+value are retained in `trip_refinement_defaults_report`.
 
 HUB owns source-data loading, REF scoping, CF staging, population estimation,
 category metadata, and profile defaults. MIAMA-UI owns rendering controls,
@@ -1302,9 +1323,27 @@ donor-derived access-walking exposure to MMETs.
 An explicit user-count input is authoritative: its CF-minus-REF difference
 already determines how many user-status changes are required. The separate
 current/new-user percentage is intended only for pathways where user counts are
-inferred from trips, distance, duration, or mode share. That percentage remains
-planned until the model assigns added trip exposure to a defined number of
-distinct recipient people and synchronizes their person-level user status.
+inferred from trips, distance, duration, or mode share. For those pathways HUB
+calculates a trip-equivalent changed population as `ceiling(abs(CF trips -
+current trips) / weekly trips per user)`. Existing users of that mode absorb
+the current-user share of additional travel; only `pop_new_current_perc` of the
+trip-equivalent increase is sampled as additional users. The profile defaults to
+`cfg$counterfactual$population$new_user_percent_default` (10%). The resulting
+mode-user scope populates the Tab 3 CF table without modifying individual
+activity columns, because changed trip minutes already provide the health
+exposure and changing both would double count it. E-bike is the explicit edge
+case: because the source has no observed e-bike users, current active-travel
+users provide its proxy current-user recipient pool.
+
+For an explicit CF user target above REF, HUB retains the current mode users and
+recruits the required additional target-mode users from eligible baseline
+non-users across the retained geographic source, including people outside the
+scaled REF scope. The resulting current/new-user counts and percentages are
+recorded in `counterfactual_report$changes[[...]]$current_new_user_split`. The
+explicit count takes precedence over `pop_new_current_perc`; when it implies a
+higher new-user share, HUB records a non-fatal report note. The request fails
+only if the complete filtered geographic source lacks enough eligible distinct
+people.
 
 ### Trips: derive counterfactual number of active mode trips
 The trip-count handler supports `trips_count_cf_*` and `trips_number_cf_*` for
@@ -1431,6 +1470,33 @@ and the shifted/induced split. Consequently, mode share determines the
 per-mode sampling quota, while distance/duration determines a quota from the
 requested aggregate amount. The selected row characteristics determine the
 realized aggregate distance or duration and downstream MMET exposure.
+
+In the advanced workflow, Tab 4 trip counts override Tab 2 only when the user
+actually changes them. Shiny also submits displayed Tab 4 defaults as input
+values; HUB recognizes values that are still identical to those generated
+defaults and ignores them for precedence purposes. This prevents an untouched
+REF-equals-CF Tab 4 table from erasing a genuine Tab 2 mode-share, distance, or
+trip-count change. Tab 4 diversion pies remain applicable because they control
+which eligible source trips are sampled, not the requested trip volume.
+
+Cross-mode targets configured to use another active mode as a source are
+processed first; explicitly targeted donor modes are reconciled afterward.
+Only positive active-mode shares supplied by the UI or config permit this
+cannibalization. Locally inferred donor composition cannot consume active-mode
+rows. Every shifted or induced row is immediately marked `cf_trip_locked`, so
+the same physical trip cannot be selected by a later mode operation.
+Trip-pattern donors and exposure recipients are separate concepts: eligible
+trip rows may be sampled across the assessed population, then assigned to the
+selected current/new recipient pool. Original trip keys are retained for MMET
+differencing even when ownership changes.
+
+The Tab 3 to Tab 4 handoff continues from the separate REF and CF snapshots
+already produced from Tab 2. If Tab 3 is accepted unchanged, HUB measures Tab 4
+trip counts and distributions directly from those snapshots. If Tab 3 changes
+the assessed population, HUB re-scopes each snapshot independently and then
+measures its remaining trips. It does not reconstruct both scenarios from the
+original geographic source, so differences introduced through any Tab 2 input
+route remain represented.
 
 The complete conversion assumptions are retained for inspection under
 `reference_scope_report$tab2_input_conversion` and

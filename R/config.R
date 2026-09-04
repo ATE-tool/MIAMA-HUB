@@ -266,6 +266,11 @@ miama_default_config <- function(dataset_size = NULL) {
     ),
     # 5. Counterfactual mechanism assumptions ------------------------------
     counterfactual = list(
+      population = list(
+        # Used when a trip-derived input implies additional active travel but
+        # no explicit counterfactual user count is supplied.
+        new_user_percent_default = 10
+      ),
       modes = list(
         ebiking = list(
           reference_volume = "zero",

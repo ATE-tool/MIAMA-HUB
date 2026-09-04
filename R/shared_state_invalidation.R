@@ -35,10 +35,32 @@ invalidate_hub_state <- function(state = list(), changed_fields = character()) {
     state$reference_data <- NULL
     state$reference_default_data <- NULL
   }
-  if (length(changed_fields) > 0) {
+  refinement_upstream_fields <- c(
+    heavy_reload_fields,
+    "ui_version", "modes", "at_data_unit", "ui_mode_share_show_options",
+    "mode_share_total_unit", "mode_share_total_trips",
+    "mode_share_total_trips_basic", "mode_share_total_dist",
+    "mode_share_total_dur", "mode_share_ref", "mode_share_cf"
+  )
+  refinement_upstream_patterns <- paste0(
+    "^(users_count_(ref|cf)_|pop_(total|number)_(ref|cf).*_basic$|",
+      "trips_count_(ref|cf)_|dist_dur_amount_(ref|cf)_|",
+      "trips_timeframe_|trips_denominator_|users_timeframe_|",
+      "ui_dist_dur_type_|distance_unit_|duration_unit_|",
+      "dist_dur_denominator_|dist_dur_timeframe_|",
+      "default_trip_distance_|assump_trip_speed_|",
+      "default_trips_per_user_per_week_)"
+  )
+  refinement_upstream_changed <- reference_reload ||
+    any(changed_fields %in% refinement_upstream_fields) ||
+    any(grepl(refinement_upstream_patterns, changed_fields))
+
+  if (isTRUE(refinement_upstream_changed)) {
     state$refinement_reference_data <- NULL
     state$refinement_counterfactual_data <- NULL
     state$refinement_report <- NULL
+  }
+  if (length(changed_fields) > 0) {
     state$counterfactual_data <- NULL
     state$health_impacts <- NULL
     state$results_data <- NULL
@@ -53,6 +75,7 @@ invalidate_hub_state <- function(state = list(), changed_fields = character()) {
     changed_fields = changed_fields,
     invalidated = length(changed_fields) > 0,
     reference_reload = reference_reload,
-    reference_defaults_refresh = reference_defaults_refresh
+    reference_defaults_refresh = reference_defaults_refresh,
+    refinement_upstream_changed = refinement_upstream_changed
   )
 }

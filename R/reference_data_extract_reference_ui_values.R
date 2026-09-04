@@ -322,6 +322,17 @@ extract_reference_ui_values <- function(
 .reference_users_count <- function(ind, trips, mode) {
   spec <- .miama_tab2_mode_specs()[[mode]]
 
+  # Materialized REF/CF snapshots expose the authoritative mode-user scope.
+  # Trip-derived users retain trip-based health exposure, avoiding a duplicate
+  # change in the individual activity column solely for display purposes.
+  materialized_scope_col <- paste0(".miama_user_scope_", spec$suffix)
+  if (!is.null(ind) && materialized_scope_col %in% names(ind)) {
+    return(list(
+      value = sum(.true_values(ind[[materialized_scope_col]])),
+      notes = character(0)
+    ))
+  }
+
   if (!is.na(spec$ind_duration_col) && !is.null(ind) && spec$ind_duration_col %in% names(ind)) {
     return(list(
       value = sum(.positive_col(ind, spec$ind_duration_col), na.rm = TRUE),
@@ -356,6 +367,10 @@ extract_reference_ui_values <- function(
   }
 
   keep <- spec$trip_filter(trips) & !is.na(trips$nts_tripid)
+  materialized_scope_col <- paste0(".miama_trip_scope_", spec$suffix)
+  if (materialized_scope_col %in% names(trips)) {
+    keep <- keep & .true_values(trips[[materialized_scope_col]])
+  }
   total <- sum(keep, na.rm = TRUE)
   total <- convert_timeframe_value("week", total, timeframe, datatype = "trips")
 

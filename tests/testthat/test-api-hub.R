@@ -53,6 +53,29 @@ test_that("reference display changes recompute defaults without reloading rows",
   expect_null(invalidation$state$reference_default_ui_values)
 })
 
+test_that("Tab 3 changes retain staged Tab 2 snapshots", {
+  staged_ref <- list(ind = data.frame(census_id = 1))
+  staged_cf <- list(ind = data.frame(census_id = 1))
+  state <- list(
+    refinement_reference_data = staged_ref,
+    refinement_counterfactual_data = staged_cf,
+    refinement_report = list(stage = "tab2"),
+    counterfactual_data = list(value = 1),
+    results_data = list(value = 1)
+  )
+
+  tab3 <- invalidate_hub_state(state, "pop_total_cf_advanced")
+  tab2 <- invalidate_hub_state(state, "mode_share_cf")
+
+  expect_false(tab3$refinement_upstream_changed)
+  expect_identical(tab3$state$refinement_reference_data, staged_ref)
+  expect_identical(tab3$state$refinement_counterfactual_data, staged_cf)
+  expect_null(tab3$state$counterfactual_data)
+  expect_true(tab2$refinement_upstream_changed)
+  expect_null(tab2$state$refinement_reference_data)
+  expect_null(tab2$state$refinement_counterfactual_data)
+})
+
 test_that("Hub exposes reference UI updates and single-field accessors", {
   hub <- Hub$new(cfg = list())
   hub$set_appraisal_inputs(build_mock_appraisal_inputs(

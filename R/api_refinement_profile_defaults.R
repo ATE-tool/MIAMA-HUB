@@ -46,10 +46,17 @@ prepare_refinement_profile_defaults <- function(reference_data,
     ref_values$ui_updates,
     cf_values$ui_updates
   )
+  realized_new_user_percent <- .counterfactual_realized_new_user_percent(
+    staged_counterfactual$counterfactual_report
+  )
+  if (!is.null(realized_new_user_percent)) {
+    updates$pop_new_current_perc <- realized_new_user_percent
+  }
   updated_profile <- apply_refinement_defaults_to_profile(profile, updates)
   report <- attr(updated_profile, "refinement_defaults_report")
   report$reference_scope_report <- scoped_reference$reference_scope_report
   report$counterfactual_report <- staged_counterfactual$counterfactual_report
+  report$realized_new_user_percent <- realized_new_user_percent
   report$seed <- as.integer(seed)
   attr(updated_profile, "refinement_defaults_report") <- report
 
@@ -67,24 +74,52 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
                                                      profile,
                                                      reference_request = list(),
                                                      cfg = NULL,
-                                                     seed = 1L) {
+                                                     seed = 1L,
+                                                     staged_reference_data = NULL,
+                                                     staged_counterfactual_data = NULL) {
   assert_named_list(reference_data, "reference_data")
   assert_named_list(profile, "profile")
 
   stage_values <- .tab3_stage_input_values(profile)
-  scoped_reference <- apply_reference_appraisal_scope(
-    reference_data,
-    appraisal_input_values = stage_values,
-    seed = seed,
-    cfg = cfg
-  )
-  staged_counterfactual <- apply_counterfactual_ui_values(
-    init_counterfactual_data(scoped_reference),
-    stage_values,
-    reference_data = scoped_reference,
-    constants = miama_counterfactual_defaults(cfg),
-    seed = seed
-  )
+  use_staged_snapshots <- !is.null(staged_reference_data) &&
+    !is.null(staged_counterfactual_data)
+  tab3_changed <- use_staged_snapshots &&
+    .tab3_profile_has_refinement_edits(profile)
+
+  if (use_staged_snapshots && !tab3_changed) {
+    # The user accepted the Tab 3 defaults. Continue with the exact REF and CF
+    # snapshots produced from Tab 2; rebuilding from the geography would erase
+    # trip-based differences before Tab 4 is populated.
+    scoped_reference <- staged_reference_data
+    staged_counterfactual <- staged_counterfactual_data
+  } else if (use_staged_snapshots) {
+    # Tab 3 changed the assessed people. Re-scope each existing behavioral
+    # snapshot independently, preserving its trips and activity values.
+    scoped_reference <- .rescope_staged_snapshot(
+      staged_reference_data, stage_values, scenario = "ref",
+      seed = seed, cfg = cfg
+    )
+    staged_counterfactual <- .rescope_staged_snapshot(
+      staged_counterfactual_data, stage_values, scenario = "cf",
+      seed = seed + 10000L, cfg = cfg
+    )
+  } else {
+    # Developer/API fallback when Tab 4 staging is called without first staging
+    # Tab 2. This retains the standalone behavior used by existing callers.
+    scoped_reference <- apply_reference_appraisal_scope(
+      reference_data,
+      appraisal_input_values = stage_values,
+      seed = seed,
+      cfg = cfg
+    )
+    staged_counterfactual <- apply_counterfactual_ui_values(
+      init_counterfactual_data(scoped_reference),
+      stage_values,
+      reference_data = scoped_reference,
+      constants = miama_counterfactual_defaults(cfg),
+      seed = seed
+    )
+  }
 
   reference_view <- materialize_appraisal_scope(scoped_reference, "ref")
   counterfactual_view <- materialize_appraisal_scope(staged_counterfactual, "cf")
@@ -107,10 +142,28 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
     ref_values$ui_updates,
     cf_values$ui_updates
   )
+  realized_induced_percent <- .counterfactual_realized_induced_trip_percent(
+    staged_counterfactual$counterfactual_report
+  )
+  induced_default_source <- "realized_trip_changes"
+  if (is.null(realized_induced_percent)) {
+    realized_induced_percent <- .profile_field_effective_value(
+      profile$pop_new_current_perc,
+      default = cfg$counterfactual$population$new_user_percent_default %||% 10
+    )
+    induced_default_source <- "current_new_user_percent"
+  }
+  if (!is.null(realized_induced_percent)) {
+    updates$induced_trips_percent <- realized_induced_percent
+  }
   updated_profile <- apply_refinement_defaults_to_profile(profile, updates)
   report <- attr(updated_profile, "refinement_defaults_report")
   report$reference_scope_report <- scoped_reference$reference_scope_report
   report$counterfactual_report <- staged_counterfactual$counterfactual_report
+  report$used_staged_tab2_snapshots <- use_staged_snapshots
+  report$tab3_population_rescoped <- tab3_changed
+  report$realized_induced_trips_percent <- realized_induced_percent
+  report$induced_trips_percent_default_source <- induced_default_source
   report$seed <- as.integer(seed)
   attr(updated_profile, "trip_refinement_defaults_report") <- report
 
@@ -122,6 +175,66 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
     counterfactual_view = counterfactual_view,
     report = report
   )
+}
+
+.counterfactual_realized_new_user_percent <- function(report) {
+  changes <- report$changes %||% list()
+  new_n <- 0
+  affected_n <- 0
+
+  for (change in changes) {
+    if (is.null(change$delta) || !is.finite(change$delta) || change$delta <= 0) next
+
+    split <- change$current_new_user_split
+    if (is.list(split)) {
+      current <- as.numeric(split$retained_current_users %||% 0)
+      new <- as.numeric(split$recruited_new_users %||% 0)
+      if (is.finite(current) && is.finite(new) && current + new > 0) {
+        new_n <- new_n + new
+        affected_n <- affected_n + current + new
+      }
+      next
+    }
+
+    allocation <- change$user_allocation
+    if (is.list(allocation) && identical(allocation$method, "trips_per_user")) {
+      equivalent <- as.numeric(allocation$equivalent_changed_users %||% 0)
+      new <- as.numeric(allocation$added_new_at_users %||% 0)
+      if (is.finite(equivalent) && is.finite(new) && equivalent > 0) {
+        new_n <- new_n + new
+        affected_n <- affected_n + equivalent
+      }
+    }
+  }
+
+  if (affected_n <= 0) return(NULL)
+  round(100 * new_n / affected_n, 1)
+}
+
+.counterfactual_realized_induced_trip_percent <- function(report) {
+  changes <- report$changes %||% list()
+  induced_n <- 0
+  added_n <- 0
+
+  for (change in changes) {
+    if (is.null(change$delta) || !is.finite(change$delta) || change$delta <= 0) next
+    shifted <- as.numeric(change$mode_shift_n %||% 0)
+    induced <- as.numeric(change$induced_n %||% 0)
+    if (!is.finite(shifted) || !is.finite(induced) || shifted + induced <= 0) next
+    induced_n <- induced_n + induced
+    added_n <- added_n + shifted + induced
+  }
+
+  if (added_n <= 0) return(NULL)
+  round(100 * induced_n / added_n, 1)
+}
+
+.profile_field_effective_value <- function(field, default = NULL) {
+  if (!is_input_field(field)) return(default)
+  if (isTRUE(field$is_filled) && !is.null(field$input_value)) {
+    return(field$input_value)
+  }
+  field$default_value %||% default
 }
 
 .tab2_stage_input_values <- function(profile) {
@@ -147,6 +260,11 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
   modes <- intersect(modes, names(.miama_tab2_mode_specs()))
   for (mode in modes) {
     suffix <- .miama_mode_suffix(mode)
+    assumption_field <- paste0("default_trips_per_user_per_week_", suffix)
+    if (is.null(.ui_value(values, assumption_field, NULL)) &&
+        is_input_field(profile[[assumption_field]])) {
+      values[[assumption_field]] <- profile[[assumption_field]]$default_value
+    }
     for (scenario in c("ref", "cf")) {
       source_fields <- c(
         paste0("users_count_", scenario, "_", suffix),
@@ -208,6 +326,98 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
   values$at_data_unit <- "users"
 
   values
+}
+
+.tab3_profile_has_refinement_edits <- function(profile) {
+  fields <- grep(
+    paste0(
+      "^(pop_(total|number)_(ref|cf).*_advanced$|",
+      "pop_refine_method$|pop_target_(age|pa)_groups$|",
+      "pop_spread_.*_cf_)"
+    ),
+    names(profile),
+    value = TRUE
+  )
+
+  any(vapply(fields, function(field_name) {
+    field <- profile[[field_name]]
+    if (!is_input_field(field) || !isTRUE(field$is_filled) ||
+        is.null(field$input_value)) {
+      return(FALSE)
+    }
+    comparison <- field$additional_data$default_value_backup %||%
+      field$default_value
+    if (is.null(comparison)) {
+      return(length(field$input_value) > 0)
+    }
+    !.same_profile_value(field$input_value, comparison)
+  }, logical(1)))
+}
+
+.rescope_staged_snapshot <- function(data,
+                                     values,
+                                     scenario = c("ref", "cf"),
+                                     seed = 1L,
+                                     cfg = NULL) {
+  scenario <- match.arg(scenario)
+  source_activity <- list()
+  scope_values <- values
+  modes <- normalize_active_modes(.ui_value(values, "modes", character(0)))
+  modes <- intersect(modes, names(.miama_tab2_mode_specs()))
+
+  if (identical(scenario, "cf")) {
+    # Trip-derived CF users are represented by mode scope flags; their activity
+    # remains on trip rows to avoid counting exposure twice. Temporarily expose
+    # those flags as positive activity so the generic reference-scope sampler
+    # validates against the staged CF population rather than the original REF
+    # activity columns. The original activity values are restored below.
+    for (mode in modes) {
+      spec <- .counterfactual_mode_spec(mode)
+      scope_col <- .reference_user_scope_col(mode, "cf")
+      if (!is.null(spec) && !is.na(spec$activity_col) &&
+          spec$activity_col %in% names(data$ind) && scope_col %in% names(data$ind)) {
+        source_activity[[spec$activity_col]] <- data$ind[[spec$activity_col]]
+        flagged <- .true_values(data$ind[[scope_col]])
+        temporary_activity <- .as_plain_numeric(data$ind[[spec$activity_col]][flagged])
+        temporary_activity[!is.finite(temporary_activity)] <- 0
+        data$ind[[spec$activity_col]][flagged] <- pmax(temporary_activity, 1)
+      }
+    }
+    scope_values$pop_total_ref_advanced <-
+      .ui_value(values, "pop_total_cf_advanced", NULL)
+    scope_values$pop_total_ref_basic <-
+      .ui_value(values, "pop_total_cf_basic", NULL)
+    for (mode in modes) {
+      suffix <- .miama_mode_suffix(mode)
+      scope_values[[paste0("pop_number_ref_", suffix, "_advanced")]] <-
+        .ui_value(values, paste0("pop_number_cf_", suffix, "_advanced"), NULL)
+      scope_values[[paste0("pop_number_ref_", suffix, "_basic")]] <-
+        .ui_value(values, paste0("pop_number_cf_", suffix, "_basic"), NULL)
+      scope_values[[paste0("users_count_ref_", suffix)]] <-
+        .ui_value(values, paste0("users_count_cf_", suffix), NULL)
+    }
+  } else {
+    # Counterfactual spread sliders choose who changes in CF; they must not
+    # bias the independently scoped reference snapshot.
+    cf_spread_fields <- grep("^pop_spread_.*_cf_", names(scope_values), value = TRUE)
+    scope_values[cf_spread_fields] <- rep(list(NULL), length(cf_spread_fields))
+  }
+
+  scoped <- apply_reference_appraisal_scope(
+    data,
+    appraisal_input_values = scope_values,
+    seed = seed,
+    cfg = cfg
+  )
+  if (identical(scenario, "cf") && length(source_activity) > 0) {
+    for (column in names(source_activity)) {
+      scoped$ind[[column]] <- source_activity[[column]][
+        match(scoped$ind$census_id, data$ind$census_id)
+      ]
+    }
+  }
+  scoped$reference_scope_report$scenario <- scenario
+  scoped
 }
 
 .apply_tab3_category_counts <- function(values, profile) {
@@ -278,6 +488,10 @@ materialize_appraisal_scope <- function(data, scenario = c("ref", "cf")) {
     for (mode in intersect(.miama_supported_modes(), names(.miama_tab2_mode_specs()))) {
       spec <- .miama_tab2_mode_specs()[[mode]]
       scope_col <- .reference_user_scope_col(mode, scenario)
+      materialized_scope_col <- paste0(".miama_user_scope_", spec$suffix)
+      if (scope_col %in% names(out$ind)) {
+        out$ind[[materialized_scope_col]] <- .true_values(out$ind[[scope_col]])
+      }
       if (!is.na(spec$ind_duration_col) &&
           spec$ind_duration_col %in% names(out$ind) &&
           scope_col %in% names(out$ind)) {
@@ -300,6 +514,11 @@ materialize_appraisal_scope <- function(data, scenario = c("ref", "cf")) {
       spec <- .miama_tab2_mode_specs()[[mode]]
       scope_col <- .reference_trip_scope_col(mode, scenario)
       if (!scope_col %in% names(out$trips)) next
+      out$trips[[paste0(".miama_trip_scope_", spec$suffix)]] <-
+        .true_values(out$trips[[scope_col]])
+      # PT uses the walking component columns. Zeroing them for the PT scope
+      # would also erase ordinary walking trips already materialized above.
+      if (identical(mode, "pt")) next
       outside <- !.true_values(out$trips[[scope_col]])
       for (column in c(spec$trip_distance_col, spec$trip_duration_col)) {
         if (!is.na(column) && column %in% names(out$trips)) {
@@ -315,7 +534,7 @@ materialize_appraisal_scope <- function(data, scenario = c("ref", "cf")) {
 .refinement_profile_updates <- function(ref_updates, cf_updates) {
   keep_ref <- grepl(
     paste0(
-      "^(pop_total_ref_advanced|pop_number_ref_.*_advanced|",
+      "^(pop_total_ref_(basic|advanced)|pop_number_ref_.*_(basic|advanced)|",
       "pop_spread_.*_ref_.*|pa_spread_bars_ref_.*|",
       "pop_target_age_groups|pop_target_pa_groups)$"
     ),
@@ -333,9 +552,14 @@ materialize_appraisal_scope <- function(data, scenario = c("ref", "cf")) {
   }
 
   mappings <- c(
+    pop_total_ref_basic = "pop_total_cf_basic",
     pop_total_ref_advanced = "pop_total_cf_advanced"
   )
-  mode_ref <- grep("^pop_number_ref_.*_advanced$", names(cf_updates), value = TRUE)
+  mode_ref <- grep(
+    "^pop_number_ref_.*_(basic|advanced)$",
+    names(cf_updates),
+    value = TRUE
+  )
   mappings <- c(mappings, stats::setNames(
     sub("_ref_", "_cf_", mode_ref, fixed = TRUE),
     mode_ref
@@ -450,6 +674,27 @@ apply_refinement_defaults_to_profile <- function(profile, updates) {
     if (!is_input_field(field) || is.null(field$input_value)) next
     default <- field$default_value
     if (.same_profile_value(field$input_value, default)) {
+      values[[field_name]] <- NULL
+    }
+  }
+  values
+}
+
+# Shiny submits rendered Tab 4 count controls even when the user has not edited
+# them. In an advanced appraisal those fields otherwise outrank the Tab 2 trip
+# representation (including mode shares) and can turn a real Tab 2 change into
+# a no-change result. Treat a value identical to its generated Tab 4 default as
+# unmodified; an actual Tab 4 edit remains authoritative.
+.drop_unmodified_trip_refinement_values <- function(values, profile) {
+  fields <- grep(
+    "^trips_number_(total_)?(ref|cf)(_|$)",
+    intersect(names(values), names(profile)),
+    value = TRUE
+  )
+  for (field_name in fields) {
+    field <- profile[[field_name]]
+    if (!is_input_field(field) || is.null(field$input_value)) next
+    if (.same_profile_value(field$input_value, field$default_value)) {
       values[[field_name]] <- NULL
     }
   }

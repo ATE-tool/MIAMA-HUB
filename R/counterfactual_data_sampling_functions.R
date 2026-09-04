@@ -115,6 +115,16 @@ cf_add_key_indicators <- function(counterfactual_data, modes = .miama_supported_
 
   if (!is.null(counterfactual_data$trips)) {
     counterfactual_data$trips <- cf_add_trip_indicators(counterfactual_data$trips, modes)
+    if (!"cf_source_census_id" %in% names(counterfactual_data$trips) &&
+        "census_id" %in% names(counterfactual_data$trips)) {
+      counterfactual_data$trips$cf_source_census_id <-
+        counterfactual_data$trips$census_id
+    }
+    if (!"cf_source_nts_tripid" %in% names(counterfactual_data$trips) &&
+        "nts_tripid" %in% names(counterfactual_data$trips)) {
+      counterfactual_data$trips$cf_source_nts_tripid <-
+        counterfactual_data$trips$nts_tripid
+    }
     if (!"cf_trip_change" %in% names(counterfactual_data$trips)) {
       counterfactual_data$trips$cf_trip_change <- "unchanged"
     }

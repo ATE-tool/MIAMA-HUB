@@ -97,6 +97,15 @@ test_that("CF user targets recruit baseline non-users beyond scaled REF", {
     counterfactual_data$counterfactual_report$changes[[1]]$cf_scope_added_n,
     2
   )
+  split <- counterfactual_data$counterfactual_report$changes[[1]]$current_new_user_split
+  expect_equal(split$retained_current_users, 1)
+  expect_equal(split$recruited_new_users, 3)
+  expect_equal(split$realized_new_user_percent, 75)
+  expect_equal(split$preferred_new_user_percent, 10)
+  expect_true(any(grepl(
+    "explicit counterfactual walking user target requires 75%",
+    counterfactual_data$counterfactual_report$notes
+  )))
 })
 
 test_that("CF user targets report an exhausted geographic non-user pool", {
@@ -472,11 +481,58 @@ test_that("apply_counterfactual_ui_values increases walking trips by shifting mo
   active <- counterfactual_data$trips$trip_walkdist_km > 0 |
     counterfactual_data$trips$trip_walktime_min > 0
   expect_equal(sum(active), 3)
-  expect_equal(nrow(counterfactual_data$trips), 4)
+  # The trip-implied population is two users. Rows not available among those
+  # selected recipients fall back to induced trips while preserving the total.
+  expect_gte(nrow(counterfactual_data$trips), 4)
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$field, "trips_count_cf_walk")
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$role, "mode_shift_and_induced_trips")
-  expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$mode_shift_n, 2)
+  expect_equal(
+    counterfactual_data$counterfactual_report$changes[[1]]$mode_shift_n +
+      counterfactual_data$counterfactual_report$changes[[1]]$induced_n,
+    2
+  )
   expect_equal(counterfactual_data$counterfactual_report$changes[[1]]$implied_weekly_users, 2)
+})
+
+test_that("trip increases can be concentrated among existing mode users", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:4,
+      walktime_wkhr = c(1, 0, 0, 0),
+      cycletime_wkhr = 0,
+      sport_wkhr = 0,
+      mmets = c(2.5, 0, 0, 0)
+    ),
+    trips = data.frame(
+      census_id = 1:4,
+      nts_tripid = 11:14,
+      trip_mainmode = c("walking", "car", "car", "car"),
+      trip_distraw_km = 1,
+      trip_durationraw_min = 10,
+      trip_walkdist_km = c(1, 0, 0, 0),
+      trip_walktime_min = c(10, 0, 0, 0),
+      trip_purpose = "Commuting"
+    )
+  )
+
+  result <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    list(
+      modes = "walking",
+      trips_count_cf_walk = 4,
+      default_trips_per_user_per_week_walk = 1,
+      pop_new_current_perc = 0,
+      induced_trips_percent = 0
+    ),
+    reference_data,
+    seed = 8
+  )
+
+  active <- result$trips$trip_walkdist_km > 0
+  expect_equal(sum(active), 4)
+  expect_equal(unique(result$trips$census_id[active]), 1)
+  expect_equal(sum(result$ind$cf_user_scope_walk), 1)
+  expect_true(all(result$trips$cf_trip_locked[result$trips$cf_trip_change != "unchanged"]))
 })
 
 test_that("induced trips preserve unlabeled numeric purpose and set recreational indicator", {
@@ -1001,6 +1057,55 @@ test_that("e-bike changes use cycling donors without reclassifying reference cyc
     sum(result$ind$cf_mmet_delta),
     sum(result$ind$cf_mmet_delta_cycling + result$ind$cf_mmet_delta_ebiking)
   )
+})
+
+test_that("cross-mode shifts are locked and donor-mode targets are reconciled last", {
+  reference_data <- list(
+    ind = data.frame(
+      census_id = 1:5,
+      walktime_wkhr = 0,
+      cycletime_wkhr = c(1, 1, 0, 0, 0),
+      sport_wkhr = 0,
+      mmets = c(5.8, 5.8, 0, 0, 0)
+    ),
+    trips = data.frame(
+      census_id = 1:5,
+      nts_tripid = 11:15,
+      trip_mainmode = c("cycling", "cycling", "car", "car", "car"),
+      trip_distraw_km = 4,
+      trip_durationraw_min = 20,
+      trip_walkdist_km = 0,
+      trip_walktime_min = 0,
+      trip_cycledist_km = c(4, 4, 0, 0, 0),
+      trip_cycletime_min = c(20, 20, 0, 0, 0),
+      trip_purpose = "Commuting"
+    )
+  )
+  constants <- utils::modifyList(
+    miama_counterfactual_defaults(),
+    list(source_mode_shares = list(ebiking = c(cycling = 1)))
+  )
+
+  result <- apply_counterfactual_ui_values(
+    init_counterfactual_data(reference_data),
+    list(
+      modes = c("cycling", "ebiking"),
+      trips_count_cf_bike = 3,
+      trips_count_cf_ebike = 1,
+      induced_trips_percent = 0,
+      default_trips_per_user_per_week_bike = 1,
+      default_trips_per_user_per_week_ebike = 1
+    ),
+    reference_data,
+    constants = constants,
+    seed = 4
+  )
+
+  expect_equal(sum(.mainmode_trip_filter(result$trips, "cycling")), 3)
+  expect_equal(sum(result$trips$trip_mainmode == "ebiking"), 1)
+  changed <- result$trips$cf_trip_change != "unchanged"
+  expect_true(all(result$trips$cf_trip_locked[changed]))
+  expect_equal(length(unique(result$trips$nts_tripid)), nrow(result$trips))
 })
 
 test_that("configured e-bike source shares balance cycling, PT, and car pools", {

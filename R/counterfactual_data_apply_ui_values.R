@@ -241,7 +241,15 @@ apply_counterfactual_ui_values <- function(
   changes <- list()
   notes <- character(0)
 
-  for (mode in context$modes) {
+  # Allocate modes that may draw from another active mode first. Explicit
+  # targets for donor modes are then reconciled against that changed snapshot,
+  # so a later e-bike diversion cannot leave cycling below its requested total.
+  cross_mode_first <- vapply(context$modes, function(mode) {
+    !is.null(context$constants$source_mode_shares[[mode]])
+  }, logical(1))
+  processing_modes <- context$modes[order(!cross_mode_first)]
+
+  for (mode in processing_modes) {
     result <- .apply_cf_trip_count_for_mode(
       counterfactual_data = counterfactual_data,
       reference_data = context$reference_data,
@@ -297,6 +305,7 @@ apply_counterfactual_ui_values <- function(
   .require_cf_user_count_columns(counterfactual_data, reference_data, spec)
 
   target <- .validate_cf_user_target(target, spec)
+  new_user_preference <- .cf_new_user_target(appraisal_input_values, constants)
 
   ref_scope_col <- .reference_user_scope_col(mode, "ref")
   cf_scope_col <- .reference_user_scope_col(mode, "cf")
@@ -379,6 +388,14 @@ apply_counterfactual_ui_values <- function(
     rep(TRUE, nrow(counterfactual_data$ind))
   }
   updated_cf_users <- .positive_col(counterfactual_data$ind, spec$activity_col) & updated_scope
+  updated_cf_n <- sum(updated_cf_users, na.rm = TRUE)
+  retained_current_n <- min(cf_n, updated_cf_n)
+  recruited_new_n <- max(updated_cf_n - cf_n, 0L)
+  realized_new_percent <- if (updated_cf_n > 0) {
+    100 * recruited_new_n / updated_cf_n
+  } else {
+    0
+  }
   change <- .compact_counterfactual_change(
     field = target_spec$field,
     alias_field = target_spec$alias_field,
@@ -387,7 +404,7 @@ apply_counterfactual_ui_values <- function(
     target = target,
     ref_n = ref_n,
     cf_n_before = cf_n,
-    cf_n_after = sum(updated_cf_users, na.rm = TRUE),
+    cf_n_after = updated_cf_n,
     delta = delta,
     role = assignment$role,
     donor_source = assignment$donor_source,
@@ -408,11 +425,31 @@ apply_counterfactual_ui_values <- function(
   change$trips_per_user_per_week <- trip_rate$value
   change$trips_per_user_per_week_field <- trip_rate$field
   change$explicit_trip_count <- explicit_trip_count
+  change$current_new_user_split <- list(
+    retained_current_users = retained_current_n,
+    recruited_new_users = recruited_new_n,
+    realized_current_user_percent = 100 - realized_new_percent,
+    realized_new_user_percent = realized_new_percent,
+    preferred_new_user_percent = new_user_preference$percent,
+    preferred_new_user_percent_field = new_user_preference$field,
+    preferred_new_user_percent_source = new_user_preference$source
+  )
+
+  notes <- trip_effect$notes
+  if (delta > 0 &&
+      realized_new_percent > new_user_preference$percent + sqrt(.Machine$double.eps)) {
+    notes <- c(notes, paste0(
+      "The explicit counterfactual ", mode, " user target requires ",
+      round(realized_new_percent, 1), "% of counterfactual ", mode,
+      " users to be recruited baseline non-users, above the preferred ",
+      round(new_user_preference$percent, 1), "%. The explicit user count took precedence."
+    ))
+  }
 
   list(
     counterfactual_data = counterfactual_data,
     changes = list(change),
-    notes = trip_effect$notes
+    notes = notes
   )
 }
 
@@ -685,6 +722,19 @@ apply_counterfactual_ui_values <- function(
     spec$suffix,
     constants
   )
+  new_user_target <- .cf_new_user_target(appraisal_input_values, constants)
+  explicit_user_target <- .cf_user_target(appraisal_input_values, spec$suffix)
+  user_allocation <- .cf_trip_user_allocation(
+    counterfactual_data = counterfactual_data,
+    reference_data = reference_data,
+    spec = spec,
+    target_trip_count = target_base$count,
+    current_trip_count = cf_n,
+    trips_per_user_per_week = trip_rate$value,
+    new_user_percent = new_user_target$percent,
+    explicit_user_target = explicit_user_target$value,
+    seed = seed + spec$seed_offset + 2800L
+  )
   assignment <- .assign_cf_trip_count_delta(
     counterfactual_data = counterfactual_data,
     reference_data = reference_data,
@@ -701,11 +751,19 @@ apply_counterfactual_ui_values <- function(
     ),
     constants = constants,
     induced_trips_percent = induced_target$percent,
+    recipient_ids = user_allocation$ids,
     source_diversion_target = source_diversion_target,
     diversion_target = .cf_away_diversion_target(constants)
   )
 
   counterfactual_data <- assignment$counterfactual_data
+  if (is.null(explicit_user_target$value)) {
+    counterfactual_data <- .set_cf_mode_user_scope(
+      counterfactual_data,
+      spec,
+      user_allocation$ids
+    )
+  }
   updated_scope <- if (cf_scope_col %in% names(counterfactual_data$trips)) .true_values(counterfactual_data$trips[[cf_scope_col]]) else TRUE
   updated_cf_active <- spec$trip_filter(counterfactual_data$trips) & updated_scope &
     !is.na(counterfactual_data$trips$nts_tripid)
@@ -727,7 +785,7 @@ apply_counterfactual_ui_values <- function(
   change$target_base_week_count <- target_base$count
   change$target_physical_row_count <- target_base$count
   change$implied_weekly_users <- if (is.null(trip_rate$value)) {
-    NULL
+    user_allocation$target_users
   } else {
     as.integer(ceiling(target_base$count / trip_rate$value))
   }
@@ -747,6 +805,10 @@ apply_counterfactual_ui_values <- function(
   change$induced_trips_percent <- assignment$induced_trips_percent
   change$induced_trips_percent_field <- induced_target$field
   change$induced_trips_percent_source <- induced_target$source
+  change$new_user_percent <- new_user_target$percent
+  change$new_user_percent_field <- new_user_target$field
+  change$new_user_percent_source <- new_user_target$source
+  change$user_allocation <- user_allocation$report
   change$diversion_source_field <- source_diversion_target$field
   change$source_mode_shares <- source_diversion_target$shares
   change$source_mode_shares_source <- source_diversion_target$source
@@ -785,6 +847,7 @@ apply_counterfactual_ui_values <- function(
     trip_target,
     constants,
     induced_trips_percent,
+    recipient_ids,
     source_diversion_target,
     diversion_target
 ) {
@@ -817,6 +880,7 @@ apply_counterfactual_ui_values <- function(
       source_diversion_target = source_diversion_target,
       constants = constants,
       seed = seed + spec$seed_offset + 3000L,
+      recipient_ids = recipient_ids,
       exposure_source = "trip_target"
     )
     counterfactual_data <- shifted$counterfactual_data
@@ -827,7 +891,7 @@ apply_counterfactual_ui_values <- function(
       spec = spec,
       n = induced_n,
       seed = seed + spec$seed_offset + 3500L,
-      census_ids = .cf_scoped_person_ids(counterfactual_data),
+      census_ids = recipient_ids,
       constants = constants
     )
     counterfactual_data <- induced$counterfactual_data
@@ -1024,6 +1088,180 @@ apply_counterfactual_ui_values <- function(
   )
 }
 
+.cf_new_user_target <- function(values, constants) {
+  field <- "pop_new_current_perc"
+  raw <- .ui_value(values, field, NULL)
+  source <- "profile"
+  if (.is_blank_cf_target(raw)) {
+    field <- NULL
+    raw <- constants$new_user_percent_default %||% 10
+    source <- "config_default"
+  }
+  value <- suppressWarnings(as.numeric(raw))
+  if (length(value) != 1 || !is.finite(value) || value < 0 || value > 100) {
+    stop("`pop_new_current_perc` must be between 0 and 100.", call. = FALSE)
+  }
+  list(percent = value, field = field, source = source)
+}
+
+.cf_trip_user_allocation <- function(counterfactual_data,
+                                     reference_data,
+                                     spec,
+                                     target_trip_count,
+                                     current_trip_count,
+                                     trips_per_user_per_week,
+                                     new_user_percent,
+                                     explicit_user_target = NULL,
+                                     seed = 1L) {
+  ind <- counterfactual_data$ind
+  if (is.null(ind) || !"census_id" %in% names(ind)) {
+    return(list(ids = NULL, target_users = NULL, report = list(method = "unavailable")))
+  }
+  in_scope <- if ("cf_in_scope" %in% names(ind)) {
+    .true_values(ind$cf_in_scope)
+  } else {
+    rep(TRUE, nrow(ind))
+  }
+  mode_scope_col <- .reference_user_scope_col(spec$mode, "cf")
+  current_mode <- if (mode_scope_col %in% names(ind)) {
+    .true_values(ind[[mode_scope_col]]) & in_scope
+  } else if (!is.na(spec$activity_col) && spec$activity_col %in% names(ind)) {
+    .positive_col(ind, spec$activity_col) & in_scope
+  } else {
+    rep(FALSE, nrow(ind))
+  }
+
+  if (!is.null(explicit_user_target)) {
+    return(list(
+      ids = ind$census_id[current_mode],
+      target_users = sum(current_mode),
+      report = list(method = "explicit_user_target", target_users = sum(current_mode))
+    ))
+  }
+
+  rate <- trips_per_user_per_week
+  if (is.null(rate) || !is.finite(rate) || rate <= 0) {
+    current_trip_n <- sum(spec$trip_filter(reference_data$trips), na.rm = TRUE)
+    current_user_n <- sum(current_mode)
+    rate <- if (current_user_n > 0 && current_trip_n > 0) {
+      current_trip_n / current_user_n
+    } else {
+      1
+    }
+  }
+  current_rows <- which(current_mode)
+  trip_delta <- target_trip_count - current_trip_count
+  equivalent_changed_users <- as.integer(ceiling(abs(trip_delta) / rate))
+
+  if (trip_delta <= 0) {
+    removed_users <- min(
+      length(current_rows),
+      as.integer(round(equivalent_changed_users * new_user_percent / 100))
+    )
+    target_users <- length(current_rows) - removed_users
+    set.seed(seed)
+    selected <- if (target_users == 0L) integer(0) else {
+      sample(current_rows, target_users, replace = FALSE)
+    }
+    return(list(
+      ids = ind$census_id[selected],
+      target_users = target_users,
+      report = list(
+        method = "trips_per_user",
+        trips_per_user_per_week = rate,
+        target_users = target_users,
+        retained_current_mode_users = target_users,
+        equivalent_changed_users = equivalent_changed_users,
+        added_current_at_users = 0L,
+        added_new_at_users = 0L
+      )
+    ))
+  }
+
+  any_current_at <- rep(FALSE, nrow(ind))
+  for (mode in .miama_supported_modes()) {
+    col <- .reference_user_scope_col(mode, "ref")
+    if (col %in% names(reference_data$ind)) {
+      matched <- match(ind$census_id, reference_data$ind$census_id)
+      any_current_at <- any_current_at | .true_values(reference_data$ind[[col]][matched])
+    } else {
+      mode_spec <- .counterfactual_mode_spec(mode)
+      if (!is.null(mode_spec) && !is.na(mode_spec$activity_col) &&
+          mode_spec$activity_col %in% names(reference_data$ind)) {
+        matched <- match(ind$census_id, reference_data$ind$census_id)
+        any_current_at <- any_current_at |
+          .positive_col(reference_data$ind, mode_spec$activity_col)[matched]
+      }
+    }
+  }
+  requested_new_n <- as.integer(round(
+    equivalent_changed_users * new_user_percent / 100
+  ))
+  new_at_candidates <- which(in_scope & !any_current_at)
+  new_n <- min(requested_new_n, length(new_at_candidates))
+  set.seed(seed + 1L)
+  selected_new <- if (new_n == 0L) integer(0) else {
+    sample(new_at_candidates, new_n, replace = FALSE)
+  }
+
+  # Normally the remaining additional trips are concentrated among existing
+  # users of the target mode. E-bike has no observed baseline users, so current
+  # active-travel users provide the explicit proxy recipient pool.
+  selected_current <- integer(0)
+  if (length(current_rows) == 0L) {
+    proxy_n <- min(
+      equivalent_changed_users - length(selected_new),
+      sum(in_scope & any_current_at)
+    )
+    proxy_candidates <- which(in_scope & any_current_at)
+    set.seed(seed)
+    if (proxy_n > 0L) {
+      selected_current <- sample(proxy_candidates, proxy_n, replace = FALSE)
+    }
+  }
+  selected <- unique(c(current_rows, selected_current, selected_new))
+  target_users <- length(selected)
+  list(
+    ids = ind$census_id[selected],
+    target_users = target_users,
+    report = list(
+      method = "trips_per_user",
+      trips_per_user_per_week = rate,
+      target_users = target_users,
+      retained_current_mode_users = length(current_rows),
+      equivalent_changed_users = equivalent_changed_users,
+      requested_new_user_percent = new_user_percent,
+      added_current_at_users = length(selected_current),
+      added_new_at_users = length(selected_new),
+      realized_new_user_percent = if (equivalent_changed_users == 0) 0 else {
+        100 * length(selected_new) / equivalent_changed_users
+      }
+    )
+  )
+}
+
+.set_cf_mode_user_scope <- function(counterfactual_data, spec, census_ids) {
+  if (is.null(counterfactual_data$ind) || !"census_id" %in% names(counterfactual_data$ind)) {
+    return(counterfactual_data)
+  }
+  scope_col <- .reference_user_scope_col(spec$mode, "cf")
+  old <- if (scope_col %in% names(counterfactual_data$ind)) {
+    .true_values(counterfactual_data$ind[[scope_col]])
+  } else {
+    rep(FALSE, nrow(counterfactual_data$ind))
+  }
+  new <- counterfactual_data$ind$census_id %in% census_ids
+  if ("cf_in_scope" %in% names(counterfactual_data$ind)) {
+    new <- new & .true_values(counterfactual_data$ind$cf_in_scope)
+  }
+  counterfactual_data$ind[[scope_col]] <- new
+  if ("cf_user_change" %in% names(counterfactual_data$ind)) {
+    counterfactual_data$ind$cf_user_change[!old & new] <- "new_users_from_trip_target"
+    counterfactual_data$ind$cf_user_change[old & !new] <- "ex_users_from_trip_target"
+  }
+  counterfactual_data
+}
+
 
 ### Distance ----
 
@@ -1176,6 +1414,7 @@ apply_counterfactual_ui_values <- function(
     constants,
     seed,
     census_ids = NULL,
+    recipient_ids = NULL,
     exposure_source = "trip_target"
 ) {
   if (n == 0 || is.null(counterfactual_data$trips)) {
@@ -1199,7 +1438,13 @@ apply_counterfactual_ui_values <- function(
   } else {
     rep(FALSE, nrow(trips))
   }
-  cross_mode_source <- !is.null(source_diversion_target$shares)
+  active_source_modes <- c("walking", "cycling", "ebiking", "pt")
+  cross_mode_source <- source_diversion_target$source %in% c("config", "ui") &&
+    !is.null(source_diversion_target$shares) &&
+    any(
+      names(source_diversion_target$shares) %in% active_source_modes &
+        source_diversion_target$shares > 0
+    )
   unlocked <- !.true_values(trips$cf_trip_locked)
   candidates <- which(
     !active & (cross_mode_source | !active_any_mode) & unlocked &
@@ -1245,6 +1490,11 @@ apply_counterfactual_ui_values <- function(
   realized_source_mode_shares <- .realized_source_mode_shares(trips, rows)
 
   trips <- .switch_trips_to_active_mode(trips, rows, spec, constants)
+  if (!is.null(recipient_ids) && length(recipient_ids) > 0 &&
+      "census_id" %in% names(trips)) {
+    set.seed(seed + 1L)
+    trips$census_id[rows] <- sample(recipient_ids, length(rows), replace = TRUE)
+  }
   trips$cf_trip_change[rows] <- "mode_shift_to_active"
   trips$cf_mode_shift[rows] <- TRUE
   trips$cf_trip_locked[rows] <- TRUE
@@ -1307,6 +1557,12 @@ apply_counterfactual_ui_values <- function(
   new_rows$cf_induced <- TRUE
   new_rows$cf_trip_locked <- TRUE
   new_rows$cf_trip_exposure_source <- "trip_target"
+  if ("cf_source_census_id" %in% names(new_rows)) {
+    new_rows$cf_source_census_id[] <- NA
+  }
+  if ("cf_source_nts_tripid" %in% names(new_rows)) {
+    new_rows$cf_source_nts_tripid[] <- NA
+  }
   if ("cf_in_scope" %in% names(new_rows)) new_rows$cf_in_scope <- TRUE
   scope_col <- .reference_trip_scope_col(spec$mode, "cf")
   if (scope_col %in% names(new_rows)) new_rows[[scope_col]] <- TRUE
@@ -1707,7 +1963,17 @@ apply_counterfactual_ui_values <- function(
     values
   }
 
-  cf_trip_key <- paste(cf_trips$census_id, cf_trips$nts_tripid, sep = "\r")
+  source_census_id <- if ("cf_source_census_id" %in% names(cf_trips)) {
+    as.character(cf_trips$cf_source_census_id)
+  } else {
+    as.character(cf_trips$census_id)
+  }
+  source_trip_id <- if ("cf_source_nts_tripid" %in% names(cf_trips)) {
+    as.character(cf_trips$cf_source_nts_tripid)
+  } else {
+    as.character(cf_trips$nts_tripid)
+  }
+  cf_trip_key <- paste(source_census_id, source_trip_id, sep = "\r")
   ref_trip_key <- paste(ref_trips$census_id, ref_trips$nts_tripid, sep = "\r")
   ref_match <- match(cf_trip_key, ref_trip_key)
   for (mode in .miama_supported_modes()) {
@@ -1891,6 +2157,7 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
     pt_access_walk_minutes_default = cfg$counterfactual$modes$pt$access_walk_minutes_default,
     source_mode_shares = source_mode_shares,
     induced_trips_percent_default = cfg$counterfactual$trips$induced_trips_percent_default %||% 10,
+    new_user_percent_default = cfg$counterfactual$population$new_user_percent_default %||% 10,
     default_diversion_mode = "car",
     plausible_distance_max_multiplier = 1.2,
     unsupported_mode_policy = "skip",
