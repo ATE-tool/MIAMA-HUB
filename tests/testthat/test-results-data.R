@@ -419,6 +419,10 @@ test_that("result plotting functions return ggplot objects", {
   expect_equal(trip_total_plot$labels$y, "Trip records per reference week")
   expect_equal(trip_total_plot$data$value_label, c("10", "12", "4", "6"))
   expect_match(trip_total_plot$data$tooltip_text, "Trip records per reference week")
+  expect_equal(
+    levels(trip_total_plot$data$mode_label),
+    rev(c("Walking", "Cycling", "E-biking", "Public transport", "Driving", "Other"))
+  )
 })
 
 test_that("results_filter_health_data supports interactive Tab 5 filters", {

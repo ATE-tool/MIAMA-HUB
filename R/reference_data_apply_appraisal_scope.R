@@ -47,7 +47,9 @@ apply_reference_appraisal_scope <- function(reference_data,
   )
   population_target <- cf_population_sampling_target(
     appraisal_input_values,
-    spread = cfg$spread %||% miama_default_config()$spread
+    spread = cfg$spread %||% miama_default_config()$spread,
+    population_refinement = cfg$population_refinement %||%
+      miama_default_config()$population_refinement
   )
   eligible_people <- cf_population_candidate_filter(
     out$ind,

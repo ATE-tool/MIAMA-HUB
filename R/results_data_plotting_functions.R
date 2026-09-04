@@ -342,11 +342,15 @@ results_plot_health_impacts <- function(
   group_levels <- if (identical(group_by, "age_group")) {
     .results_plot_age_group_levels(results_data)$label
   } else if (identical(group_by, "mode")) {
-    unique(.results_health_mode_label(plot_data$mode))
+    .results_plot_mode_levels(plot_data$mode)
   } else {
     c("Male", "Female")
   }
   plot_data$group_label <- factor(plot_data$group_label, levels = group_levels)
+  plot_data$outcome_label <- factor(
+    plot_data$outcome_label,
+    levels = .results_plot_outcome_levels(results_data, plot_data)
+  )
   group_name <- switch(group_by, age_group = "Age group", gender = "Gender", mode = "Active mode")
   plot_data$tooltip_text <- .results_health_tooltip(
     plot_data,
@@ -434,6 +438,10 @@ results_plot_health_timeline <- function(
       transform(plot_data, scenario = "Counterfactual", value = cf_value)
     )
     scenario_data$scenario <- factor(scenario_data$scenario, levels = c("Reference", "Counterfactual"))
+    scenario_data$outcome_label <- factor(
+      scenario_data$outcome_label,
+      levels = .results_plot_outcome_levels(results_data, scenario_data)
+    )
     scenario_data$tooltip_text <- .results_health_tooltip(
       scenario_data,
       value = scenario_data$value,
@@ -476,6 +484,10 @@ results_plot_health_timeline <- function(
     plot_data$outcome_label
   }
   plot_data$mode_label <- .results_health_mode_label(plot_data$mode)
+  plot_data$outcome_label <- factor(
+    plot_data$outcome_label,
+    levels = .results_plot_outcome_levels(results_data, plot_data)
+  )
   plot_data$tooltip_text <- .results_health_tooltip(
     plot_data,
     value = plot_data[[y_col]],
@@ -528,8 +540,10 @@ results_plot_trip_mode_distribution <- function(
   }
   if (nrow(plot_data) == 0) return(.results_empty_plot("No selected trip modes available"))
 
-  mode_order <- c("Walking", "Cycling", "Public transport", "Driving", "Other")
-  plot_data$mode_label <- factor(plot_data$mode_label, levels = mode_order)
+  # Reverse factor levels because coord_flip() displays the first level at the
+  # bottom. The visible top-to-bottom order follows the canonical UI catalogue.
+  mode_order <- c("Walking", "Cycling", "E-biking", "Public transport", "Driving", "Other")
+  plot_data$mode_label <- factor(plot_data$mode_label, levels = rev(mode_order))
   plot_data$scenario <- factor(plot_data$scenario, levels = c("Reference", "Counterfactual"))
   y_col <- if (identical(value, "proportion")) "proportion" else "trips"
   plot_data$value_label <- if (identical(value, "proportion")) {
@@ -905,6 +919,26 @@ results_plot_trip_mode_distribution <- function(
     return(.results_age_group_levels())
   }
   levels
+}
+
+.results_plot_outcome_levels <- function(results_data, plot_data) {
+  levels <- .results_get_plot_data(results_data, "outcome_levels")
+  available <- unique(as.character(plot_data$outcome_label))
+  if (!all(c("id", "label") %in% names(levels)) || nrow(levels) == 0) {
+    return(available)
+  }
+  configured <- as.character(levels$label)
+  c(configured[configured %in% available], setdiff(available, configured))
+}
+
+.results_plot_mode_levels <- function(modes) {
+  canonical <- c(
+    "walking", "cycling", "ebiking", "pt", "other_activity", "unattributed",
+    "selected_modes", "all_modes"
+  )
+  modes <- unique(as.character(modes))
+  ordered <- c(canonical[canonical %in% modes], setdiff(modes, canonical))
+  .results_health_mode_label(ordered)
 }
 
 .results_get_plot_data <- function(results_data, name) {

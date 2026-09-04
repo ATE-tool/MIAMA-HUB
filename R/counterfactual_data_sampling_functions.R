@@ -264,10 +264,11 @@ cf_individual_candidate_weights <- function(ind, candidate_rows, target = list()
 
   if ("age1year" %in% names(ind) && !is.null(target$age_category_props)) {
     category <- if (!is.null(target$age_category_breaks)) {
-      cf_numeric_quintile(
+      .cf_population_category(
         ind$age1year,
         breaks = target$age_category_breaks,
-        right = target$age_category_right
+        right = target$age_category_right,
+        other = target$age_category_other
       )
     } else if (!is.null(target$age_category_midpoints)) {
       cf_numeric_category_from_midpoints(ind$age1year, target$age_category_midpoints)
@@ -284,10 +285,11 @@ cf_individual_candidate_weights <- function(ind, candidate_rows, target = list()
     pa <- .spread_pa_values(ind)
     if (!is.null(pa) && !all(is.na(pa))) {
       category <- if (!is.null(target$pa_category_breaks)) {
-        cf_numeric_quintile(
+        .cf_population_category(
           pa,
           breaks = target$pa_category_breaks,
-          right = target$pa_category_right
+          right = target$pa_category_right,
+          other = target$pa_category_other
         )
       } else if (!is.null(target$pa_category_midpoints)) {
         cf_numeric_category_from_midpoints(pa, target$pa_category_midpoints)
@@ -450,7 +452,13 @@ cf_plausible_distance_candidates <- function(trips, candidate_rows, active_dista
 # Existing UI fields provide sex and mean-distance/purpose summaries. Quintile
 # hooks are intentionally permissive for upcoming Tab 3/4 controls.
 
-cf_population_sampling_target <- function(values, suffix = NULL, spread = NULL) {
+cf_population_sampling_target <- function(values,
+                                          suffix = NULL,
+                                          spread = NULL,
+                                          population_refinement = NULL) {
+  defaults <- miama_default_config()
+  spread <- spread %||% defaults$spread
+  population_refinement <- population_refinement %||% defaults$population_refinement
   pop_bars_cf <- .cf_mode_value(values, "pop_spread_bars_cf", suffix)
   pa_bars_cf <- .cf_mode_value(values, "pa_spread_bars_cf", suffix)
   if (is.null(pa_bars_cf)) {
@@ -477,27 +485,32 @@ cf_population_sampling_target <- function(values, suffix = NULL, spread = NULL) 
     cf_ui_category_props(values, "pacat")
   }
 
+  age_filter_spec <- population_refinement$age
+  pa_filter_spec <- population_refinement$pa
   selected_age <- .cf_selected_category_indices(
     values,
     method = "pop_age",
     field = "pop_target_age_groups",
-    ids = spread$age$ids %||% character(0),
+    ids = age_filter_spec$ids %||% character(0),
     strip_prefix = "pop_"
   )
   selected_pa <- .cf_selected_category_indices(
     values,
     method = "pop_pa_level",
     field = "pop_target_pa_groups",
-    ids = spread$pa$ids %||% character(0)
+    ids = pa_filter_spec$ids %||% character(0)
   )
   if (!is.null(selected_age)) {
-    age_props <- as.numeric(seq_along(spread$age$ids) %in% selected_age)
+    age_props <- as.numeric(seq_along(age_filter_spec$ids) %in% selected_age)
     age_props <- age_props / sum(age_props)
   }
   if (!is.null(selected_pa)) {
-    pa_props <- as.numeric(seq_along(spread$pa$ids) %in% selected_pa)
+    pa_props <- as.numeric(seq_along(pa_filter_spec$ids) %in% selected_pa)
     pa_props <- pa_props / sum(pa_props)
   }
+
+  age_category_spec <- if (!is.null(selected_age)) age_filter_spec else spread$age
+  pa_category_spec <- if (!is.null(selected_pa)) pa_filter_spec else spread$pa
 
   list(
     male_prop = .cf_clamp_prop(male_prop),
@@ -507,8 +520,11 @@ cf_population_sampling_target <- function(values, suffix = NULL, spread = NULL) 
     } else {
       NULL
     },
-    age_category_breaks = spread$age$breaks %||% NULL,
-    age_category_right = spread$age$right %||% TRUE,
+    age_category_breaks = age_category_spec$breaks %||% NULL,
+    age_category_right = age_category_spec$right %||% TRUE,
+    age_category_other = if (!is.null(selected_age)) {
+      match(age_filter_spec$other_id %||% NA_character_, age_filter_spec$ids)
+    } else NULL,
     age_quintile_props = age_props,
     pa_category_props = pa_props,
     pa_category_midpoints = if (is.data.frame(pa_bars_cf)) {
@@ -516,8 +532,11 @@ cf_population_sampling_target <- function(values, suffix = NULL, spread = NULL) 
     } else {
       NULL
     },
-    pa_category_breaks = spread$pa$breaks %||% NULL,
-    pa_category_right = spread$pa$right %||% TRUE,
+    pa_category_breaks = pa_category_spec$breaks %||% NULL,
+    pa_category_right = pa_category_spec$right %||% TRUE,
+    pa_category_other = if (!is.null(selected_pa)) {
+      match(pa_filter_spec$other_id %||% NA_character_, pa_filter_spec$ids)
+    } else NULL,
     selected_age_categories = selected_age,
     selected_pa_categories = selected_pa,
     constraints = c(
@@ -555,23 +574,33 @@ cf_population_candidate_filter <- function(ind,
   if (!has_selection) return(candidate_rows)
   keep <- rep(TRUE, length(candidate_rows))
   if (!is.null(target$selected_age_categories)) {
-    category <- cf_numeric_quintile(
+    category <- .cf_population_category(
       ind$age1year,
       breaks = target$age_category_breaks,
-      right = target$age_category_right
+      right = target$age_category_right,
+      other = target$age_category_other
     )
     keep <- keep & category[candidate_rows] %in% target$selected_age_categories
   }
   if (!is.null(target$selected_pa_categories)) {
     pa <- .spread_pa_values(ind)
-    category <- cf_numeric_quintile(
+    category <- .cf_population_category(
       pa,
       breaks = target$pa_category_breaks,
-      right = target$pa_category_right
+      right = target$pa_category_right,
+      other = target$pa_category_other
     )
     keep <- keep & category[candidate_rows] %in% target$selected_pa_categories
   }
   candidate_rows[if (isTRUE(select_inside)) keep else !keep]
+}
+
+.cf_population_category <- function(values, breaks, right, other = NULL) {
+  category <- cf_numeric_quintile(values, breaks = breaks, right = right)
+  if (!is.null(other) && length(other) == 1L && is.finite(other)) {
+    category[is.na(category)] <- as.integer(other)
+  }
+  category
 }
 
 cf_trip_sampling_target <- function(values, suffix = NULL, spread = NULL) {

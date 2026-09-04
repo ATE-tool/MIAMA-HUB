@@ -884,13 +884,22 @@ to override:
 - `cfg$spread$pa`
 
 The synthetic population stores single-year age (`age1year`), not a native age
-group. HUB therefore derives one canonical set of adult appraisal groups from
-`cfg$spread$age`: `18-29`, `30-39`, `40-49`, `50-59`, and `60+` (IDs
-`age_18_29` through `age_60_plus`). These same definitions drive Tab 3 counts
-and spread bars, counterfactual sampling constraints, the Tab 5 health cube,
-plot labels, and the static `res_age_groups` options in MIAMA-UI `default.R`.
-Ages below 18 remain outside these adult groups; they are not folded into the
-`18-29` category.
+group. HUB therefore derives two related, explicitly ordered age schemes:
+
+- `cfg$population_refinement$age` drives the Tab 3 category checkboxes,
+  absolute category counts, appraisal-scope filters, Tab 5 health cube, and
+  results filters. It is exhaustive: `Under 18`, the five adult bands from
+  `18-29` through `60+`, and `Other/unknown`.
+- `cfg$spread$age` drives only the compact age-and-gender spread bars and their
+  mean-age slider. That chart retains five adult bands (`18-29` through `60+`)
+  because the redistribution helper has a fixed five-bin contract. Under-18
+  and unknown records are excluded from that chart's denominator, not folded
+  into another bar.
+
+The checkbox filter and spread slider are separate refinement methods. HUB
+maps checkbox selections against the exhaustive population-refinement scheme
+and spread-slider weights against the five-bin spread scheme, so their labels
+may differ without changing category boundaries silently.
 
 Other shared category contracts are:
 

@@ -338,7 +338,8 @@ apply_counterfactual_ui_values <- function(
     population_target = cf_population_sampling_target(
       appraisal_input_values,
       spec$suffix,
-      spread = constants$spread
+      spread = constants$spread,
+      population_refinement = constants$population_refinement
     )
   )
 
@@ -2161,7 +2162,8 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
     default_diversion_mode = "car",
     plausible_distance_max_multiplier = 1.2,
     unsupported_mode_policy = "skip",
-    spread = cfg$spread
+    spread = cfg$spread,
+    population_refinement = cfg$population_refinement
   )
 }
 

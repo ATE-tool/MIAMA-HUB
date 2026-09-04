@@ -187,6 +187,37 @@ test_that("checked age groups constrain both REF scope and CF changes", {
   expect_equal(sum(cf$ind$cf_in_scope), 2)
 })
 
+test_that("exhaustive age filters include under-18 and unknown categories", {
+  cfg <- miama_default_config()
+  ind <- data.frame(
+    census_id = 1:4,
+    age1year = c(12, 20, 65, NA_real_),
+    female = 0,
+    walktime_wkhr = 0,
+    cycletime_wkhr = 0
+  )
+
+  under_18 <- cf_population_sampling_target(
+    list(
+      pop_refine_method = "pop_age",
+      pop_target_age_groups = "pop_age_under_18"
+    ),
+    spread = cfg$spread,
+    population_refinement = cfg$population_refinement
+  )
+  unknown <- cf_population_sampling_target(
+    list(
+      pop_refine_method = "pop_age",
+      pop_target_age_groups = "pop_age_other"
+    ),
+    spread = cfg$spread,
+    population_refinement = cfg$population_refinement
+  )
+
+  expect_equal(cf_population_candidate_filter(ind, 1:4, under_18), 1L)
+  expect_equal(cf_population_candidate_filter(ind, 1:4, unknown), 4L)
+})
+
 test_that("category selections cap stale REF table targets to eligible rows", {
   cfg <- miama_default_config()
   reference_data <- list(

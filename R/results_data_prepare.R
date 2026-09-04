@@ -69,6 +69,11 @@ prepare_results_data <- function(
   age_group_levels <- .results_age_group_levels(cfg)
   request <- .results_request_defaults(results_request, appraisal_input_values, cfg)
   outcome_specs <- .results_outcome_specs(cfg)
+  outcome_levels <- data.frame(
+    id = names(outcome_specs),
+    label = vapply(outcome_specs, function(x) x$label, character(1)),
+    stringsAsFactors = FALSE
+  )
   person_weight <- .results_person_weight(cfg)
 
   long <- .results_health_long(health_outcomes, outcome_specs, person_weight, cfg)
@@ -94,6 +99,7 @@ prepare_results_data <- function(
     health_cube = health_cube,
     mode_attribution = mode_attribution,
     age_group_levels = age_group_levels,
+    outcome_levels = outcome_levels,
     amat_health_timeline = amat_health_timeline,
     health_overview = .results_plot_health_overview_data(results_table, request),
     health_timeline = .results_plot_timeline_data(filtered, request),
