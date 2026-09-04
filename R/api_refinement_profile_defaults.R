@@ -83,8 +83,12 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
   stage_values <- .tab3_stage_input_values(profile)
   use_staged_snapshots <- !is.null(staged_reference_data) &&
     !is.null(staged_counterfactual_data)
-  tab3_changed <- use_staged_snapshots &&
-    .tab3_profile_has_refinement_edits(profile)
+  tab3_changed_fields <- if (use_staged_snapshots) {
+    .tab3_profile_refinement_edits(profile, stage_values)
+  } else {
+    character(0)
+  }
+  tab3_changed <- length(tab3_changed_fields) > 0
 
   if (use_staged_snapshots && !tab3_changed) {
     # The user accepted the Tab 3 defaults. Continue with the exact REF and CF
@@ -162,6 +166,7 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
   report$counterfactual_report <- staged_counterfactual$counterfactual_report
   report$used_staged_tab2_snapshots <- use_staged_snapshots
   report$tab3_population_rescoped <- tab3_changed
+  report$tab3_rescope_trigger_fields <- tab3_changed_fields
   report$realized_induced_trips_percent <- realized_induced_percent
   report$induced_trips_percent_default_source <- induced_default_source
   report$seed <- as.integer(seed)
@@ -298,6 +303,7 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
   # quick click on "Next" cannot submit the pre-refinement table values before
   # updateNumericInput() has reached the browser.
   values <- .apply_tab3_category_counts(values, profile)
+  values <- .apply_tab3_percent_counts(values, profile)
 
   # Tab 4 controls may contain stale hidden values from an earlier visit. They
   # must not alter the Tab 3 population snapshots used to initialize Tab 4.
@@ -311,47 +317,39 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
   )
   values[tab4_fields] <- rep(list(NULL), length(tab4_fields))
 
-  # Tab 3 is the final person/user scope presented before Tab 4. If it reduces
-  # that scope, an upstream Tab 2 trip quota may no longer fit among trips owned
-  # by the remaining people. Reapplying the old quota would either fail or undo
-  # the population refinement. Stage this transition as a user-scope request,
-  # discard only the flattened Tab 2 trip-count targets, and let Tab 4 defaults
-  # be measured from the trips belonging to the final Tab 3 REF/CF snapshots.
-  tab2_trip_fields <- grep(
-    "^trips_count_(ref|cf)_",
-    names(values),
-    value = TRUE
-  )
-  values[tab2_trip_fields] <- rep(list(NULL), length(tab2_trip_fields))
-  values$at_data_unit <- "users"
+  # Tab 2 remains authoritative for the unit supplied there. In particular, a
+  # trip-based appraisal carries its REF/CF trip totals through Tab 3 while the
+  # population controls refine how those trips are distributed across people.
+  # The reference scoper can duplicate donor trip patterns when a smaller final
+  # person scope does not contain enough physical trip rows.
 
   values
 }
 
-.tab3_profile_has_refinement_edits <- function(profile) {
-  fields <- grep(
-    paste0(
-      "^(pop_(total|number)_(ref|cf).*_advanced$|",
-      "pop_refine_method$|pop_target_(age|pa)_groups$|",
-      "pop_spread_.*_cf_)"
-    ),
-    names(profile),
-    value = TRUE
+.tab3_profile_refinement_edits <- function(profile, values = extract_input_values(profile)) {
+  # Refinement controls describe how the table was calculated; they are not
+  # themselves evidence that its scope changed. This matters when Shiny keeps
+  # a selected method such as 100% or all categories: the resulting counts are
+  # unchanged and the exact Tab 2 trip quotas must continue into Tab 4.
+  fields <- c(
+    grep("^pop_(total|number)_(ref|cf).*_advanced$", names(profile), value = TRUE),
+    grep("^(pop|pa)_spread_.*_cf_", names(profile), value = TRUE)
   )
 
-  any(vapply(fields, function(field_name) {
+  fields[vapply(fields, function(field_name) {
     field <- profile[[field_name]]
-    if (!is_input_field(field) || !isTRUE(field$is_filled) ||
-        is.null(field$input_value)) {
-      return(FALSE)
-    }
+    if (!is_input_field(field)) return(FALSE)
+    value <- .ui_value(values, field_name, NULL)
+    if (is.null(value)) return(FALSE)
     comparison <- field$additional_data$default_value_backup %||%
       field$default_value
-    if (is.null(comparison)) {
-      return(length(field$input_value) > 0)
-    }
-    !.same_profile_value(field$input_value, comparison)
-  }, logical(1)))
+    if (is.null(comparison)) return(length(value) > 0)
+    !.same_profile_value(value, comparison)
+  }, logical(1))]
+}
+
+.tab3_profile_has_refinement_edits <- function(profile, values = extract_input_values(profile)) {
+  length(.tab3_profile_refinement_edits(profile, values)) > 0
 }
 
 .rescope_staged_snapshot <- function(data,
@@ -395,6 +393,8 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
         .ui_value(values, paste0("pop_number_cf_", suffix, "_basic"), NULL)
       scope_values[[paste0("users_count_ref_", suffix)]] <-
         .ui_value(values, paste0("users_count_cf_", suffix), NULL)
+      scope_values[[paste0("trips_count_ref_", suffix)]] <-
+        .ui_value(values, paste0("trips_count_cf_", suffix), NULL)
     }
   } else {
     # Counterfactual spread sliders choose who changes in CF; they must not
@@ -461,6 +461,30 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
     }
   }
 
+  values
+}
+
+.apply_tab3_percent_counts <- function(values, profile) {
+  if (!identical(.ui_value(values, "pop_refine_method", NULL), "pop_perc")) {
+    return(values)
+  }
+  percent <- suppressWarnings(as.numeric(.ui_value(values, "pop_target_percent", NA_real_)))
+  if (length(percent) != 1L || !is.finite(percent)) return(values)
+  multiplier <- max(0, min(100, percent)) / 100
+
+  fields <- grep(
+    "^pop_(total|number)_(ref|cf).*_advanced$",
+    names(profile),
+    value = TRUE
+  )
+  for (field_name in fields) {
+    backup <- suppressWarnings(as.numeric(
+      profile[[field_name]]$additional_data$default_value_backup %||% NA_real_
+    ))
+    if (length(backup) == 1L && is.finite(backup)) {
+      values[[field_name]] <- round(backup * multiplier)
+    }
+  }
   values
 }
 
@@ -683,8 +707,9 @@ apply_refinement_defaults_to_profile <- function(profile, updates) {
 # Shiny submits rendered Tab 4 count controls even when the user has not edited
 # them. In an advanced appraisal those fields otherwise outrank the Tab 2 trip
 # representation (including mode shares) and can turn a real Tab 2 change into
-# a no-change result. Treat a value identical to its generated Tab 4 default as
-# unmodified; an actual Tab 4 edit remains authoritative.
+# a no-change result. This cleaner is therefore limited to callers that have
+# not completed the advanced Tab 3/4 staging lifecycle. Once Tab 4 exists, its
+# displayed values are the final contract, including accepted generated values.
 .drop_unmodified_trip_refinement_values <- function(values, profile) {
   fields <- grep(
     "^trips_number_(total_)?(ref|cf)(_|$)",

@@ -76,6 +76,44 @@ test_that("Tab 3 changes retain staged Tab 2 snapshots", {
   expect_null(tab2$state$refinement_counterfactual_data)
 })
 
+test_that("final calculations retain accepted Tab 3 population contracts", {
+  field <- function(value) {
+    list(
+      input_value = value,
+      is_filled = TRUE,
+      default_value = value,
+      additional_data = list(default_value_backup = value)
+    )
+  }
+  profile <- list(
+    ui_version = field("advanced"),
+    pop_total_ref_advanced = field(100),
+    pop_total_cf_advanced = field(110),
+    pop_number_ref_walk_advanced = field(40),
+    pop_number_cf_walk_advanced = field(50),
+    trips_number_total_ref = field(300),
+    trips_number_total_cf = field(360),
+    trips_number_ref_walk = field(120),
+    trips_number_cf_walk = field(180),
+    trips_count_ref_walk = field(90),
+    trips_count_cf_walk = field(100)
+  )
+  hub <- Hub$new(cfg = list())
+  hub$set_appraisal_inputs(profile)
+  hub$refinement_reference_data <- list(ind = data.frame(census_id = 1))
+
+  values <- hub$.__enclos_env__$private$.counterfactual_input_values()
+
+  expect_equal(values$pop_total_ref_advanced, 100)
+  expect_equal(values$pop_total_cf_advanced, 110)
+  expect_equal(values$pop_number_ref_walk_advanced, 40)
+  expect_equal(values$pop_number_cf_walk_advanced, 50)
+  expect_equal(values$trips_number_total_ref, 300)
+  expect_equal(values$trips_number_total_cf, 360)
+  expect_equal(values$trips_number_ref_walk, 120)
+  expect_equal(values$trips_number_cf_walk, 180)
+})
+
 test_that("Hub exposes reference UI updates and single-field accessors", {
   hub <- Hub$new(cfg = list())
   hub$set_appraisal_inputs(build_mock_appraisal_inputs(

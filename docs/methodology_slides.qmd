@@ -94,6 +94,76 @@ $$
 | Advanced population | User count + age/sex + PA/sex | Implemented as sampling constraints |
 | Advanced trips | Trip count + distance + purpose + target-specific source diversion | Partly implemented |
 
+## From Tab 2 to results
+
+```{mermaid}
+flowchart LR
+  G[Geographic<br/>donor population] --> T2[Tab 2<br/>AT volume]
+  T2 --> R[Staged REF<br/>people + trips]
+  T2 --> C[Staged CF<br/>people + trips]
+  R --> T3[Tab 3<br/>people]
+  C --> T3
+  T3 --> T4[Tab 4<br/>trips]
+  T4 --> H[MMET and<br/>health model]
+  H --> T5[Tab 5<br/>results]
+```
+
+- Basic UI uses generated person/trip assumptions and proceeds to results
+- Advanced UI exposes the same generated values in Tabs 3 and 4
+- Profile fields carry user values; HUB retains the row-level snapshots
+
+## One Tab 2 contract from several units
+
+```{mermaid}
+flowchart LR
+  U{Input unit}
+  A[Users]
+  B[Trips]
+  C[Distance]
+  D[Duration]
+  E[Mode share]
+  Q[Weekly mode-user<br/>or trip-row targets]
+  P[Tab 3 people<br/>and mode users]
+  T[Tab 4 trips<br/>by mode]
+
+  U --> A --> Q
+  U --> B --> Q
+  U --> C --> Q
+  U --> D --> Q
+  U --> E --> Q
+  Q --> P
+  Q --> T
+```
+
+- Distance and duration use reference mean amount per trip
+- Mode share applies percentages to the selected total denominator
+- Trip-derived Tab 3 users are unique owners of selected trips
+
+## Refinement handoff
+
+```{mermaid}
+flowchart LR
+  S[Staged Tab 2<br/>REF and CF]
+  C{Tab 3 result}
+  K[Counts unchanged<br/>keep exact trip quotas]
+  R[Counts changed<br/>re-scope people]
+  W[Distribution changed<br/>reweight candidates]
+  A[Allocate carried trip targets<br/>across final users]
+  T[Tab 4 starting counts]
+
+  S --> C
+  C --> K --> T
+  C --> R --> A --> T
+  C --> W --> A
+```
+
+- Percent, category, or manual count changes can alter person scope
+- Age, sex, and PA spread controls alter who is sampled
+- Trip-derived Tab 2 counts stay fixed when Tab 3 re-scopes people
+- If needed, donor trip patterns are sampled with replacement and assigned to
+  the final fixed users
+- A selected refinement method with unchanged results is not a re-scope
+
 ## Five-category spread controls
 
 - HUB prepopulates reference defaults and initializes paired CF controls to the
@@ -160,7 +230,7 @@ trips are treated as utilitarian and induced trips as recreational.
 ## Important current limitations
 
 - PA target selects candidates using **pre-change** PA; final PA can differ
-- “Current vs new users” input is not yet operational
+- Explicit user counts take precedence over the preferred current/new split
 - Weighted trip targets are converted to proportional physical-row targets;
   shifted and induced rows retain source/donor weights
 - Only long-term persistence is implemented

@@ -157,28 +157,21 @@ apply_reference_appraisal_scope <- function(reference_data,
       } else {
         .reference_trip_target_rows(target)
       }
+      expanded <- list(rows_added = 0L)
       if (target_rows > length(candidates)) {
-        .abort_appraisal_input(
-          paste0(
-            "The reference ", mode, " trip target is ", target_rows,
-            " trips per week, but the selected reference population contains only ",
-            length(candidates), " eligible observed trips owned by its ",
-            sum(owner_user_scope & out$trips$ref_in_scope, na.rm = TRUE),
-            " mode-user trip records."
-          ),
-          stage = "reference_scope",
-          fields = c(target$field, user_targets[[mode]]$field, person_target$field),
-          hint = paste0(
-            "Reduce the reference trip target, or increase the reference total population",
-            " or ", mode, " user count."
-          ),
-          details = list(
-            mode = mode,
-            requested_trips = target_rows,
-            available_trips = length(candidates),
-            reference_population = person_target$value
-          )
+        expanded <- .expand_reference_trip_candidates(
+          reference_data = out,
+          mode = mode,
+          candidates = candidates,
+          target_n = target_rows,
+          recipient_ids = out$ind$census_id[
+            out$ind$ref_in_scope &
+              .true_values(out$ind[[.reference_user_scope_col(mode, "ref")]])
+          ],
+          seed = seed + spec$seed_offset + 450L
         )
+        out <- expanded$reference_data
+        candidates <- expanded$candidates
       }
       selected <- .sample_reference_rows(candidates, target_rows, seed + spec$seed_offset + 500L)
       ref_col <- .reference_trip_scope_col(mode, "ref")
@@ -206,7 +199,14 @@ apply_reference_appraisal_scope <- function(reference_data,
         field = target$field,
         requested = target$value,
         realized_rows = length(selected),
-        available_active_rows = length(candidates)
+        available_active_rows = length(candidates) - (expanded$rows_added %||% 0L),
+        donor_rows_added = expanded$rows_added %||% 0L,
+        donor_mode = expanded$donor_mode %||% mode,
+        allocation_method = if ((expanded$rows_added %||% 0L) > 0L) {
+          "donor_patterns_with_replacement"
+        } else {
+          "observed_rows_without_replacement"
+        }
       )
     }
   }
@@ -242,6 +242,109 @@ apply_reference_appraisal_scope <- function(reference_data,
     )
   )
   out
+}
+
+.expand_reference_trip_candidates <- function(reference_data,
+                                               mode,
+                                               candidates,
+                                               target_n,
+                                               recipient_ids,
+                                               seed) {
+  shortfall <- as.integer(target_n - length(candidates))
+  if (shortfall <= 0L) {
+    return(list(
+      reference_data = reference_data,
+      candidates = candidates,
+      rows_added = 0L
+    ))
+  }
+  if (length(recipient_ids) == 0L) {
+    .abort_appraisal_input(
+      paste0(
+        "The reference ", mode, " trip target is ", target_n,
+        ", but the final population contains no ", mode,
+        " users to receive those trips."
+      ),
+      stage = "reference_scope",
+      fields = c(
+        paste0("trips_count_ref_", .counterfactual_mode_spec(mode)$suffix),
+        paste0("pop_number_ref_", .counterfactual_mode_spec(mode)$suffix, "_advanced")
+      ),
+      hint = paste0("Set at least one reference ", mode, " user or set its reference trips to zero.")
+    )
+  }
+
+  spec <- .counterfactual_mode_spec(mode)
+  donor_spec <- .mode_proxy_spec(spec)
+  donor_pool <- which(
+    donor_spec$trip_filter(reference_data$trips) &
+      !is.na(reference_data$trips$nts_tripid)
+  )
+  if (length(donor_pool) == 0L) {
+    .abort_appraisal_input(
+      paste0(
+        "No observed ", donor_spec$mode,
+        " donor trip patterns are available for the requested ", mode, " trips."
+      ),
+      stage = "reference_scope",
+      fields = paste0("trips_count_ref_", spec$suffix),
+      hint = "Use a mode with observed donor trips or provide a source-data proxy for this mode."
+    )
+  }
+
+  if (!"ref_trip_allocation" %in% names(reference_data$trips)) {
+    reference_data$trips$ref_trip_allocation <- "observed"
+  }
+  for (field in c("ref_in_scope", "cf_in_scope")) {
+    if (!field %in% names(reference_data$trips)) {
+      reference_data$trips[[field]] <- FALSE
+    }
+  }
+  mode_scope_fields <- c(
+    .reference_trip_scope_col(mode, "ref"),
+    .reference_trip_scope_col(mode, "cf")
+  )
+  for (field in mode_scope_fields) {
+    if (!field %in% names(reference_data$trips)) {
+      reference_data$trips[[field]] <- FALSE
+    }
+  }
+
+  set.seed(seed)
+  donor_rows <- sample(donor_pool, shortfall, replace = TRUE)
+  new_rows <- reference_data$trips[donor_rows, , drop = FALSE]
+  new_rows$census_id <- sample(recipient_ids, shortfall, replace = TRUE)
+  new_rows <- .assign_new_trip_ids(reference_data$trips, new_rows)
+  new_rows <- .switch_trips_to_active_mode(
+    new_rows,
+    seq_len(nrow(new_rows)),
+    spec
+  )
+
+  scope_fields <- grep("^(ref|cf)_trip_scope_", names(new_rows), value = TRUE)
+  for (field in scope_fields) new_rows[[field]] <- FALSE
+  new_rows$ref_in_scope <- TRUE
+  new_rows$cf_in_scope <- TRUE
+  new_rows[[.reference_trip_scope_col(mode, "ref")]] <- TRUE
+  new_rows[[.reference_trip_scope_col(mode, "cf")]] <- TRUE
+  new_rows$ref_trip_allocation <- "donor_pattern_with_replacement"
+  reference_data$trips <- rbind(reference_data$trips, new_rows)
+  added <- seq.int(nrow(reference_data$trips) - shortfall + 1L, nrow(reference_data$trips))
+
+  warning(
+    "The final reference population contained ", length(candidates), " observed ",
+    mode, " trips for a target of ", target_n, ". HUB added ", shortfall,
+    " donor trip patterns with replacement and assigned them to the fixed ",
+    mode, " users.",
+    call. = FALSE
+  )
+
+  list(
+    reference_data = reference_data,
+    candidates = c(candidates, added),
+    rows_added = shortfall,
+    donor_mode = donor_spec$mode
+  )
 }
 
 .reconcile_reference_category_capacity <- function(ind,

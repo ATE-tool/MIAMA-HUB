@@ -6,10 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="MIAMA project team">
-<meta name="dcterms.date" content="2026-09-04">
 
-<title>MIAMA active travel and health impact methodology</title>
+<title>MIAMA UI data authority workflow</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -5061,145 +5059,6 @@ z-index: 1000;
 }
 </style>
 
-  <script>/*
- * Polyfill service v3.111.0
- * Disable minification (remove `.min` from URL path) for more info
-*/
-
-(function(self, undefined) {!function(t){"use strict";function e(t){switch(typeof t){case"undefined":return"undefined";case"boolean":return"boolean";case"number":return"number";case"string":return"string";default:return null===t?"null":"object"}}function r(t){return Object.prototype.toString.call(t).replace(/^\[object *|\]$/g,"")}function n(t){return"function"==typeof t}function o(t){if(null===t||t===B)throw TypeError();return Object(t)}function i(t){return t>>0}function f(t){return t>>>0}function u(e){if(!("TYPED_ARRAY_POLYFILL_NO_ARRAY_ACCESSORS"in t)){if(e.length>N)throw RangeError("Array too large for polyfill");var r;for(r=0;r<e.length;r+=1)!function n(t){try{Object.defineProperty(e,t,{get:function(){return e._getter(t)},set:function(r){e._setter(t,r)},enumerable:!0,configurable:!1})}catch(r){}}(r)}}function a(t,e){var r=32-e;return t<<r>>r}function h(t,e){var r=32-e;return t<<r>>>r}function y(t){return[255&t]}function s(t){return a(t[0],8)}function l(t){return[255&t]}function p(t){return h(t[0],8)}function c(t){return t=x(Number(t)),[t<0?0:t>255?255:255&t]}function b(t){return[255&t,t>>8&255]}function g(t){return a(t[1]<<8|t[0],16)}function E(t){return[255&t,t>>8&255]}function v(t){return h(t[1]<<8|t[0],16)}function _(t){return[255&t,t>>8&255,t>>16&255,t>>24&255]}function O(t){return a(t[3]<<24|t[2]<<16|t[1]<<8|t[0],32)}function d(t){return[255&t,t>>8&255,t>>16&255,t>>24&255]}function j(t){return h(t[3]<<24|t[2]<<16|t[1]<<8|t[0],32)}function P(t,e,r){function n(t){var e=m(t),r=t-e;return r<.5?e:r>.5?e+1:e%2?e+1:e}var o,i,f,u=(1<<e-1)-1;if(t!==t)i=(1<<e)-1,f=F(2,r-1),o=0;else if(t===Infinity||t===-Infinity)i=(1<<e)-1,f=0,o=t<0?1:0;else if(0===t)i=0,f=0,o=1/t==-Infinity?1:0;else if(o=t<0,(t=M(t))>=F(2,1-u)){i=Y(m(I(t)/S),1023);var a=t/F(2,i);a<1&&(i-=1,a*=2),a>=2&&(i+=1,a/=2);var h=F(2,r);f=n(a*h)-h,i+=u,f/h>=1&&(i+=1,f=0),i>2*u&&(i=(1<<e)-1,f=0)}else i=0,f=n(t/F(2,1-u-r));var y,s=[];for(y=r;y;y-=1)s.push(f%2?1:0),f=m(f/2);for(y=e;y;y-=1)s.push(i%2?1:0),i=m(i/2);s.push(o?1:0),s.reverse();for(var l=s.join(""),p=[];l.length;)p.unshift(parseInt(l.substring(0,8),2)),l=l.substring(8);return p}function T(t,e,r){var n,o,i,f,u,a,h,y,s=[];for(n=0;n<t.length;++n)for(i=t[n],o=8;o;o-=1)s.push(i%2?1:0),i>>=1;return s.reverse(),f=s.join(""),u=(1<<e-1)-1,a=parseInt(f.substring(0,1),2)?-1:1,h=parseInt(f.substring(1,1+e),2),y=parseInt(f.substring(1+e),2),h===(1<<e)-1?0!==y?NaN:a*Infinity:h>0?a*F(2,h-u)*(1+y/F(2,r)):0!==y?a*F(2,-(u-1))*(y/F(2,r)):a<0?-0:0}function w(t){return T(t,11,52)}function A(t){return P(t,11,52)}function L(t){return T(t,8,23)}function R(t){return P(t,8,23)}var B=void 0,N=1e5,S=Math.LN2,M=Math.abs,m=Math.floor,I=Math.log,U=Math.max,Y=Math.min,F=Math.pow,x=Math.round;!function(){var t=Object.defineProperty,e=!function(){try{return Object.defineProperty({},"x",{})}catch(t){return!1}}();t&&!e||(Object.defineProperty=function(e,r,n){if(t)try{return t(e,r,n)}catch(o){}if(e!==Object(e))throw TypeError("Object.defineProperty called on non-object");return Object.prototype.__defineGetter__&&"get"in n&&Object.prototype.__defineGetter__.call(e,r,n.get),Object.prototype.__defineSetter__&&"set"in n&&Object.prototype.__defineSetter__.call(e,r,n.set),"value"in n&&(e[r]=n.value),e})}(),function(){function a(t){if((t=i(t))<0)throw RangeError("ArrayBuffer size is not a small enough positive integer.");Object.defineProperty(this,"byteLength",{value:t}),Object.defineProperty(this,"_bytes",{value:Array(t)});for(var e=0;e<t;e+=1)this._bytes[e]=0}function h(){if(!arguments.length||"object"!=typeof arguments[0])return function(t){if((t=i(t))<0)throw RangeError("length is not a small enough positive integer.");Object.defineProperty(this,"length",{value:t}),Object.defineProperty(this,"byteLength",{value:t*this.BYTES_PER_ELEMENT}),Object.defineProperty(this,"buffer",{value:new a(this.byteLength)}),Object.defineProperty(this,"byteOffset",{value:0})}.apply(this,arguments);if(arguments.length>=1&&"object"===e(arguments[0])&&arguments[0]instanceof h)return function(t){if(this.constructor!==t.constructor)throw TypeError();var e=t.length*this.BYTES_PER_ELEMENT;Object.defineProperty(this,"buffer",{value:new a(e)}),Object.defineProperty(this,"byteLength",{value:e}),Object.defineProperty(this,"byteOffset",{value:0}),Object.defineProperty(this,"length",{value:t.length});for(var r=0;r<this.length;r+=1)this._setter(r,t._getter(r))}.apply(this,arguments);if(arguments.length>=1&&"object"===e(arguments[0])&&!(arguments[0]instanceof h)&&!(arguments[0]instanceof a||"ArrayBuffer"===r(arguments[0])))return function(t){var e=t.length*this.BYTES_PER_ELEMENT;Object.defineProperty(this,"buffer",{value:new a(e)}),Object.defineProperty(this,"byteLength",{value:e}),Object.defineProperty(this,"byteOffset",{value:0}),Object.defineProperty(this,"length",{value:t.length});for(var r=0;r<this.length;r+=1){var n=t[r];this._setter(r,Number(n))}}.apply(this,arguments);if(arguments.length>=1&&"object"===e(arguments[0])&&(arguments[0]instanceof a||"ArrayBuffer"===r(arguments[0])))return function(t,e,r){if((e=f(e))>t.byteLength)throw RangeError("byteOffset out of range");if(e%this.BYTES_PER_ELEMENT)throw RangeError("buffer length minus the byteOffset is not a multiple of the element size.");if(r===B){var n=t.byteLength-e;if(n%this.BYTES_PER_ELEMENT)throw RangeError("length of buffer minus byteOffset not a multiple of the element size");r=n/this.BYTES_PER_ELEMENT}else r=f(r),n=r*this.BYTES_PER_ELEMENT;if(e+n>t.byteLength)throw RangeError("byteOffset and length reference an area beyond the end of the buffer");Object.defineProperty(this,"buffer",{value:t}),Object.defineProperty(this,"byteLength",{value:n}),Object.defineProperty(this,"byteOffset",{value:e}),Object.defineProperty(this,"length",{value:r})}.apply(this,arguments);throw TypeError()}function P(t,e,r){var n=function(){Object.defineProperty(this,"constructor",{value:n}),h.apply(this,arguments),u(this)};"__proto__"in n?n.__proto__=h:(n.from=h.from,n.of=h.of),n.BYTES_PER_ELEMENT=t;var o=function(){};return o.prototype=T,n.prototype=new o,Object.defineProperty(n.prototype,"BYTES_PER_ELEMENT",{value:t}),Object.defineProperty(n.prototype,"_pack",{value:e}),Object.defineProperty(n.prototype,"_unpack",{value:r}),n}t.ArrayBuffer=t.ArrayBuffer||a,Object.defineProperty(h,"from",{value:function(t){return new this(t)}}),Object.defineProperty(h,"of",{value:function(){return new this(arguments)}});var T={};h.prototype=T,Object.defineProperty(h.prototype,"_getter",{value:function(t){if(arguments.length<1)throw SyntaxError("Not enough arguments");if((t=f(t))>=this.length)return B;var e,r,n=[];for(e=0,r=this.byteOffset+t*this.BYTES_PER_ELEMENT;e<this.BYTES_PER_ELEMENT;e+=1,r+=1)n.push(this.buffer._bytes[r]);return this._unpack(n)}}),Object.defineProperty(h.prototype,"get",{value:h.prototype._getter}),Object.defineProperty(h.prototype,"_setter",{value:function(t,e){if(arguments.length<2)throw SyntaxError("Not enough arguments");if(!((t=f(t))>=this.length)){var r,n,o=this._pack(e);for(r=0,n=this.byteOffset+t*this.BYTES_PER_ELEMENT;r<this.BYTES_PER_ELEMENT;r+=1,n+=1)this.buffer._bytes[n]=o[r]}}}),Object.defineProperty(h.prototype,"constructor",{value:h}),Object.defineProperty(h.prototype,"copyWithin",{value:function(t,e){var r=arguments[2],n=o(this),u=n.length,a=f(u);a=U(a,0);var h,y=i(t);h=y<0?U(a+y,0):Y(y,a);var s,l=i(e);s=l<0?U(a+l,0):Y(l,a);var p;p=r===B?a:i(r);var c;c=p<0?U(a+p,0):Y(p,a);var b,g=Y(c-s,a-h);for(s<h&&h<s+g?(b=-1,s=s+g-1,h=h+g-1):b=1;g>0;)n._setter(h,n._getter(s)),s+=b,h+=b,g-=1;return n}}),Object.defineProperty(h.prototype,"every",{value:function(t){if(this===B||null===this)throw TypeError();var e=Object(this),r=f(e.length);if(!n(t))throw TypeError();for(var o=arguments[1],i=0;i<r;i++)if(!t.call(o,e._getter(i),i,e))return!1;return!0}}),Object.defineProperty(h.prototype,"fill",{value:function(t){var e=arguments[1],r=arguments[2],n=o(this),u=n.length,a=f(u);a=U(a,0);var h,y=i(e);h=y<0?U(a+y,0):Y(y,a);var s;s=r===B?a:i(r);var l;for(l=s<0?U(a+s,0):Y(s,a);h<l;)n._setter(h,t),h+=1;return n}}),Object.defineProperty(h.prototype,"filter",{value:function(t){if(this===B||null===this)throw TypeError();var e=Object(this),r=f(e.length);if(!n(t))throw TypeError();for(var o=[],i=arguments[1],u=0;u<r;u++){var a=e._getter(u);t.call(i,a,u,e)&&o.push(a)}return new this.constructor(o)}}),Object.defineProperty(h.prototype,"find",{value:function(t){var e=o(this),r=e.length,i=f(r);if(!n(t))throw TypeError();for(var u=arguments.length>1?arguments[1]:B,a=0;a<i;){var h=e._getter(a),y=t.call(u,h,a,e);if(Boolean(y))return h;++a}return B}}),Object.defineProperty(h.prototype,"findIndex",{value:function(t){var e=o(this),r=e.length,i=f(r);if(!n(t))throw TypeError();for(var u=arguments.length>1?arguments[1]:B,a=0;a<i;){var h=e._getter(a),y=t.call(u,h,a,e);if(Boolean(y))return a;++a}return-1}}),Object.defineProperty(h.prototype,"forEach",{value:function(t){if(this===B||null===this)throw TypeError();var e=Object(this),r=f(e.length);if(!n(t))throw TypeError();for(var o=arguments[1],i=0;i<r;i++)t.call(o,e._getter(i),i,e)}}),Object.defineProperty(h.prototype,"indexOf",{value:function(t){if(this===B||null===this)throw TypeError();var e=Object(this),r=f(e.length);if(0===r)return-1;var n=0;if(arguments.length>0&&(n=Number(arguments[1]),n!==n?n=0:0!==n&&n!==1/0&&n!==-1/0&&(n=(n>0||-1)*m(M(n)))),n>=r)return-1;for(var o=n>=0?n:U(r-M(n),0);o<r;o++)if(e._getter(o)===t)return o;return-1}}),Object.defineProperty(h.prototype,"join",{value:function(t){if(this===B||null===this)throw TypeError();for(var e=Object(this),r=f(e.length),n=Array(r),o=0;o<r;++o)n[o]=e._getter(o);return n.join(t===B?",":t)}}),Object.defineProperty(h.prototype,"lastIndexOf",{value:function(t){if(this===B||null===this)throw TypeError();var e=Object(this),r=f(e.length);if(0===r)return-1;var n=r;arguments.length>1&&(n=Number(arguments[1]),n!==n?n=0:0!==n&&n!==1/0&&n!==-1/0&&(n=(n>0||-1)*m(M(n))));for(var o=n>=0?Y(n,r-1):r-M(n);o>=0;o--)if(e._getter(o)===t)return o;return-1}}),Object.defineProperty(h.prototype,"map",{value:function(t){if(this===B||null===this)throw TypeError();var e=Object(this),r=f(e.length);if(!n(t))throw TypeError();var o=[];o.length=r;for(var i=arguments[1],u=0;u<r;u++)o[u]=t.call(i,e._getter(u),u,e);return new this.constructor(o)}}),Object.defineProperty(h.prototype,"reduce",{value:function(t){if(this===B||null===this)throw TypeError();var e=Object(this),r=f(e.length);if(!n(t))throw TypeError();if(0===r&&1===arguments.length)throw TypeError();var o,i=0;for(o=arguments.length>=2?arguments[1]:e._getter(i++);i<r;)o=t.call(B,o,e._getter(i),i,e),i++;return o}}),Object.defineProperty(h.prototype,"reduceRight",{value:function(t){if(this===B||null===this)throw TypeError();var e=Object(this),r=f(e.length);if(!n(t))throw TypeError();if(0===r&&1===arguments.length)throw TypeError();var o,i=r-1;for(o=arguments.length>=2?arguments[1]:e._getter(i--);i>=0;)o=t.call(B,o,e._getter(i),i,e),i--;return o}}),Object.defineProperty(h.prototype,"reverse",{value:function(){if(this===B||null===this)throw TypeError();for(var t=Object(this),e=f(t.length),r=m(e/2),n=0,o=e-1;n<r;++n,--o){var i=t._getter(n);t._setter(n,t._getter(o)),t._setter(o,i)}return t}}),Object.defineProperty(h.prototype,"set",{value:function(t,e){if(arguments.length<1)throw SyntaxError("Not enough arguments");var r,n,o,i,u,a,h,y,s,l;if("object"==typeof arguments[0]&&arguments[0].constructor===this.constructor){if(r=arguments[0],(o=f(arguments[1]))+r.length>this.length)throw RangeError("Offset plus length of array is out of range");if(y=this.byteOffset+o*this.BYTES_PER_ELEMENT,s=r.length*this.BYTES_PER_ELEMENT,r.buffer===this.buffer){for(l=[],u=0,a=r.byteOffset;u<s;u+=1,a+=1)l[u]=r.buffer._bytes[a];for(u=0,h=y;u<s;u+=1,h+=1)this.buffer._bytes[h]=l[u]}else for(u=0,a=r.byteOffset,h=y;u<s;u+=1,a+=1,h+=1)this.buffer._bytes[h]=r.buffer._bytes[a]}else{if("object"!=typeof arguments[0]||"undefined"==typeof arguments[0].length)throw TypeError("Unexpected argument type(s)");if(n=arguments[0],i=f(n.length),(o=f(arguments[1]))+i>this.length)throw RangeError("Offset plus length of array is out of range");for(u=0;u<i;u+=1)a=n[u],this._setter(o+u,Number(a))}}}),Object.defineProperty(h.prototype,"slice",{value:function(t,e){for(var r=o(this),n=r.length,u=f(n),a=i(t),h=a<0?U(u+a,0):Y(a,u),y=e===B?u:i(e),s=y<0?U(u+y,0):Y(y,u),l=s-h,p=r.constructor,c=new p(l),b=0;h<s;){var g=r._getter(h);c._setter(b,g),++h,++b}return c}}),Object.defineProperty(h.prototype,"some",{value:function(t){if(this===B||null===this)throw TypeError();var e=Object(this),r=f(e.length);if(!n(t))throw TypeError();for(var o=arguments[1],i=0;i<r;i++)if(t.call(o,e._getter(i),i,e))return!0;return!1}}),Object.defineProperty(h.prototype,"sort",{value:function(t){function e(e,r){return e!==e&&r!==r?0:e!==e?1:r!==r?-1:t!==B?t(e,r):e<r?-1:e>r?1:0}if(this===B||null===this)throw TypeError();for(var r=Object(this),n=f(r.length),o=Array(n),i=0;i<n;++i)o[i]=r._getter(i);for(o.sort(e),i=0;i<n;++i)r._setter(i,o[i]);return r}}),Object.defineProperty(h.prototype,"subarray",{value:function(t,e){function r(t,e,r){return t<e?e:t>r?r:t}t=i(t),e=i(e),arguments.length<1&&(t=0),arguments.length<2&&(e=this.length),t<0&&(t=this.length+t),e<0&&(e=this.length+e),t=r(t,0,this.length),e=r(e,0,this.length);var n=e-t;return n<0&&(n=0),new this.constructor(this.buffer,this.byteOffset+t*this.BYTES_PER_ELEMENT,n)}});var N=P(1,y,s),S=P(1,l,p),I=P(1,c,p),F=P(2,b,g),x=P(2,E,v),k=P(4,_,O),C=P(4,d,j),z=P(4,R,L),D=P(8,A,w);t.Int8Array=t.Int8Array||N,t.Uint8Array=t.Uint8Array||S,t.Uint8ClampedArray=t.Uint8ClampedArray||I,t.Int16Array=t.Int16Array||F,t.Uint16Array=t.Uint16Array||x,t.Int32Array=t.Int32Array||k,t.Uint32Array=t.Uint32Array||C,t.Float32Array=t.Float32Array||z,t.Float64Array=t.Float64Array||D}(),function(){function e(t,e){return n(t.get)?t.get(e):t[e]}function o(t,e,n){if(!(t instanceof ArrayBuffer||"ArrayBuffer"===r(t)))throw TypeError();if((e=f(e))>t.byteLength)throw RangeError("byteOffset out of range");if(n=n===B?t.byteLength-e:f(n),e+n>t.byteLength)throw RangeError("byteOffset and length reference an area beyond the end of the buffer");Object.defineProperty(this,"buffer",{value:t}),Object.defineProperty(this,"byteLength",{value:n}),Object.defineProperty(this,"byteOffset",{value:e})}function i(t){return function r(n,o){if((n=f(n))+t.BYTES_PER_ELEMENT>this.byteLength)throw RangeError("Array index out of range");n+=this.byteOffset;for(var i=new Uint8Array(this.buffer,n,t.BYTES_PER_ELEMENT),u=[],h=0;h<t.BYTES_PER_ELEMENT;h+=1)u.push(e(i,h));return Boolean(o)===Boolean(a)&&u.reverse(),e(new t(new Uint8Array(u).buffer),0)}}function u(t){return function r(n,o,i){if((n=f(n))+t.BYTES_PER_ELEMENT>this.byteLength)throw RangeError("Array index out of range");var u,h,y=new t([o]),s=new Uint8Array(y.buffer),l=[];for(u=0;u<t.BYTES_PER_ELEMENT;u+=1)l.push(e(s,u));Boolean(i)===Boolean(a)&&l.reverse(),h=new Uint8Array(this.buffer,n,t.BYTES_PER_ELEMENT),h.set(l)}}var a=function(){var t=new Uint16Array([4660]);return 18===e(new Uint8Array(t.buffer),0)}();Object.defineProperty(o.prototype,"getUint8",{value:i(Uint8Array)}),Object.defineProperty(o.prototype,"getInt8",{value:i(Int8Array)}),Object.defineProperty(o.prototype,"getUint16",{value:i(Uint16Array)}),Object.defineProperty(o.prototype,"getInt16",{value:i(Int16Array)}),Object.defineProperty(o.prototype,"getUint32",{value:i(Uint32Array)}),Object.defineProperty(o.prototype,"getInt32",{value:i(Int32Array)}),Object.defineProperty(o.prototype,"getFloat32",{value:i(Float32Array)}),Object.defineProperty(o.prototype,"getFloat64",{value:i(Float64Array)}),Object.defineProperty(o.prototype,"setUint8",{value:u(Uint8Array)}),Object.defineProperty(o.prototype,"setInt8",{value:u(Int8Array)}),Object.defineProperty(o.prototype,"setUint16",{value:u(Uint16Array)}),Object.defineProperty(o.prototype,"setInt16",{value:u(Int16Array)}),Object.defineProperty(o.prototype,"setUint32",{value:u(Uint32Array)}),Object.defineProperty(o.prototype,"setInt32",{value:u(Int32Array)}),Object.defineProperty(o.prototype,"setFloat32",{value:u(Float32Array)}),Object.defineProperty(o.prototype,"setFloat64",{value:u(Float64Array)}),t.DataView=t.DataView||o}()}(self);if (!("defineProperty"in Object&&function(){try{var e={}
-return Object.defineProperty(e,"test",{value:42}),!0}catch(t){return!1}}()
-)) {!function(e){var t=Object.prototype.hasOwnProperty.call(Object.prototype,"__defineGetter__"),r="A property cannot both have accessors and be writable or have a value";Object.defineProperty=function n(o,i,f){if(e&&(o===window||o===document||o===Element.prototype||o instanceof Element))return e(o,i,f);if(null===o||!(o instanceof Object||"object"==typeof o))throw new TypeError("Object.defineProperty called on non-object");if(!(f instanceof Object))throw new TypeError("Property description must be an object");var c=String(i),a="value"in f||"writable"in f,p="get"in f&&typeof f.get,s="set"in f&&typeof f.set;if(p){if(p===undefined)return o;if("function"!==p)throw new TypeError("Getter must be a function");if(!t)throw new TypeError("Getters & setters cannot be defined on this javascript engine");if(a)throw new TypeError(r);Object.__defineGetter__.call(o,c,f.get)}else o[c]=f.value;if(s){if(s===undefined)return o;if("function"!==s)throw new TypeError("Setter must be a function");if(!t)throw new TypeError("Getters & setters cannot be defined on this javascript engine");if(a)throw new TypeError(r);Object.__defineSetter__.call(o,c,f.set)}return"value"in f&&(o[c]=f.value),o}}(Object.defineProperty);}if (!("name"in Function.prototype
-)) {!function(){var n=/^\s*function\s+([^(\s]*)\s*/,t=Function,e=t.prototype,r=e.constructor,o=function(o){var c,u;return o===t||o===r?u="Function":o!==e&&(c=(""+o).match(n),u=c&&c[1]),u||""};Object.defineProperty(e,"name",{get:function c(){var n=this,t=o(n);return n!==e&&Object.defineProperty(n,"name",{value:t,configurable:!0}),t},configurable:!0})}();}if (!("EPSILON"in Number
-)) {Object.defineProperty(Number,"EPSILON",{enumerable:!1,configurable:!1,writable:!1,value:Math.pow(2,-52)});}if (!("MAX_SAFE_INTEGER"in Number
-)) {Object.defineProperty(Number,"MAX_SAFE_INTEGER",{enumerable:!1,configurable:!1,writable:!1,value:Math.pow(2,53)-1});}if (!("MIN_SAFE_INTEGER"in Number
-)) {Object.defineProperty(Number,"MIN_SAFE_INTEGER",{enumerable:!1,configurable:!1,writable:!1,value:-(Math.pow(2,53)-1)});}function ArrayCreate(r){if(1/r==-Infinity&&(r=0),r>Math.pow(2,32)-1)throw new RangeError("Invalid array length");var n=[];return n.length=r,n}function Call(t,l){var n=arguments.length>2?arguments[2]:[];if(!1===IsCallable(t))throw new TypeError(Object.prototype.toString.call(t)+"is not a function.");return t.apply(l,n)}function CreateDataProperty(e,r,t){var a={value:t,writable:!0,enumerable:!0,configurable:!0};try{return Object.defineProperty(e,r,a),!0}catch(n){return!1}}function CreateDataPropertyOrThrow(t,r,o){var e=CreateDataProperty(t,r,o);if(!e)throw new TypeError("Cannot assign value `"+Object.prototype.toString.call(o)+"` to property `"+Object.prototype.toString.call(r)+"` on object `"+Object.prototype.toString.call(t)+"`");return e}function CreateMethodProperty(e,r,t){var a={value:t,writable:!0,enumerable:!1,configurable:!0};Object.defineProperty(e,r,a)}if (!("acosh"in Math
-)) {CreateMethodProperty(Math,"acosh",function t(a){return isNaN(a)?NaN:a<1?NaN:1===a?0:a===Infinity?Infinity:Math.log(a+Math.sqrt(a*a-1))});}if (!("asinh"in Math
-)) {CreateMethodProperty(Math,"asinh",function n(i){return isNaN(i)?NaN:0===i&&1/i===Infinity?0:0===i&&1/i==-Infinity?-0:i===Infinity?Infinity:i===-Infinity?-Infinity:Math.log(i+Math.sqrt(i*i+1))});}if (!("atanh"in Math
-)) {CreateMethodProperty(Math,"atanh",function n(t){return isNaN(t)?NaN:t<-1?NaN:t>1?NaN:-1===t?-Infinity:1===t?Infinity:0===t&&1/t===Infinity?0:0===t&&1/t==-Infinity?-0:Math.log((1+t)/(1-t))/2});}if (!("cbrt"in Math
-)) {CreateMethodProperty(Math,"cbrt",function n(t){if(isNaN(t))return NaN;if(0===t&&1/t===Infinity)return 0;if(0===t&&1/t==-Infinity)return-0;if(t===Infinity)return Infinity;if(t===-Infinity)return-Infinity;var i=Math.pow(Math.abs(t),1/3);return t<0?-i:i});}if (!("cosh"in Math
-)) {CreateMethodProperty(Math,"cosh",function n(t){if(isNaN(t))return NaN;if(0===t&&1/t===Infinity)return 1;if(0===t&&1/t==-Infinity)return 1;if(t===Infinity)return Infinity;if(t===-Infinity)return Infinity;if((t=Math.abs(t))>709){var i=Math.exp(.5*t);return i/2*i}return((i=Math.exp(t))+1/i)/2});}if (!("expm1"in Math
-)) {CreateMethodProperty(Math,"expm1",function n(i){return isNaN(i)?NaN:0===i&&1/i===Infinity?0:0===i&&1/i==-Infinity?-0:i===Infinity?Infinity:i===-Infinity?-1:i>-1e-6&&i<1e-6?i+i*i/2:Math.exp(i)-1});}if (!("fround"in Math
-)) {CreateMethodProperty(Math,"fround",function(n){return isNaN(n)?NaN:1/n==+Infinity||1/n==-Infinity||n===+Infinity||n===-Infinity?n:new Float32Array([n])[0]});}if (!("hypot"in Math
-)) {CreateMethodProperty(Math,"hypot",function t(n,r){if(0===arguments.length)return 0;for(var i=0,e=0,a=0;a<arguments.length;++a){if(arguments[a]===Infinity)return Infinity;if(arguments[a]===-Infinity)return Infinity;var f=Math.abs(Number(arguments[a]));f>e&&(i*=Math.pow(e/f,2),e=f),0===f&&0===e||(i+=Math.pow(f/e,2))}return e*Math.sqrt(i)});}if (!("log10"in Math
-)) {CreateMethodProperty(Math,"log10",function t(e){return Math.log(e)/Math.LN10});}if (!("log1p"in Math
-)) {CreateMethodProperty(Math,"log1p",function r(t){if(-1<(t=Number(t))&&t<1){for(var o=t,e=2;e<=300;e++)o+=Math.pow(-1,e-1)*Math.pow(t,e)/e;return o}return Math.log(1+t)});}if (!("log2"in Math
-)) {CreateMethodProperty(Math,"log2",function t(e){return Math.log(e)/Math.LN2});}if (!("sign"in Math
-)) {CreateMethodProperty(Math,"sign",function i(n){return n=Number(n),isNaN(n)?NaN:1/n==-Infinity?-0:1/n===Infinity?0:n<0?-1:n>0?1:void 0});}if (!("sinh"in Math
-)) {CreateMethodProperty(Math,"sinh",function r(t){var a=t<0?-1:1,e=Math.abs(t);if(e<22){if(e<Math.pow(2,-28))return t;var h=Math.exp(e)-1;return e<1?a*(2*h-h*h/(h+1))/2:a*(h+h/(h+1))/2}if(e<709.7822265625)return a*Math.exp(e)/2;var n=Math.exp(.5*e);return(h=a*n/2)*n});}if (!("tanh"in Math
-)) {CreateMethodProperty(Math,"tanh",function t(n){var e;return n===Infinity?1:n===-Infinity?-1:((e=Math.exp(2*n))-1)/(e+1)});}if (!("trunc"in Math
-)) {CreateMethodProperty(Math,"trunc",function t(r){return r<0?Math.ceil(r):Math.floor(r)});}if (!("freeze"in Object
-)) {CreateMethodProperty(Object,"freeze",function e(r){return r});}if (!("getPrototypeOf"in Object
-)) {CreateMethodProperty(Object,"getPrototypeOf",function t(o){if(o!==Object(o))throw new TypeError("Object.getPrototypeOf called on non-object");var e=o.__proto__;return e||null===e?e:"function"==typeof o.constructor&&o instanceof o.constructor?o.constructor.prototype:o instanceof Object?Object.prototype:null});}if (!("keys"in Object&&function(){return 2===Object.keys(arguments).length}(1,2)&&function(){try{return Object.keys(""),!0}catch(t){return!1}}()
-)) {CreateMethodProperty(Object,"keys",function(){"use strict";function t(){var t;try{t=Object.create({})}catch(r){return!0}return o.call(t,"__proto__")}function r(t){var r=n.call(t),e="[object Arguments]"===r;return e||(e="[object Array]"!==r&&null!==t&&"object"==typeof t&&"number"==typeof t.length&&t.length>=0&&"[object Function]"===n.call(t.callee)),e}var e=Object.prototype.hasOwnProperty,n=Object.prototype.toString,o=Object.prototype.propertyIsEnumerable,c=!o.call({toString:null},"toString"),l=o.call(function(){},"prototype"),i=["toString","toLocaleString","valueOf","hasOwnProperty","isPrototypeOf","propertyIsEnumerable","constructor"],u=function(t){var r=t.constructor;return r&&r.prototype===t},a={$console:!0,$external:!0,$frame:!0,$frameElement:!0,$frames:!0,$innerHeight:!0,$innerWidth:!0,$outerHeight:!0,$outerWidth:!0,$pageXOffset:!0,$pageYOffset:!0,$parent:!0,$scrollLeft:!0,$scrollTop:!0,$scrollX:!0,$scrollY:!0,$self:!0,$webkitIndexedDB:!0,$webkitStorageInfo:!0,$window:!0},f=function(){if("undefined"==typeof window)return!1;for(var t in window)try{if(!a["$"+t]&&e.call(window,t)&&null!==window[t]&&"object"==typeof window[t])try{u(window[t])}catch(r){return!0}}catch(r){return!0}return!1}(),p=function(t){if("undefined"==typeof window||!f)return u(t);try{return u(t)}catch(r){return!1}};return function s(o){var u="[object Function]"===n.call(o),a=r(o),f="[object String]"===n.call(o),s=[];if(o===undefined||null===o)throw new TypeError("Cannot convert undefined or null to object");var y=l&&u;if(f&&o.length>0&&!e.call(o,0))for(var h=0;h<o.length;++h)s.push(String(h));if(a&&o.length>0)for(var g=0;g<o.length;++g)s.push(String(g));else for(var w in o)t()&&"__proto__"===w||y&&"prototype"===w||!e.call(o,w)||s.push(String(w));if(c)for(var d=p(o),$=0;$<i.length;++$)d&&"constructor"===i[$]||!e.call(o,i[$])||s.push(i[$]);return s}}());}function Get(n,t){return n[t]}function HasOwnProperty(r,t){return Object.prototype.hasOwnProperty.call(r,t)}function HasProperty(n,r){return r in n}function IsArray(r){return"[object Array]"===Object.prototype.toString.call(r)}if (!("isArray"in Array
-)) {CreateMethodProperty(Array,"isArray",function r(e){return IsArray(e)});}function IsCallable(n){return"function"==typeof n}if (!("bind"in Function.prototype
-)) {CreateMethodProperty(Function.prototype,"bind",function t(n){var r=Array,o=Object,e=r.prototype,l=function g(){},p=e.slice,a=e.concat,i=e.push,c=Math.max,u=this;if(!IsCallable(u))throw new TypeError("Function.prototype.bind called on incompatible "+u);for(var y,h=p.call(arguments,1),s=function(){if(this instanceof y){var t=u.apply(this,a.call(h,p.call(arguments)));return o(t)===t?t:this}return u.apply(n,a.call(h,p.call(arguments)))},f=c(0,u.length-h.length),b=[],d=0;d<f;d++)i.call(b,"$"+d);return y=Function("binder","return function ("+b.join(",")+"){ return binder.apply(this, arguments); }")(s),u.prototype&&(l.prototype=u.prototype,y.prototype=new l,l.prototype=null),y});}function RequireObjectCoercible(e){if(null===e||e===undefined)throw TypeError(Object.prototype.toString.call(e)+" is not coercible to Object.");return e}function SameValueNonNumber(e,n){return e===n}function ToBoolean(o){return Boolean(o)}function ToNumber(r){return Number(r)}function ToObject(e){if(null===e||e===undefined)throw TypeError();return Object(e)}function GetV(t,e){return ToObject(t)[e]}function GetMethod(e,n){var r=GetV(e,n);if(null===r||r===undefined)return undefined;if(!1===IsCallable(r))throw new TypeError("Method not callable: "+n);return r}function ToUint32(n){var i=Number(n);return isNaN(i)||1/i===Infinity||1/i==-Infinity||i===Infinity||i===-Infinity?0:(i<0?-1:1)*Math.floor(Math.abs(i))>>>0}if (!("clz32"in Math
-)) {CreateMethodProperty(Math,"clz32",function t(r){var e=ToUint32(r);return e?32-e.toString(2).length:32});}if (!("imul"in Math
-)) {CreateMethodProperty(Math,"imul",function t(r,e){var n=ToUint32(r),o=ToUint32(e),i=n>>>16&65535,a=65535&n,u=o>>>16&65535,h=65535&o;return a*h+(i*h+a*u<<16>>>0)|0});}function Type(e){switch(typeof e){case"undefined":return"undefined";case"boolean":return"boolean";case"number":return"number";case"string":return"string";case"symbol":return"symbol";default:return null===e?"null":"Symbol"in self&&(e instanceof self.Symbol||e.constructor===self.Symbol)?"symbol":"object"}}if (!("isFinite"in Number
-)) {!function(){var e=self;CreateMethodProperty(Number,"isFinite",function i(n){return"number"===Type(n)&&e.isFinite(n)})}();}if (!("isNaN"in Number
-)) {!function(){var e=self;CreateMethodProperty(Number,"isNaN",function r(n){return"number"===Type(n)&&!!e.isNaN(n)})}();}if (!("isExtensible"in Object
-)) {!function(e){CreateMethodProperty(Object,"isExtensible",function t(n){return"object"===Type(n)&&(!e||e(n))})}(Object.isExtensible);}if (!("seal"in Object&&function(){try{return Object.seal("1"),!0}catch(t){return!1}}()
-)) {!function(e){CreateMethodProperty(Object,"seal",function t(c){return"object"===Type(c)?c:e?e(c):c})}(Object.seal);}if (!("flags"in RegExp.prototype
-)) {Object.defineProperty(RegExp.prototype,"flags",{configurable:!0,enumerable:!1,get:function(){var e=this;if("object"!==Type(e))throw new TypeError("Method called on incompatible type: must be an object.");var o="";return ToBoolean(Get(e,"global"))&&(o+="g"),ToBoolean(Get(e,"ignoreCase"))&&(o+="i"),ToBoolean(Get(e,"multiline"))&&(o+="m"),ToBoolean(Get(e,"unicode"))&&(o+="u"),ToBoolean(Get(e,"sticky"))&&(o+="y"),o}});}function CreateIterResultObject(e,r){if("boolean"!==Type(r))throw new Error;var t={};return CreateDataProperty(t,"value",e),CreateDataProperty(t,"done",r),t}function GetPrototypeFromConstructor(t,o){var r=Get(t,"prototype");return"object"!==Type(r)&&(r=o),r}function IsConstructor(t){return"object"===Type(t)&&("function"==typeof t&&!!t.prototype)}function IsRegExp(e){if("object"!==Type(e))return!1;var n="Symbol"in self&&"match"in self.Symbol?Get(e,self.Symbol.match):undefined;if(n!==undefined)return ToBoolean(n);try{var t=e.lastIndex;return e.lastIndex=0,RegExp.prototype.exec.call(e),!0}catch(l){}finally{e.lastIndex=t}return!1}function IteratorClose(r,t){if("object"!==Type(r["[[Iterator]]"]))throw new Error(Object.prototype.toString.call(r["[[Iterator]]"])+"is not an Object.");var e=r["[[Iterator]]"],o=GetMethod(e,"return");if(o===undefined)return t;try{var n=Call(o,e)}catch(c){var a=c}if(t)return t;if(a)throw a;if("object"!==Type(n))throw new TypeError("Iterator's return method returned a non-object.");return t}function IteratorComplete(t){if("object"!==Type(t))throw new Error(Object.prototype.toString.call(t)+"is not an Object.");return ToBoolean(Get(t,"done"))}function IteratorNext(t){if(arguments.length<2)var e=Call(t["[[NextMethod]]"],t["[[Iterator]]"]);else e=Call(t["[[NextMethod]]"],t["[[Iterator]]"],[arguments[1]]);if("object"!==Type(e))throw new TypeError("bad iterator");return e}function IteratorStep(t){var r=IteratorNext(t);return!0!==IteratorComplete(r)&&r}function IteratorValue(t){if("object"!==Type(t))throw new Error(Object.prototype.toString.call(t)+"is not an Object.");return Get(t,"value")}function OrdinaryToPrimitive(r,t){if("string"===t)var e=["toString","valueOf"];else e=["valueOf","toString"];for(var i=0;i<e.length;++i){var n=e[i],a=Get(r,n);if(IsCallable(a)){var o=Call(a,r);if("object"!==Type(o))return o}}throw new TypeError("Cannot convert to primitive.")}function SameValue(e,a){return Type(e)===Type(a)&&("number"===Type(e)?!(!isNaN(e)||!isNaN(a))||(0!==e||0!==a||1/e==1/a)&&e===a:SameValueNonNumber(e,a))}if (!("is"in Object
-)) {CreateMethodProperty(Object,"is",function e(t,r){return SameValue(t,r)});}function SameValueZero(n,e){return Type(n)===Type(e)&&("number"===Type(n)?!(!isNaN(n)||!isNaN(e))||(1/n===Infinity&&1/e==-Infinity||(1/n==-Infinity&&1/e===Infinity||n===e)):SameValueNonNumber(n,e))}function ToInteger(n){if("symbol"===Type(n))throw new TypeError("Cannot convert a Symbol value to a number");var t=Number(n);return isNaN(t)?0:1/t===Infinity||1/t==-Infinity||t===Infinity||t===-Infinity?t:(t<0?-1:1)*Math.floor(Math.abs(t))}if (!("copyWithin"in Array.prototype&&function(){try{var t=function n(){}
-t.prototype[0]="foo"
-var o=new t
-o[1]=1,o[2]=2,o.length=3
-var r=Array.prototype.copyWithin.call(o,1,0)
-return!(!r[0]||Object.prototype.hasOwnProperty.call(r,"0")||!Object.prototype.hasOwnProperty.call(r,"1")||"foo"!==r[0]||"foo"!==r[1]||1!==r[2]||3!==r.length)}catch(e){return!1}}()
-)) {CreateMethodProperty(Array.prototype,"copyWithin",function t(r,e){"use strict";var a=arguments[2];if(null===this||this===undefined)throw new TypeError("Cannot call method on "+this);var n=Object(this),i=ToInteger(n.length);i<=0&&(i=0),i=i===Infinity?Math.pow(2,53)-1:Math.min(i,Math.pow(2,53)-1),i=Math.max(i,0);var h,o=ToInteger(r);h=o<0?Math.max(i+o,0):Math.min(o,i);var M,m=ToInteger(e);M=m<0?Math.max(i+m,0):Math.min(m,i);var v;v=a===undefined?i:ToInteger(a);var p;p=v<0?Math.max(i+v,0):Math.min(v,i);var s,d=Math.min(p-M,i-h);for(M<h&&h<M+d?(s=-1,M=M+d-1,h=h+d-1):s=1;d>0;){var f=String(M),g=String(h);if(HasProperty(n,f)){var l=n[f];n[g]=l}else delete n[g];M+=s,h+=s,d-=1}return n});}if (!("isInteger"in Number
-)) {CreateMethodProperty(Number,"isInteger",function e(n){return"number"===Type(n)&&(!isNaN(n)&&n!==Infinity&&n!==-Infinity&&ToInteger(n)===n)});}if (!("isSafeInteger"in Number
-)) {CreateMethodProperty(Number,"isSafeInteger",function e(r){if("number"!==Type(r))return!1;if(isNaN(r)||r===Infinity||r===-Infinity)return!1;var t=ToInteger(r);return t===r&&Math.abs(t)<=Math.pow(2,53)-1});}function ToLength(n){var t=ToInteger(n);return t<=0?0:Math.min(t,Math.pow(2,53)-1)}function ToPrimitive(e){var t=arguments.length>1?arguments[1]:undefined;if("object"===Type(e)){if(arguments.length<2)var i="default";else t===String?i="string":t===Number&&(i="number");var r="function"==typeof self.Symbol&&"symbol"==typeof self.Symbol.toPrimitive?GetMethod(e,self.Symbol.toPrimitive):undefined;if(r!==undefined){var n=Call(r,e,[i]);if("object"!==Type(n))return n;throw new TypeError("Cannot convert exotic object to primitive.")}return"default"===i&&(i="number"),OrdinaryToPrimitive(e,i)}return e}function ToString(t){switch(Type(t)){case"symbol":throw new TypeError("Cannot convert a Symbol value to a string");case"object":return ToString(ToPrimitive(t,String));default:return String(t)}}if (!("fill"in Array.prototype
-)) {CreateMethodProperty(Array.prototype,"fill",function t(e){for(var r=arguments[1],n=arguments[2],o=ToObject(this),a=ToLength(Get(o,"length")),h=ToInteger(r),i=h<0?Math.max(a+h,0):Math.min(h,a),g=n===undefined?a:ToInteger(n),M=g<0?Math.max(a+g,0):Math.min(g,a);i<M;){o[ToString(i)]=e,i+=1}return o});}if (!("find"in Array.prototype
-)) {CreateMethodProperty(Array.prototype,"find",function e(r){var t=ToObject(this),n=ToLength(Get(t,"length"));if(!1===IsCallable(r))throw new TypeError(r+" is not a function");for(var o=arguments.length>1?arguments[1]:undefined,a=0;a<n;){var i=ToString(a),f=Get(t,i);if(ToBoolean(Call(r,o,[f,a,t])))return f;a+=1}return undefined});}if (!("findIndex"in Array.prototype
-)) {CreateMethodProperty(Array.prototype,"findIndex",function e(r){var t=ToObject(this),n=ToLength(Get(t,"length"));if(!1===IsCallable(r))throw new TypeError(r+" is not a function");for(var o=arguments.length>1?arguments[1]:undefined,a=0;a<n;){var i=ToString(a),l=Get(t,i);if(ToBoolean(Call(r,o,[l,a,t])))return a;a+=1}return-1});}if (!("forEach"in Array.prototype
-)) {CreateMethodProperty(Array.prototype,"forEach",function r(t){var e=ToObject(this),n=e instanceof String?e.split(""):e,o=ToLength(Get(e,"length"));if(!1===IsCallable(t))throw new TypeError(t+" is not a function");for(var a=arguments.length>1?arguments[1]:undefined,i=0;i<o;){var f=ToString(i);if(HasProperty(n,f)){var l=Get(n,f);Call(t,a,[l,i,e])}i+=1}return undefined});}if (!("includes"in Array.prototype
-)) {CreateMethodProperty(Array.prototype,"includes",function e(r){"use strict";var t=ToObject(this),o=ToLength(Get(t,"length"));if(0===o)return!1;var n=ToInteger(arguments[1]);if(n>=0)var a=n;else(a=o+n)<0&&(a=0);for(;a<o;){var i=Get(t,ToString(a));if(SameValueZero(r,i))return!0;a+=1}return!1});}if (!("indexOf"in Array.prototype
-)) {CreateMethodProperty(Array.prototype,"indexOf",function r(t){var e=ToObject(this),n=ToLength(Get(e,"length"));if(0===n)return-1;var i=ToInteger(arguments[1]);if(i>=n)return-1;if(i>=0)var o=1/i==-Infinity?0:i;else(o=n+i)<0&&(o=0);for(;o<n;){if(HasProperty(e,ToString(o))){if(t===Get(e,ToString(o)))return o}o+=1}return-1});}if (!("getOwnPropertyNames"in Object&&function(){try{return Object.getOwnPropertyNames(1),!0}catch(t){return!1}}()
-)) {!function(){var t={}.toString,e="".split,r=[].concat,o=Object.prototype.hasOwnProperty,c=Object.getOwnPropertyNames||Object.keys,n="object"==typeof self?c(self):[];CreateMethodProperty(Object,"getOwnPropertyNames",function l(a){var p=ToObject(a);if("[object Window]"===t.call(p))try{return c(p)}catch(j){return r.call([],n)}p="[object String]"==t.call(p)?e.call(p,""):Object(p);for(var i=c(p),s=["length","prototype"],O=0;O<s.length;O++){var b=s[O];o.call(p,b)&&!i.includes(b)&&i.push(b)}if(i.includes("__proto__")){var f=i.indexOf("__proto__");i.splice(f,1)}return i})}();}if (!("endsWith"in String.prototype
-)) {CreateMethodProperty(String.prototype,"endsWith",function e(t){"use strict";var r=arguments.length>1?arguments[1]:undefined,n=RequireObjectCoercible(this),i=ToString(n);if(IsRegExp(t))throw new TypeError("First argument to String.prototype.endsWith must not be a regular expression");var o=ToString(t),s=i.length,g=r===undefined?s:ToInteger(r),h=Math.min(Math.max(g,0),s),u=o.length,a=h-u;return!(a<0)&&i.substr(a,u)===o});}if (!("includes"in String.prototype
-)) {CreateMethodProperty(String.prototype,"includes",function e(t){"use strict";var r=arguments.length>1?arguments[1]:undefined,n=RequireObjectCoercible(this),i=ToString(n);if(IsRegExp(t))throw new TypeError("First argument to String.prototype.includes must not be a regular expression");var o=ToString(t),g=ToInteger(r),a=i.length,p=Math.min(Math.max(g,0),a);return-1!==String.prototype.indexOf.call(i,o,p)});}if (!("repeat"in String.prototype
-)) {CreateMethodProperty(String.prototype,"repeat",function r(e){"use strict";var t=RequireObjectCoercible(this),n=ToString(t),o=ToInteger(e);if(o<0)throw new RangeError("Invalid count value");if(o===Infinity)throw new RangeError("Invalid count value");return 0===o?"":new Array(o+1).join(n)});}if (!("startsWith"in String.prototype
-)) {CreateMethodProperty(String.prototype,"startsWith",function t(e){"use strict";var r=arguments.length>1?arguments[1]:undefined,n=RequireObjectCoercible(this),i=ToString(n);if(IsRegExp(e))throw new TypeError("First argument to String.prototype.startsWith must not be a regular expression");var o=ToString(e),s=ToInteger(r),a=i.length,g=Math.min(Math.max(s,0),a);return!(o.length+g>a)&&0===i.substr(g).indexOf(e)});}function ToPropertyKey(r){var i=ToPrimitive(r,String);return"symbol"===Type(i)?i:ToString(i)}if (!("getOwnPropertyDescriptor"in Object&&"function"==typeof Object.getOwnPropertyDescriptor&&function(){try{return"3"===Object.getOwnPropertyDescriptor("13.7",1).value}catch(t){return!1}}()
-)) {!function(){var e=Object.getOwnPropertyDescriptor,t=function(){try{return 1===Object.defineProperty(document.createElement("div"),"one",{get:function(){return 1}}).one}catch(e){return!1}},r={}.toString,n="".split;CreateMethodProperty(Object,"getOwnPropertyDescriptor",function c(o,i){var a=ToObject(o);a=("string"===Type(a)||a instanceof String)&&"[object String]"==r.call(o)?n.call(o,""):Object(o);var u=ToPropertyKey(i);if(t)try{return e(a,u)}catch(l){}if(HasOwnProperty(a,u))return{enumerable:!0,configurable:!0,writable:!0,value:a[u]}})}();}if (!("assign"in Object
-)) {CreateMethodProperty(Object,"assign",function e(t,r){var n=ToObject(t);if(1===arguments.length)return n;var o,c,a,l,i=Array.prototype.slice.call(arguments,1);for(o=0;o<i.length;o++){var p=i[o];for(p===undefined||null===p?a=[]:(l="[object String]"===Object.prototype.toString.call(p)?String(p).split(""):ToObject(p),a=Object.keys(l)),c=0;c<a.length;c++){var b,y=a[c];try{var g=Object.getOwnPropertyDescriptor(l,y);b=g!==undefined&&!0===g.enumerable}catch(u){b=Object.prototype.propertyIsEnumerable.call(l,y)}if(b){var j=Get(l,y);n[y]=j}}}return n});}if (!("defineProperties"in Object
-)) {CreateMethodProperty(Object,"defineProperties",function e(r,t){if("object"!==Type(r))throw new TypeError("Object.defineProperties called on non-object");for(var o=ToObject(t),n=Object.keys(o),c=[],i=0;i<n.length;i++){var b=n[i],f=Object.getOwnPropertyDescriptor(o,b);if(f!==undefined&&f.enumerable){var p=Get(o,b),a=p;c.push([b,a])}}for(var j=0;j<c.length;j++){var d=c[j][0];a=c[j][1],Object.defineProperty(r,d,a)}return r});}if (!("create"in Object
-)) {!function(){function e(){}if({__proto__:null}instanceof Object)t=function(){var e=document.createElement("iframe");e.style.display="none";var o=document.body||document.documentElement;o.appendChild(e),e.src="javascript:";var n=e.contentWindow.Object.prototype;o.removeChild(e),e=null,delete n.constructor,delete n.hasOwnProperty,delete n.propertyIsEnumerable,delete n.isPrototypeOf,delete n.toLocaleString,delete n.toString,delete n.valueOf;var r=function l(){};return r.prototype=n,t=function(){return new r},new r};else var t=function(){return{__proto__:null}};CreateMethodProperty(Object,"create",function o(n,r){if("object"!==Type(n)&&"null"!==Type(n))throw new TypeError("Object prototype may only be an Object or null");if("null"===Type(n))var l=t();else e.prototype=n,l=new e,l.__proto__=n,l.constructor.prototype=n,l.__proto__=n;return 1 in arguments?Object.defineProperties(l,r):l})}();}function OrdinaryCreateFromConstructor(r,e){var t=arguments[2]||{},o=GetPrototypeFromConstructor(r,e),a=Object.create(o);for(var n in t)Object.prototype.hasOwnProperty.call(t,n)&&Object.defineProperty(a,n,{configurable:!0,enumerable:!1,writable:!0,value:t[n]});return a}function Construct(r){var t=arguments.length>2?arguments[2]:r,o=arguments.length>1?arguments[1]:[];if(!IsConstructor(r))throw new TypeError("F must be a constructor.");if(!IsConstructor(t))throw new TypeError("newTarget must be a constructor.");if(t===r)return new(Function.prototype.bind.apply(r,[null].concat(o)));var n=OrdinaryCreateFromConstructor(t,Object.prototype);return Call(r,n,o)}if (!("of"in Array
-)) {CreateMethodProperty(Array,"of",function r(){var r=arguments.length,t=arguments,e=this;if(IsConstructor(e))var a=Construct(e,[r]);else a=ArrayCreate(r);for(var o=0;o<r;){var n=t[o],h=ToString(o);CreateDataPropertyOrThrow(a,h,n),o+=1}return a.length=r,a});}function ArraySpeciesCreate(e,r){if(0===r&&1/r==-Infinity&&(r=0),!1===IsArray(e))return ArrayCreate(r);var n=Get(e,"constructor");if("object"===Type(n)&&null===(n="Symbol"in self&&"species"in self.Symbol?Get(n,self.Symbol.species):undefined)&&(n=undefined),n===undefined)return ArrayCreate(r);if(!IsConstructor(n))throw new TypeError("C must be a constructor");return Construct(n,[r])}if (!("filter"in Array.prototype
-)) {CreateMethodProperty(Array.prototype,"filter",function r(e){var t=ToObject(this),o=ToLength(Get(t,"length"));if(!1===IsCallable(e))throw new TypeError(e+" is not a function");for(var a=arguments.length>1?arguments[1]:undefined,n=ArraySpeciesCreate(t,0),i=0,l=0;i<o;){var f=ToString(i);if(HasProperty(t,f)){var h=Get(t,f);ToBoolean(Call(e,a,[h,i,t]))&&(CreateDataPropertyOrThrow(n,ToString(l),h),l+=1)}i+=1}return n});}if (!("map"in Array.prototype
-)) {CreateMethodProperty(Array.prototype,"map",function r(e){var t=ToObject(this),a=ToLength(Get(t,"length"));if(!1===IsCallable(e))throw new TypeError(e+" is not a function");for(var o=arguments.length>1?arguments[1]:undefined,n=ArraySpeciesCreate(t,a),i=0;i<a;){var p=ToString(i);if(HasProperty(t,p)){var h=Get(t,p),l=Call(e,o,[h,i,t]);CreateDataPropertyOrThrow(n,p,l)}i+=1}return n});}if (!("sort"in Array.prototype&&function(){var r={length:3,0:2,1:1,2:3}
-return Array.prototype.sort.call(r,function(r,t){return r-t})===r}()
-)) {"use strict";var origSort=Array.prototype.sort;CreateMethodProperty(Array.prototype,"sort",function r(t){if(t!==undefined&&!1===IsCallable(t))throw new TypeError("The comparison function must be either a function or undefined");if(t===undefined)origSort.call(this);else{var e=Array.prototype.map.call(this,function(r,t){return{item:r,index:t}});origSort.call(e,function(r,e){var i=t.call(undefined,r.item,e.item);return 0===i?r.index-e.index:i});for(var i in e)Object.prototype.hasOwnProperty.call(e,i)&&e[i].item!==this[i]&&(this[i]=e[i].item)}return this});}if (!("setPrototypeOf"in Object
-)) {!function(){if(!Object.setPrototypeOf){var t,e,o=Object.getOwnPropertyNames,r=Object.getOwnPropertyDescriptor,n=Object.create,c=Object.defineProperty,_=Object.getPrototypeOf,f=Object.prototype,p=function(t,e){return o(e).forEach(function(o){c(t,o,r(e,o))}),t},O=function i(t,e){return p(n(e),t)};try{t=r(f,"__proto__").set,t.call({},null),e=function a(e,o){return t.call(e,o),e}}catch(u){t={__proto__:null},t instanceof Object?e=O:(t.__proto__=f,e=t instanceof Object?function o(t,e){return t.__proto__=e,t}:function r(t,e){return _(t)?(t.__proto__=e,t):O(t,e)})}CreateMethodProperty(Object,"setPrototypeOf",e)}}();}if (!("Symbol"in self&&0===self.Symbol.length
-)) {!function(e,r,n){"use strict";function t(e){if("symbol"===Type(e))return e;throw TypeError(e+" is not a symbol")}var u,o=function(){try{var r={};return e.defineProperty(r,"t",{configurable:!0,enumerable:!1,get:function(){return!0},set:undefined}),!!r.t}catch(n){return!1}}(),i=0,a=""+Math.random(),c="__symbol:",l=c.length,f="__symbol@@"+a,s={},v="defineProperty",y="defineProperties",b="getOwnPropertyNames",p="getOwnPropertyDescriptor",h="propertyIsEnumerable",m=e.prototype,d=m.hasOwnProperty,g=m[h],w=m.toString,S=Array.prototype.concat,P=e.getOwnPropertyNames?e.getOwnPropertyNames(self):[],O=e[b],j=function $(e){if("[object Window]"===w.call(e))try{return O(e)}catch(r){return S.call([],P)}return O(e)},E=e[p],N=e.create,T=e.keys,_=e.freeze||e,k=e[v],F=e[y],I=E(e,b),x=function(e,r,n){if(!d.call(e,f))try{k(e,f,{enumerable:!1,configurable:!1,writable:!1,value:{}})}catch(t){e[f]={}}e[f]["@@"+r]=n},z=function(e,r){var n=N(e);return j(r).forEach(function(e){q.call(r,e)&&L(n,e,r[e])}),n},A=function(e){var r=N(e);return r.enumerable=!1,r},D=function ee(){},M=function(e){return e!=f&&!d.call(H,e)},W=function(e){return e!=f&&d.call(H,e)},q=function re(e){var r=""+e;return W(r)?d.call(this,r)&&this[f]&&this[f]["@@"+r]:g.call(this,e)},B=function(r){var n={enumerable:!1,configurable:!0,get:D,set:function(e){u(this,r,{enumerable:!1,configurable:!0,writable:!0,value:e}),x(this,r,!0)}};try{k(m,r,n)}catch(o){m[r]=n.value}H[r]=k(e(r),"constructor",J);var t=E(G.prototype,"description");return t&&k(H[r],"description",t),_(H[r])},C=function(e){var r=t(e);if(Y){var n=V(r);if(""!==n)return n.slice(1,-1)}if(s[r]!==undefined)return s[r];var u=r.toString(),o=u.lastIndexOf("0.");return u=u.slice(10,o),""===u?undefined:u},G=function ne(){var r=arguments[0];if(this instanceof ne)throw new TypeError("Symbol is not a constructor");var n=c.concat(r||"",a,++i);r===undefined||null!==r&&!isNaN(r)&&""!==String(r)||(s[n]=String(r));var t=B(n);return o||e.defineProperty(t,"description",{configurable:!0,enumerable:!1,value:C(t)}),t},H=N(null),J={value:G},K=function(e){return H[e]},L=function te(e,r,n){var t=""+r;return W(t)?(u(e,t,n.enumerable?A(n):n),x(e,t,!!n.enumerable)):k(e,r,n),e},Q=function(e){return function(r){return d.call(e,f)&&d.call(e[f],"@@"+r)}},R=function ue(e){return j(e).filter(e===m?Q(e):W).map(K)};I.value=L,k(e,v,I),I.value=R,k(e,"getOwnPropertySymbols",I),I.value=function oe(e){return j(e).filter(M)},k(e,b,I),I.value=function ie(e,r){var n=R(r);return n.length?T(r).concat(n).forEach(function(n){q.call(r,n)&&L(e,n,r[n])}):F(e,r),e},k(e,y,I),I.value=q,k(m,h,I),I.value=G,k(n,"Symbol",I),I.value=function(e){var r=c.concat(c,e,a);return r in m?H[r]:B(r)},k(G,"for",I),I.value=function(e){if(M(e))throw new TypeError(e+" is not a symbol");return d.call(H,e)?e.slice(2*l,-a.length):void 0},k(G,"keyFor",I),I.value=function ae(e,r){var n=E(e,r);return n&&W(r)&&(n.enumerable=q.call(e,r)),n},k(e,p,I),I.value=function ce(e,r){return 1===arguments.length||void 0===r?N(e):z(e,r)},k(e,"create",I);var U=null===function(){return this}.call(null);if(I.value=U?function(){var e=w.call(this);return"[object String]"===e&&W(this)?"[object Symbol]":e}:function(){if(this===window)return"[object Null]";var e=w.call(this);return"[object String]"===e&&W(this)?"[object Symbol]":e},k(m,"toString",I),u=function(e,r,n){var t=E(m,r);delete m[r],k(e,r,n),e!==m&&k(m,r,t)},function(){try{var r={};return e.defineProperty(r,"t",{configurable:!0,enumerable:!1,get:function(){return!0},set:undefined}),!!r.t}catch(n){return!1}}()){var V;try{V=Function("s","var v = s.valueOf(); return { [v]() {} }[v].name;")}catch(Z){}var X=function(){},Y=V&&"inferred"===X.name?V:null;e.defineProperty(n.Symbol.prototype,"description",{configurable:!0,enumerable:!1,get:function(){return C(this)}})}}(Object,0,self);}if (!("Symbol"in self&&"hasInstance"in self.Symbol
-)) {Object.defineProperty(Symbol,"hasInstance",{value:Symbol("hasInstance")});}if (!("Symbol"in self&&"isConcatSpreadable"in self.Symbol
-)) {Object.defineProperty(Symbol,"isConcatSpreadable",{value:Symbol("isConcatSpreadable")});}if (!("Symbol"in self&&"iterator"in self.Symbol
-)) {Object.defineProperty(self.Symbol,"iterator",{value:self.Symbol("iterator")});}function GetIterator(t){var e=arguments.length>1?arguments[1]:GetMethod(t,Symbol.iterator),r=Call(e,t);if("object"!==Type(r))throw new TypeError("bad iterator");var o=GetV(r,"next"),a=Object.create(null);return a["[[Iterator]]"]=r,a["[[NextMethod]]"]=o,a["[[Done]]"]=!1,a}if (!("Symbol"in self&&"match"in self.Symbol
-)) {Object.defineProperty(Symbol,"match",{value:Symbol("match")});}if (!("Symbol"in self&&"replace"in self.Symbol
-)) {Object.defineProperty(Symbol,"replace",{value:Symbol("replace")});}if (!("Symbol"in self&&"search"in self.Symbol
-)) {Object.defineProperty(Symbol,"search",{value:Symbol("search")});}if (!("Symbol"in self&&"species"in self.Symbol
-)) {Object.defineProperty(Symbol,"species",{value:Symbol("species")});}if (!("Map"in self&&function(t){try{var n=new t.Map([[1,1],[2,2]])
-return 0===t.Map.length&&2===n.size&&"Symbol"in t&&"iterator"in t.Symbol&&"function"==typeof n[t.Symbol.iterator]}catch(e){return!1}}(self)
-)) {!function(e){function t(e,t){if("object"!==Type(e))throw new TypeError("createMapIterator called on incompatible receiver "+Object.prototype.toString.call(e));if(!0!==e._es6Map)throw new TypeError("createMapIterator called on incompatible receiver "+Object.prototype.toString.call(e));var r=Object.create(u);return Object.defineProperty(r,"[[Map]]",{configurable:!0,enumerable:!1,writable:!0,value:e}),Object.defineProperty(r,"[[MapNextIndex]]",{configurable:!0,enumerable:!1,writable:!0,value:0}),Object.defineProperty(r,"[[MapIterationKind]]",{configurable:!0,enumerable:!1,writable:!0,value:t}),r}var r=function(){try{var e={};return Object.defineProperty(e,"t",{configurable:!0,enumerable:!1,get:function(){return!0},set:undefined}),!!e.t}catch(t){return!1}}(),o=0,a=Symbol("meta_"+(1e8*Math.random()+"").replace(".","")),n=function(e){if("object"==typeof e?null!==e:"function"==typeof e){if(!Object.isExtensible(e))return!1;if(!Object.prototype.hasOwnProperty.call(e,a)){var t=typeof e+"-"+ ++o;Object.defineProperty(e,a,{configurable:!1,enumerable:!1,writable:!1,value:t})}return e[a]}return""+e},i=function(e,t){var r=n(t);if(!1===r)return p(e,t);var o=e._table[r];return o!==undefined&&o},p=function(e,t){for(var r=0;r<e._keys.length;r++){var o=e._keys[r];if(o!==c&&SameValueZero(o,t))return r}return!1},l=function(e,t,r){var o=n(t);return!1!==o&&(!1===r?delete e._table[o]:e._table[o]=r,!0)},c=Symbol("undef"),y=function f(){if(!(this instanceof f))throw new TypeError('Constructor Map requires "new"');var e=OrdinaryCreateFromConstructor(this,f.prototype,{_table:{},_keys:[],_values:[],_size:0,_es6Map:!0});r||Object.defineProperty(e,"size",{configurable:!0,enumerable:!1,writable:!0,value:0});var t=arguments.length>0?arguments[0]:undefined;if(null===t||t===undefined)return e;var o=e.set;if(!IsCallable(o))throw new TypeError("Map.prototype.set is not a function");try{for(var a=GetIterator(t);;){var n=IteratorStep(a);if(!1===n)return e;var i=IteratorValue(n);if("object"!==Type(i))try{throw new TypeError("Iterator value "+i+" is not an entry object")}catch(u){return IteratorClose(a,u)}try{var p=i[0],l=i[1];o.call(e,p,l)}catch(s){return IteratorClose(a,s)}}}catch(s){if(Array.isArray(t)||"[object Arguments]"===Object.prototype.toString.call(t)||t.callee){var c,y=t.length;for(c=0;c<y;c++)o.call(e,t[c][0],t[c][1])}}return e};Object.defineProperty(y,"prototype",{configurable:!1,enumerable:!1,writable:!1,value:{}}),r?Object.defineProperty(y,Symbol.species,{configurable:!0,enumerable:!1,get:function(){return this},set:undefined}):CreateMethodProperty(y,Symbol.species,y),CreateMethodProperty(y.prototype,"clear",function b(){var e=this;if("object"!==Type(e))throw new TypeError("Method Map.prototype.clear called on incompatible receiver "+Object.prototype.toString.call(e));if(!0!==e._es6Map)throw new TypeError("Method Map.prototype.clear called on incompatible receiver "+Object.prototype.toString.call(e));for(var t=e._keys,o=0;o<t.length;o++)e._keys[o]=c,e._values[o]=c;return this._size=0,r||(this.size=this._size),this._table={},undefined}),CreateMethodProperty(y.prototype,"constructor",y),CreateMethodProperty(y.prototype,"delete",function(e){var t=this;if("object"!==Type(t))throw new TypeError("Method Map.prototype.clear called on incompatible receiver "+Object.prototype.toString.call(t));if(!0!==t._es6Map)throw new TypeError("Method Map.prototype.clear called on incompatible receiver "+Object.prototype.toString.call(t));var o=i(t,e);if(!1!==o){var a=t._keys[o];if(a!==c&&SameValueZero(a,e))return this._keys[o]=c,this._values[o]=c,this._size=--this._size,r||(this.size=this._size),l(this,e,!1),!0}return!1}),CreateMethodProperty(y.prototype,"entries",function h(){return t(this,"key+value")}),CreateMethodProperty(y.prototype,"forEach",function(e){var t=this;if("object"!==Type(t))throw new TypeError("Method Map.prototype.forEach called on incompatible receiver "+Object.prototype.toString.call(t));if(!0!==t._es6Map)throw new TypeError("Method Map.prototype.forEach called on incompatible receiver "+Object.prototype.toString.call(t));if(!IsCallable(e))throw new TypeError(Object.prototype.toString.call(e)+" is not a function.");if(arguments[1])var r=arguments[1];for(var o=t._keys,a=0;a<o.length;a++)t._keys[a]!==c&&t._values[a]!==c&&e.call(r,t._values[a],t._keys[a],t);return undefined}),CreateMethodProperty(y.prototype,"get",function d(e){var t=this;if("object"!==Type(t))throw new TypeError("Method Map.prototype.get called on incompatible receiver "+Object.prototype.toString.call(t));if(!0!==t._es6Map)throw new TypeError("Method Map.prototype.get called on incompatible receiver "+Object.prototype.toString.call(t));var r=i(t,e);if(!1!==r){var o=t._keys[r];if(o!==c&&SameValueZero(o,e))return t._values[r]}return undefined}),CreateMethodProperty(y.prototype,"has",function v(e){var t=this;if("object"!=typeof t)throw new TypeError("Method Map.prototype.has called on incompatible receiver "+Object.prototype.toString.call(t));if(!0!==t._es6Map)throw new TypeError("Method Map.prototype.has called on incompatible receiver "+Object.prototype.toString.call(t));var r=i(t,e);if(!1!==r){var o=t._keys[r];if(o!==c&&SameValueZero(o,e))return!0}return!1}),CreateMethodProperty(y.prototype,"keys",function M(){return t(this,"key")}),CreateMethodProperty(y.prototype,"set",function w(e,t){var o=this;if("object"!==Type(o))throw new TypeError("Method Map.prototype.set called on incompatible receiver "+Object.prototype.toString.call(o));if(!0!==o._es6Map)throw new TypeError("Method Map.prototype.set called on incompatible receiver "+Object.prototype.toString.call(o));var a=i(o,e);if(!1!==a)o._values[a]=t;else{-0===e&&(e=0);var n={"[[Key]]":e,"[[Value]]":t};o._keys.push(n["[[Key]]"]),o._values.push(n["[[Value]]"]),l(o,e,o._keys.length-1),++o._size,r||(o.size=o._size)}return o}),r&&Object.defineProperty(y.prototype,"size",{configurable:!0,enumerable:!1,get:function(){var e=this;if("object"!==Type(e))throw new TypeError("Method Map.prototype.size called on incompatible receiver "+Object.prototype.toString.call(e));if(!0!==e._es6Map)throw new TypeError("Method Map.prototype.size called on incompatible receiver "+Object.prototype.toString.call(e));return this._size},set:undefined}),CreateMethodProperty(y.prototype,"values",function j(){return t(this,"value")}),CreateMethodProperty(y.prototype,Symbol.iterator,y.prototype.entries),"name"in y||Object.defineProperty(y,"name",{configurable:!0,enumerable:!1,writable:!1,value:"Map"});var u={};Object.defineProperty(u,"isMapIterator",{configurable:!1,enumerable:!1,writable:!1,value:!0}),CreateMethodProperty(u,"next",function _(){var e=this;if("object"!==Type(e))throw new TypeError("Method %MapIteratorPrototype%.next called on incompatible receiver "+Object.prototype.toString.call(e));if(!e.isMapIterator)throw new TypeError("Method %MapIteratorPrototype%.next called on incompatible receiver "+Object.prototype.toString.call(e));var t=e["[[Map]]"],r=e["[[MapNextIndex]]"],o=e["[[MapIterationKind]]"];if(t===undefined)return CreateIterResultObject(undefined,!0);if(!t._es6Map)throw new Error(Object.prototype.toString.call(t)+" has a [[MapData]] internal slot.");for(var a=t._keys,n=a.length;r<n;){var i=Object.create(null);if(i["[[Key]]"]=t._keys[r],i["[[Value]]"]=t._values[r],r+=1,e["[[MapNextIndex]]"]=r,i["[[Key]]"]!==c){if("key"===o)var p=i["[[Key]]"];else if("value"===o)p=i["[[Value]]"];else{if("key+value"!==o)throw new Error;p=[i["[[Key]]"],i["[[Value]]"]]}return CreateIterResultObject(p,!1)}}return e["[[Map]]"]=undefined,CreateIterResultObject(undefined,!0)}),CreateMethodProperty(u,Symbol.iterator,function g(){return this});try{CreateMethodProperty(e,"Map",y)}catch(s){e.Map=y}}(self);}if (!("Set"in self&&function(){try{var e=new self.Set([1,2])
-return 0===self.Set.length&&2===e.size&&"Symbol"in self&&"iterator"in self.Symbol&&"function"==typeof e[self.Symbol.iterator]}catch(t){return!1}}()
-)) {!function(e){function t(e,t){if("object"!=typeof e)throw new TypeError("createSetIterator called on incompatible receiver "+Object.prototype.toString.call(e));if(!0!==e._es6Set)throw new TypeError("createSetIterator called on incompatible receiver "+Object.prototype.toString.call(e));var r=Object.create(i);return Object.defineProperty(r,"[[IteratedSet]]",{configurable:!0,enumerable:!1,writable:!0,value:e}),Object.defineProperty(r,"[[SetNextIndex]]",{configurable:!0,enumerable:!1,writable:!0,value:0}),Object.defineProperty(r,"[[SetIterationKind]]",{configurable:!0,enumerable:!1,writable:!0,value:t}),r}var r=function(){try{var e={};return Object.defineProperty(e,"t",{configurable:!0,enumerable:!1,get:function(){return!0},set:undefined}),!!e.t}catch(t){return!1}}(),o=Symbol("undef"),n=function c(){if(!(this instanceof c))throw new TypeError('Constructor Set requires "new"');var e=OrdinaryCreateFromConstructor(this,c.prototype,{_values:[],_size:0,_es6Set:!0});r||Object.defineProperty(e,"size",{configurable:!0,enumerable:!1,writable:!0,value:0});var t=arguments.length>0?arguments[0]:undefined;if(null===t||t===undefined)return e;var o=e.add;if(!IsCallable(o))throw new TypeError("Set.prototype.add is not a function");try{for(var n=GetIterator(t);;){var a=IteratorStep(n);if(!1===a)return e;var i=IteratorValue(a);try{o.call(e,i)}catch(y){return IteratorClose(n,y)}}}catch(y){if(!Array.isArray(t)&&"[object Arguments]"!==Object.prototype.toString.call(t)&&!t.callee)throw y;var l,p=t.length;for(l=0;l<p;l++)o.call(e,t[l])}return e};Object.defineProperty(n,"prototype",{configurable:!1,enumerable:!1,writable:!1,value:{}}),r?Object.defineProperty(n,Symbol.species,{configurable:!0,enumerable:!1,get:function(){return this},set:undefined}):CreateMethodProperty(n,Symbol.species,n),CreateMethodProperty(n.prototype,"add",function p(e){var t=this;if("object"!=typeof t)throw new TypeError("Method Set.prototype.add called on incompatible receiver "+Object.prototype.toString.call(t));if(!0!==t._es6Set)throw new TypeError("Method Set.prototype.add called on incompatible receiver "+Object.prototype.toString.call(t));for(var n=t._values,a=0;a<n.length;a++){var i=n[a];if(i!==o&&SameValueZero(i,e))return t}return 0===e&&1/e==-Infinity&&(e=0),t._values.push(e),this._size=++this._size,r||(this.size=this._size),t}),CreateMethodProperty(n.prototype,"clear",function y(){var e=this;if("object"!=typeof e)throw new TypeError("Method Set.prototype.clear called on incompatible receiver "+Object.prototype.toString.call(e));if(!0!==e._es6Set)throw new TypeError("Method Set.prototype.clear called on incompatible receiver "+Object.prototype.toString.call(e));for(var t=e._values,n=0;n<t.length;n++)t[n]=o;return this._size=0,r||(this.size=this._size),undefined}),CreateMethodProperty(n.prototype,"constructor",n),CreateMethodProperty(n.prototype,"delete",function(e){var t=this;if("object"!=typeof t)throw new TypeError("Method Set.prototype.delete called on incompatible receiver "+Object.prototype.toString.call(t));if(!0!==t._es6Set)throw new TypeError("Method Set.prototype.delete called on incompatible receiver "+Object.prototype.toString.call(t));for(var n=t._values,a=0;a<n.length;a++){var i=n[a];if(i!==o&&SameValueZero(i,e))return n[a]=o,this._size=--this._size,r||(this.size=this._size),!0}return!1}),CreateMethodProperty(n.prototype,"entries",function u(){return t(this,"key+value")}),CreateMethodProperty(n.prototype,"forEach",function f(e){var t=this;if("object"!=typeof t)throw new TypeError("Method Set.prototype.forEach called on incompatible receiver "+Object.prototype.toString.call(t));if(!0!==t._es6Set)throw new TypeError("Method Set.prototype.forEach called on incompatible receiver "+Object.prototype.toString.call(t));if(!IsCallable(e))throw new TypeError(Object.prototype.toString.call(e)+" is not a function.");if(arguments[1])var r=arguments[1];for(var n=t._values,a=0;a<n.length;a++){var i=n[a];i!==o&&e.call(r,i,i,t)}return undefined}),CreateMethodProperty(n.prototype,"has",function d(e){var t=this;if("object"!=typeof t)throw new TypeError("Method Set.prototype.forEach called on incompatible receiver "+Object.prototype.toString.call(t));if(!0!==t._es6Set)throw new TypeError("Method Set.prototype.forEach called on incompatible receiver "+Object.prototype.toString.call(t));for(var r=t._values,n=0;n<r.length;n++){var a=r[n];if(a!==o&&SameValueZero(a,e))return!0}return!1});var a=function h(){return t(this,"value")};CreateMethodProperty(n.prototype,"values",a),CreateMethodProperty(n.prototype,"keys",a),r&&Object.defineProperty(n.prototype,"size",{configurable:!0,enumerable:!1,get:function(){var e=this;if("object"!=typeof e)throw new TypeError("Method Set.prototype.size called on incompatible receiver "+Object.prototype.toString.call(e));if(!0!==e._es6Set)throw new TypeError("Method Set.prototype.size called on incompatible receiver "+Object.prototype.toString.call(e));for(var t=e._values,r=0,n=0;n<t.length;n++){t[n]!==o&&(r+=1)}return r},set:undefined}),CreateMethodProperty(n.prototype,Symbol.iterator,a),"name"in n||Object.defineProperty(n,"name",{configurable:!0,enumerable:!1,writable:!1,value:"Set"});var i={};Object.defineProperty(i,"isSetIterator",{configurable:!1,enumerable:!1,writable:!1,value:!0}),CreateMethodProperty(i,"next",function b(){var e=this;if("object"!=typeof e)throw new TypeError("Method %SetIteratorPrototype%.next called on incompatible receiver "+Object.prototype.toString.call(e));if(!e.isSetIterator)throw new TypeError("Method %SetIteratorPrototype%.next called on incompatible receiver "+Object.prototype.toString.call(e));var t=e["[[IteratedSet]]"],r=e["[[SetNextIndex]]"],n=e["[[SetIterationKind]]"];if(t===undefined)return CreateIterResultObject(undefined,!0);if(!t._es6Set)throw new Error(Object.prototype.toString.call(t)+" does not have [[SetData]] internal slot.");for(var a=t._values,i=a.length;r<i;){var l=a[r];if(r+=1,e["[[SetNextIndex]]"]=r,l!==o)return"key+value"===n?CreateIterResultObject([l,l],!1):CreateIterResultObject(l,!1)}return e["[[IteratedSet]]"]=undefined,CreateIterResultObject(undefined,!0)}),CreateMethodProperty(i,Symbol.iterator,function s(){return this});try{CreateMethodProperty(e,"Set",n)}catch(l){e.Set=n}}(self);}if (!("from"in Array&&function(){try{return Array.from({length:-Infinity}),"a"===Array.from(new self.Set(["a"]))[0]&&"a"===Array.from(new self.Map([["a","one"]]))[0][0]}catch(r){return!1}}()
-)) {!function(){function r(r){return"string"==typeof r||"object"==typeof r&&"[object String]"===t.call(r)}var t=Object.prototype.toString,e=String.prototype.match;CreateMethodProperty(Array,"from",function o(t){var o=this,a=arguments.length>1?arguments[1]:undefined;if(a===undefined)var n=!1;else{if(!1===IsCallable(a))throw new TypeError(Object.prototype.toString.call(a)+" is not a function.");var i=arguments.length>2?arguments[2]:undefined;if(i!==undefined)var l=i;else l=undefined;n=!0}var u=GetMethod(t,Symbol.iterator);if(u!==undefined){if(IsConstructor(o))var f=Construct(o);else f=ArrayCreate(0);for(var c=GetIterator(t,u),s=0;;){if(s>=Math.pow(2,53)-1){var h=new TypeError("Iteration count can not be greater than or equal 9007199254740991.");return IteratorClose(c,h)}var y=ToString(s),C=IteratorStep(c);if(!1===C)return f.length=s,f;var g=IteratorValue(C);if(n)try{var p=Call(a,l,[g,s])}catch(b){return IteratorClose(c,b)}else p=g;try{CreateDataPropertyOrThrow(f,y,p)}catch(b){return IteratorClose(c,b)}s+=1}}if(r(t))var v=e.call(t,/[\uD800-\uDBFF][\uDC00-\uDFFF]?|[^\uD800-\uDFFF]|./g)||[];else v=ToObject(t);var d=ToLength(Get(v,"length"));for(f=IsConstructor(o)?Construct(o,[d]):ArrayCreate(d),s=0;s<d;){y=ToString(s);var I=Get(v,y);p=!0===n?Call(a,l,[I,s]):I,CreateDataPropertyOrThrow(f,y,p),s+=1}return f.length=d,f})}();}if (!("Symbol"in self&&"split"in self.Symbol
-)) {Object.defineProperty(Symbol,"split",{value:Symbol("split")});}if (!("Symbol"in self&&"toPrimitive"in self.Symbol
-)) {Object.defineProperty(Symbol,"toPrimitive",{value:Symbol("toPrimitive")});}if (!("Symbol"in self&&"toStringTag"in self.Symbol
-)) {Object.defineProperty(Symbol,"toStringTag",{value:Symbol("toStringTag")});}if (!("Promise"in self
-)) {!function(){"use strict";function n(){return tn[q][B]||D}function t(n){return n&&"object"==typeof n}function e(n){return"function"==typeof n}function r(n,t){return n instanceof t}function o(n){return r(n,A)}function i(n,t,e){if(!t(n))throw a(e)}function u(){try{return b.apply(R,arguments)}catch(n){return Y.e=n,Y}}function c(n,t){return b=n,R=t,u}function f(n,t){function e(){for(var e=0;e<o;)t(r[e],r[e+1]),r[e++]=T,r[e++]=T;o=0,r.length>n&&(r.length=n)}var r=L(n),o=0;return function(n,t){r[o++]=n,r[o++]=t,2===o&&tn.nextTick(e)}}function s(n,t){var o,i,u,f,s=0;if(!n)throw a(N);var l=n[tn[q][z]];if(e(l))i=l.call(n);else{if(!e(n.next)){if(r(n,L)){for(o=n.length;s<o;)t(n[s],s++);return s}throw a(N)}i=n}for(;!(u=i.next()).done;)if((f=c(t)(u.value,s++))===Y)throw e(i[G])&&i[G](),f.e;return s}function a(n){return new TypeError(n)}function l(n){return(n?"":Q)+(new A).stack}function h(n,t){var e="on"+n.toLowerCase(),r=F[e];E&&E.listeners(n).length?n===X?E.emit(n,t._v,t):E.emit(n,t):r?r({reason:t._v,promise:t}):tn[n](t._v,t)}function v(n){return n&&n._s}function _(n){if(v(n))return new n(Z);var t,r,o;return t=new n(function(n,e){if(t)throw a();r=n,o=e}),i(r,e),i(o,e),t}function d(n,t){var e=!1;return function(r){e||(e=!0,I&&(n[M]=l(!0)),t===U?g(n,r):y(n,t,r))}}function p(n,t,r,o){return e(r)&&(t._onFulfilled=r),e(o)&&(n[J]&&h(W,n),t._onRejected=o),I&&(t._p=n),n[n._c++]=t,n._s!==$&&rn(n,t),t}function m(n){if(n._umark)return!0;n._umark=!0;for(var t,e=0,r=n._c;e<r;)if(t=n[e++],t._onRejected||m(t))return!0}function w(n,t){function e(n){return r.push(n.replace(/^\s+|\s+$/g,""))}var r=[];return I&&(t[M]&&e(t[M]),function o(n){n&&K in n&&(o(n._next),e(n[K]+""),o(n._p))}(t)),(n&&n.stack?n.stack:n)+("\n"+r.join("\n")).replace(nn,"")}function j(n,t){return n(t)}function y(n,t,e){var r=0,i=n._c;if(n._s===$)for(n._s=t,n._v=e,t===O&&(I&&o(e)&&(e.longStack=w(e,n)),on(n));r<i;)rn(n,n[r++]);return n}function g(n,r){if(r===n&&r)return y(n,O,a(V)),n;if(r!==S&&(e(r)||t(r))){var o=c(k)(r);if(o===Y)return y(n,O,o.e),n;e(o)?(I&&v(r)&&(n._next=r),v(r)?x(n,r,o):tn.nextTick(function(){x(n,r,o)})):y(n,U,r)}else y(n,U,r);return n}function k(n){return n.then}function x(n,t,e){var r=c(e,t)(function(e){t&&(t=S,g(n,e))},function(e){t&&(t=S,y(n,O,e))});r===Y&&t&&(y(n,O,r.e),t=S)}var T,b,R,S=null,C="object"==typeof self,F=self,P=F.Promise,E=F.process,H=F.console,I=!0,L=Array,A=Error,O=1,U=2,$=3,q="Symbol",z="iterator",B="species",D=q+"("+B+")",G="return",J="_uh",K="_pt",M="_st",N="Invalid argument",Q="\nFrom previous ",V="Chaining cycle detected for promise",W="rejectionHandled",X="unhandledRejection",Y={e:S},Z=function(){},nn=/^.+\/node_modules\/yaku\/.+\n?/gm,tn=function(n){var r,o=this;if(!t(o)||o._s!==T)throw a("Invalid this");if(o._s=$,I&&(o[K]=l()),n!==Z){if(!e(n))throw a(N);r=c(n)(d(o,U),d(o,O)),r===Y&&y(o,O,r.e)}};tn["default"]=tn,function en(n,t){for(var e in t)n[e]=t[e]}(tn.prototype,{then:function(n,t){if(this._s===undefined)throw a();return p(this,_(tn.speciesConstructor(this,tn)),n,t)},"catch":function(n){return this.then(T,n)},"finally":function(n){return this.then(function(t){return tn.resolve(n()).then(function(){return t})},function(t){return tn.resolve(n()).then(function(){throw t})})},_c:0,_p:S}),tn.resolve=function(n){return v(n)?n:g(_(this),n)},tn.reject=function(n){return y(_(this),O,n)},tn.race=function(n){var t=this,e=_(t),r=function(n){y(e,U,n)},o=function(n){y(e,O,n)},i=c(s)(n,function(n){t.resolve(n).then(r,o)});return i===Y?t.reject(i.e):e},tn.all=function(n){function t(n){y(o,O,n)}var e,r=this,o=_(r),i=[];return(e=c(s)(n,function(n,u){r.resolve(n).then(function(n){i[u]=n,--e||y(o,U,i)},t)}))===Y?r.reject(e.e):(e||y(o,U,[]),o)},tn.Symbol=F[q]||{},c(function(){Object.defineProperty(tn,n(),{get:function(){return this}})})(),tn.speciesConstructor=function(t,e){var r=t.constructor;return r?r[n()]||e:e},tn.unhandledRejection=function(n,t){H&&H.error("Uncaught (in promise)",I?t.longStack:w(n,t))},tn.rejectionHandled=Z,tn.enableLongStackTrace=function(){I=!0},tn.nextTick=C?function(n){P?new P(function(n){n()}).then(n):setTimeout(n)}:E.nextTick,tn._s=1;var rn=f(999,function(n,t){var e,r;return(r=n._s!==O?t._onFulfilled:t._onRejected)===T?void y(t,n._s,n._v):(e=c(j)(r,n._v))===Y?void y(t,O,e.e):void g(t,e)}),on=f(9,function(n){m(n)||(n[J]=1,h(X,n))});F.Promise=tn}();}if (!("Symbol"in self&&"unscopables"in self.Symbol
-)) {Object.defineProperty(Symbol,"unscopables",{value:Symbol("unscopables")});}if (!((function(){try{if("WeakMap"in self&&0===self.WeakMap.length){var e={},t=new self.WeakMap([[e,"test"]])
-return"test"===t.get(e)&&!1===t["delete"](0)}return!1}catch(a){return!1}})()
-)) {!function(e){var t=Symbol("undef"),r=function a(){if(!(this instanceof a))throw new TypeError('Constructor WeakMap requires "new"');var e=OrdinaryCreateFromConstructor(this,a.prototype,{_keys:[],_values:[],_es6WeakMap:!0}),t=arguments.length>0?arguments[0]:undefined;if(null===t||t===undefined)return e;var r=Get(e,"set");if(!IsCallable(r))throw new TypeError("WeakMap.prototype.set is not a function");try{for(var o=GetIterator(t);;){var p=IteratorStep(o);if(!1===p)return e;var n=IteratorValue(p);if("object"!==Type(n))try{throw new TypeError("Iterator value "+n+" is not an entry object")}catch(s){return IteratorClose(o,s)}try{var i=Get(n,"0"),l=Get(n,"1");Call(r,e,[i,l])}catch(u){return IteratorClose(o,u)}}}catch(u){if(Array.isArray(t)||"[object Arguments]"===Object.prototype.toString.call(t)||t.callee){var y,c=t.length;for(y=0;y<c;y++)i=t[y][0],l=t[y][1],Call(r,e,[i,l])}}return e};Object.defineProperty(r,"prototype",{configurable:!1,enumerable:!1,writable:!1,value:{}}),CreateMethodProperty(r.prototype,"constructor",r),CreateMethodProperty(r.prototype,"delete",function(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakMap.prototype.clear called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakMap)throw new TypeError("Method WeakMap.prototype.clear called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._keys;if("object"!==Type(e))return!1;for(var a=0;a<o.length;a++)if(r._keys[a]!==t&&SameValue(r._keys[a],e))return this._keys[a]=t,this._values[a]=t,this._size=--this._size,!0;return!1}),CreateMethodProperty(r.prototype,"get",function p(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakMap.prototype.get called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakMap)throw new TypeError("Method WeakMap.prototype.get called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._keys;if("object"!==Type(e))return undefined;for(var a=0;a<o.length;a++)if(r._keys[a]!==t&&SameValue(r._keys[a],e))return r._values[a];return undefined}),CreateMethodProperty(r.prototype,"has",function n(e){var r=this;if("object"!=typeof r)throw new TypeError("Method WeakMap.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakMap)throw new TypeError("Method WeakMap.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._keys;if("object"!==Type(e))return!1;for(var a=0;a<o.length;a++)if(r._keys[a]!==t&&SameValue(r._keys[a],e))return!0;return!1}),CreateMethodProperty(r.prototype,"set",function i(e,r){var o=this;if("object"!==Type(o))throw new TypeError("Method WeakMap.prototype.set called on incompatible receiver "+Object.prototype.toString.call(o));if(!0!==o._es6WeakMap)throw new TypeError("Method WeakMap.prototype.set called on incompatible receiver "+Object.prototype.toString.call(o));var a=o._keys;if("object"!==Type(e))throw new TypeError("Invalid value used as weak map key");for(var p=0;p<a.length;p++)if(o._keys[p]!==t&&SameValue(o._keys[p],e))return o._values[p]=r,o;var n={"[[Key]]":e,"[[Value]]":r};return o._keys.push(n["[[Key]]"]),o._values.push(n["[[Value]]"]),o}),Object.defineProperty(r.prototype,Symbol.toStringTag,{configurable:!0,enumerable:!1,writable:!1,value:"WeakMap"}),"name"in r||Object.defineProperty(r,"name",{configurable:!0,enumerable:!1,writable:!1,value:"WeakMap"});try{CreateMethodProperty(e,"WeakMap",r)}catch(o){e.WeakMap=r}}(self);}if (!((function(e){try{if(Object.prototype.hasOwnProperty.call(e,"WeakSet")&&0===e.WeakSet.length){var t={},r=new e.WeakSet([t])
-return r.has(t)&&!1===r["delete"](0)}return!1}catch(a){return!1}})(self)
-)) {!function(e){var t=Symbol("undef"),r=function a(){if(!(this instanceof a))throw new TypeError('Constructor WeakSet requires "new"');var e=OrdinaryCreateFromConstructor(this,a.prototype,{_values:[],_size:0,_es6WeakSet:!0}),t=arguments.length>0?arguments[0]:undefined;if(null===t||t===undefined)return e;var r=Get(e,"add");if(!IsCallable(r))throw new TypeError("WeakSet.prototype.add is not a function");try{for(var o=GetIterator(t);;){var n=IteratorStep(o);if(!1===n)return e;var l=IteratorValue(n);try{Call(r,e,[l])}catch(c){return IteratorClose(o,c)}}}catch(c){if(IsArray(t)||"[object Arguments]"===Object.prototype.toString.call(t)||t.callee){var p,i=t.length;for(p=0;p<i;p++)Call(r,e,[t[p]])}}return e};Object.defineProperty(r,"prototype",{configurable:!1,enumerable:!1,writable:!1,value:{}}),CreateMethodProperty(r.prototype,"add",function n(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.add called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.add called on incompatible receiver "+Object.prototype.toString.call(r));if("object"!==Type(e))throw new TypeError("Invalid value used in weak set");for(var o=r._values,a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return r}return r._values.push(e),r}),CreateMethodProperty(r.prototype,"constructor",r),CreateMethodProperty(r.prototype,"delete",function(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.delete called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.delete called on incompatible receiver "+Object.prototype.toString.call(r));if("object"!==Type(e))return!1;for(var o=r._values,a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return o[a]=t,!0}return!1}),CreateMethodProperty(r.prototype,"has",function l(e){var r=this;if("object"!==Type(r))throw new TypeError("Method WeakSet.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));if(!0!==r._es6WeakSet)throw new TypeError("Method WeakSet.prototype.has called on incompatible receiver "+Object.prototype.toString.call(r));var o=r._values;if("object"!==Type(e))return!1;for(var a=0;a<o.length;a++){var n=o[a];if(n!==t&&SameValueZero(n,e))return!0}return!1}),"name"in r||Object.defineProperty(r,"name",{configurable:!0,enumerable:!1,writable:!1,value:"WeakSet"});try{CreateMethodProperty(e,"WeakSet",r)}catch(o){e.WeakSet=r}}(self);}function TrimString(e,u){var r=RequireObjectCoercible(e),t=ToString(r),n=/[\x09\x0A\x0B\x0C\x0D\x20\xA0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000\u2028\u2029\uFEFF]+/.source;if("start"===u)var p=String.prototype.replace.call(t,new RegExp("^"+n,"g"),"");else p="end"===u?String.prototype.replace.call(t,new RegExp(n+"$","g"),""):String.prototype.replace.call(t,new RegExp("^"+n+"|"+n+"$","g"),"");return p}if (!("trim"in String.prototype&&function(){var r="​᠎"
-return!"\t\n\x0B\f\r                　\u2028\u2029\ufeff".trim()&&r.trim()===r}()
-)) {CreateMethodProperty(String.prototype,"trim",function t(){"use strict";var t=this;return TrimString(t,"start+end")});}if (!("parseFloat"in Number&&1/parseFloat("\t\n\x0B\f\r                　\u2028\u2029\ufeff-0")==-Infinity
-)) {!function(r,t){var a=function o(t){var a=String(t).trim(),e=r(a);return 0===e&&"-"==a.charAt(0)?-0:e};try{CreateMethodProperty(t,"parseFloat",a)}catch(e){t.parseFloat=a}CreateMethodProperty(Number,"parseFloat",t.parseFloat)}(parseFloat,this);}if (!("parseInt"in Number&&8===Number.parseInt("08")
-)) {!function(t,r){var e=function a(r,e){var n=String(r).trim();return t(n,e>>>0||(/^[-+]?0[xX]/.test(n)?16:10))};try{CreateMethodProperty(r,"parseInt",e)}catch(n){r.parseInt=e}CreateMethodProperty(Number,"parseInt",r.parseInt)}(parseInt,this);}function UTF16Decode(e,n){return 1024*(e-55296)+(n-56320)+65536}if (!("codePointAt"in String.prototype
-)) {CreateMethodProperty(String.prototype,"codePointAt",function e(t){var r=RequireObjectCoercible(this),o=ToString(r),n=ToInteger(t),i=o.length;if(n<0||n>=i)return undefined;var c=String.prototype.charCodeAt.call(o,n);if(c<55296||c>56319||n+1===i)return c;var a=String.prototype.charCodeAt.call(o,n+1);return a<56320||a>57343?c:UTF16Decode(c,a)});}function UTF16Encoding(n){return n<=65535?n:[Math.floor((n-65536)/1024)+55296,(n-65536)%1024+56320]}if (!("fromCodePoint"in String&&1===String.fromCodePoint.length
-)) {CreateMethodProperty(String,"fromCodePoint",function r(o){for(var t=[],e=arguments,n=arguments.length,a=[],i=0;i<n;){a=[];var l=e[i],p=ToNumber(l);if(!1===SameValue(p,ToInteger(p)))throw new RangeError("Invalid code point "+Object.prototype.toString.call(p));if(p<0||p>1114111)throw new RangeError("Invalid code point "+Object.prototype.toString.call(p));var c=UTF16Encoding(p);IsArray(c)?a=a.concat(c):a.push(c),i+=1,t.push(String.fromCharCode.apply(null,a))}return 0===n?"":t.join("")});}var Iterator=function(){var e=function(){return this.length=0,this},t=function(e){if("function"!=typeof e)throw new TypeError(e+" is not a function");return e},_=function(e,n){if(!(this instanceof _))return new _(e,n);Object.defineProperties(this,{__list__:{writable:!0,value:e},__context__:{writable:!0,value:n},__nextIndex__:{writable:!0,value:0}}),n&&(t(n.on),n.on("_add",this._onAdd.bind(this)),n.on("_delete",this._onDelete.bind(this)),n.on("_clear",this._onClear.bind(this)))};return Object.defineProperties(_.prototype,Object.assign({constructor:{value:_,configurable:!0,enumerable:!1,writable:!0},_next:{value:function(){var e;if(this.__list__)return this.__redo__&&(e=this.__redo__.shift())!==undefined?e:this.__nextIndex__<this.__list__.length?this.__nextIndex__++:void this._unBind()},configurable:!0,enumerable:!1,writable:!0},next:{value:function(){return this._createResult(this._next())},configurable:!0,enumerable:!1,writable:!0},_createResult:{value:function(e){return e===undefined?{done:!0,value:undefined}:{done:!1,value:this._resolve(e)}},configurable:!0,enumerable:!1,writable:!0},_resolve:{value:function(e){return this.__list__[e]},configurable:!0,enumerable:!1,writable:!0},_unBind:{value:function(){this.__list__=null,delete this.__redo__,this.__context__&&(this.__context__.off("_add",this._onAdd.bind(this)),this.__context__.off("_delete",this._onDelete.bind(this)),this.__context__.off("_clear",this._onClear.bind(this)),this.__context__=null)},configurable:!0,enumerable:!1,writable:!0},toString:{value:function(){return"[object Iterator]"},configurable:!0,enumerable:!1,writable:!0}},{_onAdd:{value:function(e){if(!(e>=this.__nextIndex__)){if(++this.__nextIndex__,!this.__redo__)return void Object.defineProperty(this,"__redo__",{value:[e],configurable:!0,enumerable:!1,writable:!1});this.__redo__.forEach(function(t,_){t>=e&&(this.__redo__[_]=++t)},this),this.__redo__.push(e)}},configurable:!0,enumerable:!1,writable:!0},_onDelete:{value:function(e){var t;e>=this.__nextIndex__||(--this.__nextIndex__,this.__redo__&&(t=this.__redo__.indexOf(e),-1!==t&&this.__redo__.splice(t,1),this.__redo__.forEach(function(t,_){t>e&&(this.__redo__[_]=--t)},this)))},configurable:!0,enumerable:!1,writable:!0},_onClear:{value:function(){this.__redo__&&e.call(this.__redo__),this.__nextIndex__=0},configurable:!0,enumerable:!1,writable:!0}})),Object.defineProperty(_.prototype,Symbol.iterator,{value:function(){return this},configurable:!0,enumerable:!1,writable:!0}),Object.defineProperty(_.prototype,Symbol.toStringTag,{value:"Iterator",configurable:!1,enumerable:!1,writable:!0}),_}();var ArrayIterator=function(){var e=function(t,r){if(!(this instanceof e))return new e(t,r);Iterator.call(this,t),r=r?String.prototype.includes.call(r,"key+value")?"key+value":String.prototype.includes.call(r,"key")?"key":"value":"value",Object.defineProperty(this,"__kind__",{value:r,configurable:!1,enumerable:!1,writable:!1})};return Object.setPrototypeOf&&Object.setPrototypeOf(e,Iterator.prototype),e.prototype=Object.create(Iterator.prototype,{constructor:{value:e,configurable:!0,enumerable:!1,writable:!0},_resolve:{value:function(e){return"value"===this.__kind__?this.__list__[e]:"key+value"===this.__kind__?[e,this.__list__[e]]:e},configurable:!0,enumerable:!1,writable:!0},toString:{value:function(){return"[object Array Iterator]"},configurable:!0,enumerable:!1,writable:!0}}),e}();if (!("Symbol"in self&&"iterator"in self.Symbol&&!!Array.prototype.entries
-)) {CreateMethodProperty(Array.prototype,"entries",function r(){var r=ToObject(this);return new ArrayIterator(r,"key+value")});}if (!("Symbol"in self&&"iterator"in self.Symbol&&!!Array.prototype.keys
-)) {CreateMethodProperty(Array.prototype,"keys",function r(){var r=ToObject(this);return new ArrayIterator(r,"key")});}if (!("values"in Array.prototype
-)) {"Symbol"in self&&"iterator"in Symbol&&"function"==typeof Array.prototype[Symbol.iterator]?CreateMethodProperty(Array.prototype,"values",Array.prototype[Symbol.iterator]):CreateMethodProperty(Array.prototype,"values",function r(){var r=ToObject(this);return new ArrayIterator(r,"value")});}if (!("Symbol"in self&&"iterator"in self.Symbol&&!!Array.prototype[self.Symbol.iterator]
-)) {CreateMethodProperty(Array.prototype,Symbol.iterator,Array.prototype.values);}var StringIterator=function(){var t=function(e){if(!(this instanceof t))return new t(e);e=String(e),Iterator.call(this,e),Object.defineProperty(this,"__length__",{value:e.length,configurable:!1,enumerable:!1,writable:!1})};return Object.setPrototypeOf&&Object.setPrototypeOf(t,Iterator),t.prototype=Object.create(Iterator.prototype,{constructor:{value:t,configurable:!0,enumerable:!1,writable:!0},_next:{value:function(){if(this.__list__)return this.__nextIndex__<this.__length__?this.__nextIndex__++:void this._unBind()},configurable:!0,enumerable:!1,writable:!0},_resolve:{value:function(t){var e,r=this.__list__[t];return this.__nextIndex__===this.__length__?r:(e=r.charCodeAt(0),e>=55296&&e<=56319?r+this.__list__[this.__nextIndex__++]:r)},configurable:!0,enumerable:!1,writable:!0},toString:{value:function(){return"[object String Iterator]"},configurable:!0,enumerable:!1,writable:!0}}),t}();if (!("Symbol"in self&&"iterator"in self.Symbol&&!!String.prototype[self.Symbol.iterator]
-)) {CreateMethodProperty(String.prototype,Symbol.iterator,function(){var r=RequireObjectCoercible(this),t=ToString(r);return new StringIterator(t)});}})('object' === typeof window && window || 'object' === typeof self && self || 'object' === typeof global && global || {});</script>
-  
-  <script>
-    (function () {
-      var script = document.createElement("script");
-      script.type = "text/javascript";
-      script.src  = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js";
-      document.getElementsByTagName("head")[0].appendChild(script);
-    })();
-  </script>
-
-
-<script type="text/javascript">
-const typesetMath = (el) => {
-  if (window.MathJax) {
-    // MathJax Typeset
-    window.MathJax.typeset([el]);
-  } else if (window.katex) {
-    // KaTeX Render
-    var mathElements = el.getElementsByClassName("math");
-    var macros = [];
-    for (var i = 0; i < mathElements.length; i++) {
-      var texText = mathElements[i].firstChild;
-      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
-        window.katex.render(texText.data, mathElements[i], {
-          displayMode: mathElements[i].classList.contains('display'),
-          throwOnError: false,
-          macros: macros,
-          fleqn: false
-        });
-      }
-    }
-  }
-}
-window.Quarto = {
-  typesetMath
-};
-</script>
 
 </head>
 
@@ -5211,75 +5070,36 @@ window.Quarto = {
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#purpose-and-scope" id="toc-purpose-and-scope" class="nav-link active" data-scroll-target="#purpose-and-scope"><span class="header-section-number">1</span> Purpose and scope</a></li>
-  <li><a href="#reference-synthetic-population" id="toc-reference-synthetic-population" class="nav-link" data-scroll-target="#reference-synthetic-population"><span class="header-section-number">2</span> Reference synthetic population</a>
+  <li><a href="#core-principle" id="toc-core-principle" class="nav-link active" data-scroll-target="#core-principle"><span class="header-section-number">1</span> Core principle</a></li>
+  <li><a href="#review-sized-workflows" id="toc-review-sized-workflows" class="nav-link" data-scroll-target="#review-sized-workflows"><span class="header-section-number">2</span> Review-sized workflows</a>
   <ul class="collapse">
-  <li><a href="#unit-of-representation" id="toc-unit-of-representation" class="nav-link" data-scroll-target="#unit-of-representation"><span class="header-section-number">2.1</span> Unit of representation</a></li>
-  <li><a href="#key-variables-from-active-travel-to-physical-activity" id="toc-key-variables-from-active-travel-to-physical-activity" class="nav-link" data-scroll-target="#key-variables-from-active-travel-to-physical-activity"><span class="header-section-number">2.2</span> Key variables from active travel to physical activity</a></li>
-  <li><a href="#weekly-physical-activity-exposure" id="toc-weekly-physical-activity-exposure" class="nav-link" data-scroll-target="#weekly-physical-activity-exposure"><span class="header-section-number">2.3</span> Weekly physical-activity exposure</a></li>
+  <li><a href="#user-count-route" id="toc-user-count-route" class="nav-link" data-scroll-target="#user-count-route"><span class="header-section-number">2.1</span> User-count route</a></li>
+  <li><a href="#trip-count-route" id="toc-trip-count-route" class="nav-link" data-scroll-target="#trip-count-route"><span class="header-section-number">2.2</span> Trip-count route</a></li>
+  <li><a href="#distanceduration-route" id="toc-distanceduration-route" class="nav-link" data-scroll-target="#distanceduration-route"><span class="header-section-number">2.3</span> Distance/duration route</a></li>
+  <li><a href="#mode-share-route" id="toc-mode-share-route" class="nav-link" data-scroll-target="#mode-share-route"><span class="header-section-number">2.4</span> Mode-share route</a></li>
+  <li><a href="#shared-tab-3-to-results-handoff" id="toc-shared-tab-3-to-results-handoff" class="nav-link" data-scroll-target="#shared-tab-3-to-results-handoff"><span class="header-section-number">2.5</span> Shared Tab 3-to-results handoff</a></li>
   </ul></li>
-  <li><a href="#from-physical-activity-to-health-trajectories" id="toc-from-physical-activity-to-health-trajectories" class="nav-link" data-scroll-target="#from-physical-activity-to-health-trajectories"><span class="header-section-number">3</span> From physical activity to health trajectories</a>
-  <ul class="collapse">
-  <li><a href="#health-adjusted-life-years" id="toc-health-adjusted-life-years" class="nav-link" data-scroll-target="#health-adjusted-life-years"><span class="header-section-number">3.1</span> Health-adjusted life years</a></li>
-  </ul></li>
-  <li><a href="#ways-to-specify-counterfactual-active-travel" id="toc-ways-to-specify-counterfactual-active-travel" class="nav-link" data-scroll-target="#ways-to-specify-counterfactual-active-travel"><span class="header-section-number">4</span> Ways to specify counterfactual active travel</a>
-  <ul class="collapse">
-  <li><a href="#reference-defaults" id="toc-reference-defaults" class="nav-link" data-scroll-target="#reference-defaults"><span class="header-section-number">4.1</span> Reference defaults</a></li>
-  <li><a href="#continuity-from-tab-2-to-tabs-3-and-4" id="toc-continuity-from-tab-2-to-tabs-3-and-4" class="nav-link" data-scroll-target="#continuity-from-tab-2-to-tabs-3-and-4"><span class="header-section-number">4.2</span> Continuity from Tab 2 to Tabs 3 and 4</a>
-  <ul class="collapse">
-  <li><a href="#workflow-overview" id="toc-workflow-overview" class="nav-link" data-scroll-target="#workflow-overview"><span class="header-section-number">4.2.1</span> Workflow overview</a></li>
-  <li><a href="#how-tab-2-units-reach-tabs-3-and-4" id="toc-how-tab-2-units-reach-tabs-3-and-4" class="nav-link" data-scroll-target="#how-tab-2-units-reach-tabs-3-and-4"><span class="header-section-number">4.2.2</span> How Tab 2 units reach Tabs 3 and 4</a></li>
-  <li><a href="#what-refinements-change" id="toc-what-refinements-change" class="nav-link" data-scroll-target="#what-refinements-change"><span class="header-section-number">4.2.3</span> What refinements change</a></li>
-  </ul></li>
-  <li><a href="#basic-specification-tab-2" id="toc-basic-specification-tab-2" class="nav-link" data-scroll-target="#basic-specification-tab-2"><span class="header-section-number">4.3</span> Basic specification (Tab 2)</a>
-  <ul class="collapse">
-  <li><a href="#converting-distance-duration-and-mode-share" id="toc-converting-distance-duration-and-mode-share" class="nav-link" data-scroll-target="#converting-distance-duration-and-mode-share"><span class="header-section-number">4.3.1</span> Converting distance, duration, and mode share</a></li>
-  </ul></li>
-  <li><a href="#refined-population-specification-tab-3" id="toc-refined-population-specification-tab-3" class="nav-link" data-scroll-target="#refined-population-specification-tab-3"><span class="header-section-number">4.4</span> Refined population specification (Tab 3)</a></li>
-  <li><a href="#refined-trip-specification-tab-4" id="toc-refined-trip-specification-tab-4" class="nav-link" data-scroll-target="#refined-trip-specification-tab-4"><span class="header-section-number">4.5</span> Refined trip specification (Tab 4)</a></li>
-  </ul></li>
-  <li><a href="#counterfactual-sampling-and-redistribution" id="toc-counterfactual-sampling-and-redistribution" class="nav-link" data-scroll-target="#counterfactual-sampling-and-redistribution"><span class="header-section-number">5</span> Counterfactual sampling and redistribution</a>
-  <ul class="collapse">
-  <li><a href="#general-design" id="toc-general-design" class="nav-link" data-scroll-target="#general-design"><span class="header-section-number">5.1</span> General design</a></li>
-  <li><a href="#changing-the-number-of-users" id="toc-changing-the-number-of-users" class="nav-link" data-scroll-target="#changing-the-number-of-users"><span class="header-section-number">5.2</span> Changing the number of users</a></li>
-  <li><a href="#changing-the-number-of-trips" id="toc-changing-the-number-of-trips" class="nav-link" data-scroll-target="#changing-the-number-of-trips"><span class="header-section-number">5.3</span> Changing the number of trips</a></li>
-  <li><a href="#count-units-and-represented-totals" id="toc-count-units-and-represented-totals" class="nav-link" data-scroll-target="#count-units-and-represented-totals"><span class="header-section-number">5.4</span> Count units and represented totals</a></li>
-  </ul></li>
-  <li><a href="#what-each-refinement-currently-controls" id="toc-what-each-refinement-currently-controls" class="nav-link" data-scroll-target="#what-each-refinement-currently-controls"><span class="header-section-number">6</span> What each refinement currently controls</a></li>
-  <li><a href="#validation-uncertainty-and-remaining-work" id="toc-validation-uncertainty-and-remaining-work" class="nav-link" data-scroll-target="#validation-uncertainty-and-remaining-work"><span class="header-section-number">7</span> Validation, uncertainty, and remaining work</a>
-  <ul class="collapse">
-  <li><a href="#priority-methodological-todos" id="toc-priority-methodological-todos" class="nav-link" data-scroll-target="#priority-methodological-todos"><span class="header-section-number">7.1</span> Priority methodological TODOs</a></li>
-  <li><a href="#recommended-checks-for-each-appraisal" id="toc-recommended-checks-for-each-appraisal" class="nav-link" data-scroll-target="#recommended-checks-for-each-appraisal"><span class="header-section-number">7.2</span> Recommended checks for each appraisal</a></li>
-  </ul></li>
-  <li><a href="#implementation-traceability" id="toc-implementation-traceability" class="nav-link" data-scroll-target="#implementation-traceability"><span class="header-section-number">8</span> Implementation traceability</a></li>
+  <li><a href="#comprehensive-vertical-workflow" id="toc-comprehensive-vertical-workflow" class="nav-link" data-scroll-target="#comprehensive-vertical-workflow"><span class="header-section-number">3</span> Comprehensive vertical workflow</a></li>
+  <li><a href="#authority-by-tab-2-input-route" id="toc-authority-by-tab-2-input-route" class="nav-link" data-scroll-target="#authority-by-tab-2-input-route"><span class="header-section-number">4</span> Authority by Tab 2 input route</a></li>
+  <li><a href="#refinement-effects" id="toc-refinement-effects" class="nav-link" data-scroll-target="#refinement-effects"><span class="header-section-number">5</span> Refinement effects</a></li>
+  <li><a href="#implementation-status" id="toc-implementation-status" class="nav-link" data-scroll-target="#implementation-status"><span class="header-section-number">6</span> Implementation status</a></li>
+  <li><a href="#resolved-interpretation" id="toc-resolved-interpretation" class="nav-link" data-scroll-target="#resolved-interpretation"><span class="header-section-number">7</span> Resolved interpretation</a></li>
   </ul>
-<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="../methodology.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></nav>
+</nav>
 </div>
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">MIAMA active travel and health impact methodology</h1>
-<p class="subtitle lead">Draft methods description for methodological review and early testing</p>
+<h1 class="title">MIAMA UI data authority workflow</h1>
+<p class="subtitle lead">Draft one-way contract from Tab 2 volume inputs to Tab 5 results</p>
 </div>
 
 
 
 <div class="quarto-title-meta">
 
-    <div>
-    <div class="quarto-title-meta-heading">Author</div>
-    <div class="quarto-title-meta-contents">
-             <p>MIAMA project team </p>
-          </div>
-  </div>
     
-    <div>
-    <div class="quarto-title-meta-heading">Published</div>
-    <div class="quarto-title-meta-contents">
-      <p class="date">September 4, 2026</p>
-    </div>
-  </div>
   
     
   </div>
@@ -5289,234 +5109,184 @@ window.Quarto = {
 </header>
 
 
-<div class="callout callout-style-default callout-note callout-titled">
+<style>
+.wide-mermaid {
+overflow-x: auto;
+border: 1px solid #d9dee3;
+padding: 0.75rem;
+}
+.wide-mermaid .mermaid { min-width: 1800px; }
+.wide-mermaid .mermaid svg {
+width: 1800px !important;
+max-width: none !important;
+height: auto !important;
+}
+</style>
+<div class="callout callout-style-default callout-warning callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Document status
+<span class="screen-reader-only">Warning</span>Design sandbox
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>This is a methods-facing description of the behavior implemented in MIAMA-HUB, not a final model specification. <strong>Implemented</strong> means that the behavior is present in the current code. <strong>Approximate</strong> means that it is implemented through probabilistic sampling and may not exactly reproduce a requested distribution. <strong>Planned</strong> identifies a UI option or methodological feature that is represented in the design but does not yet change modeled outcomes.</p>
+<p>This document describes the intended one-way UI contract. It also records where the current implementation still departs from that contract. It should be merged into the main methodology only after the remaining allocation rules are agreed and implemented.</p>
 </div>
 </div>
-<section id="purpose-and-scope" class="level1" data-number="1">
-<h1 data-number="1"><span class="header-section-number">1</span> Purpose and scope</h1>
-<p>MIAMA estimates how a proposed intervention may change walking, cycling, e-biking, and public-transport use and how the resulting change in physical activity may alter population health over time. The current workflow is a comparative scenario model:</p>
+<section id="core-principle" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Core principle</h1>
+<p>The quantity explicitly provided by the user has authority. Downstream tabs may refine quantities that MIAMA inferred to complete the scenario, but they must not silently feed those estimates back upstream and replace the provided quantity.</p>
 <ol type="1">
-<li>select a reference synthetic population and its observed weekly travel;</li>
-<li>translate user-entered active-travel assumptions into a counterfactual copy of those people and trips;</li>
-<li>convert changed active time, including walking access to public transport, into marginal metabolic-equivalent exposure (MMETs);</li>
-<li>apply the MMET change to health-model trajectories; and</li>
-<li>report the difference between the reference (without-scheme) and counterfactual (with-scheme) scenarios.</li>
+<li>Tab 2 establishes the authoritative active-travel volume in the selected unit.</li>
+<li>MIAMA estimates the missing person/trip quantities needed to construct REF and CF snapshots.</li>
+<li>Tab 3 may revise the person allocation. It does not recalculate an authoritative Tab 2 trip-derived volume.</li>
+<li>Tab 4 may revise trip counts and characteristics. It does not recalculate the final Tab 3 population or mode-user counts.</li>
+<li>A later explicit edit supersedes an earlier estimate for that same quantity. It does not retroactively alter a different authoritative unit.</li>
 </ol>
+</section>
+<section id="review-sized-workflows" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> Review-sized workflows</h1>
+<p>These smaller diagrams contain the same logic as the comprehensive workflow but are intended for normal browser and presentation viewing.</p>
+<section id="user-count-route" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="user-count-route"><span class="header-section-number">2.1</span> User-count route</h2>
 <div class="cell" data-layout-align="default">
 <div class="cell-output-display">
 <div>
 <p></p><figure class="figure"><p></p>
 <div>
 <pre class="mermaid mermaid-js">flowchart TD
-  A[Reference people and weekly trips] --&gt; B[Constrained sampling and mode shifts]
-  U[UI assumptions] --&gt; B
-  B --&gt; C[Counterfactual weekly MMET exposure]
-  C --&gt; D[Apply health-trajectory lookup]
-  D --&gt; E[Reference vs counterfactual impacts]
-</pre>
-</div>
-<p></p></figure><p></p>
-</div>
-</div>
-</div>
-<p>The model is not a transport-demand model and does not create a new population. It reallocates active travel among the existing synthetic people and trips, with a limited mechanism for induced recreational trips. The validity of the results therefore depends on both the external assumptions supplied through the app and the representativeness of the donor people and trips available in the selected geography.</p>
-</section>
-<section id="reference-synthetic-population" class="level1" data-number="2">
-<h1 data-number="2"><span class="header-section-number">2</span> Reference synthetic population</h1>
-<section id="unit-of-representation" class="level2" data-number="2.1">
-<h2 data-number="2.1" class="anchored" data-anchor-id="unit-of-representation"><span class="header-section-number">2.1</span> Unit of representation</h2>
-<p>The synthetic population represents approximately 5% of the source population. Each person row is currently assigned a population factor of 20 when aggregate health results are presented. Individual rows remain fixed between scenarios: investment in active travel changes behavior, not the number of residents.</p>
-<p>The data contain two related levels:</p>
-<ul>
-<li><strong>Individual level:</strong> one row per synthetic person, including geography, demographics, household characteristics, and weekly activity.</li>
-<li><strong>Trip level:</strong> reported trips linked to people by <code>census_id</code>, including travel mode, purpose, distance, duration, and a trip weight.</li>
-</ul>
-<p>Person and trip records are required for the most complete workflow. Trip rows contain person identifiers and selected attached attributes, but they do not replace the individual table: people without usable trip rows and person-level physical-activity measures still matter.</p>
-</section>
-<section id="key-variables-from-active-travel-to-physical-activity" class="level2" data-number="2.2">
-<h2 data-number="2.2" class="anchored" data-anchor-id="key-variables-from-active-travel-to-physical-activity"><span class="header-section-number">2.2</span> Key variables from active travel to physical activity</h2>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Domain</th>
-<th>Principal fields</th>
-<th>Role in the model</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Identity and geography</td>
-<td><code>census_id</code>, <code>nts_id</code>, LAD and region identifiers</td>
-<td>Select the appraisal population and link people, trips, and health trajectories.</td>
-</tr>
-<tr class="even">
-<td>Demographics</td>
-<td><code>age1year</code>, <code>female</code>, ethnicity, deprivation, limiting condition</td>
-<td>Describe the reference population, constrain counterfactual sampling, and identify health-model strata.</td>
-</tr>
-<tr class="odd">
-<td>Weekly activity</td>
-<td><code>walktime_wkhr</code>, <code>cycletime_wkhr</code>, derived e-bike and PT-access fields, <code>sport_wkhr</code></td>
-<td>Person-level weekly hours used to identify mode users and calculate MMET exposure.</td>
-</tr>
-<tr class="even">
-<td>Trip mode</td>
-<td><code>trip_mainmode</code> and mode-component fields</td>
-<td>Identify mode trips and record mode switches.</td>
-</tr>
-<tr class="odd">
-<td>Trip amount</td>
-<td>raw and mode-specific distance and duration</td>
-<td>Preserve plausible observed journeys and calculate added or removed active minutes.</td>
-</tr>
-<tr class="even">
-<td>Trip purpose</td>
-<td><code>trip_purpose</code>, derived <code>trip_utilitarian</code></td>
-<td>Distinguish travel needs from discretionary recreational travel.</td>
-</tr>
-<tr class="odd">
-<td>Trip representation</td>
-<td>one trip row per record; <code>weight_tripXhh</code> retained as source metadata</td>
-<td>Define current appraisal trip counts and preserve a future route to weighted reporting.</td>
-</tr>
-</tbody>
-</table>
-<p>Mode-user indicators are derived from positive mode-specific weekly time, with trip evidence used where appropriate. Active-trip indicators use the mode-specific trip component fields and main-mode coding. HUB adds explicit <code>user_walk</code>, <code>user_bike</code>, <code>user_ebike</code>, <code>user_pt</code>, <code>trip_activemode</code>, and <code>trip_utilitarian</code> fields to make these model currencies inspectable.</p>
-</section>
-<section id="weekly-physical-activity-exposure" class="level2" data-number="2.3">
-<h2 data-number="2.3" class="anchored" data-anchor-id="weekly-physical-activity-exposure"><span class="header-section-number">2.3</span> Weekly physical-activity exposure</h2>
-<p>The model uses the week as its base behavioral timeframe. Current conversion factors are configurable and equal to:</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Activity</th>
-<th style="text-align: right;">MMET per hour</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Walking</td>
-<td style="text-align: right;">2.5</td>
-</tr>
-<tr class="even">
-<td>Cycling</td>
-<td style="text-align: right;">5.8</td>
-</tr>
-<tr class="odd">
-<td>E-biking</td>
-<td style="text-align: right;">5.8 (cycling proxy)</td>
-</tr>
-<tr class="even">
-<td>PT access walking</td>
-<td style="text-align: right;">2.5</td>
-</tr>
-<tr class="odd">
-<td>Other vigorous activity</td>
-<td style="text-align: right;">7.0</td>
-</tr>
-</tbody>
-</table>
-<p>For person-level changes, weekly hours are converted to MMET-week-hours and added to or subtracted from the person’s reference MMET value. For an independently specified trip target, active minutes are compared between reference and counterfactual trips, divided by 60, and multiplied by the mode-specific intensity. User-triggered trip changes are excluded from this second calculation because their exposure is already represented by the person-level activity change.</p>
-<p>This separation prevents the same behavioral change from being counted once as weekly user activity and again as changed trip minutes.</p>
-</section>
-</section>
-<section id="from-physical-activity-to-health-trajectories" class="level1" data-number="3">
-<h1 data-number="3"><span class="header-section-number">3</span> From physical activity to health trajectories</h1>
-<p>MIAMA-HM provides reference person-cycle health outcomes and a piecewise lookup describing the change in each outcome per additional MMET. HUB does not rerun the underlying microsimulation. It applies the scenario logic to the processed health-model outputs.</p>
-<p>For each synthetic person:</p>
-<p><span class="math display">\[
-\Delta MMET_i = MMET_{i,cf} - MMET_{i,ref}
-\]</span></p>
-<p>Under the currently implemented <strong>long-term</strong> assumption, the same individual MMET change is applied in every modeled cycle:</p>
-<p><span class="math display">\[
-MMET_{i,t,cf} = MMET_{i,t,ref} + \Delta MMET_i
-\]</span></p>
-<p>The changed MMET interval is intersected with the applicable lookup bands for the person’s age, sex, mortality-risk decile, and model cycle. For each overlap, the model multiplies the interval width by the band-specific outcome slope and sums across bands. Counterfactual outcomes equal reference outcomes plus this technical delta.</p>
-<div class="cell" data-layout-align="default">
-<div class="cell-output-display">
-<div>
-<p></p><figure class="figure"><p></p>
-<div>
-<pre class="mermaid mermaid-js">flowchart TD
-  A[Person-level weekly MMET change] --&gt; B[Apply change to each health-model cycle]
-  B --&gt; C[Match age, sex, mortality risk and cycle]
-  C --&gt; D[Intersect changed exposure with MMET lookup bands]
-  D --&gt; E[Band width x outcome slope]
-  E --&gt; F[Counterfactual outcome trajectory]
-  F --&gt; G[Prevented impact = reference - counterfactual]
-</pre>
-</div>
-<p></p></figure><p></p>
-</div>
-</div>
-</div>
-<p>The internal <code>d_*</code> fields use <code>counterfactual - reference</code>. Presentation fields reverse the sign so that a positive prevented value denotes a health gain. The configured assessment period is currently 40 years, excluding cycle 0 from impact totals. Population totals apply the synthetic-person factor described above.</p>
-<section id="health-adjusted-life-years" class="level2" data-number="3.1">
-<h2 data-number="3.1" class="anchored" data-anchor-id="health-adjusted-life-years"><span class="header-section-number">3.1</span> Health-adjusted life years</h2>
-<p>Healthy life years (HLYs) and health-adjusted life years (HALYs) are separate measures. HALYs are calculated after the MMET lookup has produced the counterfactual incidence trajectories. For each person and year, HUB reconstructs prevalence from incidence, deaths, disease-specific death share, and, for depression, remission/exits. It does this independently for reference and counterfactual trajectories.</p>
-<p>Life years are first adjusted for the age/sex residual prevalence of years lived with disability outside the explicitly modelled diseases. They are then adjusted for reconstructed disease prevalence multiplied by age-, sex-, and disease-specific disability weights that account for comorbidity:</p>
-<p><span class="math display">\[
-HALY_{i,t}=LY_{i,t}(1-pYLD_{i,t})
-\left(1-\sum_d prevalence_{i,t,d}\,dw_{i,t,d}^{adj}\right)
-\]</span></p>
-<p>If nobody remains alive in a person-cycle, both prevalence-related disability and HALYs are zero. Cycles beyond the maximum age covered by the parameter tables are outside the HALY model and are omitted from HALY summaries, while their underlying health-outcome records remain available.</p>
-<p>The technical HALY delta is counterfactual minus reference, so a positive value already represents a health gain. This differs from adverse incidence outcomes, where positive presentation benefits require reversing the technical delta.</p>
-<p>The health outcome set includes mortality, life-year, HALY, and disease-incidence measures supplied by the death-share health-model artifacts. Effects attributed to walking or cycling are currently obtained after the combined health run by allocating impacts in proportion to each person’s signed mode-specific MMET contribution. This is an attribution of a combined nonlinear calculation, not an independent mode-specific rerun of the health model.</p>
-</section>
-</section>
-<section id="ways-to-specify-counterfactual-active-travel" class="level1" data-number="4">
-<h1 data-number="4"><span class="header-section-number">4</span> Ways to specify counterfactual active travel</h1>
-<section id="reference-defaults" class="level2" data-number="4.1">
-<h2 data-number="4.1" class="anchored" data-anchor-id="reference-defaults"><span class="header-section-number">4.1</span> Reference defaults</h2>
-<p>After geography and assessed modes are selected, HUB loads and filters the synthetic population and fills the UI profile’s reference <code>default_value</code> fields. It calculates reference values for all supported modes and common units up front; later UI changes can therefore switch displays without reloading the large data.</p>
-<p>Counterfactual controls with a matching reference control receive the reference value as their starting <code>default_value</code>. This represents a no-change scenario; it does not mark the control as user-filled and does not overwrite a submitted counterfactual value.</p>
-<p>For the advanced population total and per-mode counts, the initial geography-derived value is also stored as <code>additional_data$default_value_backup</code> on both reference and counterfactual fields. Refinement controls may change the live <code>default_value</code>; the backup retains the unrefined starting point for restoration. Selecting a new geography and rebuilding reference defaults refreshes the backup.</p>
-<p>Reference values include user and trip counts, mode share, average distance and duration, and compact five-category distributions. Weekly values are canonical. Trip counts can be converted between day, week, and year; user-count conversion currently uses a factor of one because repeat-user behavior outside the observed week is not identified by the data.</p>
-<p>Two Tab 3 selectors also receive derived <code>additional_data</code>. Separate <code>ref</code> and <code>cf</code> payloads hold absolute synthetic-row counts for each staged scenario. For each configured age group and PA group, HUB records the number of people in the category (<code>pop_tot</code>) and the numbers identified as walking, cycling, e-biking, or walk-to-public-transport users. Age groups use <code>age1year</code> and the configured age cut points. PA groups use weekly MMET-hours from <code>mmets</code> or <code>mmet_wkhr</code>; if neither is present, HUB reconstructs the value from walking, cycling, and sport hours and their configured intensities. Mode-user status is identified from person-level mode duration where available, with trip evidence as fallback. Missing evidence is retained as <code>NA</code>, not interpreted as no users. The categories exhaust the staged population: age includes under-18 and other/unknown groups, while PA includes an unknown group. These metadata populate labels/context for category choices while leaving the selector’s categorical <code>default_value</code> unchanged. They are counts in the filtered synthetic profile; population expansion factors are applied to health results rather than to these selector metadata.</p>
-</section>
-<section id="continuity-from-tab-2-to-tabs-3-and-4" class="level2" data-number="4.2">
-<h2 data-number="4.2" class="anchored" data-anchor-id="continuity-from-tab-2-to-tabs-3-and-4"><span class="header-section-number">4.2</span> Continuity from Tab 2 to Tabs 3 and 4</h2>
-<section id="workflow-overview" class="level3" data-number="4.2.1">
-<h3 data-number="4.2.1" class="anchored" data-anchor-id="workflow-overview"><span class="header-section-number">4.2.1</span> Workflow overview</h3>
-<p>The diagrams below separate four ideas that can otherwise be conflated: the geographic donor data, the REF/CF volumes requested in Tab 2, the people represented by those volumes in Tab 3, and the trips finally selected in Tab 4.</p>
-<div class="cell" data-fig-width="6.3" data-layout-align="default">
-<div class="cell-output-display">
-<div>
-<p></p><figure class="figure"><p></p>
-<div>
-<pre class="mermaid mermaid-js">flowchart LR
-  G[Tab 1&lt;br/&gt;source people + trips]
-  T2[Tab 2&lt;br/&gt;REF + CF AT volumes]
-  SR[Staged REF&lt;br/&gt;people + trips]
-  SC[Staged CF&lt;br/&gt;people + trips]
-  T3[Tab 3&lt;br/&gt;population refinements]
-  T4[Tab 4&lt;br/&gt;trip refinements]
-  H[MMET + health&lt;br/&gt;calculation]
-  R[Tab 5&lt;br/&gt;results]
+  S[(Geographic donors)]
+  T2[Tab 2 provides&lt;br/&gt;REF/CF users by mode]
+  E[Estimate total population&lt;br/&gt;and trips per mode]
+  T3[Tab 3 displays and refines&lt;br/&gt;people and users]
+  P[(Final person/user counts)]
+  T4[Tab 4 starts with trips estimated&lt;br/&gt;from final users]
 
-  G --&gt; T2
-  T2 --&gt; SR
-  T2 --&gt; SC
-  SR --&gt; T3
-  SC --&gt; T3
-  T3 --&gt; T4
-  T3 --&gt; H
-  T4 --&gt; H
+  S --&gt; T2
+  T2 --&gt;|user counts are authoritative initially| E
+  E --&gt;|prepopulate| T3
+  T3 --&gt;|last displayed counts prevail| P
+  P --&gt; T4
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</section>
+<section id="trip-count-route" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="trip-count-route"><span class="header-section-number">2.2</span> Trip-count route</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+  S[(Geographic donors)]
+  T2[Tab 2 provides&lt;br/&gt;REF/CF trips by mode]
+  E[Estimate users and&lt;br/&gt;total population]
+  T3[Tab 3 displays and refines&lt;br/&gt;people and users]
+  P[(Final person/user counts)]
+  T4[Tab 4 starts with exact&lt;br/&gt;Tab 2 trip targets]
+
+  S --&gt; T2
+  T2 --&gt;|trip counts remain authoritative| E
+  E --&gt;|prepopulate people| T3
+  T3 --&gt;|refine allocation, not trips| P
+  T2 --&gt;|carry trip targets unchanged| T4
+  P --&gt;|allocate trips across fixed users| T4
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</section>
+<section id="distanceduration-route" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="distanceduration-route"><span class="header-section-number">2.3</span> Distance/duration route</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+  S[(Geographic donors)]
+  T2[Tab 2 provides REF/CF&lt;br/&gt;distance or duration]
+  C[Divide by reference mean&lt;br/&gt;amount per trip]
+  Q[Derived per-mode&lt;br/&gt;trip targets]
+  T3[Estimate and refine&lt;br/&gt;people and users]
+  T4[Tab 4 starts with&lt;br/&gt;derived trip targets]
+
+  S --&gt;|reference trip patterns| C
+  T2 --&gt; C
+  C --&gt; Q
+  Q --&gt; T3
+  Q --&gt; T4
+  T3 --&gt;|fixed person/user counts| T4
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>The original kilometres or minutes explain how the starting trip targets were derived. If Tab 4 changes counts or distance assumptions, final aggregate distance/duration is measured from the resulting trip sample.</p>
+</section>
+<section id="mode-share-route" class="level2" data-number="2.4">
+<h2 data-number="2.4" class="anchored" data-anchor-id="mode-share-route"><span class="header-section-number">2.4</span> Mode-share route</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+  S[(Geographic donors)]
+  T2[Tab 2 provides REF/CF&lt;br/&gt;mode shares + denominator]
+  C[Multiply shares by total trips&lt;br/&gt;or convert distance/duration]
+  Q[Derived per-mode&lt;br/&gt;trip targets]
+  T3[Estimate and refine&lt;br/&gt;people and users]
+  T4[Tab 4 starts with&lt;br/&gt;derived trip targets]
+
+  S --&gt;|reference conversion assumptions| C
+  T2 --&gt; C
+  C --&gt; Q
+  Q --&gt; T3
+  Q --&gt; T4
+  T3 --&gt;|fixed person/user counts| T4
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</section>
+<section id="shared-tab-3-to-results-handoff" class="level2" data-number="2.5">
+<h2 data-number="2.5" class="anchored" data-anchor-id="shared-tab-3-to-results-handoff"><span class="header-section-number">2.5</span> Shared Tab 3-to-results handoff</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+  T3[Last displayed Tab 3 table]
+  P[(Fixed total population&lt;br/&gt;and users by mode)]
+  T4[Last displayed Tab 4 table]
+  Q[(Final trips by mode)]
+  A{Enough observed trips&lt;br/&gt;owned by final users?}
+  O[Use observed eligible rows]
+  D[Sample donor patterns with replacement&lt;br/&gt;and assign to fixed users]
+  H[Calculate MMET changes&lt;br/&gt;and health impacts]
+  R[Tab 5 results and exports]
+
+  T3 --&gt; P
+  T4 --&gt; Q
+  P --&gt; A
+  Q --&gt; A
+  A --&gt;|yes| O
+  A --&gt;|no| D
+  O --&gt; H
+  D --&gt;|warn and audit| H
   H --&gt; R
 </pre>
 </div>
@@ -5524,25 +5294,211 @@ HALY_{i,t}=LY_{i,t}(1-pYLD_{i,t})
 </div>
 </div>
 </div>
-<p>The basic and advanced interfaces use the same core conversions. The basic path accepts Tab 2 values and proceeds directly to calculation using generated population and trip assumptions. The advanced path exposes those generated values in Tabs 3 and 4 before calculation.</p>
-<div class="cell" data-fig-width="5.8" data-layout-align="default">
+</section>
+</section>
+<section id="comprehensive-vertical-workflow" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Comprehensive vertical workflow</h1>
+<p>The complete diagram is deliberately rendered at full size. Scroll horizontally inside its frame; browser zoom can then be used without making its labels unreadably small.</p>
+<div class="wide-mermaid">
+<div class="cell" data-layout-align="default">
 <div class="cell-output-display">
 <div>
 <p></p><figure class="figure"><p></p>
 <div>
 <pre class="mermaid mermaid-js">flowchart TD
-  A[Tab 2 volume inputs]
-  B{UI version}
-  C[Basic&lt;br/&gt;use generated person and trip scopes]
-  D[Advanced Tab 3&lt;br/&gt;inspect or refine people]
-  E[Advanced Tab 4&lt;br/&gt;inspect or refine trips]
-  F[Build results]
+  G[Tab 1: choose geography and assessed modes]
+  SOURCE[(Geographic donor data&lt;br/&gt;people and linked weekly trips)]
+  UNIT{Tab 2: how is AT volume provided?}
 
-  A --&gt; B
-  B --&gt;|Basic| C
-  C --&gt; F
-  B --&gt;|Advanced| D
-  D --&gt; E
+  UIN[Provided: REF and CF&lt;br/&gt;mode-user counts]
+  UASSUME[MIAMA complements with:&lt;br/&gt;source population rates&lt;br/&gt;and trips per user]
+  UPEOPLE[Authoritative user targets]
+  UTRIPS[Estimated trip targets]
+
+  TIN[Provided: REF and CF&lt;br/&gt;trip counts]
+  TASSUME[MIAMA complements with:&lt;br/&gt;observed trip owners&lt;br/&gt;and source population rates]
+  TTRIPS[Authoritative trip targets]
+  TPEOPLE[Estimated users and total population]
+
+  DIN[Provided: REF and CF&lt;br/&gt;distance or duration]
+  DASSUME[MIAMA complements with:&lt;br/&gt;reference mean distance or duration per trip&lt;br/&gt;and observed trip-owner patterns]
+  DVOLUME[Authoritative distance or duration]
+  DTRIPS[Estimated trip targets]
+  DPEOPLE[Estimated users and total population]
+
+  MIN[Provided: REF and CF mode shares&lt;br/&gt;plus total trips, distance, or duration]
+  MASSUME[MIAMA complements with:&lt;br/&gt;denominator conversion where needed&lt;br/&gt;and observed trip-owner patterns]
+  MVOLUME[Authoritative mode shares and denominator]
+  MTRIPS[Estimated per-mode trip targets]
+  MPEOPLE[Estimated users and total population]
+
+  STAGE[Build staged REF and CF snapshots&lt;br/&gt;using source rows as donors]
+  T3[Prepopulate Tab 3 person table&lt;br/&gt;REF and CF total people + users by mode]
+  T3COUNT{Tab 3 count refinement?}
+  T3NEW[Update final person and mode-user targets&lt;br/&gt;manual, percent, age, or PA categories]
+  T3KEEP[Retain generated person targets]
+  T3WEIGHT[Optional advanced age, sex, and PA inputs&lt;br/&gt;change selection weights, not counts]
+  PEOPLE[(Final REF and CF person contract)]
+
+  T4START{Prepopulate Tab 4 trip table}
+  T4FROMUSERS[Users route:&lt;br/&gt;estimate trips from final user targets&lt;br/&gt;and trips-per-user assumptions]
+  T4FROMTRIPS[Trip-derived routes:&lt;br/&gt;carry Tab 2 trip targets forward unchanged]
+  T4EDIT{Tab 4 trip-count edit?}
+  T4NEW[Explicit Tab 4 counts supersede&lt;br/&gt;generated or carried trip targets]
+  T4KEEP[Retain Tab 4 starting trip targets]
+  T4REFINE[Apply trip allocation assumptions:&lt;br/&gt;distance, induced share, source-mode diversion]
+  TRIPS[(Final REF and CF trip contract)]
+
+  ALLOC[Allocate final trip targets across&lt;br/&gt;the fixed final person contract]
+  SAMPLE[Sampling rules:&lt;br/&gt;REF from geographic donors&lt;br/&gt;CF starts from REF&lt;br/&gt;then recruits/switches within fixed contracts]
+  HEALTH[Convert active minutes to MMET change&lt;br/&gt;and apply health trajectories]
+  RESULTS[Tab 5 results and exports]
+
+  G --&gt;|filter once| SOURCE
+  SOURCE --&gt;|populate reference defaults| UNIT
+
+  UNIT --&gt;|users| UIN
+  UIN --&gt; UPEOPLE
+  SOURCE --&gt; UASSUME
+  UASSUME --&gt;|prepopulate inferred trips| UTRIPS
+  UPEOPLE --&gt; UTRIPS
+
+  UNIT --&gt;|trips| TIN
+  TIN --&gt; TTRIPS
+  SOURCE --&gt; TASSUME
+  TASSUME --&gt;|prepopulate inferred people| TPEOPLE
+  TTRIPS --&gt; TPEOPLE
+
+  UNIT --&gt;|distance or duration| DIN
+  DIN --&gt; DVOLUME
+  SOURCE --&gt; DASSUME
+  DVOLUME --&gt;|divide by reference mean per trip| DTRIPS
+  DASSUME --&gt; DTRIPS
+  DTRIPS --&gt;|sample owners and apply source rates| DPEOPLE
+
+  UNIT --&gt;|mode share| MIN
+  MIN --&gt; MVOLUME
+  SOURCE --&gt; MASSUME
+  MVOLUME --&gt;|share times denominator| MTRIPS
+  MASSUME --&gt; MTRIPS
+  MTRIPS --&gt;|sample owners and apply source rates| MPEOPLE
+
+  UPEOPLE --&gt; STAGE
+  UTRIPS --&gt; STAGE
+  TTRIPS --&gt; STAGE
+  TPEOPLE --&gt; STAGE
+  DTRIPS --&gt; STAGE
+  DPEOPLE --&gt; STAGE
+  MTRIPS --&gt; STAGE
+  MPEOPLE --&gt; STAGE
+
+  STAGE --&gt;|measure staged people| T3
+  T3 --&gt; T3COUNT
+  T3COUNT --&gt;|yes| T3NEW
+  T3COUNT --&gt;|no| T3KEEP
+  T3NEW --&gt; T3WEIGHT
+  T3KEEP --&gt; T3WEIGHT
+  T3WEIGHT --&gt;|select who is represented or changes| PEOPLE
+
+  PEOPLE --&gt; T4START
+  UNIT --&gt; T4START
+  T4START --&gt;|Tab 2 unit was users| T4FROMUSERS
+  T4START --&gt;|Tab 2 unit was trip-derived| T4FROMTRIPS
+  T4FROMUSERS --&gt; T4EDIT
+  T4FROMTRIPS --&gt; T4EDIT
+  T4EDIT --&gt;|yes| T4NEW
+  T4EDIT --&gt;|no| T4KEEP
+  T4NEW --&gt; T4REFINE
+  T4KEEP --&gt; T4REFINE
+  T4REFINE --&gt; TRIPS
+
+  PEOPLE --&gt; ALLOC
+  TRIPS --&gt; ALLOC
+  SOURCE --&gt; SAMPLE
+  ALLOC --&gt; SAMPLE
+  SAMPLE --&gt; HEALTH
+  HEALTH --&gt; RESULTS
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section id="authority-by-tab-2-input-route" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Authority by Tab 2 input route</h1>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tab 2 route</th>
+<th>Authoritative after Tab 2</th>
+<th>MIAMA must estimate</th>
+<th>What Tab 3 may change</th>
+<th>Tab 4 starting value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Users</td>
+<td>REF/CF users by mode</td>
+<td>Total population and trips</td>
+<td>Total/person allocation and mode-user counts</td>
+<td>Trips estimated from the final Tab 3 users</td>
+</tr>
+<tr class="even">
+<td>Trips</td>
+<td>REF/CF trips by mode</td>
+<td>Trip owners, mode users, and total population</td>
+<td>Person allocation and user estimates only</td>
+<td>Exact Tab 2 trip counts</td>
+</tr>
+<tr class="odd">
+<td>Distance/duration</td>
+<td>REF/CF distance or duration by mode</td>
+<td>Trips, users, and total population</td>
+<td>Person allocation and user estimates only</td>
+<td>Trip counts derived from the Tab 2 volume</td>
+</tr>
+<tr class="even">
+<td>Mode share</td>
+<td>REF/CF shares and their total denominator</td>
+<td>Per-mode trips, users, and total population</td>
+<td>Person allocation and user estimates only</td>
+<td>Per-mode trip counts derived from shares</td>
+</tr>
+</tbody>
+</table>
+<p>An explicit Tab 4 trip-count edit becomes authoritative for trip count from that point onward. It must be allocated across the already-final Tab 3 people; it must not alter total population or mode-user counts.</p>
+</section>
+<section id="refinement-effects" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Refinement effects</h1>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart TD
+  A[Upstream authoritative value]
+  E[MIAMA estimate]
+  R{Downstream refinement}
+  X[Replace/refine the estimate]
+  K[Keep authoritative value unchanged]
+  F[Final downstream contract]
+
+  A --&gt; K
+  E --&gt; R
+  R --&gt;|edited| X
+  R --&gt;|accepted| E
+  K --&gt; F
+  X --&gt; F
   E --&gt; F
 </pre>
 </div>
@@ -5550,389 +5506,36 @@ HALY_{i,t}=LY_{i,t}(1-pYLD_{i,t})
 </div>
 </div>
 </div>
+<p>Examples:</p>
+<ul>
+<li>Trips entered in Tab 2 remain fixed while Tab 3 changes their allocation across people. Fewer users therefore imply more trips per user.</li>
+<li>Users entered in Tab 2 determine the initial person contract. Tab 3 can revise it, after which trips are re-estimated once for Tab 4.</li>
+<li>Trips edited in Tab 4 are allocated across the final Tab 3 users. More trips therefore imply more trips per user, not more users.</li>
+</ul>
 </section>
-<section id="how-tab-2-units-reach-tabs-3-and-4" class="level3" data-number="4.2.2">
-<h3 data-number="4.2.2" class="anchored" data-anchor-id="how-tab-2-units-reach-tabs-3-and-4"><span class="header-section-number">4.2.2</span> How Tab 2 units reach Tabs 3 and 4</h3>
-<p>All four Tab 2 input routes are normalized to weekly synthetic-row targets. This conversion creates the same downstream contract regardless of which unit the user understands best.</p>
-<div class="cell" data-fig-width="6.2" data-layout-align="default">
-<div class="cell-output-display">
-<div>
-<p></p><figure class="figure"><p></p>
-<div>
-<pre class="mermaid mermaid-js">flowchart TD
-  U{Tab 2 AT input unit}
-  USERS[Users]
-  TRIPINPUT[Trips, distance,&lt;br/&gt;duration, or mode share]
-  USERQ[Weekly mode-user targets]
-  QT[Weekly mode-trip targets]
-  PR[Estimate and sample REF people]
-  PC[Estimate or recruit CF mode users]
-  T3D[Tab 3 defaults&lt;br/&gt;total people and users by mode]
-  T4D[Tab 4 defaults&lt;br/&gt;trip counts by mode]
-
-  U --&gt;|users| USERS
-  U --&gt;|trip-derived routes| TRIPINPUT
-  USERS --&gt; USERQ
-  TRIPINPUT --&gt;|normalize to reference week| QT
-  USERQ --&gt; PR
-  USERQ --&gt; PC
-  QT --&gt; PR
-  QT --&gt; PC
-  PR --&gt; T3D
-  PC --&gt; T3D
-  QT --&gt; T4D
-</pre>
-</div>
-<p></p></figure><p></p>
-</div>
-</div>
-</div>
-<p>For users, Tab 3 receives the requested mode-user counts directly. For all trip-derived routes, Tab 3 receives the unique owners of the staged trips and an estimated common population boundary. If no Tab 3 population refinement changes that boundary, Tab 4 receives the exact staged Tab 2 trip targets.</p>
-</section>
-<section id="what-refinements-change" class="level3" data-number="4.2.3">
-<h3 data-number="4.2.3" class="anchored" data-anchor-id="what-refinements-change"><span class="header-section-number">4.2.3</span> What refinements change</h3>
-<div class="cell" data-fig-width="6.2" data-layout-align="default">
-<div class="cell-output-display">
-<div>
-<p></p><figure class="figure"><p></p>
-<div>
-<pre class="mermaid mermaid-js">flowchart TD
-  S[Preserved Tab 2 REF and CF snapshots]
-  P{Tab 3 control}
-  COUNT[Counts changed&lt;br/&gt;percent, categories, or manual edit]
-  WEIGHT[Distribution changed&lt;br/&gt;age, sex, or PA spread]
-  SAME[Result unchanged]
-  RESCOPE[Re-sample REF and CF people]
-  CAND[Change CF candidate weights]
-  KEEP[Keep exact staged Tab 2 trip quotas]
-  ALLOC[Allocate fixed trip targets&lt;br/&gt;across final people]
-  T4[Tab 4 starting table]
-  T4R[Tab 4 trip refinements]
-  FINAL[Final REF and CF trip snapshots]
-
-  S --&gt; P
-  P --&gt;|changes resulting counts| COUNT
-  P --&gt;|changes only distributions| WEIGHT
-  P --&gt;|selection retained but result unchanged| SAME
-  COUNT --&gt; RESCOPE
-  WEIGHT --&gt; CAND
-  SAME --&gt; KEEP
-  RESCOPE --&gt; ALLOC
-  CAND --&gt; ALLOC
-  KEEP --&gt; T4
-  ALLOC --&gt; T4
-  T4 --&gt; T4R
-  T4R --&gt; FINAL
-</pre>
-</div>
-<p></p></figure><p></p>
-</div>
-</div>
-</div>
-<p>For a trip-derived Tab 2 route, a genuine Tab 3 population refinement changes how the fixed trip quota is allocated, not the quota itself. If the final users own too few observed rows, HUB samples donor trip patterns with replacement and assigns them to those users. Merely selecting a refinement method that produces unchanged counts must not trigger re-scoping. HUB records actual triggers in <code>trip_refinement_defaults_report$tab3_rescope_trigger_fields</code>.</p>
-<p>The complete geography is the donor population, but it is not necessarily the population represented by the appraisal. Filled Tab 2 reference fields first create a row-level <strong>REF scoped</strong> snapshot. Tab 3 reference totals, mode-specific user counts, and distribution anchors are recalculated from that snapshot rather than from the complete geography.</p>
-<p>If Tab 2 specifies a mode-user count, HUB samples that number of observed users. If it specifies trip volume directly, or indirectly through distance, duration, or mode share, HUB converts the input to a weekly mode-trip target, samples active trips, and derives the corresponding mode-user count from the unique owners of those selected trips. When neither field changes, the geography-derived baseline remains the reference default. Explicit user and trip targets can both be supplied, in which case the trip scope is selected within the user scope.</p>
-<p>The Tab 3 total is an estimate of the population represented by those Tab 2 volumes, not automatically the whole LAD. When no explicit total is supplied, HUB compares the requested selected-mode volume with the same volume in the source population:</p>
-<p><span class="math display">\[
-N_{assessed} = N_{source}
-\frac{\sum_m V^{REF}_{requested,m}}
-     {\sum_m V^{REF}_{source,m}},
-\]</span></p>
-<p>where <span class="math inline">\(V\)</span> is mode users for user-count input and weekly trip rows for direct or converted trip-volume input. Pooling the selected modes avoids making either walking or cycling the sole population anchor. People using multiple modes contribute to both sums consistently. HUB also reports each standalone mode estimate because strong disagreement between them indicates an internally atypical scenario.</p>
-<p>When all applicable REF volumes are zero but at least one CF volume is positive, the REF equation cannot define a usable person boundary. HUB then applies the same equation to the CF target and uses that non-zero estimate for the shared staging scope. If a positive CF mode has no observable source rate, as may occur for e-bike, the full geographic person pool is retained instead. This fallback does not invent REF activity: REF mode-user and trip counts remain zero. It only keeps enough people and their observed trips available to construct the CF snapshot. A positive explicit population still takes precedence; a submitted zero population is overridden only when positive CF activity requires support. The rule applies equally to users, direct trips, and trip targets converted from distance, duration, or mode share.</p>
-<p>Tab 2 counterfactual inputs are applied to a synthpop-only copy before Tab 3 is shown. This provides a no-health-model preview of the same CF population that will later receive Tab 3 and Tab 4 refinements. Values written into the profile remain defaults, not submitted inputs. A genuinely edited Tab 3 value takes precedence over Tab 2, while an unchanged rendered control that merely equals its generated default does not become a new constraint.</p>
-<p>The left and right Tab 3 columns start as the staged REF and CF snapshots. Both remain editable. Basic percentage and age/PA-category controls scale both snapshots from preserved staged backups, retaining the REF/CF contrast while changing the overall assessment reach. HUB supplies separate absolute counts in <code>additional_data$ref</code> and <code>additional_data$cf</code>; the UI applies the selected categories to its own staged value. Manual values can still be entered independently after this operation. Advanced distribution sliders do not change table counts; they change the weights used to select rows for CF behavioral changes.</p>
-<p>Operationally, MIAMA-UI first saves the Tab 2 controls into the profile and then calls <code>build_refinement_profile_defaults()</code> before rendering Tab 3. HUB returns the independently staged REF and CF defaults, backups, and category metadata; the UI renders and persists subsequent edits. After saving Tab 3 it calls <code>build_trip_refinement_profile_defaults()</code>, which applies the final Tab 3 population scopes and initializes Tab 4 trip values. It does not rebuild geography defaults, because doing so would replace the staged snapshots with the original baseline. REF-to-CF default mirroring is likewise owned by HUB rather than repeated in modal-specific UI code.</p>
-<p>The final Tab 3 person and mode-user counts take precedence at this handoff, while an authoritative trip-derived Tab 2 quota remains fixed. If the selected people own too few observed trip rows, HUB samples donor trip patterns with replacement and assigns them to the fixed users. The scope report records the added rows and allocation method, and HUB emits a warning. Any subsequent Tab 4 trip-count edit becomes the final trip target used for results without changing the accepted population counts.</p>
-<p>The UI precedence for overlapping concepts is:</p>
+<section id="implementation-status" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Implementation status</h1>
+<p>The one-way count contract is implemented as follows:</p>
 <ol type="1">
-<li>a filled, changed Tab 3 or Tab 4 value;</li>
-<li>a filled Tab 2 value;</li>
-<li>the geography-derived default.</li>
+<li><strong>Trip authority after Tab 3:</strong> Tab 2 trip targets remain present when Tab 3 re-scopes the population. Tab 4 therefore starts from the requested trip totals rather than re-estimating them from whichever rows the selected people happened to own.</li>
+<li><strong>Final user contract at results time:</strong> accepted advanced total-population and mode-user counts are reinstated as explicit calculation targets. A Tab 4 trip edit therefore changes trips per user rather than deriving a new user count.</li>
+<li><strong>Allocation feasibility:</strong> if the final people own too few observed trips, HUB samples observed donor trip patterns with replacement, assigns them to the fixed mode-user pool, warns, and reports the number of modeled rows in <code>reference_scope_report$trips</code>.</li>
+</ol>
+<p>The treatment of aggregate units is intentionally different:</p>
+<ol start="4" type="1">
+<li><strong>Distance/duration and mode-share provenance:</strong> these Tab 2 inputs generate the starting per-mode trip targets. An explicit Tab 4 trip count supersedes those targets. HUB does not force the original aggregate kilometres, minutes, or mode shares afterward; it measures their realized values from the final sampled trips.</li>
 </ol>
 </section>
-</section>
-<section id="basic-specification-tab-2" class="level2" data-number="4.3">
-<h2 data-number="4.3" class="anchored" data-anchor-id="basic-specification-tab-2"><span class="header-section-number">4.3</span> Basic specification (Tab 2)</h2>
-<p>The basic interface offers alternative currencies for describing change:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Input route</th>
-<th>Interpretation</th>
-<th>Current modeling status</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Number of mode users</td>
-<td>Target number of weekly mode users</td>
-<td><strong>Implemented</strong> for all four modes.</td>
-</tr>
-<tr class="even">
-<td>Number of mode trips</td>
-<td>Target weekly mode-trip count, with UI timeframe and denominator conversion</td>
-<td><strong>Implemented</strong> for all four modes.</td>
-</tr>
-<tr class="odd">
-<td>Distance or duration</td>
-<td>Target aggregate or per-person travel amount</td>
-<td><strong>Implemented</strong> for all four modes by conversion to a weekly trip-row target.</td>
-</tr>
-<tr class="even">
-<td>Mode share</td>
-<td>Target shares by mode and a trip, distance, or duration denominator</td>
-<td><strong>Implemented</strong> for all four modes by deriving per-mode weekly trip-row targets.</td>
-</tr>
-</tbody>
-</table>
-<p>Only one basic input route is intended to be active at a time. User and trip targets use the same counterfactual machinery as the advanced interface; the advanced controls add information about who changes and which trips change.</p>
-<section id="converting-distance-duration-and-mode-share" class="level3" data-number="4.3.1">
-<h3 data-number="4.3.1" class="anchored" data-anchor-id="converting-distance-duration-and-mode-share"><span class="header-section-number">4.3.1</span> Converting distance, duration, and mode share</h3>
-<p>The behavioral model uses one canonical unit for trip-volume manipulation: the number of synthetic trip rows in a reference week. Alternative Tab 2 inputs are therefore converted before either REF scoping or CF sampling.</p>
-<p>For mode <span class="math inline">\(m\)</span>, a distance or duration target is first converted to kilometres or minutes and then to one week. A per-person input is multiplied by the applicable scenario population <span class="math inline">\(N_s\)</span>; a total input is already an aggregate. Let <span class="math inline">\(A_{m,s}\)</span> be that weekly aggregate and let <span class="math inline">\(\bar{a}_{m,REF}\)</span> be the positive mean distance or duration among reference trips of mode <span class="math inline">\(m\)</span>. The trip-row target is</p>
-<p><span class="math display">\[
-T_{m,s} = \operatorname{round}\left(
-  \frac{A_{m,s}}{\bar{a}_{m,REF}}
-\right).
-\]</span></p>
-<p>For mode share, let <span class="math inline">\(p_{m,s}\)</span> be the requested percentage and <span class="math inline">\(D_s\)</span> the selected trip, distance, or duration denominator. The mode-specific amount is</p>
-<p><span class="math display">\[
-A_{m,s} = D_s \frac{p_{m,s}}{100}.
-\]</span></p>
-<p>If <span class="math inline">\(D_s\)</span> is a trip total, <span class="math inline">\(A_{m,s}\)</span> is rounded directly to a trip-row target. If it is total distance or duration, the first equation is used. This makes mode share a per-mode sampling quota rather than a separate row-selection algorithm.</p>
-<p>The converted targets pass through the same constrained trip sampler as direct trip-count inputs. Target volume controls how many active-mode rows are needed; Tab 4 distance distributions and diversion rates control the relative probability that eligible rows are selected. The shifted-versus-induced rule controls whether those rows come from existing non-active trips or copied active-trip donors. Resulting changes in active minutes are converted to MMET exposure through the standard health pathway.</p>
-<p>In a zero-REF scenario, owners of the trip rows actually shifted or induced are recorded as CF mode users even when integer rounding of the preferred new-user percentage initially selects no recipients. This keeps the Tab 3 population summary consistent with the realized CF trip snapshot without adding individual activity exposure a second time.</p>
-<p>The values last displayed or entered in the Tab 4 table are the final trip-volume targets. Generated starting values already carry forward or derive from Tab 2, so accepting them preserves that scenario; an explicit Tab 4 edit supersedes it. Diversion settings are independent of this precedence rule because they influence source-trip selection rather than trip volume.</p>
-<p>For distance, duration, and mode-share input routes, the Tab 2 aggregate is the provenance used to derive Tab 4’s starting trip counts. An explicit Tab 4 count supersedes that derived target. HUB does not then force the original aggregate kilometres, minutes, or shares through a reverse adjustment of people or trips; it reports the values realized by the final sampled trips. Consequently, a Tab 4 change may alter trips per user and the final measured mode share while the accepted Tab 3 population and mode-user counts remain fixed.</p>
-<p>Tab 4 defaults are measured from the separate staged REF and CF snapshots created after Tab 2. With no Tab 3 population change, these snapshots pass through unchanged. When Tab 3 changes the population scope, HUB re-scopes each snapshot independently and allocates its carried trip target across the final users. This preserves the scenario-specific behavior already introduced by users, trips, distance/duration, or mode-share inputs.</p>
-<p>Tab 4 presents one source-mode diversion pie for each assessed target mode. A cycling pie, for example, describes the previous modes of existing trips that will shift to cycling; cycling itself is excluded. The pies apply only to shifted trips, while <code>induced_trips_percent</code> controls newly created trips separately. HUB uses these target-specific shares as donor sampling weights and records both requested and realized source-mode distributions. Defaults come from configured assumptions where available, otherwise from eligible local donor-trip composition. The pies are count-based conditional distributions and do not need a separate trip, distance, or duration denominator.</p>
-<p>This same fallback covers appraisals that stop at the basic Tab 2 mode-share input. In the absence of a submitted Tab 4 pie, HUB uses a configured target-specific split where one exists; otherwise it uses eligible utilitarian reference donors outside the assessed active modes. This avoids order-dependent competition between basic active-mode targets. It is a neutral sampling fallback, not an empirical estimate of intervention diversion behavior.</p>
-<p>The conversion is an expectation-based approximation. It preserves the requested aggregate when sampled rows resemble the reference mean, but it does not enforce an exact kilometre or minute total after finite, constrained sampling. HUB records all conversion inputs and derived row targets in <code>reference_scope_report$tab2_input_conversion</code> and <code>counterfactual_report$tab2_input_conversion</code> so requested and realized values can be compared.</p>
-<p>An average per trip is not a complete volume specification because it supplies no number of trips. HUB therefore rejects <code>average_per_trip</code> in this pathway; it belongs in Tab 4 as a characteristic constraint unless paired with a second volume input. Mode-share distance and duration denominators currently use canonical reference-week units of km/week and minutes/week. Explicit UI unit and timeframe controls remain a schema refinement if other interpretations are to be supported.</p>
-</section>
-</section>
-<section id="refined-population-specification-tab-3" class="level2" data-number="4.4">
-<h2 data-number="4.4" class="anchored" data-anchor-id="refined-population-specification-tab-3"><span class="header-section-number">4.4</span> Refined population specification (Tab 3)</h2>
-<p>The population equivalents inferred from Tab 2 are shared by the optional Tab 2 basic population modal and the Tab 3 handoff. HUB writes the staged counts to both the <code>*_basic</code> and <code>*_advanced</code> profile fields. Consequently, opening the basic modal after supplying mode shares should show the pooled Tab 2 population estimate and the corresponding REF/CF mode-user counts, not an unrelated copy of the full geographic source defaults. Non-user input routes retain the same total population in REF and CF while allowing mode-user counts to differ.</p>
-<p>For each assessed mode, Tab 3 can provide:</p>
-<ul>
-<li>a target number of affected mode users;</li>
-<li>a target mean age and proportion male;</li>
-<li>a target mean weekly PA exposure and proportion male within the PA display; and</li>
-<li>a UI option describing current versus new users.</li>
-</ul>
-<p>Direct user-count inputs are authoritative and therefore supersede the current/new-user percentage. The percentage is applicable when user counts must instead be inferred from trip, distance, duration, or mode-share inputs. HUB divides the absolute change in weekly trips by the profile’s mode-specific weekly trips-per-user assumption to estimate a trip-equivalent affected count. Existing users of that mode absorb the current-user share of additional trips; only the selected percentage is added to the mode-user population. E-bike uses current active-travel users as its proxy current-user pool because no reference e-bike users are observed. This changes the mode-user scope shown in Tab 3, while health exposure remains attached to changed trip minutes to prevent double counting.</p>
-<p>When an explicit counterfactual mode-user count exceeds its reference count, all current mode users are retained and the difference is recruited from eligible baseline non-users across the full retained geographic source. The realized current/new split is therefore determined by the explicit counts and may exceed the preferred new-user percentage. HUB reports that realized split and adds a non-fatal note when this occurs; it rejects the request only when the filtered geographic source does not contain enough eligible distinct people.</p>
-<p>The aggregate CF population total is a presentation summary. Row-level behavioral changes are controlled by the mode-specific CF user targets. People who remain behaviorally unchanged are not removed from health denominators merely to force the displayed aggregate CF total.</p>
-<p>When Tab 3 is initialized, its current/new-user slider uses the realized split from the CF snapshot staged from Tab 2. For multiple assessed modes, HUB pools the mode-user memberships represented by each change. This is a mode-membership summary rather than a count of mutually exclusive people because one person may use more than one mode.</p>
-<p>Reference distributions are represented as a 5 x 2 table: five configured age or PA categories crossed with sex. The app displays the table as paired bars. Moving a mean or proportion slider does not transmit a new table to HUB. Instead, both UI and HUB reproduce it from the same reference bars and scalar counterfactual slider values.</p>
-<p>For the numeric dimension, exponential tilting shifts the reference category percentages toward the requested mean while retaining the reference nonzero support. For the binary dimension, the requested proportion replaces the reference marginal. The two counterfactual marginals are combined using an outer product, which assumes independence between the numeric category and the binary grouping. If neither slider changes, the reference table is returned exactly.</p>
-<p>Current configured categories are:</p>
-<ul>
-<li>age: 18–29, 30–39, 40–49, 50–59, and 60+;</li>
-<li>PA: sedentary, low, moderate, high, and very high, using provisional MMET cutoffs in configuration.</li>
-</ul>
-</section>
-<section id="refined-trip-specification-tab-4" class="level2" data-number="4.5">
-<h2 data-number="4.5" class="anchored" data-anchor-id="refined-trip-specification-tab-4"><span class="header-section-number">4.5</span> Refined trip specification (Tab 4)</h2>
-<p>For each assessed mode, Tab 4 can provide:</p>
-<ul>
-<li>a target number of weekly active trips;</li>
-<li>a target mean trip distance;</li>
-<li>the percentage of additional trips that are newly induced rather than shifted from existing travel; and</li>
-<li>the percentage of new active-mode shifts expected to come from car.</li>
-</ul>
-<p>Trip spread bars use five configured distance categories crossed with utilitarian/recreational purpose for descriptive display. The same slider redistribution method is used for reconstructing internal counterfactual distance targets. Purpose is not a separate sampling target in the intended contract: shifted existing trips must be utilitarian, while newly induced trips are normally recreational. The legacy purpose input route should therefore be retired in coordination with MIAMA-UI rather than developed into a second mechanism control. The configured distance groups are 0–2, 2–5, 5–10, 10–30, and 30+ km.</p>
-<p>When Tab 4 is initialized, its induced-trip slider uses the realized proportion of added CF trip rows that were induced rather than shifted. This is deliberately separate from the Tab 3 people split. If no trip addition has yet produced a realized mechanism split, the effective Tab 3 current/new-user percentage is used only as the initial Tab 4 assumption.</p>
-</section>
-</section>
-<section id="counterfactual-sampling-and-redistribution" class="level1" data-number="5">
-<h1 data-number="5"><span class="header-section-number">5</span> Counterfactual sampling and redistribution</h1>
-<section id="general-design" class="level2" data-number="5.1">
-<h2 data-number="5.1" class="anchored" data-anchor-id="general-design"><span class="header-section-number">5.1</span> General design</h2>
-<p>The complete filtered LAD synthetic population is retained as the baseline source pool. User-entered reference counts define an <strong>appraisal snapshot</strong> within that pool. HUB records separate scope flags for assessed people, mode-specific users, and mode-specific active trips. Selecting the reference snapshot does not alter behavior, MMET exposure, or health trajectories; it only sets the system boundary for the appraisal.</p>
-<p>Counterfactual data begin as a one-to-one copy of this flagged baseline. CF scope initially equals REF scope. New users are sampled first from baseline non-users inside that assessed population. If more are needed, baseline non-users from the retained LAD source pool are recruited and added to CF scope. No synthetic person is duplicated: the same source row supplies that person’s original and counterfactual exposure. Existing trips can be switched only for people in CF scope, while induced trips are assigned to CF scope. All behavioral changes are made only in the CF copy; REF scope and behavior remain unchanged.</p>
-<p>The random seed is fixed by the calling workflow, making a run reproducible for the same data and inputs. Sampling is without replacement when selecting people or existing trips. Induced trips and donor activity values may be sampled with replacement.</p>
-<p>The distinction between an appraisal boundary and the source pool is important. REF must be constructible as an observed subset: its mode-user counts must fit inside REF total population, and its trips must be observed among selected people. CF is not subject to the smaller REF population ceiling. It can recruit eligible non-users from the rest of the retained geography. Only exhaustion of that full eligible pool makes a CF user target infeasible. HUB reports such input incompatibilities separately from programming errors, with requested and available counts and the implicated profile fields.</p>
-<p>Age and PA category selections are treated as hard inclusion criteria. If a previous REF table value is stale, HUB reconstructs scenario-specific total and mode-user values from the absolute category counts stored in the profile during Tab 2 -&gt; Tab 3 staging. This duplicates the UI calculation deliberately and removes dependence on browser update timing. If stored counts are unavailable or remain infeasible, the category selection takes precedence: HUB caps stale REF totals and impossible REF mode-user margins to observed eligible capacity. Submitted and used values are retained in the scope report. HUB does not sample people with replacement or relax selected categories, because either response would alter the population represented by the appraisal.</p>
-<p>The final category-refined snapshot is currently reconstructed from eligible source rows using the staged category totals and a reproducible seed. It is not guaranteed to preserve literal row identity from the intermediate Tab 2 draw. This distinction should be revisited if variance analysis indicates that exact nested sampling materially changes results.</p>
-</section>
-<section id="changing-the-number-of-users" class="level2" data-number="5.2">
-<h2 data-number="5.2" class="anchored" data-anchor-id="changing-the-number-of-users"><span class="header-section-number">5.2</span> Changing the number of users</h2>
-<p>If the counterfactual target exceeds the reference user count, HUB samples baseline non-users and marks them as <code>new_users</code>. It exhausts eligible candidates already inside the assessed population before recruiting from the rest of the retained LAD. If the target is lower, HUB samples existing users and marks them as <code>ex_users</code>; those people remain members of CF scope.</p>
-<p>A CF target is not capped by the smaller scaled REF population. Its practical upper bound is the current CF users plus baseline non-users that remain eligible under the selected population refinements. If that geographic donor pool is insufficient, HUB returns a structured appraisal-input error with the requested and available counts.</p>
-<p>Candidate probabilities combine the available mode-specific Tab 3 constraints:</p>
-<p><span class="math display">\[
-w_i = w_{sex,i} \times w_{age,i} \times w_{PA,i}.
-\]</span></p>
-<p>The category percentages reconstructed from the sliders are used directly as relative sampling weights. They are not exact quotas and are not currently calibrated for the prevalence of each category in the candidate pool. If too few candidates have positive combined weight, all positive-weight candidates are selected first and the unavoidable remainder is sampled uniformly. The counterfactual report records this relaxation.</p>
-<p>New users receive a weekly mode-activity value sampled with replacement from observed current users of that mode; the configured fallback is one hour per week if no donor value exists. Ex-users’ mode activity is set to zero. This changes the person’s MMET exposure.</p>
-<p>When trips are available, new-user status also triggers mode shifts among that person’s plausible non-active trips. The number is based on the configured weekly trips-per-user assumption; observed trip rates among current users are a fallback. For ex-users, their active trips are switched away from the active mode, currently to car.</p>
-<div class="callout callout-style-default callout-warning callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Warning
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>The age and PA spread targets constrain <strong>which candidates change status</strong>. They do not impose exact distributions on all final counterfactual users. In addition, the PA constraint is based on candidate PA before newly sampled mode activity is added, so the final PA distribution of new users can differ from the displayed target.</p>
-</div>
-</div>
-</section>
-<section id="changing-the-number-of-trips" class="level2" data-number="5.3">
-<h2 data-number="5.3" class="anchored" data-anchor-id="changing-the-number-of-trips"><span class="header-section-number">5.3</span> Changing the number of trips</h2>
-<p>For an increase, the default mechanism treats 90% of additional active trips as mode shifts and 10% as induced recreational trips. The explicit parameter is <code>induced_trips_percent</code> in the submitted profile, optionally overridden by a mode-specific field such as <code>induced_trips_percent_walk</code>. If neither is provided, HUB uses <code>cfg$counterfactual$trips$induced_trips_percent_default</code>. This mechanism parameter is distinct from both trip purpose and the new-user percentage, even when defaults happen to use the same value.</p>
-<p>Mode-shift candidates are existing utilitarian trips. By default, trips already active in another assessed mode are excluded. A configured source-mode distribution can explicitly make them eligible, as for e-bike shifts from cycling or PT. Candidate distances are limited to 120% of the maximum observed reference active-mode distance to avoid implausible switches. Their sampling probabilities reflect the requested distance distribution or, when only a mean is available, a smooth preference for distances near that mean. The requested car-source share rebalances source-mode candidate pools while retaining the distance weights. For e-biking, the current configuration assigns the non-induced shifts equally across cycling, PT, and car because no England-derived split is yet available. This source-mode assumption is distinct from the cycling donor profile used to impute e-bike characteristics. A UI car-share value overrides the configured car share and leaves cycling/PT in their configured relative proportions. The realized share can differ in finite or constrained samples and is reported.</p>
-<p>Selected trips retain their observed raw distance and duration; the target active-mode fields are populated from those raw values. For induced travel, HUB copies observed active-trip donor rows, assigns them to people in CF scope, creates new trip identifiers, marks them recreational, and retains the donor trip weight.</p>
-<p>For a decrease, sampled active trips are switched to the configured alternative mode, currently car. Rows are not deleted because the underlying travel need is assumed to remain.</p>
-<div class="callout callout-style-default callout-note callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Note
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Legacy scalar and spread-purpose controls may still be present in the profile schema. They are not authoritative sampling inputs. The explicit <code>induced_trips_percent</code> controls the mechanism split, from which purpose is inferred.</p>
-</div>
-</div>
-</section>
-<section id="count-units-and-represented-totals" class="level2" data-number="5.4">
-<h2 data-number="5.4" class="anchored" data-anchor-id="count-units-and-represented-totals"><span class="header-section-number">5.4</span> Count units and represented totals</h2>
-<p>The current appraisal contract is deliberately direct: one synthetic person row is one user record and one synthetic trip row is one trip record. Reference defaults, UI trip targets, counterfactual sampling, result trip totals, and mode shares therefore do not apply <code>weight_tripXhh</code>. Distance and duration totals sum the corresponding values across included trip rows. Source weights remain in the data for future methodological work, but they do not change current count targets. Health-result population expansion is a separate configured operation.</p>
-</section>
-</section>
-<section id="what-each-refinement-currently-controls" class="level1" data-number="6">
-<h1 data-number="6"><span class="header-section-number">6</span> What each refinement currently controls</h1>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 33%">
-<col style="width: 33%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>UI information</th>
-<th>Stored/reconstructed quantity</th>
-<th>Current effect on counterfactual data</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Mode-specific user count</td>
-<td>Weekly target users</td>
-<td>Adds new-user or ex-user statuses among existing people.</td>
-</tr>
-<tr class="even">
-<td>Mean age + sex proportion</td>
-<td>Five age categories and sex marginal</td>
-<td>Weights candidate people changing status.</td>
-</tr>
-<tr class="odd">
-<td>Mean PA + sex proportion</td>
-<td>Five PA categories and sex marginal</td>
-<td>Weights candidate people using their pre-change PA.</td>
-</tr>
-<tr class="even">
-<td>Current/new-user percentage</td>
-<td>Scalar profile value</td>
-<td>For trip-derived inputs, divides additional mode users between existing active-travel users and people with no current active travel; explicit user counts take precedence.</td>
-</tr>
-<tr class="odd">
-<td>Mode-specific trip count</td>
-<td>Weekly target trip rows</td>
-<td>Shifts existing trips and adds induced recreational trips.</td>
-</tr>
-<tr class="even">
-<td>Mean trip distance</td>
-<td>Five distance-category target or smooth mean preference</td>
-<td>Weights plausible trip candidates.</td>
-</tr>
-<tr class="odd">
-<td>Induced-trip percentage</td>
-<td>Share of added trips that do not replace an existing trip</td>
-<td>Splits additions between induced recreational rows and shifted existing utilitarian rows.</td>
-</tr>
-<tr class="even">
-<td>Purpose display</td>
-<td>Descriptive utilitarian/recreational distribution</td>
-<td>Derived from the trip mechanism; legacy purpose inputs are scheduled for coordinated retirement.</td>
-</tr>
-<tr class="odd">
-<td>Source-mode diversion</td>
-<td>Target-specific expected source shares among shifted trips</td>
-<td>Uses one source-mode pie per assessed target mode; unavailable donor pools are omitted and remaining shares renormalized.</td>
-</tr>
-<tr class="even">
-<td>Basic distance/duration target</td>
-<td>Weekly aggregate km or minutes, total or per person</td>
-<td>Converted to a mode-specific weekly trip-row target using the reference mean per active trip, then passed to constrained sampling.</td>
-</tr>
-<tr class="odd">
-<td>Basic mode share target</td>
-<td>Mode percentage plus a trip/distance/duration denominator</td>
-<td>Converted to a per-mode weekly trip-row quota, then passed to constrained sampling.</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="validation-uncertainty-and-remaining-work" class="level1" data-number="7">
-<h1 data-number="7"><span class="header-section-number">7</span> Validation, uncertainty, and remaining work</h1>
-<p>The current implementation makes assumptions visible in <code>counterfactual_report</code>, including requested and realized counts, active sampling constraints, fallback sampling, induced trips, diversion shares, and MMET components. This supports mechanical checking, but it is not a substitute for empirical validation.</p>
-<section id="priority-methodological-todos" class="level2" data-number="7.1">
-<h2 data-number="7.1" class="anchored" data-anchor-id="priority-methodological-todos"><span class="header-section-number">7.1</span> Priority methodological TODOs</h2>
+<section id="resolved-interpretation" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> Resolved interpretation</h1>
 <ol type="1">
-<li><strong>Current/new-user validation:</strong> compare the trips-per-user conversion and realized current/new allocation with empirical intervention evidence, especially where one candidate pool is too small and the other fills the shortfall.</li>
-<li><strong>Candidate-weight calibration:</strong> decide whether category weights should be calibrated as target share divided by candidate prevalence, or replaced by exact/near-exact quota sampling. Test on large and sparse geographies.</li>
-<li><strong>Final-distribution validation:</strong> report requested versus realized age, sex, PA, distance, purpose, and source-mode distributions after all changes, not only the constraints supplied to the sampler.</li>
-<li><strong>Purpose simplification:</strong> retire legacy purpose controls in UI and HUB, retain the explicit induced-trip percentage, and report the realized utilitarian/recreational split derived from mechanism.</li>
-<li><strong>PA targeting semantics:</strong> decide whether PA categories refer to pre-change activity, post-change total activity, or mode-specific added activity, then align sampling and UI wording.</li>
-<li><strong>Trip weights:</strong> validate the current one-row/one-record interpretation and decide whether a future reporting layer should expose survey-weighted or population-expanded estimates separately from sampling targets.</li>
-<li><strong>Alternative-volume calibration:</strong> compare requested versus realized aggregate kilometres/minutes after constrained row sampling; decide whether exact or near-exact aggregate calibration is required. Add explicit UI unit/timeframe controls for mode-share distance and duration denominators if canonical weekly km/min assumptions are insufficient.</li>
-<li><strong>Short-term effects:</strong> implement a time-limited intervention effect rather than applying the MMET change to every health cycle.</li>
-<li><strong>Category and intensity review:</strong> validate age, distance, PA cutoffs and MMET intensity factors against agreed evidence and document provenance.</li>
-<li><strong>Mode proxy validation:</strong> replace or validate the current 1:1 cycling proxy for e-bike donors and the configured PT access-walking assumptions when mode-specific evidence becomes available.</li>
-<li><strong>Uncertainty analysis:</strong> quantify Monte Carlo variation from sampling and parameter uncertainty; a fixed seed currently provides reproducibility but not uncertainty intervals.</li>
-<li><strong>External validation:</strong> compare reference summaries, modeled behavioral changes, and health-response magnitudes with independent observed data and established appraisal tools.</li>
+<li>Donor trip patterns may be sampled with replacement when the final users do not own enough observed rows.</li>
+<li>Explicit Tab 4 trip counts supersede trip targets derived from Tab 2 mode share, distance, or duration. Remaining-mode shares are measured from the final sample; they are not forced through a second scaling calculation.</li>
+<li>Final realized distance and duration adjust to the sampled trips and any explicit Tab 4 trip-distance assumptions.</li>
+<li>The accepted Tab 3 total-population and mode-user numbers are fixed for Tab 4 and results. Tab 4 may change activity assigned per user, not user counts.</li>
 </ol>
-</section>
-<section id="recommended-checks-for-each-appraisal" class="level2" data-number="7.2">
-<h2 data-number="7.2" class="anchored" data-anchor-id="recommended-checks-for-each-appraisal"><span class="header-section-number">7.2</span> Recommended checks for each appraisal</h2>
-<ul>
-<li>Confirm that reference user/trip counts and spread plots are credible for the selected geography and are not using a sparse-data fallback.</li>
-<li>Compare requested and realized counterfactual changes in the report.</li>
-<li>Inspect the number of relaxed sampling selections and induced trip rows.</li>
-<li>Check the individual mode-specific MMET components before reviewing health outcomes.</li>
-<li>Confirm sign conventions: internal delta is counterfactual minus reference; prevented outcomes are reference minus counterfactual.</li>
-<li>Treat very small samples and unsupported modes as development tests, not substantive estimates.</li>
-</ul>
-</section>
-</section>
-<section id="implementation-traceability" class="level1" data-number="8">
-<h1 data-number="8"><span class="header-section-number">8</span> Implementation traceability</h1>
-<p>This description is based on the current implementation, principally:</p>
-<ul>
-<li><code>R/reference_data_extract_reference_ui_values.R</code></li>
-<li><code>R/tab2_input_conversion.R</code></li>
-<li><code>R/reference_data_spread_functions.R</code></li>
-<li><code>R/counterfactual_data_sampling_functions.R</code></li>
-<li><code>R/counterfactual_data_apply_ui_values.R</code></li>
-<li><code>R/counterfactual_data_apply_health_outcomes.R</code></li>
-<li><code>R/results_data_prepare.R</code></li>
-<li><code>R/config.R</code> and <code>R/constants.R</code></li>
-</ul>
-<p>The companion slide deck is <code>docs/methodology_slides.qmd</code>. The package README remains the developer-facing integration reference; where terminology differs, the implementation and the status statements in this methods document take precedence until the discrepancy is resolved.</p>
+<p>Current calculations preserve those counts and use reproducible seeds. Exact person identity across a later full rebuild is not yet serialized as a separate contract object.</p>
+<p>The fourth option is the cleanest architectural boundary: finalize a person contract once at the Tab 3-to-Tab 4 transition, finalize a trip contract once at the Tab 4-to-results transition, and make result calculation consume those objects without re-deriving upstream quantities.</p>
 </section>
 
 </main>

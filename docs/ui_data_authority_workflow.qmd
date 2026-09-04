@@ -1,0 +1,375 @@
+---
+title: "MIAMA UI data authority workflow"
+subtitle: "Draft one-way contract from Tab 2 volume inputs to Tab 5 results"
+format:
+  html:
+    toc: true
+    number-sections: true
+    embed-resources: true
+execute:
+  echo: false
+---
+
+```{=html}
+<style>
+.wide-mermaid {
+  overflow-x: auto;
+  border: 1px solid #d9dee3;
+  padding: 0.75rem;
+}
+.wide-mermaid .mermaid { min-width: 1800px; }
+.wide-mermaid .mermaid svg {
+  width: 1800px !important;
+  max-width: none !important;
+  height: auto !important;
+}
+</style>
+```
+
+::: {.callout-warning}
+## Design sandbox
+
+This document describes the intended one-way UI contract. It also records
+where the current implementation still departs from that contract. It should
+be merged into the main methodology only after the remaining allocation rules
+are agreed and implemented.
+:::
+
+# Core principle
+
+The quantity explicitly provided by the user has authority. Downstream tabs
+may refine quantities that MIAMA inferred to complete the scenario, but they
+must not silently feed those estimates back upstream and replace the provided
+quantity.
+
+1. Tab 2 establishes the authoritative active-travel volume in the selected
+   unit.
+2. MIAMA estimates the missing person/trip quantities needed to construct REF
+   and CF snapshots.
+3. Tab 3 may revise the person allocation. It does not recalculate an
+   authoritative Tab 2 trip-derived volume.
+4. Tab 4 may revise trip counts and characteristics. It does not recalculate
+   the final Tab 3 population or mode-user counts.
+5. A later explicit edit supersedes an earlier estimate for that same
+   quantity. It does not retroactively alter a different authoritative unit.
+
+# Review-sized workflows
+
+These smaller diagrams contain the same logic as the comprehensive workflow
+but are intended for normal browser and presentation viewing.
+
+## User-count route
+
+```{mermaid}
+flowchart TD
+  S[(Geographic donors)]
+  T2[Tab 2 provides<br/>REF/CF users by mode]
+  E[Estimate total population<br/>and trips per mode]
+  T3[Tab 3 displays and refines<br/>people and users]
+  P[(Final person/user counts)]
+  T4[Tab 4 starts with trips estimated<br/>from final users]
+
+  S --> T2
+  T2 -->|user counts are authoritative initially| E
+  E -->|prepopulate| T3
+  T3 -->|last displayed counts prevail| P
+  P --> T4
+```
+
+## Trip-count route
+
+```{mermaid}
+flowchart TD
+  S[(Geographic donors)]
+  T2[Tab 2 provides<br/>REF/CF trips by mode]
+  E[Estimate users and<br/>total population]
+  T3[Tab 3 displays and refines<br/>people and users]
+  P[(Final person/user counts)]
+  T4[Tab 4 starts with exact<br/>Tab 2 trip targets]
+
+  S --> T2
+  T2 -->|trip counts remain authoritative| E
+  E -->|prepopulate people| T3
+  T3 -->|refine allocation, not trips| P
+  T2 -->|carry trip targets unchanged| T4
+  P -->|allocate trips across fixed users| T4
+```
+
+## Distance/duration route
+
+```{mermaid}
+flowchart TD
+  S[(Geographic donors)]
+  T2[Tab 2 provides REF/CF<br/>distance or duration]
+  C[Divide by reference mean<br/>amount per trip]
+  Q[Derived per-mode<br/>trip targets]
+  T3[Estimate and refine<br/>people and users]
+  T4[Tab 4 starts with<br/>derived trip targets]
+
+  S -->|reference trip patterns| C
+  T2 --> C
+  C --> Q
+  Q --> T3
+  Q --> T4
+  T3 -->|fixed person/user counts| T4
+```
+
+The original kilometres or minutes explain how the starting trip targets were
+derived. If Tab 4 changes counts or distance assumptions, final aggregate
+distance/duration is measured from the resulting trip sample.
+
+## Mode-share route
+
+```{mermaid}
+flowchart TD
+  S[(Geographic donors)]
+  T2[Tab 2 provides REF/CF<br/>mode shares + denominator]
+  C[Multiply shares by total trips<br/>or convert distance/duration]
+  Q[Derived per-mode<br/>trip targets]
+  T3[Estimate and refine<br/>people and users]
+  T4[Tab 4 starts with<br/>derived trip targets]
+
+  S -->|reference conversion assumptions| C
+  T2 --> C
+  C --> Q
+  Q --> T3
+  Q --> T4
+  T3 -->|fixed person/user counts| T4
+```
+
+## Shared Tab 3-to-results handoff
+
+```{mermaid}
+flowchart TD
+  T3[Last displayed Tab 3 table]
+  P[(Fixed total population<br/>and users by mode)]
+  T4[Last displayed Tab 4 table]
+  Q[(Final trips by mode)]
+  A{Enough observed trips<br/>owned by final users?}
+  O[Use observed eligible rows]
+  D[Sample donor patterns with replacement<br/>and assign to fixed users]
+  H[Calculate MMET changes<br/>and health impacts]
+  R[Tab 5 results and exports]
+
+  T3 --> P
+  T4 --> Q
+  P --> A
+  Q --> A
+  A -->|yes| O
+  A -->|no| D
+  O --> H
+  D -->|warn and audit| H
+  H --> R
+```
+
+# Comprehensive vertical workflow
+
+The complete diagram is deliberately rendered at full size. Scroll horizontally
+inside its frame; browser zoom can then be used without making its labels
+unreadably small.
+
+::: {.wide-mermaid}
+```{mermaid}
+flowchart TD
+  G[Tab 1: choose geography and assessed modes]
+  SOURCE[(Geographic donor data<br/>people and linked weekly trips)]
+  UNIT{Tab 2: how is AT volume provided?}
+
+  UIN[Provided: REF and CF<br/>mode-user counts]
+  UASSUME[MIAMA complements with:<br/>source population rates<br/>and trips per user]
+  UPEOPLE[Authoritative user targets]
+  UTRIPS[Estimated trip targets]
+
+  TIN[Provided: REF and CF<br/>trip counts]
+  TASSUME[MIAMA complements with:<br/>observed trip owners<br/>and source population rates]
+  TTRIPS[Authoritative trip targets]
+  TPEOPLE[Estimated users and total population]
+
+  DIN[Provided: REF and CF<br/>distance or duration]
+  DASSUME[MIAMA complements with:<br/>reference mean distance or duration per trip<br/>and observed trip-owner patterns]
+  DVOLUME[Authoritative distance or duration]
+  DTRIPS[Estimated trip targets]
+  DPEOPLE[Estimated users and total population]
+
+  MIN[Provided: REF and CF mode shares<br/>plus total trips, distance, or duration]
+  MASSUME[MIAMA complements with:<br/>denominator conversion where needed<br/>and observed trip-owner patterns]
+  MVOLUME[Authoritative mode shares and denominator]
+  MTRIPS[Estimated per-mode trip targets]
+  MPEOPLE[Estimated users and total population]
+
+  STAGE[Build staged REF and CF snapshots<br/>using source rows as donors]
+  T3[Prepopulate Tab 3 person table<br/>REF and CF total people + users by mode]
+  T3COUNT{Tab 3 count refinement?}
+  T3NEW[Update final person and mode-user targets<br/>manual, percent, age, or PA categories]
+  T3KEEP[Retain generated person targets]
+  T3WEIGHT[Optional advanced age, sex, and PA inputs<br/>change selection weights, not counts]
+  PEOPLE[(Final REF and CF person contract)]
+
+  T4START{Prepopulate Tab 4 trip table}
+  T4FROMUSERS[Users route:<br/>estimate trips from final user targets<br/>and trips-per-user assumptions]
+  T4FROMTRIPS[Trip-derived routes:<br/>carry Tab 2 trip targets forward unchanged]
+  T4EDIT{Tab 4 trip-count edit?}
+  T4NEW[Explicit Tab 4 counts supersede<br/>generated or carried trip targets]
+  T4KEEP[Retain Tab 4 starting trip targets]
+  T4REFINE[Apply trip allocation assumptions:<br/>distance, induced share, source-mode diversion]
+  TRIPS[(Final REF and CF trip contract)]
+
+  ALLOC[Allocate final trip targets across<br/>the fixed final person contract]
+  SAMPLE[Sampling rules:<br/>REF from geographic donors<br/>CF starts from REF<br/>then recruits/switches within fixed contracts]
+  HEALTH[Convert active minutes to MMET change<br/>and apply health trajectories]
+  RESULTS[Tab 5 results and exports]
+
+  G -->|filter once| SOURCE
+  SOURCE -->|populate reference defaults| UNIT
+
+  UNIT -->|users| UIN
+  UIN --> UPEOPLE
+  SOURCE --> UASSUME
+  UASSUME -->|prepopulate inferred trips| UTRIPS
+  UPEOPLE --> UTRIPS
+
+  UNIT -->|trips| TIN
+  TIN --> TTRIPS
+  SOURCE --> TASSUME
+  TASSUME -->|prepopulate inferred people| TPEOPLE
+  TTRIPS --> TPEOPLE
+
+  UNIT -->|distance or duration| DIN
+  DIN --> DVOLUME
+  SOURCE --> DASSUME
+  DVOLUME -->|divide by reference mean per trip| DTRIPS
+  DASSUME --> DTRIPS
+  DTRIPS -->|sample owners and apply source rates| DPEOPLE
+
+  UNIT -->|mode share| MIN
+  MIN --> MVOLUME
+  SOURCE --> MASSUME
+  MVOLUME -->|share times denominator| MTRIPS
+  MASSUME --> MTRIPS
+  MTRIPS -->|sample owners and apply source rates| MPEOPLE
+
+  UPEOPLE --> STAGE
+  UTRIPS --> STAGE
+  TTRIPS --> STAGE
+  TPEOPLE --> STAGE
+  DTRIPS --> STAGE
+  DPEOPLE --> STAGE
+  MTRIPS --> STAGE
+  MPEOPLE --> STAGE
+
+  STAGE -->|measure staged people| T3
+  T3 --> T3COUNT
+  T3COUNT -->|yes| T3NEW
+  T3COUNT -->|no| T3KEEP
+  T3NEW --> T3WEIGHT
+  T3KEEP --> T3WEIGHT
+  T3WEIGHT -->|select who is represented or changes| PEOPLE
+
+  PEOPLE --> T4START
+  UNIT --> T4START
+  T4START -->|Tab 2 unit was users| T4FROMUSERS
+  T4START -->|Tab 2 unit was trip-derived| T4FROMTRIPS
+  T4FROMUSERS --> T4EDIT
+  T4FROMTRIPS --> T4EDIT
+  T4EDIT -->|yes| T4NEW
+  T4EDIT -->|no| T4KEEP
+  T4NEW --> T4REFINE
+  T4KEEP --> T4REFINE
+  T4REFINE --> TRIPS
+
+  PEOPLE --> ALLOC
+  TRIPS --> ALLOC
+  SOURCE --> SAMPLE
+  ALLOC --> SAMPLE
+  SAMPLE --> HEALTH
+  HEALTH --> RESULTS
+```
+:::
+
+# Authority by Tab 2 input route
+
+| Tab 2 route | Authoritative after Tab 2 | MIAMA must estimate | What Tab 3 may change | Tab 4 starting value |
+|---|---|---|---|---|
+| Users | REF/CF users by mode | Total population and trips | Total/person allocation and mode-user counts | Trips estimated from the final Tab 3 users |
+| Trips | REF/CF trips by mode | Trip owners, mode users, and total population | Person allocation and user estimates only | Exact Tab 2 trip counts |
+| Distance/duration | REF/CF distance or duration by mode | Trips, users, and total population | Person allocation and user estimates only | Trip counts derived from the Tab 2 volume |
+| Mode share | REF/CF shares and their total denominator | Per-mode trips, users, and total population | Person allocation and user estimates only | Per-mode trip counts derived from shares |
+
+An explicit Tab 4 trip-count edit becomes authoritative for trip count from
+that point onward. It must be allocated across the already-final Tab 3 people;
+it must not alter total population or mode-user counts.
+
+# Refinement effects
+
+```{mermaid}
+flowchart TD
+  A[Upstream authoritative value]
+  E[MIAMA estimate]
+  R{Downstream refinement}
+  X[Replace/refine the estimate]
+  K[Keep authoritative value unchanged]
+  F[Final downstream contract]
+
+  A --> K
+  E --> R
+  R -->|edited| X
+  R -->|accepted| E
+  K --> F
+  X --> F
+  E --> F
+```
+
+Examples:
+
+- Trips entered in Tab 2 remain fixed while Tab 3 changes their allocation
+  across people. Fewer users therefore imply more trips per user.
+- Users entered in Tab 2 determine the initial person contract. Tab 3 can
+  revise it, after which trips are re-estimated once for Tab 4.
+- Trips edited in Tab 4 are allocated across the final Tab 3 users. More trips
+  therefore imply more trips per user, not more users.
+
+# Implementation status
+
+The one-way count contract is implemented as follows:
+
+1. **Trip authority after Tab 3:** Tab 2 trip targets remain present when Tab 3
+   re-scopes the population. Tab 4 therefore starts from the requested trip
+   totals rather than re-estimating them from whichever rows the selected
+   people happened to own.
+2. **Final user contract at results time:** accepted advanced total-population
+   and mode-user counts are reinstated as explicit calculation targets. A Tab 4
+   trip edit therefore changes trips per user rather than deriving a new user
+   count.
+3. **Allocation feasibility:** if the final people own too few observed trips,
+   HUB samples observed donor trip patterns with replacement, assigns them to
+   the fixed mode-user pool, warns, and reports the number of modeled rows in
+   `reference_scope_report$trips`.
+
+The treatment of aggregate units is intentionally different:
+
+4. **Distance/duration and mode-share provenance:** these Tab 2 inputs generate
+   the starting per-mode trip targets. An explicit Tab 4 trip count supersedes
+   those targets. HUB does not force the original aggregate kilometres, minutes,
+   or mode shares afterward; it measures their realized values from the final
+   sampled trips.
+
+# Resolved interpretation
+
+1. Donor trip patterns may be sampled with replacement when the final users do
+   not own enough observed rows.
+2. Explicit Tab 4 trip counts supersede trip targets derived from Tab 2 mode
+   share, distance, or duration. Remaining-mode shares are measured from the
+   final sample; they are not forced through a second scaling calculation.
+3. Final realized distance and duration adjust to the sampled trips and any
+   explicit Tab 4 trip-distance assumptions.
+4. The accepted Tab 3 total-population and mode-user numbers are fixed for Tab
+   4 and results. Tab 4 may change activity assigned per user, not user counts.
+
+Current calculations preserve those counts and use reproducible seeds. Exact
+person identity across a later full rebuild is not yet serialized as a separate
+contract object.
+
+The fourth option is the cleanest architectural boundary: finalize a person
+contract once at the Tab 3-to-Tab 4 transition, finalize a trip contract once
+at the Tab 4-to-results transition, and make result calculation consume those
+objects without re-deriving upstream quantities.

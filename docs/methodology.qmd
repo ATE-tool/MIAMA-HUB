@@ -252,6 +252,136 @@ results rather than to these selector metadata.
 
 ## Continuity from Tab 2 to Tabs 3 and 4
 
+### Workflow overview
+
+The diagrams below separate four ideas that can otherwise be conflated:
+the geographic donor data, the REF/CF volumes requested in Tab 2, the people
+represented by those volumes in Tab 3, and the trips finally selected in Tab
+4.
+
+```{mermaid}
+%%| fig-width: 6.3
+flowchart LR
+  G[Tab 1<br/>source people + trips]
+  T2[Tab 2<br/>REF + CF AT volumes]
+  SR[Staged REF<br/>people + trips]
+  SC[Staged CF<br/>people + trips]
+  T3[Tab 3<br/>population refinements]
+  T4[Tab 4<br/>trip refinements]
+  H[MMET + health<br/>calculation]
+  R[Tab 5<br/>results]
+
+  G --> T2
+  T2 --> SR
+  T2 --> SC
+  SR --> T3
+  SC --> T3
+  T3 --> T4
+  T3 --> H
+  T4 --> H
+  H --> R
+```
+
+The basic and advanced interfaces use the same core conversions. The basic
+path accepts Tab 2 values and proceeds directly to calculation using generated
+population and trip assumptions. The advanced path exposes those generated
+values in Tabs 3 and 4 before calculation.
+
+```{mermaid}
+%%| fig-width: 5.8
+flowchart TD
+  A[Tab 2 volume inputs]
+  B{UI version}
+  C[Basic<br/>use generated person and trip scopes]
+  D[Advanced Tab 3<br/>inspect or refine people]
+  E[Advanced Tab 4<br/>inspect or refine trips]
+  F[Build results]
+
+  A --> B
+  B -->|Basic| C
+  C --> F
+  B -->|Advanced| D
+  D --> E
+  E --> F
+```
+
+### How Tab 2 units reach Tabs 3 and 4
+
+All four Tab 2 input routes are normalized to weekly synthetic-row targets.
+This conversion creates the same downstream contract regardless of which unit
+the user understands best.
+
+```{mermaid}
+%%| fig-width: 6.2
+flowchart TD
+  U{Tab 2 AT input unit}
+  USERS[Users]
+  TRIPINPUT[Trips, distance,<br/>duration, or mode share]
+  USERQ[Weekly mode-user targets]
+  QT[Weekly mode-trip targets]
+  PR[Estimate and sample REF people]
+  PC[Estimate or recruit CF mode users]
+  T3D[Tab 3 defaults<br/>total people and users by mode]
+  T4D[Tab 4 defaults<br/>trip counts by mode]
+
+  U -->|users| USERS
+  U -->|trip-derived routes| TRIPINPUT
+  USERS --> USERQ
+  TRIPINPUT -->|normalize to reference week| QT
+  USERQ --> PR
+  USERQ --> PC
+  QT --> PR
+  QT --> PC
+  PR --> T3D
+  PC --> T3D
+  QT --> T4D
+```
+
+For users, Tab 3 receives the requested mode-user counts directly. For all
+trip-derived routes, Tab 3 receives the unique owners of the staged trips and
+an estimated common population boundary. If no Tab 3 population refinement
+changes that boundary, Tab 4 receives the exact staged Tab 2 trip targets.
+
+### What refinements change
+
+```{mermaid}
+%%| fig-width: 6.2
+flowchart TD
+  S[Preserved Tab 2 REF and CF snapshots]
+  P{Tab 3 control}
+  COUNT[Counts changed<br/>percent, categories, or manual edit]
+  WEIGHT[Distribution changed<br/>age, sex, or PA spread]
+  SAME[Result unchanged]
+  RESCOPE[Re-sample REF and CF people]
+  CAND[Change CF candidate weights]
+  KEEP[Keep exact staged Tab 2 trip quotas]
+  ALLOC[Allocate fixed trip targets<br/>across final people]
+  T4[Tab 4 starting table]
+  T4R[Tab 4 trip refinements]
+  FINAL[Final REF and CF trip snapshots]
+
+  S --> P
+  P -->|changes resulting counts| COUNT
+  P -->|changes only distributions| WEIGHT
+  P -->|selection retained but result unchanged| SAME
+  COUNT --> RESCOPE
+  WEIGHT --> CAND
+  SAME --> KEEP
+  RESCOPE --> ALLOC
+  CAND --> ALLOC
+  KEEP --> T4
+  ALLOC --> T4
+  T4 --> T4R
+  T4R --> FINAL
+```
+
+For a trip-derived Tab 2 route, a genuine Tab 3 population refinement changes
+how the fixed trip quota is allocated, not the quota itself. If the final users
+own too few observed rows, HUB samples donor trip patterns with replacement and
+assigns them to those users. Merely selecting a refinement method that produces
+unchanged counts must not trigger re-scoping. HUB records actual triggers in
+`trip_refinement_defaults_report$tab3_rescope_trigger_fields`.
+
 The complete geography is the donor population, but it is not necessarily the
 population represented by the appraisal. Filled Tab 2 reference fields first
 create a row-level **REF scoped** snapshot. Tab 3 reference totals,
@@ -323,27 +453,13 @@ geography defaults, because doing so would replace the staged snapshots with the
 original baseline. REF-to-CF default mirroring is likewise
 owned by HUB rather than repeated in modal-specific UI code.
 
-The final Tab 3 person and mode-user counts take precedence at this handoff. If
-Tab 3 reduces the population, HUB does not attempt to force the original Tab 2
-trip quota into a smaller set of eligible people. It instead measures the
-observed trips owned by the final staged REF and CF populations and uses those
-row-consistent counts as the starting values in Tab 4. Any subsequent Tab 4
-trip-count edit becomes the final trip target used for results.
-
-```{mermaid}
-flowchart LR
-  A[Full LAD baseline donor pool] --> B[Geography defaults]
-  B --> C[Tab 2 REF users or converted trip volume]
-  C --> D[REF scoped people, users and trips]
-  D --> E[Tab 3 reference table and spreads]
-  D --> F[Tab 2 CF users or converted trip volume]
-  F --> G[Staged CF synthpop snapshot]
-  G --> H[Tab 3/4 refinements]
-  H --> I[Final CF snapshot]
-  D --> J[HM join and health trajectories]
-  I --> J
-  J --> K[Tab 5 results]
-```
+The final Tab 3 person and mode-user counts take precedence at this handoff,
+while an authoritative trip-derived Tab 2 quota remains fixed. If the selected
+people own too few observed trip rows, HUB samples donor trip patterns with
+replacement and assigns them to the fixed users. The scope report records the
+added rows and allocation method, and HUB emits a warning. Any subsequent Tab 4
+trip-count edit becomes the final trip target used for results without changing
+the accepted population counts.
 
 The UI precedence for overlapping concepts is:
 
@@ -410,19 +526,26 @@ percentage initially selects no recipients. This keeps the Tab 3 population
 summary consistent with the realized CF trip snapshot without adding individual
 activity exposure a second time.
 
-An explicitly edited Tab 4 trip count is the final trip-volume target and
-therefore overrides the corresponding Tab 2 value. A displayed Tab 4 value
-that remains identical to its generated default is not treated as an edit;
-HUB retains the Tab 2 target in that case. Diversion settings are independent
-of this precedence rule because they influence source-trip selection rather
-than trip volume.
+The values last displayed or entered in the Tab 4 table are the final
+trip-volume targets. Generated starting values already carry forward or derive
+from Tab 2, so accepting them preserves that scenario; an explicit Tab 4 edit
+supersedes it. Diversion settings are independent of this precedence rule
+because they influence source-trip selection rather than trip volume.
+
+For distance, duration, and mode-share input routes, the Tab 2 aggregate is the
+provenance used to derive Tab 4's starting trip counts. An explicit Tab 4 count
+supersedes that derived target. HUB does not then force the original aggregate
+kilometres, minutes, or shares through a reverse adjustment of people or trips;
+it reports the values realized by the final sampled trips. Consequently, a Tab
+4 change may alter trips per user and the final measured mode share while the
+accepted Tab 3 population and mode-user counts remain fixed.
 
 Tab 4 defaults are measured from the separate staged REF and CF snapshots
 created after Tab 2. With no Tab 3 population change, these snapshots pass
 through unchanged. When Tab 3 changes the population scope, HUB re-scopes each
-existing snapshot independently before measuring its trips. This preserves
-the scenario-specific behavior already introduced by users, trips,
-distance/duration, or mode-share inputs.
+snapshot independently and allocates its carried trip target across the final
+users. This preserves the scenario-specific behavior already introduced by
+users, trips, distance/duration, or mode-share inputs.
 
 Tab 4 presents one source-mode diversion pie for each assessed target mode. A
 cycling pie, for example, describes the previous modes of existing trips that

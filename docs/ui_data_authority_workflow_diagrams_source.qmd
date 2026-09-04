@@ -1,0 +1,127 @@
+---
+format:
+  pdf:
+    documentclass: scrartcl
+    geometry:
+      - landscape
+      - margin=12mm
+    toc: false
+execute:
+  echo: false
+---
+
+# User-count route {.unnumbered}
+
+```{mermaid}
+%%{init: {"themeVariables": {"fontSize": "20px"}}}%%
+flowchart TD
+  S[(Geographic donors)]
+  T2[Tab 2 provides<br/>REF/CF users by mode]
+  E[Estimate total population<br/>and trips per mode]
+  T3[Tab 3 displays and refines<br/>people and users]
+  P[(Final person/user counts)]
+  T4[Tab 4 starts with trips estimated<br/>from final users]
+
+  S --> T2
+  T2 -->|user counts are authoritative initially| E
+  E -->|prepopulate| T3
+  T3 -->|last displayed counts prevail| P
+  P --> T4
+```
+
+\newpage
+
+# Trip-count route {.unnumbered}
+
+```{mermaid}
+%%{init: {"themeVariables": {"fontSize": "20px"}}}%%
+flowchart TD
+  S[(Geographic donors)]
+  T2[Tab 2 provides<br/>REF/CF trips by mode]
+  E[Estimate users and<br/>total population]
+  T3[Tab 3 displays and refines<br/>people and users]
+  P[(Final person/user counts)]
+  T4[Tab 4 starts with exact<br/>Tab 2 trip targets]
+
+  S --> T2
+  T2 -->|trip counts remain authoritative| E
+  E -->|prepopulate people| T3
+  T3 -->|refine allocation, not trips| P
+  T2 -->|carry trip targets unchanged| T4
+  P -->|allocate trips across fixed users| T4
+```
+
+\newpage
+
+# Distance/duration route {.unnumbered}
+
+```{mermaid}
+%%{init: {"themeVariables": {"fontSize": "20px"}}}%%
+flowchart TD
+  S[(Geographic donors)]
+  T2[Tab 2 provides REF/CF<br/>distance or duration]
+  C[Divide by reference mean<br/>amount per trip]
+  Q[Derived per-mode<br/>trip targets]
+  T3[Estimate and refine<br/>people and users]
+  T4[Tab 4 starts with<br/>derived trip targets]
+
+  S -->|reference trip patterns| C
+  T2 --> C
+  C --> Q
+  Q --> T3
+  Q --> T4
+  T3 -->|fixed person/user counts| T4
+```
+
+The original kilometres or minutes explain how the starting trip targets were
+derived. After Tab 4 changes, the final aggregate is measured from the sample.
+
+\newpage
+
+# Mode-share route {.unnumbered}
+
+```{mermaid}
+%%{init: {"themeVariables": {"fontSize": "20px"}}}%%
+flowchart TD
+  S[(Geographic donors)]
+  T2[Tab 2 provides REF/CF<br/>mode shares + denominator]
+  C[Multiply shares by total trips<br/>or convert distance/duration]
+  Q[Derived per-mode<br/>trip targets]
+  T3[Estimate and refine<br/>people and users]
+  T4[Tab 4 starts with<br/>derived trip targets]
+
+  S -->|reference conversion assumptions| C
+  T2 --> C
+  C --> Q
+  Q --> T3
+  Q --> T4
+  T3 -->|fixed person/user counts| T4
+```
+
+\newpage
+
+# Shared Tab 3-to-results handoff {.unnumbered}
+
+```{mermaid}
+%%{init: {"themeVariables": {"fontSize": "20px"}}}%%
+flowchart TD
+  T3[Last displayed Tab 3 table]
+  P[(Fixed total population<br/>and users by mode)]
+  T4[Last displayed Tab 4 table]
+  Q[(Final trips by mode)]
+  A{Enough observed trips<br/>owned by final users?}
+  O[Use observed eligible rows]
+  D[Sample donor patterns with replacement<br/>and assign to fixed users]
+  H[Calculate MMET changes<br/>and health impacts]
+  R[Tab 5 results and exports]
+
+  T3 --> P
+  T4 --> Q
+  P --> A
+  Q --> A
+  A -->|yes| O
+  A -->|no| D
+  O --> H
+  D -->|warn and audit| H
+  H --> R
+```

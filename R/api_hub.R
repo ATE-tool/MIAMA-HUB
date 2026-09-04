@@ -798,15 +798,41 @@ Hub <- R6::R6Class(
     },
 
     .counterfactual_input_values = function() {
-      values <- self$request$appraisal_input_values
+      submitted_values <- self$request$appraisal_input_values
+      values <- submitted_values
       values <- .drop_unmodified_advanced_population_values(
         values,
         self$appraisal_inputs
       )
-      values <- .drop_unmodified_trip_refinement_values(
-        values,
-        self$appraisal_inputs
-      )
+      final_tables_available <- !is.null(self$refinement_reference_data) &&
+        identical(.ui_value(submitted_values, "ui_version", "basic"), "advanced")
+      if (!final_tables_available) {
+        values <- .drop_unmodified_trip_refinement_values(
+          values,
+          self$appraisal_inputs
+        )
+      } else {
+        # Once Tabs 3 and 4 have been staged, the values shown in their final
+        # tables are the calculation contract. Reinsert generated defaults when
+        # the browser submitted no distinct edit: accepted population counts
+        # remain fixed, and accepted Tab 4 trip counts supersede their Tab 2
+        # source values without causing a reverse population calculation.
+        final_table_fields <- grep(
+          paste0(
+            "^(pop_(total|number)_(ref|cf).*_advanced|",
+            "trips_number_(total_)?(ref|cf)(_|$))"
+          ),
+          names(self$appraisal_inputs),
+          value = TRUE
+        )
+        for (field in final_table_fields) {
+          value <- .ui_value(submitted_values, field, NULL)
+          if (.is_blank_cf_target(value)) {
+            value <- self$appraisal_inputs[[field]]$default_value
+          }
+          if (!.is_blank_cf_target(value)) values[[field]] <- value
+        }
+      }
       if (is.null(self$reference_default_ui_values)) {
         if (is.null(self$reference_default_data)) {
           return(values)

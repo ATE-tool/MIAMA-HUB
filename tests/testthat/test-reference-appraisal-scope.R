@@ -530,6 +530,39 @@ test_that("induced trip percentage is explicit and independent of purpose", {
   )
 })
 
+test_that("reference trip fallback uses cycling donors for e-bike", {
+  reference_data <- list(
+    trips = data.frame(
+      census_id = 1L,
+      nts_tripid = 1L,
+      trip_mainmode = "Bicycle",
+      trip_distraw_km = 2,
+      trip_durationraw_min = 12,
+      trip_cycledist_km = 2,
+      trip_cycletime_min = 12,
+      trip_ebikedist_km = 0,
+      trip_ebiketime_min = 0
+    )
+  )
+
+  expect_warning(
+    expanded <- .expand_reference_trip_candidates(
+      reference_data = reference_data,
+      mode = "ebiking",
+      candidates = integer(0),
+      target_n = 2,
+      recipient_ids = 1L,
+      seed = 4
+    ),
+    "donor trip patterns with replacement"
+  )
+
+  added <- expanded$reference_data$trips[expanded$candidates, , drop = FALSE]
+  expect_equal(expanded$rows_added, 2)
+  expect_equal(expanded$donor_mode, "cycling")
+  expect_true(all(.counterfactual_mode_spec("ebiking")$trip_filter(added)))
+})
+
 test_that("health exposure excludes unchanged donors outside CF scope", {
   ref <- data.frame(
     census_id = 1:4, age1year = 30:33, female = c(0, 1, 0, 1),

@@ -1,0 +1,62 @@
+---
+format:
+  pdf:
+    documentclass: scrartcl
+    geometry:
+      - margin=12mm
+    toc: false
+execute:
+  echo: false
+---
+
+# User-count route {.unnumbered}
+
+\vfill
+\begin{center}
+\includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{ui_data_authority_workflow_png/01-user-count-route.png}
+\end{center}
+\vfill
+
+\newpage
+
+# Trip-count route {.unnumbered}
+
+\vfill
+\begin{center}
+\includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{ui_data_authority_workflow_png/02-trip-count-route.png}
+\end{center}
+\vfill
+
+\newpage
+
+# Distance/duration route {.unnumbered}
+
+\vfill
+\begin{center}
+\includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{ui_data_authority_workflow_png/03-distance-duration-route.png}
+\end{center}
+
+The original kilometres or minutes explain how the starting trip targets were
+derived. After Tab 4 changes, the final aggregate is measured from the sample.
+
+\vfill
+
+\newpage
+
+# Mode-share route {.unnumbered}
+
+\vfill
+\begin{center}
+\includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{ui_data_authority_workflow_png/04-mode-share-route.png}
+\end{center}
+\vfill
+
+\newpage
+
+# Shared Tab 3-to-results handoff {.unnumbered}
+
+\vfill
+\begin{center}
+\includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{ui_data_authority_workflow_png/05-tab3-to-results-handoff.png}
+\end{center}
+\vfill

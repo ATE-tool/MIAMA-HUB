@@ -357,6 +357,8 @@ test_that("Tab 4 defaults preserve staged Tab 2 REF and CF trip snapshots", {
     pop_total_cf_advanced = profile_field(default = 3, backup = TRUE),
     pop_number_ref_walk_advanced = profile_field(default = 1, backup = TRUE),
     pop_number_cf_walk_advanced = profile_field(default = 2, backup = TRUE),
+    pop_refine_method = profile_field("pop_perc", TRUE, character(0)),
+    pop_target_percent = profile_field(100, TRUE, 100),
     trips_number_total_ref = profile_field(),
     trips_number_total_cf = profile_field(),
     trips_number_ref_walk = profile_field(),
@@ -403,6 +405,32 @@ test_that("Tab 4 defaults preserve staged Tab 2 REF and CF trip snapshots", {
   expect_equal(staged$profile$trips_number_cf_walk$default_value, 2)
   expect_true(staged$report$used_staged_tab2_snapshots)
   expect_false(staged$report$tab3_population_rescoped)
+  expect_length(staged$report$tab3_rescope_trigger_fields, 0)
+})
+
+test_that("Tab 3 percentage refinement is judged by resulting population counts", {
+  profile <- list(
+    pop_refine_method = profile_field("pop_perc", TRUE, character(0)),
+    pop_target_percent = profile_field(50, TRUE, 100),
+    pop_total_ref_advanced = profile_field(default = 10, backup = TRUE),
+    pop_total_cf_advanced = profile_field(default = 8, backup = TRUE),
+    pop_number_ref_walk_advanced = profile_field(default = 6, backup = TRUE),
+    pop_number_cf_walk_advanced = profile_field(default = 4, backup = TRUE)
+  )
+
+  values <- .tab3_stage_input_values(profile)
+
+  expect_equal(values$pop_total_ref_advanced, 5)
+  expect_equal(values$pop_total_cf_advanced, 4)
+  expect_equal(values$pop_number_ref_walk_advanced, 3)
+  expect_equal(values$pop_number_cf_walk_advanced, 2)
+  expect_setequal(
+    .tab3_profile_refinement_edits(profile, values),
+    c(
+      "pop_total_ref_advanced", "pop_total_cf_advanced",
+      "pop_number_ref_walk_advanced", "pop_number_cf_walk_advanced"
+    )
+  )
 })
 
 test_that("new-user allocation does not discard staged Tab 2 trip changes", {
@@ -568,7 +596,7 @@ test_that("zero reference trips retain usable Tab 4 spread defaults", {
   expect_true(.spread_bars_have_data(values$trips_spread_bars_ref_walk))
 })
 
-test_that("Tab 3 population refinement replaces an infeasible upstream trip quota", {
+test_that("Tab 3 population refinement preserves an upstream trip quota", {
   profile <- list(
     ui_version = profile_field("advanced", TRUE),
     geo_level = profile_field("lad", TRUE),
@@ -616,16 +644,25 @@ test_that("Tab 3 population refinement replaces an infeasible upstream trip quot
   hub <- Hub$new(cfg = miama_default_config())
   hub$reference_default_data <- reference_data
 
-  updated <- hub$build_trip_refinement_profile_defaults(profile, seed = 3)
+  expect_warning(
+    updated <- hub$build_trip_refinement_profile_defaults(profile, seed = 3),
+    "donor trip patterns with replacement"
+  )
 
-  # The final one-person Tab 3 scope owns one observed trip. The original
-  # three-trip Tab 2 target must not be forced back into that reduced scope.
-  expect_equal(updated$trips_number_total_ref$default_value, 1)
-  expect_equal(updated$trips_number_total_cf$default_value, 1)
-  expect_equal(updated$trips_number_ref_walk$default_value, 1)
-  expect_equal(updated$trips_number_cf_walk$default_value, 1)
+  # Tab 2 supplied trips, so its three-trip target remains authoritative. The
+  # final one-person Tab 3 scope receives duplicated donor patterns instead of
+  # causing the trip total to be silently re-estimated from that person's rows.
+  expect_equal(updated$trips_number_total_ref$default_value, 3)
+  expect_equal(updated$trips_number_total_cf$default_value, 3)
+  expect_equal(updated$trips_number_ref_walk$default_value, 3)
+  expect_equal(updated$trips_number_cf_walk$default_value, 3)
   expect_equal(sum(hub$refinement_reference_data$ind$ref_in_scope), 1)
-  expect_equal(sum(hub$refinement_reference_data$trips$ref_in_scope), 1)
+  expect_equal(sum(hub$refinement_reference_data$trips$ref_in_scope), 3)
+  expect_equal(
+    sum(hub$refinement_reference_data$trips$ref_trip_allocation ==
+          "donor_pattern_with_replacement"),
+    2
+  )
 
   # Staging is internal: the submitted Tab 2 profile values remain available
   # for audit and are not rewritten by the transition.

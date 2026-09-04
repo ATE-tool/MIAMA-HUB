@@ -153,10 +153,11 @@ Primary UI-facing methods:
 - `build_trip_refinement_profile_defaults(profile = NULL, seed = 1L, refresh = FALSE)`:
   applies the final Tab 3 population values to staged REF and CF synthpop
   snapshots and writes row-consistent trip totals and spread defaults for Tab 4.
-  At this transition the final Tab 3 person/user scope is authoritative: an
-  upstream Tab 2 trip quota is not reimposed inside a subsequently reduced
-  population. Tab 4 defaults are measured from the trips owned by the final
-  staged REF and CF populations. No HM data are loaded.
+  At this transition the final Tab 3 person/user counts are authoritative, but
+  a trip-derived Tab 2 quota also remains authoritative. If the final people do
+  not own enough observed trip rows, HUB assigns sampled donor trip patterns to
+  those fixed users rather than silently reducing the trip total. No HM data
+  are loaded.
 - `build_results(profile = NULL, seed = 1L, refresh = FALSE)`: runs the current
   end-to-end calculation from the fully filled profile. It builds
   counterfactual data from the synthpop reference data, applies the HM
@@ -537,7 +538,8 @@ The UI should use the two profile-building methods at distinct transitions:
    snapshots and replace the advanced population/spread defaults.
 3. After saving Tab 3 and before rendering Tab 4, call
    `build_trip_refinement_profile_defaults()`. It applies the final Tab 3
-   population scopes and initializes Tab 4 from matching REF/CF trip snapshots.
+   population scopes and initializes Tab 4 from the carried or inferred REF/CF
+   trip targets. Trip-based Tab 2 inputs remain fixed through this transition.
    Do not call `build_reference_profile_defaults()` again; that would overwrite
    the staged handoff with geography-wide defaults.
 
@@ -1287,8 +1289,10 @@ things:
 - **Too few eligible people in the full geography:** HUB stops. Automatically
   duplicating people or ignoring selected categories would change the appraisal
   question and bias uncertainty, so this requires a revised target or categories.
-- **Too few observed REF trips:** HUB stops because REF cannot contain trips that
-  were not observed among its selected people.
+- **Too few observed REF trips among the selected users:** HUB keeps the fixed
+  trip target, samples observed geographic donor trip patterns with replacement,
+  and assigns them to the fixed users. The warning and scope report expose how
+  many modeled rows were required.
 - **Too few switchable CF trips:** HUB uses the available mode-shift trips and
   represents the shortfall as induced trips. The realized mechanism counts are
   retained in the counterfactual report.
@@ -1496,13 +1500,19 @@ per-mode sampling quota, while distance/duration determines a quota from the
 requested aggregate amount. The selected row characteristics determine the
 realized aggregate distance or duration and downstream MMET exposure.
 
-In the advanced workflow, Tab 4 trip counts override Tab 2 only when the user
-actually changes them. Shiny also submits displayed Tab 4 defaults as input
-values; HUB recognizes values that are still identical to those generated
-defaults and ignores them for precedence purposes. This prevents an untouched
-REF-equals-CF Tab 4 table from erasing a genuine Tab 2 mode-share, distance, or
-trip-count change. Tab 4 diversion pies remain applicable because they control
-which eligible source trips are sampled, not the requested trip volume.
+In the advanced workflow, the values last displayed or entered in the Tab 4
+trip table are the final trip-count contract. Its generated starting values
+already carry forward or derive from Tab 2, so accepting them preserves the
+upstream scenario; explicitly editing them supersedes it. Tab 4 diversion pies
+remain applicable because they control which eligible source trips are sampled,
+not the requested trip volume.
+
+For Tab 2 distance, duration, and mode-share routes, the original aggregate is
+the provenance for the generated per-mode Tab 4 starting counts. Once a user
+explicitly changes a Tab 4 trip count, that count supersedes the generated
+target. HUB does not back-solve population or force the original kilometres,
+minutes, or shares afterward; final aggregate values and remaining-mode shares
+are measured from the resulting trip sample.
 
 Cross-mode targets configured to use another active mode as a source are
 processed first; explicitly targeted donor modes are reconciled afterward.
@@ -1518,10 +1528,12 @@ differencing even when ownership changes.
 The Tab 3 to Tab 4 handoff continues from the separate REF and CF snapshots
 already produced from Tab 2. If Tab 3 is accepted unchanged, HUB measures Tab 4
 trip counts and distributions directly from those snapshots. If Tab 3 changes
-the assessed population, HUB re-scopes each snapshot independently and then
-measures its remaining trips. It does not reconstruct both scenarios from the
-original geographic source, so differences introduced through any Tab 2 input
-route remain represented.
+the assessed population, HUB re-scopes each snapshot independently while
+retaining trip-derived Tab 2 targets. If too few observed rows belong to the
+final users, geographic donor patterns are sampled with replacement and assigned
+to those users. `reference_scope_report$trips` records `donor_rows_added` and
+`allocation_method`. This preserves the one-way hierarchy: changing people in
+Tab 3 changes trips per user, not an authoritative upstream trip total.
 
 The complete conversion assumptions are retained for inspection under
 `reference_scope_report$tab2_input_conversion` and

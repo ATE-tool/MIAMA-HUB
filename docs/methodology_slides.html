@@ -442,7 +442,7 @@
   <meta name="generator" content="quarto-1.8.25">
 
   <meta name="author" content="MIAMA project team">
-  <meta name="dcterms.date" content="2026-09-03">
+  <meta name="dcterms.date" content="2026-09-04">
   <title>How MIAMA links active travel to health</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3896,7 +3896,7 @@ MIAMA project team
 </div>
 </div>
 
-  <p class="date">2026-09-03</p>
+  <p class="date">2026-09-04</p>
 </section>
 <section id="what-the-model-does" class="slide level2">
 <h2>What the model does</h2>
@@ -4049,6 +4049,105 @@ HALY=LY(1-pYLD)\left(1-\sum_d prevalence_d\,dw_d^{adj}\right)
 </tbody>
 </table>
 </section>
+<section id="from-tab-2-to-results" class="slide level2">
+<h2>From Tab 2 to results</h2>
+<div class="cell" data-reveal="true" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  G[Geographic&lt;br/&gt;donor population] --&gt; T2[Tab 2&lt;br/&gt;AT volume]
+  T2 --&gt; R[Staged REF&lt;br/&gt;people + trips]
+  T2 --&gt; C[Staged CF&lt;br/&gt;people + trips]
+  R --&gt; T3[Tab 3&lt;br/&gt;people]
+  C --&gt; T3
+  T3 --&gt; T4[Tab 4&lt;br/&gt;trips]
+  T4 --&gt; H[MMET and&lt;br/&gt;health model]
+  H --&gt; T5[Tab 5&lt;br/&gt;results]
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<ul>
+<li>Basic UI uses generated person/trip assumptions and proceeds to results</li>
+<li>Advanced UI exposes the same generated values in Tabs 3 and 4</li>
+<li>Profile fields carry user values; HUB retains the row-level snapshots</li>
+</ul>
+</section>
+<section id="one-tab-2-contract-from-several-units" class="slide level2">
+<h2>One Tab 2 contract from several units</h2>
+<div class="cell" data-reveal="true" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  U{Input unit}
+  A[Users]
+  B[Trips]
+  C[Distance]
+  D[Duration]
+  E[Mode share]
+  Q[Weekly mode-user&lt;br/&gt;or trip-row targets]
+  P[Tab 3 people&lt;br/&gt;and mode users]
+  T[Tab 4 trips&lt;br/&gt;by mode]
+
+  U --&gt; A --&gt; Q
+  U --&gt; B --&gt; Q
+  U --&gt; C --&gt; Q
+  U --&gt; D --&gt; Q
+  U --&gt; E --&gt; Q
+  Q --&gt; P
+  Q --&gt; T
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<ul>
+<li>Distance and duration use reference mean amount per trip</li>
+<li>Mode share applies percentages to the selected total denominator</li>
+<li>Trip-derived Tab 3 users are unique owners of selected trips</li>
+</ul>
+</section>
+<section id="refinement-handoff" class="slide level2">
+<h2>Refinement handoff</h2>
+<div class="cell" data-reveal="true" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class><p></p>
+<div>
+<pre class="mermaid mermaid-js">flowchart LR
+  S[Staged Tab 2&lt;br/&gt;REF and CF]
+  C{Tab 3 result}
+  K[Counts unchanged&lt;br/&gt;keep exact trip quotas]
+  R[Counts changed&lt;br/&gt;re-scope people]
+  W[Distribution changed&lt;br/&gt;reweight candidates]
+  A[Allocate carried trip targets&lt;br/&gt;across final users]
+  T[Tab 4 starting counts]
+
+  S --&gt; C
+  C --&gt; K --&gt; T
+  C --&gt; R --&gt; A --&gt; T
+  C --&gt; W --&gt; A
+</pre>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<ul>
+<li>Percent, category, or manual count changes can alter person scope</li>
+<li>Age, sex, and PA spread controls alter who is sampled</li>
+<li>Trip-derived Tab 2 counts stay fixed when Tab 3 re-scopes people</li>
+<li>If needed, donor trip patterns are sampled with replacement and assigned to the final fixed users</li>
+<li>A selected refinement method with unchanged results is not a re-scope</li>
+</ul>
+</section>
 <section id="five-category-spread-controls" class="slide level2">
 <h2>Five-category spread controls</h2>
 <ul>
@@ -4127,7 +4226,7 @@ HALY=LY(1-pYLD)\left(1-\sum_d prevalence_d\,dw_d^{adj}\right)
 <h2>Important current limitations</h2>
 <ul>
 <li>PA target selects candidates using <strong>pre-change</strong> PA; final PA can differ</li>
-<li>“Current vs new users” input is not yet operational</li>
+<li>Explicit user counts take precedence over the preferred current/new split</li>
 <li>Weighted trip targets are converted to proportional physical-row targets; shifted and induced rows retain source/donor weights</li>
 <li>Only long-term persistence is implemented</li>
 <li>E-bike donor and public-transport access-walking assumptions need validation</li>
