@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="720" viewBox="0 0 1440 720">
+ <defs>
+  <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="none" stroke="#465954" stroke-width="1.5"/></marker>
+  <g id="person"><circle cx="0" cy="-8" r="6" fill="currentColor"/><path d="M-10 12v-7a10 10 0 0 1 20 0v7z" fill="currentColor"/></g>
+  <g id="trip"><rect width="38" height="27" rx="3" fill="#dce5e2" stroke="#759088"/><path d="M8 13h20m-5-5 5 5-5 5" fill="none" stroke="#465954" stroke-width="2"/></g>
+  <style>text{font-family:Arial,sans-serif;fill:#263f38} .title{font-size:29px;font-weight:700}.sub{font-size:21px;fill:#586b65}.label{font-size:23px}.small{font-size:19px}.bold{font-weight:700}</style>
+ </defs>
+ <rect width="1440" height="720" fill="white"/>
+ <text x="28" y="43" class="title">Geographic source</text><text x="28" y="76" class="sub">People and their linked trip rows</text>
+ <text x="540" y="43" class="title">REF subset</text><text x="540" y="76" class="sub">Existing travel being assessed</text>
+ <text x="1050" y="43" class="title">CF copy + changes</text><text x="1050" y="76" class="sub">Travel with the intervention</text>
+ <!-- Separate columns symbolize person records and their linked trip records. -->
+ <rect x="28" y="112" width="350" height="449" rx="9" fill="#f5f7f6" stroke="#a4b6af" stroke-width="2"/>
+ <rect x="540" y="112" width="350" height="347" rx="9" fill="#eff7f3" stroke="#08765c" stroke-width="3"/>
+ <rect x="1050" y="112" width="362" height="437" rx="9" fill="#eff7f3" stroke="#08765c" stroke-width="3"/>
+ <g class="small bold"><text x="48" y="150">Person</text><text x="158" y="150">Linked trips</text><text x="560" y="150">Person</text><text x="670" y="150">Linked trips</text><text x="1070" y="150">Person</text><text x="1180" y="150">Linked trips</text></g>
+ <!-- Green source rows are the selected REF subset: A, C and D. -->
+ <g fill="#d5ece1"><rect x="40" y="176" width="326" height="61" rx="4"/><rect x="40" y="316" width="326" height="61" rx="4"/><rect x="40" y="386" width="326" height="61" rx="4"/></g>
+ <g color="#08765c"><use href="#person" x="62" y="205"/><use href="#person" x="62" y="345"/><use href="#person" x="62" y="415"/></g>
+ <g color="#80948c"><use href="#person" x="62" y="275"/><use href="#person" x="62" y="485"/></g>
+ <g class="label"><text x="91" y="213">A</text><text x="91" y="283">B</text><text x="91" y="353">C</text><text x="91" y="423">D</text><text x="91" y="493">E</text></g>
+ <g><use href="#trip" x="160" y="192"/><use href="#trip" x="211" y="192"/><use href="#trip" x="160" y="262"/><use href="#trip" x="211" y="262"/><use href="#trip" x="262" y="262"/><use href="#trip" x="160" y="332"/><use href="#trip" x="160" y="402"/><use href="#trip" x="211" y="402"/><use href="#trip" x="160" y="472"/><use href="#trip" x="211" y="472"/></g>
+ <text x="48" y="542" class="small">Green rows form the REF subset</text>
+ <g fill="#d5ece1"><rect x="552" y="176" width="326" height="61" rx="4"/><rect x="552" y="246" width="326" height="61" rx="4"/><rect x="552" y="316" width="326" height="61" rx="4"/></g>
+ <g color="#08765c"><use href="#person" x="574" y="205"/><use href="#person" x="574" y="275"/><use href="#person" x="574" y="345"/></g>
+ <g class="label"><text x="603" y="213">A</text><text x="603" y="283">C</text><text x="603" y="353">D</text></g>
+ <g><use href="#trip" x="672" y="192"/><use href="#trip" x="723" y="192"/><use href="#trip" x="672" y="262"/><use href="#trip" x="672" y="332"/><use href="#trip" x="723" y="332"/></g>
+ <text x="559" y="420" class="small">Select records, retain REF behaviour</text>
+ <!-- CF keeps REF identities. Highlight a switch, an induced trip and recruitment. -->
+ <g fill="#d5ece1"><rect x="1062" y="176" width="338" height="61" rx="4"/><rect x="1062" y="246" width="338" height="61" rx="4"/><rect x="1062" y="316" width="338" height="61" rx="4"/></g>
+ <rect x="1062" y="401" width="338" height="61" rx="4" fill="#eef3fb" stroke="#427aa7" stroke-width="2" stroke-dasharray="7 4"/>
+ <g color="#08765c"><use href="#person" x="1084" y="205"/><use href="#person" x="1084" y="275"/><use href="#person" x="1084" y="345"/></g><use href="#person" x="1084" y="430" color="#427aa7"/>
+ <g class="label"><text x="1113" y="213">A</text><text x="1113" y="283">C</text><text x="1113" y="353">D</text><text x="1113" y="438">E</text></g>
+ <use href="#trip" x="1182" y="192"/><rect x="1233" y="192" width="38" height="27" rx="3" fill="#efb14f" stroke="#9b6619"/><text x="1281" y="213" class="small">shift</text>
+ <use href="#trip" x="1182" y="262"/><rect x="1233" y="262" width="38" height="27" rx="3" fill="#c9b5e6" stroke="#76549d"/><text x="1242" y="284" class="label">+</text><text x="1281" y="283" class="small">induced</text>
+ <use href="#trip" x="1182" y="332"/><use href="#trip" x="1233" y="332"/><text x="1281" y="353" class="small">retained</text>
+ <use href="#trip" x="1182" y="417"/><use href="#trip" x="1233" y="417"/><text x="1070" y="493" class="small">E: recruit a source non-user if needed</text>
+ <text x="1070" y="526" class="small">Mode use can change within any row</text>
+ <path d="M388 285H527" fill="none" stroke="#465954" stroke-width="3" marker-end="url(#arrow)"/>
+ <g text-anchor="middle" class="small"><text x="457" y="218">REF totals</text><text x="457" y="245">Scope filters</text></g>
+ <path d="M900 285H1037" fill="none" stroke="#465954" stroke-width="3" marker-end="url(#arrow)"/>
+ <g text-anchor="middle" class="small"><text x="970" y="184" class="bold">Copy, then</text><text x="970" y="210" class="bold">sample changes</text><text x="970" y="330">CF targets</text><text x="970" y="358">Filters + weights</text><text x="970" y="386">People / trips</text></g>
+ <path d="M203 572V615H1228V562" fill="none" stroke="#427aa7" stroke-width="2.5" stroke-dasharray="8 5" marker-end="url(#arrow)"/>
+ <rect x="355" y="595" width="680" height="35" fill="white"/><text x="695" y="619" text-anchor="middle" class="label" fill="#427aa7">Wider source: additional eligible people and donor trip patterns</text>
+ <text x="28" y="676" class="small">Each person symbol is one record. Small rectangles are linked trip records. Schematic counts only.</text>
+ <text x="28" y="704" class="small">Recruitment expands the assessed CF subset, not the town's population. Reductions can remove mode use or active trips.</text>
+</svg>

@@ -1,0 +1,9 @@
+.reveal { font-family: Arial, sans-serif; font-size: 30px; color: #283936; }
+.reveal h2 { font-size: 48px; color: #076956; text-transform: none; margin-bottom: 32px; }
+.reveal h3 { font-size: 31px; color: #076956; text-transform: none; margin-top: 28px; }
+.reveal p, .reveal li { line-height: 1.4; }
+.reveal li { margin-bottom: 16px; }
+.reveal table { font-size: 27px; margin: 28px 0; width: 100%; }
+.reveal table th { color: #076956; }
+.reveal table td, .reveal table th { padding: 12px 18px; }
+.reveal strong { font-weight: 600; }

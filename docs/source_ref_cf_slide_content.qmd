@@ -1,0 +1,11 @@
+## Source population, REF and CF
+
+![](source_ref_cf_diagram.png){width=9in}
+
+::: {.notes}
+Green source rows form the illustrative REF subset. CF starts as a copy. The CF target, eligibility filters and sampling weights determine which people and trips change.
+
+Person A illustrates a mode switch. C receives an induced trip. D remains unchanged. E illustrates recruitment of an eligible existing source non-user from outside REF. E is not a new resident or a duplicated person. A person can use more than one mode, while an already shifted trip cannot shift again.
+
+The lower arrow represents the wider geographic source as a pool of eligible people and donor trip patterns. Reusing a donor trip pattern may support a fixed trip target without changing fixed user counts. Lower CF targets can reduce active-mode use instead. The next slide explains priorities and fallbacks. The diagram is schematic, not a quantitative example.
+:::

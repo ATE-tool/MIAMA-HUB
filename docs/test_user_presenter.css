@@ -1,0 +1,5 @@
+body { font-family: Arial, sans-serif; color: #283936; }
+h2 { color: #076956; margin-top: 2.5rem; }
+.notes { border-left: 4px solid #076956; padding: 1rem 1.5rem; margin: 2rem 0; background: #f3f6f5; }
+.notes::before { content: "Presenter notes"; display: block; font-weight: bold; color: #076956; margin-bottom: 1rem; }
+@media print { h2 { break-before: page; } .notes { font-size: 11pt; } }
