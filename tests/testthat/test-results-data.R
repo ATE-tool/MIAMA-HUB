@@ -684,7 +684,7 @@ test_that("results export writers create usable files", {
   expect_match(paste(readLines(report_file), collapse = "\n"), "# MIAMA appraisal results")
 })
 
-test_that("results scale synthetic-person outcomes to represented population", {
+test_that("results retain explicit custom population-weight overrides", {
   counterfactual_data <- list(
     health_outcomes = data.frame(
       census_id = 1,
@@ -697,7 +697,9 @@ test_that("results scale synthetic-person outcomes to represented population", {
     )
   )
 
-  out <- prepare_results_data(counterfactual_data)
+  cfg <- miama_default_config()
+  cfg$population$person_weight <- 20
+  out <- prepare_results_data(counterfactual_data, cfg = cfg)
 
   expect_equal(out$results_table$ref_value, 0.2)
   expect_equal(out$results_table$prevented_value, 0.04)

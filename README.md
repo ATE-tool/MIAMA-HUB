@@ -1724,11 +1724,20 @@ positive values consistently indicate a health gain. Legacy column names such
 as `prevented_value` are retained in the compact result contract even when the
 selected positive outcome is more naturally described as HALYs gained.
 
-Expected health outcomes are scaled from synthetic rows to represented
-residents using `cfg$population$person_weight` (default 20 for the 5% Census
-synthetic population). The factor and source are recorded in `results_report`.
-Packaged development samples remain partial subsets and therefore do not yield
-location-wide absolute totals; use full location data for those totals.
+One selected appraisal person record represents one real person:
+`cfg$population$person_weight` defaults to 1 for sample, Leeds and full datasets.
+Entering 1,000 users still samples 1,000 records; the sampling pool, probabilities
+and feasibility rules are unchanged. Geographic expansion is retained only in
+`cfg$population$source_person_weight`, not applied to health totals or denominators.
+Trip counts remain row targets and totals without an extra expansion factor.
+
+For identical records, absolute Leeds health totals are 1/163.552 of the previous
+weighted totals; relative effects and per-100,000 results are unchanged. Recreate
+the configuration and rerun the appraisal after updating HUB. Previously saved
+configurations/results retain their old weight. Explicit custom person-weight
+overrides remain supported but depart from the default real-person contract.
+Source-derived default counts describe an example appraisal, not the entire LAD;
+the full geographic population estimate in Tab 1 remains contextual information.
 
 ### Tab 5 health outcome choices
 
@@ -2359,9 +2368,10 @@ cfg <- MIAMAHUB::miama_default_config(dataset_size = "leeds")
 
 The Leeds profile only offers Leeds (`E08000035`) as an LAD option. Its 5,000
 people are a reproducible simple random sample from all 40,888 Leeds synthpop
-rows. HUB therefore uses an effective person weight of `163.552` (`20 / sample
-fraction`) and represents the same 817,760-person synthetic population as the
-full Leeds data. Sampling provenance and row counts are stored in
+rows. The geographic expansion factor is `163.552` (`20 / sample fraction`),
+describing an 817,760-person source-population estimate. This is metadata only:
+the default appraisal has 5,000 people and health results use unit person weight.
+Sampling provenance and row counts are stored in
 `inst/extdata/data/profiles/leeds/profile.rds`.
 
 Full-data testing requires external data that are deliberately excluded from

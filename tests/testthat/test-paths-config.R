@@ -53,7 +53,8 @@ test_that("Leeds config uses one aligned packaged profile", {
     expect_equal(cfg$sources$hm_death_share$lookup_cycle$source, "hub_shared")
     expect_equal(cfg$population$profile$geo_id, "E08000035")
     expect_equal(cfg$population$profile$sampled_individuals, 5000L)
-    expect_equal(cfg$population$person_weight, 163.552, tolerance = 1e-10)
+    expect_equal(cfg$population$person_weight, 1)
+    expect_equal(cfg$population$source_person_weight, 163.552, tolerance = 1e-10)
   })
 })
 

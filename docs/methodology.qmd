@@ -904,6 +904,14 @@ for empirical validation.
 
 # Appraisal population summary
 
+Appraisal inputs describe real people: one selected individual record represents
+one person. Health totals and population denominators use unit person weight by
+default. Geographic expansion factors are retained as source metadata only;
+they neither reduce sampling targets nor multiply appraisal outcomes. Thus a
+request for 1,000 users still samples 1,000 user records. Default counts describe
+the record-sized example appraisal, not the entire source geography. Existing
+saved configurations and results must be rebuilt to adopt this convention.
+
 The Tab 5 population summary describes the final counterfactual appraisal:
 total people including non-users, and users of walking, cycling, e-biking and
 public-transport active access. It counts assessed individual records without

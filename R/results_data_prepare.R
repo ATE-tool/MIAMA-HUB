@@ -1020,7 +1020,7 @@ prepare_results_data <- function(
 }
 
 .results_person_weight <- function(cfg) {
-  value <- cfg$population$person_weight %||% MIAMA_SYNTHPOP_PERSON_WEIGHT
+  value <- cfg$population$person_weight %||% 1
   value <- suppressWarnings(as.numeric(value))
   if (length(value) != 1 || !is.finite(value) || value <= 0) {
     stop("cfg$population$person_weight must be one positive finite number.", call. = FALSE)

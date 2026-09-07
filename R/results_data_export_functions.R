@@ -389,7 +389,7 @@ write_results_report <- function(exports,
     value = c(
       values, aggregation, group_by, timeline_type,
       .results_export_text(get_assessment_period(cfg)),
-      .results_export_text(cfg$population$person_weight %||% MIAMA_SYNTHPOP_PERSON_WEIGHT),
+      .results_export_text(.results_person_weight(cfg)),
       .results_export_text(cfg$population$source),
       "Positive prevented values equal reference minus counterfactual"
     ),
@@ -444,8 +444,8 @@ write_results_report <- function(exports,
     value = c(
       "Cycle 0 excluded; cycle 1 is the first presented model year",
       paste0(
-        "Each synthetic person represents ",
-        cfg$population$person_weight %||% MIAMA_SYNTHPOP_PERSON_WEIGHT,
+        "Each appraisal person record represents ",
+        .results_person_weight(cfg),
         " residents"
       ),
       "delta_value = counterfactual - reference",
