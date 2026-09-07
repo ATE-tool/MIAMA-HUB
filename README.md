@@ -1748,6 +1748,37 @@ Future work: add `scheme_effect_duration = "shortterm"`.
 
 ## 6. Tab 5: Present and export results
 
+### Appraisal summary population
+
+The UI currently builds its summary in `modules/tab5/tab5Server.R`, using profile
+metadata and `hub$get_results_options()` for the assessment period. The Hub
+method now also returns `res_population_cf_total`, `res_population_cf_walk`,
+`res_population_cf_bike`, `res_population_cf_ebike` and `res_population_cf_pt`.
+`hub$get_appraisal_population_values()` returns just these five fields.
+The standalone `get_results_options(cfg)` remains a static configuration helper.
+
+Counts come from the final assessed CF individual scope, not the geographic
+source population, REF, requested targets or only people with health outcomes.
+Each appraisal record counts once; mode-user groups can overlap and must not
+be summed to obtain the total. Missing CF data yields NA; an empty assessed CF
+scope yields zero. No cycling proxy is substituted for actual zero e-bike users.
+
+`build_results()` fills matching `default_value` entries in its returned `profile`
+and freezes the values in `results_data$appraisal_summary`. Fields are output-only,
+not sampling targets. The corresponding fields are defined in UI
+`schemes/default.R` on UI dev; your UI profile copy needs the returned
+profile to see refreshed defaults. Alternatively, read the Hub options directly:
+
+```r
+options <- mdata[["hub"]]$get_results_options()
+options$res_population_cf_total
+options$res_population_cf_bike
+```
+
+Implementation is in `R/results_appraisal_summary.R`. The older summary key
+`population_size` retains its geographic/reference meaning for compatibility;
+use `res_population_cf_total` for the new CF appraisal population display.
+
 ### 6.1 Health outcome units and aggregation
 
 **Start here for "what do the health numbers mean?"** The input is not a table
