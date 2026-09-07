@@ -946,6 +946,14 @@ for empirical validation.
 
 # Appraisal report and parameter record
 
+The Tab 5 population summary describes the final counterfactual appraisal:
+total people including non-users, and users of walking, cycling, e-biking and
+public-transport active access. It counts assessed individual records with unit
+weight, including reused donors with separate appraisal identities. It does not
+count the entire donor population or restrict the population to rows with health
+estimates. Mode groups overlap, so their sum is not the total population. These
+are realized counts rather than a second population estimate or sampling input.
+
 The results report combines the appraisal inputs, health impacts and assumptions
 in a single HTML or Word document. It records the calculation inputs at the time
 results are built, including the accepted population and trip values, rather than

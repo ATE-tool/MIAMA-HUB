@@ -448,7 +448,7 @@ Hub <- R6::R6Class(
         list()
       }
 
-      list(
+      c(list(
         geo_level = self$request$reference_request$geo_level,
         geo_id = self$request$reference_request$geo_id,
         geo_name = self$get_geo_name(default = ui_updates$geo_name %||% NA_character_),
@@ -457,7 +457,11 @@ Hub <- R6::R6Class(
           ui_updates$pop_total_ref_advanced %||%
           NA_integer_,
         appraisal_name = self$request$appraisal_input_values$appraisal_name %||% NULL
-      )
+      ), self$get_appraisal_population_values())
+    },
+
+    get_appraisal_population_values = function() {
+      .appraisal_population_summary(self$counterfactual_data)
     },
 
     # Developer Helpers: Reference Pipeline ----------------------------------
@@ -607,7 +611,8 @@ Hub <- R6::R6Class(
     },
 
     get_results_options = function() {
-      get_results_options(self$cfg)
+      # Static display options plus realized CF counts for the summary card.
+      c(get_results_options(self$cfg), self$get_appraisal_population_values())
     },
 
     get_results_highlights = function() {
@@ -704,6 +709,10 @@ Hub <- R6::R6Class(
         cfg = self$cfg
       )
       # Freeze values used for this run, independently of later UI changes.
+      population_summary <- self$get_appraisal_population_values()
+      self$results_data$appraisal_summary <- population_summary
+      self$appraisal_inputs <- .populate_appraisal_summary_defaults(
+        self$appraisal_inputs, population_summary)
       self$results_data$assumptions <- get_appraisal_assumptions(self$appraisal_inputs)
       self$results_data$appraisal_record$submitted_settings <-
         .appraisal_submitted_settings(self$appraisal_inputs)
