@@ -33,6 +33,10 @@ get_health_outcome_options <- function(cfg = NULL,
       category = spec$category,
       direction = spec$direction %||% "lower_is_better",
       unit = spec$unit %||% if (identical(spec$type, "mortality")) "deaths" else "disease cases",
+      source_unit = if (identical(spec$type, "health_years")) {
+        "health-adjusted person-years per person-cycle"
+      } else "expected events per source person-cycle",
+      aggregation = "Sum person-cycle contributions; apply person_weight once; report included cycle range",
       default = isTRUE(spec$default),
       available = if (checked) length(missing_reference) == 0 else TRUE,
       delta_available = if (checked) length(missing_delta) == 0 else NA,

@@ -113,7 +113,13 @@ results_filter_health_data <- function(
   if (!"mode" %in% names(out)) {
     out$mode <- "selected_modes"
   }
-  out$population <- .results_cube_population(cube, group_cols, out)
+  # A cumulative numerator must retain its cohort denominator, not shrink it
+  # when older people no longer have source rows in later model cycles.
+  population_groups <- if (identical(aggregation, "timeline") &&
+                           identical(timeline_type, "cumulative")) {
+    setdiff(group_cols, "cycle")
+  } else group_cols
+  out$population <- .results_cube_population(cube, population_groups, out)
   attributed <- out$mode != "all_modes"
   out$ref_value[attributed] <- NA_real_
   out$cf_value[attributed] <- NA_real_
@@ -707,6 +713,7 @@ results_plot_trip_mode_distribution <- function(
                                         y_label) {
   unit <- .results_health_outcome_unit(plot_data)
   health_years_only <- all(as.character(plot_data$outcome_type) == "health_years")
+  mixed_years <- any(as.character(plot_data$outcome_type) == "health_years") && !health_years_only
   cycle_span <- .results_cycle_span(results_data)
   is_timeline <- identical(plot, "timeline")
   is_cumulative <- is_timeline && identical(timeline_type, "cumulative")
@@ -737,7 +744,11 @@ results_plot_trip_mode_distribution <- function(
     )
   } else {
     default_y <- if (identical(metric, "percent_reduction")) {
-      if (health_years_only) "Increase from reference (%)" else "Reduction from reference (%)"
+      if (mixed_years) "Health improvement from reference (%)" else if (health_years_only) "Increase from reference (%)" else "Reduction from reference (%)"
+    } else if (mixed_years) {
+      paste0(if (is_timeline && !is_cumulative) "Annual" else "Cumulative",
+        " health benefit (outcome-specific units)",
+        if (identical(metric, "prevented_per_100000")) " per 100,000 residents" else "")
     } else if (identical(metric, "prevented_per_100000")) {
       paste0(
         if (is_cumulative || !is_timeline) "Cumulative " else "",
@@ -756,7 +767,9 @@ results_plot_trip_mode_distribution <- function(
     }
     default_caption <- if (identical(metric, "percent_reduction")) {
       paste(
-        if (health_years_only) {
+        if (mixed_years) {
+          "Improvement (%) = 100 x (reference - counterfactual) / reference for deaths/cases; 100 x (counterfactual - reference) / reference for HALYs."
+        } else if (health_years_only) {
           "Increase (%) = 100 x (counterfactual - reference) / reference."
         } else {
           "Reduction (%) = 100 x (reference - counterfactual) / reference."

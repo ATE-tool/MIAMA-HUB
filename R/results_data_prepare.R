@@ -84,7 +84,7 @@ prepare_results_data <- function(
 
   trip_distribution <- .results_trip_mode_distribution(reference_data, counterfactual_data)
   amat_health_timeline <- .results_amat_health_timeline(
-    health_outcomes = health_outcomes,
+    health_outcomes = health_outcomes_all,
     health_cube = health_cube,
     person_weight = person_weight,
     horizon_years = get_assessment_period(cfg)
@@ -164,7 +164,7 @@ prepare_results_data <- function(
     return(.empty_amat_health_timeline())
   }
 
-  keep <- !is.na(health_outcomes$cycle) & health_outcomes$cycle > 0 &
+  keep <- !is.na(health_outcomes$cycle) & health_outcomes$cycle >= 0 &
     health_outcomes$cycle <= horizon_years
   if (!any(keep)) return(.empty_amat_health_timeline())
 
@@ -205,9 +205,12 @@ prepare_results_data <- function(
     } else {
       1 - .results_grouped_cumsum(cf_incidence, ids)
     }
+    # Cycle 0 initializes survival/healthy state but earns no reported years.
+    report_rows <- cycles > 0
+    if (!any(report_rows)) return(NULL)
     aggregated <- stats::aggregate(
-      cbind(ref_value, cf_value) * person_weight,
-      by = list(cycle = cycles),
+      cbind(ref_value, cf_value)[report_rows, , drop = FALSE] * person_weight,
+      by = list(cycle = cycles[report_rows]),
       FUN = sum,
       na.rm = TRUE
     )
@@ -1020,7 +1023,7 @@ prepare_results_data <- function(
 }
 
 .results_person_weight <- function(cfg) {
-  value <- cfg$population$person_weight %||% MIAMA_SYNTHPOP_PERSON_WEIGHT
+  value <- cfg$population$person_weight %||% 1
   value <- suppressWarnings(as.numeric(value))
   if (length(value) != 1 || !is.finite(value) || value <= 0) {
     stop("cfg$population$person_weight must be one positive finite number.", call. = FALSE)

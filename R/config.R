@@ -196,8 +196,11 @@
 
 .miama_population_config <- function(dataset_size, paths) {
   default <- list(
-    person_weight = MIAMA_SYNTHPOP_PERSON_WEIGHT,
-    source = "Census 2021 synthetic population (5% sample)",
+    person_weight = 1,
+    source = "One appraisal person record represents one real person",
+    source_person_weight = MIAMA_SYNTHPOP_PERSON_WEIGHT,
+    source_population_description = "Census 2021 synthetic population (5% sample)",
+    units_contract = "one_record_one_person_v1",
     profile = NULL
   )
 
@@ -222,8 +225,12 @@
   }
 
   list(
-    person_weight = as.numeric(person_weight),
-    source = metadata$population_weight_source %||%
+    person_weight = 1,
+    source = default$source,
+    units_contract = default$units_contract,
+    # Geographic expansion describes the donor data, not the appraisal size.
+    source_person_weight = as.numeric(person_weight),
+    source_population_description = metadata$population_weight_source %||%
       "Leeds profile scaled to the full Leeds synthetic population",
     profile = metadata
   )

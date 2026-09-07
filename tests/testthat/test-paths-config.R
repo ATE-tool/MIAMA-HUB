@@ -53,8 +53,19 @@ test_that("Leeds config uses one aligned packaged profile", {
     expect_equal(cfg$sources$hm_death_share$lookup_cycle$source, "hub_shared")
     expect_equal(cfg$population$profile$geo_id, "E08000035")
     expect_equal(cfg$population$profile$sampled_individuals, 5000L)
-    expect_equal(cfg$population$person_weight, 163.552, tolerance = 1e-10)
+    expect_equal(cfg$population$person_weight, 1)
+    expect_equal(cfg$population$source_person_weight, 163.552, tolerance = 1e-10)
   })
+})
+
+test_that("all datasets use appraisal counts without geographic expansion", {
+  for (size in c("sample", "leeds", "full")) {
+    cfg <- miama_default_config(dataset_size = size)
+    expect_equal(cfg$population$person_weight, 1)
+    expect_equal(cfg$population$units_contract, "one_record_one_person_v1")
+    expect_true(cfg$population$source_person_weight > 1)
+  }
+  expect_equal(.results_person_weight(list()), 1)
 })
 
 test_that("sample config uses packaged data even when MIAMA_DATA_ROOT is set", {
