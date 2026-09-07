@@ -436,7 +436,45 @@ The profile is the handoff object at every transition. An applicable submitted
 `input_value` takes precedence over a HUB-generated `default_value`; inactive
 conditional fields must not be marked as submitted by the UI.
 
+### Editable assumptions: complete, do not replace, user inputs
+
+The coordinated `codex/assumptions-contract` draft centralizes this behavior in
+`R/appraisal_assumptions.R`. Cards show the missing frequency, distance **or**
+duration, and speed needed for the selected input route. Already entered
+parameters and unchanged distributions are not duplicated. Defaults and edits
+are stored separately, with their source visible to the user.
+
+The default hierarchy is assessed REF, geographic source, stored England rate,
+then fixed fallback; speed uses fixed configuration. Geography initialization
+normally has only source data available. Defaults then remain stable until
+explicitly rebuilt, avoiding feedback from CF sampling into its own assumptions.
+PT means walking access, not the full public-transport journey.
+
+Saved overrides affect the corresponding volume conversion, candidate weighting
+or changed-trip active minutes on the next calculation. They do not rewrite
+observed REF activity or discard accepted person/trip totals. Explicit advanced
+distance inputs take precedence over a simple mean. Completed results retain
+`results_data$assumptions`, also used by table/report exports.
+
+See [Assumptions that complete an appraisal](docs/appraisal_assumptions.md) for
+the field catalogue, precedence rules, source limitations and review checklist.
+The UI implementation is one shared `utilites/assumptions_cards.R` controller
+on the matching UI branch; no publishing configuration changes are needed.
+
 ### Reference UI value extraction
+
+Tab 2 staging ignores user-count widgets when the active input unit is trips,
+distance/duration or mode share. It also ignores basic population-modal fields
+in the advanced workflow. Hidden generated zeroes must not override the active
+volume input. With no observed e-bikers, the default REF remains zero; positive
+CF e-bike volume can still recruit recipients and use cycling donor patterns.
+Explicit user counts on the users route and population edits in the basic
+workflow remain authoritative. This is covered by `test-ebike-tab2-handoff.R`.
+
+Age/PA category payloads count the same accepted REF/CF mode-user flags as the
+Tab 3 table. They do not reclassify trip-derived users from unchanged individual
+activity columns. With all categories selected, totals therefore equal the
+unfiltered table, including CF e-bikers absent from the source population.
 
 `extract_reference_ui_values()` derives compact status-quo values from filtered
 `reference_data`. The low-level function still returns a named `ui_updates`

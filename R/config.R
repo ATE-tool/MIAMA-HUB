@@ -264,6 +264,21 @@ miama_default_config <- function(dataset_size = NULL) {
       base_timeframe = "week",
       mmet_per_hour = MIAMA_MMET_PER_HOUR
     ),
+    # Appraisal completion assumptions. England values are stored rates, not
+    # recomputed national estimates. PT distance/duration mean access walking.
+    assumptions = list(
+      england = list(
+        frequency = list(walk = 10.93, bike = 6.20, pt = 5.64),
+        distance = list(walk = 1.15, bike = 5.33)
+      ),
+      fixed = list(
+        frequency = list(walk = 10.93, bike = 6.20, ebike = 7.50, pt = 5.64),
+        distance = list(walk = 1.15, bike = 5.33, ebike = 5.7, pt = 0.8),
+        duration = list(walk = 13.8, bike = 5.33 / 15.7 * 60,
+                        ebike = 5.7 / 15.7 * 60, pt = 10),
+        speed = list(walk = 5, bike = 15.7, ebike = 15.7, pt = 4.8)
+      )
+    ),
     # 5. Counterfactual mechanism assumptions ------------------------------
     counterfactual = list(
       population = list(

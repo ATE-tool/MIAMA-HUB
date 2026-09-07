@@ -604,6 +604,13 @@ cf_population_candidate_filter <- function(ind,
 }
 
 cf_trip_sampling_target <- function(values, suffix = NULL, spread = NULL) {
+  # Generated unchanged spreads must not silently disable an editable scalar
+  # assumption. Explicit advanced refinements still take precedence.
+  if (isTRUE(values$.assumptions_enabled) && length(suffix) == 1L &&
+      !normalize_active_modes(suffix) %in% values$.assumption_explicit_distance_modes) {
+    values[[paste0("trips_spread_bars_cf_", suffix)]] <- NULL
+    values[[paste0("trips_spread_mean_cf_", suffix)]] <- NULL
+  }
   ui_version <- values$ui_version %||% "basic"
   ui_version <- if (identical(ui_version, "advanced")) "advanced" else "basic"
   trip_bars_cf <- .cf_mode_value(values, "trips_spread_bars_cf", suffix)

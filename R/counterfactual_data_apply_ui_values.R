@@ -72,6 +72,8 @@ apply_counterfactual_ui_values <- function(
     constants = miama_counterfactual_defaults(),
     seed = 1L
 ) {
+  appraisal_input_values <- .assumption_values(appraisal_input_values)
+  constants <- .assumption_cf_constants(appraisal_input_values, constants)
   context <- .counterfactual_context(
     counterfactual_data = counterfactual_data,
     appraisal_input_values = appraisal_input_values,
@@ -553,6 +555,11 @@ apply_counterfactual_ui_values <- function(
       n = length(changed_rows),
       default_value = constants[[spec$default_col]],
       seed = seed + spec$seed_offset + 1000L
+    )
+    replacement_values <- .assumption_new_user_activity(
+      replacement_values, constants$assumption_values %||% list(), spec$suffix,
+      reference_mean = mean(reference_data$ind[[donor_spec$activity_col]][donor_users] *
+                              (spec$proxy_duration_factor %||% 1), na.rm = TRUE)
     )
     role <- "new_users"
   } else {
@@ -1636,6 +1643,15 @@ apply_counterfactual_ui_values <- function(
         trips[[spec$trip_duration_col]][rows] <- trips$trip_durationraw_min[rows]
       }
     }
+  }
+
+  # In the assumptions contract, changed CF trips use target-mode speed.
+  # The distance is the sampled journey (PT: access leg), not the donor speed.
+  if (!is.null(constants$assumption_values) &&
+      spec$trip_distance_col %in% names(trips) && spec$trip_duration_col %in% names(trips)) {
+    speed <- constants$assumption_values[[paste0("assump_trip_speed_", spec$suffix)]]
+    trips[[spec$trip_duration_col]][rows] <-
+      .as_plain_numeric(trips[[spec$trip_distance_col]][rows]) / speed * 60
   }
 
   for (col in setdiff(

@@ -455,6 +455,15 @@ write_results_report <- function(exports,
     source = "HUB results contract",
     stringsAsFactors = FALSE
   )
+  effective <- results_data$assumptions
+  if (is.data.frame(effective) && nrow(effective)) {
+    fixed <- rbind(fixed, data.frame(
+      item = paste(effective$mode, effective$label),
+      value = paste(effective$value, effective$unit),
+      source = paste(effective$source, effective$proxy),
+      stringsAsFactors = FALSE
+    ))
+  }
   if (length(notes) == 0) return(fixed)
   rbind(
     fixed,

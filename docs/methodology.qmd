@@ -482,6 +482,37 @@ Only one basic input route is intended to be active at a time. User and trip
 targets use the same counterfactual machinery as the advanced interface; the
 advanced controls add information about who changes and which trips change.
 
+### Assumptions that complete an appraisal
+
+The assumptions-contract draft separates provided volume from the missing
+parameters needed to interpret it. Suggested frequency and trip-size values
+use assessed REF observations when available, otherwise the geographic source,
+then stored England rates and fixed fallbacks. Speed is a fixed assumption.
+At initial geographic loading there is usually no assessed REF yet, so source
+values apply. Defaults remain stable during subsequent sampling to avoid a
+circular calculation; their provenance and any user override are retained.
+
+Distance and speed imply duration; duration and speed imply distance. These are
+never three independent assumptions. Saved overrides affect conversions,
+sampling preferences or new CF activity, not observed REF exposure. For changed
+trips, active minutes are sampled kilometres divided by the effective target-mode
+speed, multiplied by 60. PT refers to the walking access leg. Newly assigned
+users retain donor variation, with its expected activity scaled by the effective
+weekly frequency and duration; the existing accounting avoids adding the same
+user-sourced trip activity again.
+
+The cards omit inputs already provided elsewhere and unchanged distributions.
+An explicit advanced distance refinement supersedes a simple distance mean.
+Accepted person/trip counts remain authoritative: editing an assumption does
+not by itself erase them. A preferred mean is a sampling weight, not a guarantee
+that the realized sample has exactly that mean. Completed results retain the
+effective assumption values, defaults and origins for review.
+
+The implementation and remaining provenance/presentation questions are described
+in [Assumptions that complete an appraisal](appraisal_assumptions.md). The stored
+England values retain earlier UI rates; they are not freshly estimated national
+statistics. This draft requires the matching HUB and UI assumptions branches.
+
 ### Converting distance, duration, and mode share
 
 The behavioral model uses one canonical unit for trip-volume manipulation: the
@@ -492,7 +523,8 @@ For mode $m$, a distance or duration target is first converted to kilometres or
 minutes and then to one week. A per-person input is multiplied by the applicable
 scenario population $N_s$; a total input is already an aggregate. Let $A_{m,s}$
 be that weekly aggregate and let $\bar{a}_{m,REF}$ be the positive mean distance
-or duration among reference trips of mode $m$. The trip-row target is
+or duration among reference trips of mode $m$ (or the effective completion
+assumption, when using the assumptions contract). The trip-row target is
 
 $$
 T_{m,s} = \operatorname{round}\left(
