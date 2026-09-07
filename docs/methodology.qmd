@@ -647,8 +647,8 @@ all current mode users are retained and the difference is recruited from
 eligible baseline non-users across the full retained geographic source. The
 realized current/new split is therefore determined by the explicit counts and
 may exceed the preferred new-user percentage. HUB reports that realized split
-and adds a non-fatal note when this occurs; it rejects the request only when the
-filtered geographic source does not contain enough eligible distinct people.
+and adds a non-fatal note when this occurs. Too few distinct donors trigger
+eligible person replacement; an absence of eligible donor evidence still fails.
 
 The aggregate CF population total is a presentation summary. Row-level
 behavioral changes are controlled by the mode-specific CF user targets. People
@@ -722,22 +722,23 @@ Counterfactual data begin as a one-to-one copy of this flagged baseline. CF
 scope initially equals REF scope. New users are sampled first from baseline
 non-users inside that assessed population. If more are needed, baseline
 non-users from the retained LAD source pool are recruited and added to CF scope.
-No synthetic person is duplicated: the same source row supplies that person's
-original and counterfactual exposure. Existing trips can be switched only for
+When capacity is insufficient, source people and their trip patterns are copied
+with unique appraisal IDs. Retained donor IDs link each copy to its source
+health history; REF and CF use the same appraisal ID. Existing trips can be switched only for
 people in CF scope, while induced trips are assigned to CF scope. All behavioral
 changes are made only in the CF copy; REF scope and behavior remain unchanged.
 
 The random seed is fixed by the calling workflow, making a run reproducible for
-the same data and inputs. Sampling is without replacement when selecting people
-or existing trips. Induced trips and donor activity values may be sampled with
-replacement.
+the same data and inputs. Selection within the expanded appraisal pool does not
+reuse appraisal IDs. Source people, induced trips and donor activity patterns
+may be sampled with replacement. Copies are not independent observations.
 
 The distinction between an appraisal boundary and the source pool is important.
-REF must be constructible as an observed subset: its mode-user counts must fit
-inside REF total population, and its trips must be observed among selected
-people. CF is not subject to the smaller REF population ceiling. It can recruit
-eligible non-users from the rest of the retained geography. Only exhaustion of
-that full eligible pool makes a CF user target infeasible. HUB reports such
+REF mode-user counts must fit inside REF total population, but source capacity
+alone is not a maximum appraisal size. Eligible donor people and trip patterns
+can be reused. CF can recruit eligible non-users beyond REF, including copies.
+Missing eligible donor evidence or incompatible joint user counts can still
+make inputs infeasible. HUB reports such
 input incompatibilities separately from programming errors, with requested and
 available counts and the implicated profile fields.
 
@@ -746,11 +747,20 @@ previous REF table value is stale, HUB reconstructs scenario-specific total and
 mode-user values from the absolute category counts stored in the profile during
 Tab 2 -> Tab 3 staging. This duplicates the UI calculation deliberately and
 removes dependence on browser update timing. If stored counts are unavailable
-or remain infeasible, the category selection takes precedence: HUB caps stale
-REF totals and impossible REF mode-user margins to observed eligible capacity.
-Submitted and used values are retained in the scope report. HUB does not sample
-people with replacement or relax selected categories, because either response
-would alter the population represented by the appraisal.
+or remain larger than distinct eligible capacity, HUB reuses eligible donors
+instead of silently reducing the accepted targets. It does not relax excluded
+categories. The replication report records donor-pool size, copies and proxy use.
+
+**Appraisal population units:** one selected or copied person record represents
+one real appraisal person. A request for 1,000 users therefore samples 1,000
+user records; it is not divided by a geographic expansion factor. Health totals
+and population denominators use unit person weight by default. Source expansion
+(163.552 for the Leeds profile) is retained as provenance only. This changes
+absolute health totals, not sampling, relative impacts or per-100,000 impacts.
+Source-derived initial counts describe a record-sized example appraisal, not
+the entire LAD population. Copied donors represent additional appraisal people,
+but provide no additional independent evidence. Trip counts remain row targets
+and row totals, without an extra source trip-weight multiplier.
 
 The final category-refined snapshot is currently reconstructed from eligible
 source rows using the staged category totals and a reproducible seed. It is not
@@ -933,6 +943,25 @@ for empirical validation.
   prevented outcomes are reference minus counterfactual.
 - Treat very small samples and unsupported modes as development tests, not
   substantive estimates.
+
+# Appraisal report and parameter record
+
+The results report combines the appraisal inputs, health impacts and assumptions
+in a single HTML or Word document. It records the calculation inputs at the time
+results are built, including the accepted population and trip values, rather than
+reading subsequently edited controls. Realized travel totals are shown separately
+from requested values. Completion assumptions include their units and source
+(assessed reference, source population, stored national rate or fixed fallback)
+where recorded by the assumptions catalogue.
+
+Submitted settings, effective calculation inputs and configured defaults are
+distinct sections: saved inactive fields are not evidence of use, and defaults
+can be overridden. In particular, a requested new-user or induced-trip percentage
+is not a measured realization of that split. The report is not yet a complete
+donor-selection audit and does not quantify sampling or structural uncertainty.
+It contains no individual-level records. The recorded export selection applies
+to the health tables, while headline metrics describe the full appraisal; later
+on-screen filters do not modify this export snapshot.
 
 # Implementation traceability
 
