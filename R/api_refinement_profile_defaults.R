@@ -423,8 +423,13 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
   )
   if (identical(scenario, "cf") && length(source_activity) > 0) {
     for (column in names(source_activity)) {
+      ids <- scoped$ind$census_id
+      missing <- !ids %in% data$ind$census_id
+      if (any(missing) && ".miama_parent_census_id" %in% names(scoped$ind)) {
+        ids[missing] <- scoped$ind$.miama_parent_census_id[missing]
+      }
       scoped$ind[[column]] <- source_activity[[column]][
-        match(scoped$ind$census_id, data$ind$census_id)
+        match(ids, data$ind$census_id)
       ]
     }
   }

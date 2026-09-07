@@ -20,6 +20,19 @@ apply_reference_appraisal_scope <- function(reference_data,
   }
 
   out <- .prepare_mode_features(reference_data)
+  # Replication must not become new evidence for the next population estimate.
+  # Freeze source rates before adding any appraisal records or donor trips.
+  if (is.null(out$population_source_rates)) {
+    out$population_source_rates <- list(n_people = nrow(out$ind), modes = list())
+    for (mode in .miama_supported_modes()) {
+      spec <- .counterfactual_mode_spec(mode)
+      trips <- if (.trip_evidence_available_for_counterfactual(out$trips, spec)) {
+        sum(spec$trip_filter(out$trips) & !is.na(out$trips$nts_tripid), na.rm = TRUE)
+      } else NA_real_
+      out$population_source_rates$modes[[mode]] <- list(
+        users = sum(.positive_col(out$ind, spec$activity_col)), trips = trips)
+    }
+  }
   modes <- normalize_active_modes(.ui_value(appraisal_input_values, "modes", character(0)))
   modes <- intersect(modes, .miama_supported_modes())
   if (length(modes) == 0) modes <- .miama_supported_modes()
@@ -78,6 +91,10 @@ apply_reference_appraisal_scope <- function(reference_data,
     spread = cfg$spread %||% miama_default_config()$spread,
     population_refinement = cfg$population_refinement %||%
       miama_default_config()$population_refinement
+  )
+  out <- .expand_person_donor_pool(
+    out, person_target$value, user_targets, cf_user_targets,
+    population_target, seed
   )
   eligible_people <- cf_population_candidate_filter(
     out$ind,
@@ -248,7 +265,9 @@ apply_reference_appraisal_scope <- function(reference_data,
         person_target$value,
       requested = person_target$value,
       realized = sum(out$ind$ref_in_scope),
-      donor_population = nrow(out$ind),
+      donor_population = length(unique(out$ind$.miama_donor_census_id %||% out$ind$census_id)),
+      expanded_pool_records = nrow(out$ind),
+      replication = out$population_replication_report,
       method = person_target$method,
       data_unit = person_target$data_unit,
       pooled_requested = person_target$pooled_requested,
@@ -454,7 +473,7 @@ apply_reference_appraisal_scope <- function(reference_data,
                                            trip_targets,
                                            cf_user_targets,
                                            cf_trip_targets) {
-  default_n <- nrow(reference_data$ind)
+  default_n <- reference_data$population_source_rates$n_people %||% nrow(reference_data$ind)
   version <- if (identical(.ui_value(values, "ui_version", "basic"), "advanced")) "advanced" else "basic"
   fields <- if (identical(version, "advanced")) {
     c("pop_total_ref_advanced", "pop_total_ref_basic")
@@ -462,7 +481,7 @@ apply_reference_appraisal_scope <- function(reference_data,
     c("pop_total_ref_basic", "pop_total_ref_advanced")
   }
   explicit <- .first_reference_target(
-    values, fields, default = NULL, maximum = default_n,
+    values, fields, default = NULL,
     label = "reference population", integer = TRUE
   )
   data_unit <- .ui_value(values, "at_data_unit", NULL)
@@ -525,17 +544,8 @@ apply_reference_appraisal_scope <- function(reference_data,
   # A pooled estimate can only be operational if it contains every explicitly
   # entered mode-user count.
   target <- max(target, specified_users, 0)
-  if (identical(supporting$scenario, "ref") && target > default_n) {
-    stop(
-      "Tab 2 reference values imply an assessed population of ", target,
-      ", exceeding the available donor population of ", default_n, ".",
-      call. = FALSE
-    )
-  }
-  # CF activity can exceed the source activity rate because trips are shifted or
-  # induced and non-users can become users. It cannot require more distinct
-  # synthetic people than the available geography, so use the whole source pool.
-  target <- min(target, default_n)
+  # Source size is evidence capacity, not an appraisal ceiling. The shared
+  # donor-expansion step supplies additional records before scope selection.
 
   list(
     field = explicit$field,
@@ -602,7 +612,7 @@ apply_reference_appraisal_scope <- function(reference_data,
                                                  data_unit,
                                                  user_targets,
                                                  trip_targets) {
-  n_people <- nrow(reference_data$ind)
+  n_people <- reference_data$population_source_rates$n_people %||% nrow(reference_data$ind)
   out <- stats::setNames(vector("list", length(modes)), modes)
 
   for (mode in modes) {
@@ -616,7 +626,8 @@ apply_reference_appraisal_scope <- function(reference_data,
     }
 
     if (use_users && !is.null(user_targets[[mode]]$value)) {
-      baseline <- sum(.positive_col(reference_data$ind, spec$activity_col))
+      baseline <- reference_data$population_source_rates$modes[[mode]]$users %||%
+        sum(.positive_col(reference_data$ind, spec$activity_col))
       requested <- user_targets[[mode]]$value
       ratio <- if (baseline > 0) requested / baseline else NA_real_
       out[[mode]] <- list(
@@ -636,7 +647,8 @@ apply_reference_appraisal_scope <- function(reference_data,
       }
       active <- spec$trip_filter(reference_data$trips) &
         !is.na(reference_data$trips$nts_tripid)
-      baseline <- sum(active, na.rm = TRUE)
+      baseline <- reference_data$population_source_rates$modes[[mode]]$trips %||%
+        sum(active, na.rm = TRUE)
       requested <- convert_timeframe_value(
         target$timeframe, target$value, "week", datatype = "trips"
       )
