@@ -515,8 +515,8 @@ This pools all selected modes rather than choosing the largest standalone mode
 estimate. A person contributing to two modes is represented in both the
 requested and source sums, and per-mode estimates remain available in
 `reference_scope_report$person$mode_estimates` for diagnosis. The estimate is
-bounded below by every explicit mode-user count and cannot exceed the source
-population.
+bounded below by every explicit mode-user count. Larger requests can reuse
+eligible source donors rather than being capped at the source population size.
 
 The Tab 3 table is initialized from the staged REF and CF snapshots. Both sides
 remain independently editable. Basic percentage and age/PA-category controls
@@ -1235,8 +1235,9 @@ HUB constructs the snapshots in this order:
    If REF activity implies zero people while CF is positive, derive the person
    boundary from CF volume instead.
 2. Identify source people allowed by the selected Tab 3 categories.
-3. Select distinct REF people without replacement while meeting the requested
-   mode-user margins and retaining owners required by REF trip inputs.
+3. Select eligible REF people while meeting requested mode-user margins. When
+   distinct donors are insufficient, reuse eligible donors with unique appraisal
+   person IDs and reassigned trip IDs; preserve the link to each source donor.
 4. Flag the selected people's observed trips as REF trips, then select the
    requested active-mode trip rows. Their original behavior and health exposure
    remain unchanged.
@@ -1250,10 +1251,11 @@ HUB constructs the snapshots in this order:
 
 The operational rules are:
 
-1. **REF is an observed subset.** REF inputs select people and trips from the
-   filtered geography without changing behavior. A REF mode-user count cannot
-   exceed REF total population, and requested REF trips must be observable
-   among the selected people's source trips.
+1. **REF uses observed donor behavior.** REF inputs select people and trip
+   patterns from the filtered geography without changing donor behavior. A REF
+   mode-user count cannot exceed REF total population, but eligible person and
+   trip donors may be reused to supply larger appraisals. With no native e-bike
+   users, a labelled cycling proxy can supply reference e-bike donors.
 2. **CF starts from REF.** Every REF person initially belongs to CF and keeps
    their original behavior until selected for a change.
 3. **More CF users may expand CF.** Eligible baseline non-users already in CF
@@ -1284,10 +1286,11 @@ things:
   scenario-specific absolute counts stored in profile `additional_data`. This
   avoids relying on the timing of a Shiny `updateNumericInput()` message. If
   those stored counts are unavailable or still inconsistent, the category
-  selection is the more specific instruction: HUB caps impossible REF totals
-  and mode-user margins to observed eligible capacity, emits a warning, and
-  records submitted and used values in
-  `reference_scope_report$category_capacity_adjustments`.
+  selection remains a hard eligibility rule: HUB reuses eligible donors to
+  preserve accepted targets, without admitting excluded categories. Copies,
+  original donor counts and proxy use are recorded in `population_replication_report`.
+  A pool with no eligible evidence or incompatible population margins still
+  produces a meaningful input error.
 - **Too few positive sampling weights:** category membership is still eligible,
   but preferred age/sex/PA weighting cannot fill the sample. HUB takes all
   positive-weight candidates and samples the unavoidable remainder uniformly.

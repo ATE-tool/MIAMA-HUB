@@ -696,16 +696,20 @@ people in CF scope, while induced trips are assigned to CF scope. All behavioral
 changes are made only in the CF copy; REF scope and behavior remain unchanged.
 
 The random seed is fixed by the calling workflow, making a run reproducible for
-the same data and inputs. Sampling is without replacement when selecting people
-or existing trips. Induced trips and donor activity values may be sampled with
-replacement.
+the same data and inputs. Existing trip records cannot be shifted repeatedly.
+Eligible person donors and trip patterns may be reused when distinct source
+capacity is insufficient. Copies have unique appraisal identities and retain
+their source-donor links; each copied person's health history is loaded once.
+With unit person weight, each copy represents one additional appraisal person,
+but it does not add independent source evidence.
 
 The distinction between an appraisal boundary and the source pool is important.
-REF must be constructible as an observed subset: its mode-user counts must fit
-inside REF total population, and its trips must be observed among selected
-people. CF is not subject to the smaller REF population ceiling. It can recruit
-eligible non-users from the rest of the retained geography. Only exhaustion of
-that full eligible pool makes a CF user target infeasible. HUB reports such
+REF uses observed donor patterns: its mode-user counts must fit inside REF
+total population, but eligible donors can be reused for larger requests.
+CF is not subject to the smaller REF population ceiling. It can recruit
+eligible non-users from the rest of the retained geography and reuse donors
+when needed. No eligible evidence or incompatible margins still cause an error.
+HUB reports such
 input incompatibilities separately from programming errors, with requested and
 available counts and the implicated profile fields.
 
@@ -714,11 +718,10 @@ previous REF table value is stale, HUB reconstructs scenario-specific total and
 mode-user values from the absolute category counts stored in the profile during
 Tab 2 -> Tab 3 staging. This duplicates the UI calculation deliberately and
 removes dependence on browser update timing. If stored counts are unavailable
-or remain infeasible, the category selection takes precedence: HUB caps stale
-REF totals and impossible REF mode-user margins to observed eligible capacity.
-Submitted and used values are retained in the scope report. HUB does not sample
-people with replacement or relax selected categories, because either response
-would alter the population represented by the appraisal.
+or exceed distinct eligible capacity, HUB reuses eligible donors to preserve
+accepted targets. It does not relax selected categories. Donor reuse and proxy
+use are recorded in the replication report. A cycling proxy can supply labelled
+reference e-bike donors when native e-bike observations are absent.
 
 The final category-refined snapshot is currently reconstructed from eligible
 source rows using the staged category totals and a reproducible seed. It is not
@@ -735,10 +738,9 @@ rest of the retained LAD. If the target is lower, HUB samples existing users
 and marks them as `ex_users`; those people remain members of CF scope.
 
 A CF target is not capped by the smaller scaled REF population. Its practical
-upper bound is the current CF users plus baseline non-users that remain eligible
-under the selected population refinements. If that geographic donor pool is
-insufficient, HUB returns a structured appraisal-input error with the requested
-and available counts.
+capacity can grow through reuse of baseline non-users that remain eligible
+under the selected population refinements. If no eligible donor evidence exists,
+HUB returns a structured appraisal-input error with requested and available counts.
 
 Candidate probabilities combine the available mode-specific Tab 3 constraints:
 
