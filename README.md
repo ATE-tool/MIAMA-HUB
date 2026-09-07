@@ -438,6 +438,19 @@ conditional fields must not be marked as submitted by the UI.
 
 ### Reference UI value extraction
 
+Tab 2 staging ignores user-count widgets when the active input unit is trips,
+distance/duration or mode share. It also ignores basic population-modal fields
+in the advanced workflow. Hidden generated zeroes must not override the active
+volume input. With no observed e-bikers, the default REF remains zero; positive
+CF e-bike volume can still recruit recipients and use cycling donor patterns.
+Explicit user counts on the users route and population edits in the basic
+workflow remain authoritative. This is covered by `test-ebike-tab2-handoff.R`.
+
+Age/PA category payloads count the same accepted REF/CF mode-user flags as the
+Tab 3 table. They do not reclassify trip-derived users from unchanged individual
+activity columns. With all categories selected, totals therefore equal the
+unfiltered table, including CF e-bikers absent from the source population.
+
 `extract_reference_ui_values()` derives compact status-quo values from filtered
 `reference_data`. The low-level function still returns a named `ui_updates`
 list for developer inspection and tests. The UI-facing R6 method is

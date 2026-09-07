@@ -795,7 +795,8 @@ extract_reference_ui_values <- function(
   )
   mode_filters <- lapply(names(mode_suffixes), function(mode) {
     spec <- .miama_tab2_mode_specs()[[mode]]
-    available <- (!is.na(spec$ind_duration_col) && spec$ind_duration_col %in% names(ind)) ||
+    available <- paste0(".miama_user_scope_", spec$suffix) %in% names(ind) ||
+      (!is.na(spec$ind_duration_col) && spec$ind_duration_col %in% names(ind)) ||
       (!is.null(trips) &&
          all(c("census_id", "nts_tripid") %in% names(trips)) &&
          "census_id" %in% names(ind) &&
@@ -1090,6 +1091,14 @@ extract_reference_ui_values <- function(
     }
 
     spec <- .miama_tab2_mode_specs()[[mode]]
+    # Staged trip-derived users need not change their individual activity
+    # column: their exposure lives in trips. Category payloads and the table
+    # must count the same accepted REF/CF users, including zero-source e-bikes.
+    scope_col <- paste0(".miama_user_scope_", spec$suffix)
+    if (scope_col %in% names(ind)) {
+      active <- active | .true_values(ind[[scope_col]])
+      next
+    }
     if (!is.na(spec$ind_duration_col) && spec$ind_duration_col %in% names(ind)) {
       active <- active | .positive_col(ind, spec$ind_duration_col)
     } else if (!is.null(trips) && all(c("census_id", "nts_tripid") %in% names(trips)) &&
