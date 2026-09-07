@@ -705,6 +705,14 @@ Hub <- R6::R6Class(
       )
       # Freeze values used for this run, independently of later UI changes.
       self$results_data$assumptions <- get_appraisal_assumptions(self$appraisal_inputs)
+      self$results_data$appraisal_record$submitted_settings <-
+        .appraisal_submitted_settings(self$appraisal_inputs)
+      metadata_keys <- c("appraisal_name", "geo_name", "geo_level", "geo_id",
+                         "ui_version", "modes", "intervention_type", "data_source",
+                         "population_size")
+      self$results_data$appraisal_record$metadata_profile <- setNames(
+        lapply(metadata_keys, function(key)
+          .results_export_profile_value(self$appraisal_inputs, key)), metadata_keys)
 
       self$results_data
     },

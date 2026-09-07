@@ -122,7 +122,15 @@ prepare_results_data <- function(
     mode_attribution = mode_attribution
   )
 
+  appraisal_record <- .prepare_appraisal_record(appraisal_input_values, cfg)
+  appraisal_record$population_counts <- .appraisal_population_counts(reference_data, counterfactual_data)
+  appraisal_record$donor_reuse <- .appraisal_record_table(reference_data$population_replication_report)
+  health_report <- counterfactual_data$counterfactual_health_report
+  appraisal_record$health_diagnostics <- .appraisal_record_table(health_report[
+    intersect(c("scheme_effect_duration", "n_ind", "n_changed_ind", "n_cycle_rows"),
+              names(health_report))])
   list(
+    appraisal_record = appraisal_record,
     results_request = request,
     headline_metrics = headline_metrics,
     results_table = results_table,
