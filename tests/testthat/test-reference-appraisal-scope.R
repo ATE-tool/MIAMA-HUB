@@ -218,7 +218,7 @@ test_that("exhaustive age filters include under-18 and unknown categories", {
   expect_equal(cf_population_candidate_filter(ind, 1:4, unknown), 4L)
 })
 
-test_that("category selections cap stale REF table targets to eligible rows", {
+test_that("category selections reuse eligible donors without changing targets", {
   cfg <- miama_default_config()
   reference_data <- list(
     ind = data.frame(
@@ -243,17 +243,15 @@ test_that("category selections cap stale REF table targets to eligible rows", {
       seed = 3,
       cfg = cfg
     ),
-    "used the available category counts"
+    "reused eligible source people"
   )
 
-  expect_equal(sum(scoped$ind$ref_in_scope), 2)
-  expect_equal(sum(scoped$ind$ref_user_scope_walk), 1)
+  expect_equal(sum(scoped$ind$ref_in_scope), 5)
+  expect_equal(sum(scoped$ind$ref_user_scope_walk), 3)
   expect_equal(scoped$reference_scope_report$person$submitted, 5)
-  expect_equal(scoped$reference_scope_report$person$requested, 2)
-  expect_equal(
-    scoped$reference_scope_report$category_capacity_adjustments$users_walking$used,
-    1
-  )
+  expect_equal(scoped$reference_scope_report$person$requested, 5)
+  expect_true(all(scoped$ind$age1year[scoped$ind$ref_in_scope] < 30))
+  expect_equal(scoped$population_replication_report$records_added, 3)
 })
 
 test_that("Tab 2 user counts imply an affected population when no total is supplied", {

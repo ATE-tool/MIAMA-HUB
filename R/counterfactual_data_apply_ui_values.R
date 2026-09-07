@@ -2058,7 +2058,11 @@ apply_counterfactual_ui_values <- function(
     return(new_rows)
   }
 
-  new_rows$nts_tripid <- paste0("cf_trip_", seq_len(nrow(new_rows)))
+  prefix <- "cf_trip_"
+  while (any(startsWith(as.character(existing_ids), prefix), na.rm = TRUE)) {
+    prefix <- paste0(prefix, "_")
+  }
+  new_rows$nts_tripid <- paste0(prefix, seq_len(nrow(new_rows)))
   new_rows
 }
 

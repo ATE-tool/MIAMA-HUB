@@ -44,10 +44,16 @@ apply_counterfactual_health_outcomes <- function(
 
   exposure <- .counterfactual_health_exposure(reference_data$ind, counterfactual_data$ind)
   census_ids <- unique(exposure$census_id)
+  donor_ids <- if (".miama_donor_census_id" %in% names(reference_data$ind)) {
+    unique(reference_data$ind$.miama_donor_census_id[
+      reference_data$ind$census_id %in% census_ids])
+  } else census_ids
 
   if (is.null(hm_cycle_outcomes)) {
-    hm_cycle_outcomes <- load_hm_cycle_outcomes_death_share(cfg, census_ids = census_ids)
+    hm_cycle_outcomes <- load_hm_cycle_outcomes_death_share(cfg, census_ids = donor_ids)
   }
+  hm_cycle_outcomes <- .expand_hm_donor_histories(
+    hm_cycle_outcomes, reference_data$ind, census_ids)
   if (is.null(hm_cycle_lookup)) {
     lookup_scope <- .counterfactual_health_lookup_scope(hm_cycle_outcomes, exposure)
     hm_cycle_lookup <- load_hm_cycle_lookup_death_share(
