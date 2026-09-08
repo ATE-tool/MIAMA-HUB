@@ -2635,6 +2635,44 @@ the default appraisal has 5,000 people and health results use unit person weight
 Sampling provenance and row counts are stored in
 `inst/extdata/data/profiles/leeds/profile.rds`.
 
+#### Manchester: a separate 10,000-person profile
+
+`miama_default_config(dataset_size = "manchester")` selects Manchester LAD
+(`E08000003`), not Greater Manchester. Its independent files live under
+`inst/extdata/data/profiles/manchester/`; Leeds remains unchanged. Both profiles
+use their own aligned people, trips and health outcomes, and share only common
+health lookup/parameter files. No local MIAMA-HM checkout is needed at runtime.
+
+The sample contains 10,000 distinct people drawn without replacement from the
+27,864 available Manchester source records (seed `20260908`). Their existing
+trips, overall health outcomes and death-share cycle outcomes are matched by
+`census_id`; missing health histories abort the build. Geographic expansion is
+metadata only: appraisal person weight remains **1**, including for Manchester.
+
+To reproduce from the full local sources, run from HUB:
+
+```sh
+MIAMA_PROFILE_ID=manchester Rscript --vanilla inst/workflows/dev_build_packaged_lad_profile.R
+Rscript --vanilla inst/workflows/dev_build_packaged_data_manifest.R
+```
+
+The builder refuses to replace an existing profile unless
+`MIAMA_PROFILE_OVERWRITE=true`. Source locations are controlled by
+`MIAMA_DATA_ROOT` (default HUB/data) and `MIAMA_HM_ROOT` (default sibling MIAMA-HM).
+Sample size, seed and LAD can be overridden with `MIAMA_PROFILE_SAMPLE_N`,
+`MIAMA_PROFILE_SEED` and `MIAMA_PROFILE_GEO_ID`. The original Leeds builder is
+a compatibility entry point; its existing `MIAMA_LEEDS_*` options still work.
+
+For the development workflow, set `MIAMA_DEV_DATASET_SIZE=manchester`. For UI,
+construct its config with `dataset_size = "manchester"`; an explicit `"leeds"`
+argument overrides environment settings. This is a deployment/profile choice,
+with a combined Leeds/Manchester selector supported through
+`get_packaged_geo_options(cfg)` and `select_geographic_profile(cfg, geo_id)`.
+The matching UI branch uses these helpers and resets the appraisal on city change.
+Model assumptions are retained while source paths, population metadata and cache
+locations switch together. Publish the rebuilt HUB
+package to include the new data; adding this profile does not update a live app.
+
 Full-data testing requires external data that are deliberately excluded from
 the package and git repository:
 

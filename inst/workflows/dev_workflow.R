@@ -10,9 +10,9 @@
 # Then restart R so the vars are picked up before loading the package.
 # `MIAMA_HM_ROOT` is optional in the common dev layout where `MIAMA-HUB` and
 # `MIAMA-HM` are sibling repos; HUB will discover `../MIAMA-HM` automatically.
-# `MIAMA_DATA_ROOT` is optional for packaged `sample` and `leeds` runs and
+# `MIAMA_DATA_ROOT` is optional for packaged sample, Leeds and Manchester runs and
 # required for full synthpop runs. Set `MIAMA_DEV_DATASET_SIZE=leeds` to use the
-# packaged 5,000-person Leeds profile.
+# packaged 5,000-person Leeds profile, or manchester for 10,000 Manchester people.
 
 # 0. Setup ----
 # -----------------------------------------------------------------------------#
@@ -50,7 +50,7 @@ devtools::load_all(hub_root)
 # paths are resolved. Changing only `cfg$workflow$dataset_size` afterward can
 # leave full synthpop paths paired with sample HM paths (or vice versa).
 dev_dataset_size <- Sys.getenv("MIAMA_DEV_DATASET_SIZE", unset = "leeds")
-cfg <- miama_default_config(dataset_size = dev_dataset_size) # sample, leeds, or full
+cfg <- miama_default_config(dataset_size = dev_dataset_size) # sample, leeds, manchester, full
 cfg$cache$enabled         <- TRUE
 cfg$cache$refresh         <- FALSE
 
@@ -81,7 +81,7 @@ glimpse_head <- function(x, n = 10L) {
 appraisal_inputs <- build_mock_appraisal_inputs(
   overrides = list(
     geo_level = list(input_value = "lad"),
-    geo_id = list(input_value = "E08000035"), # Leeds
+    geo_id = list(input_value = cfg$population$profile$geo_id %||% "E08000035"),
     # Match the UI processing order that previously exposed cross-mode
     # cannibalization: cycling first, then walking.
     modes = list(input_value = c("cycling", "walking")),

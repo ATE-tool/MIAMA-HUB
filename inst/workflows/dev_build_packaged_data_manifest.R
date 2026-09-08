@@ -109,42 +109,29 @@ artifacts <- data.frame(
   stringsAsFactors = FALSE
 )
 
-artifacts <- rbind(
-  artifacts,
-  data.frame(
-    artifact = c(
-      "profiles/leeds/profile.rds",
-      "profiles/leeds/synthetic_pop/SPindivid_CensusNTSALS_parquet",
-      "profiles/leeds/synthetic_pop/SPtrip_CensusNTSALS_parquet",
-      "profiles/leeds/health_data/sp_overall_outcomes",
-      "profiles/leeds/health_data/sp_cycle_outcomes_death_share",
-      "profiles/leeds/lookup/geo_options.rds"
-    ),
-    format = c("rds", "parquet", "parquet", "parquet", "parquet", "rds"),
-    source = c(
-      "Derived Leeds runtime profile metadata",
-      "MIAMA full synthetic population: Leeds subset",
-      "MIAMA full synthetic population: Leeds subset",
-      "MIAMA-HM full overall outcomes: Leeds subset",
-      "MIAMA-HM full death-share cycle outcomes: Leeds subset",
-      "Derived Leeds runtime profile geography lookup"
-    ),
-    source_version = rep("Census 2021 synthpop; profile seed 20260826", 6),
-    purpose = c(
-      "Sampling, weighting, provenance, and alignment metadata",
-      "Packaged 5000-person Leeds attribute profile",
-      "Trips for the packaged Leeds person profile",
-      "Overall health outcomes for the packaged Leeds person profile",
-      "Cycle outcomes used for Leeds counterfactual health recalculation",
-      "Leeds-only UI geography option and scaled population label"
-    ),
-    generated_by = rep(
-      "inst/workflows/dev_build_packaged_leeds_profile.R",
-      6
-    ),
+# Discover independently packaged LAD profiles, including future additions.
+for (profile_dir in list.dirs(file.path(data_root, "profiles"),
+                             full.names = TRUE, recursive = FALSE)) {
+  metadata <- readRDS(file.path(profile_dir, "profile.rds"))
+  relative <- c("profile.rds",
+                "synthetic_pop/SPindivid_CensusNTSALS_parquet",
+                "synthetic_pop/SPtrip_CensusNTSALS_parquet",
+                "health_data/sp_overall_outcomes",
+                "health_data/sp_cycle_outcomes_death_share",
+                "lookup/geo_options.rds")
+  artifacts <- rbind(artifacts, data.frame(
+    artifact = file.path("profiles", metadata$profile_id, relative),
+    format = c("rds", rep("parquet", 4), "rds"),
+    source = paste(metadata$geo_name, c("sampling metadata", "synthpop attributes",
+                   "synthpop trips", "HM overall outcomes", "HM death-share cycles",
+                   "geography lookup")),
+    source_version = paste("Census 2021 synthpop; profile seed", metadata$seed),
+    purpose = paste(metadata$sampled_individuals, "person", metadata$geo_name,
+                    "profile:", relative),
+    generated_by = "inst/workflows/dev_build_packaged_lad_profile.R",
     stringsAsFactors = FALSE
-  )
-)
+  ))
+}
 
 
 # 2. Inspection Helpers ----

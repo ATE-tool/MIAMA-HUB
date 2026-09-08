@@ -3,7 +3,7 @@
 # `miama_default_config()` is the single orientation point for runtime choices,
 # model assumptions, UI metadata, data locations, and operational settings.
 # Most callers should create the defaults once and override only the relevant
-# leaf values. `MIAMA_DATASET_SIZE` selects `"sample"`, `"leeds"`, or `"full"` at process
+# leaf values. `MIAMA_DATASET_SIZE` selects sample, leeds, manchester or full at process
 # startup, while an explicit `cfg$workflow$dataset_size` assignment can still
 # override it for an individual development run.
 #
@@ -181,7 +181,7 @@
     dataset_size <- Sys.getenv("MIAMA_DATASET_SIZE", unset = "sample")
   }
   dataset_size <- tolower(trimws(dataset_size))
-  valid_sizes <- c("sample", "leeds", "full")
+  valid_sizes <- c("sample", "leeds", "manchester", "full")
 
   if (!dataset_size %in% valid_sizes) {
     stop(
@@ -204,16 +204,16 @@
     profile = NULL
   )
 
-  if (!identical(dataset_size, "leeds")) {
+  if (!dataset_size %in% c("leeds", "manchester")) {
     return(default)
   }
 
   metadata_path <- paths$profile_metadata
   if (!file.exists(metadata_path)) {
     stop(
-      "The packaged Leeds profile is incomplete: profile metadata was not found at ",
+      "The packaged ", dataset_size, " profile is incomplete: profile metadata was not found at ",
       metadata_path,
-      ". Rebuild it with inst/workflows/dev_build_packaged_leeds_profile.R.",
+      ". Rebuild it with inst/workflows/dev_build_packaged_lad_profile.R.",
       call. = FALSE
     )
   }
@@ -221,7 +221,7 @@
   metadata <- readRDS(metadata_path)
   person_weight <- metadata$effective_person_weight
   if (length(person_weight) != 1L || !is.finite(person_weight) || person_weight <= 0) {
-    stop("The packaged Leeds profile has an invalid effective person weight.", call. = FALSE)
+    stop("The packaged ", dataset_size, " profile has an invalid effective person weight.", call. = FALSE)
   }
 
   list(
@@ -231,7 +231,7 @@
     # Geographic expansion describes the donor data, not the appraisal size.
     source_person_weight = as.numeric(person_weight),
     source_population_description = metadata$population_weight_source %||%
-      "Leeds profile scaled to the full Leeds synthetic population",
+      paste(dataset_size, "profile scaled to the full LAD synthetic population"),
     profile = metadata
   )
 }
@@ -239,12 +239,12 @@
 #' Build the MIAMA-HUB runtime configuration
 #'
 #' `MIAMA_DATASET_SIZE` controls whether the default configuration uses the
-#' packaged sample data, the packaged Leeds profile, or externally configured
+#' packaged sample data, a packaged Leeds/Manchester profile, or externally configured
 #' full data. The explicit
 #' `dataset_size` argument takes precedence and should be used by development
 #' workflows that switch between data profiles.
 #'
-#' @param dataset_size Optional `"sample"`, `"leeds"`, or `"full"`. Defaults to the
+#' @param dataset_size Optional `"sample"`, `"leeds"`, `"manchester"`, or `"full"`. Defaults to the
 #'   `MIAMA_DATASET_SIZE` environment variable, or `"sample"` when unset.
 #' @return A nested MIAMA-HUB configuration list.
 #' @export
@@ -261,7 +261,7 @@ miama_default_config <- function(dataset_size = NULL) {
   list(
     # 1. Workflow scope ------------------------------------------------------
     workflow = list(
-      dataset_size = dataset_size, # options: "sample", "leeds", "full"
+      dataset_size = dataset_size, # sample, leeds, manchester, full
       max_rows     = MIAMA_DEFAULT_MAX_ROWS
     ),
     # 2. Arrow runtime controls ---------------------------------------------
@@ -481,7 +481,7 @@ miama_resolve_config <- function(cfg = NULL, results_request = list(), validate_
 load_hm_outcomes <- function(cfg = NULL, results_request = list(), census_ids = NULL) {
   cfg <- cfg %||% miama_default_config()
 
-  valid_sizes <- c("sample", "leeds", "full")
+  valid_sizes <- c("sample", "leeds", "manchester", "full")
   if (!cfg$workflow$dataset_size %in% valid_sizes) {
     stop("cfg$workflow$dataset_size must be one of: ",
          paste(valid_sizes, collapse = ", "), call. = FALSE)
