@@ -527,8 +527,6 @@ results_plot_health_timeline <- function(
   ) +
     ggplot2::geom_hline(yintercept = 0, color = "grey75", linewidth = 0.3) +
     ggplot2::geom_line(linewidth = 0.85) +
-    ggplot2::facet_wrap(~outcome_label, scales = "free_y",
-      labeller = .results_unit_labeller(plot_data, metric)) +
     ggplot2::labs(
       title = labels$title, subtitle = labels$subtitle, caption = labels$caption,
       x = labels$x, y = labels$y, color = NULL
@@ -743,12 +741,8 @@ results_plot_trip_mode_distribution <- function(
   )
 
   if (identical(impact_type, "cf_vs_ref")) {
-    default_y <- if (is_timeline && !is_cumulative) {
-      paste0("Modelled ", unit, " per model year")
-    } else {
-      paste0("Cumulative modelled ", unit)
-    }
-    if (metric == "prevented_per_100000") default_y <- paste0(default_y, " per 100,000 people")
+    default_y <- paste0("Modelled ", if (mixed_years) "outcomes" else unit,
+      if (metric == "prevented_per_100000") "\nper 100,000" else "")
     default_subtitle <- if (is_timeline) {
       paste0("Reference and counterfactual values across ", cycle_span)
     } else {
@@ -761,24 +755,17 @@ results_plot_trip_mode_distribution <- function(
     )
   } else {
     default_y <- if (identical(metric, "percent_reduction")) {
-      if (mixed_years) "Health improvement from reference (%)" else
+      if (mixed_years) "Improvement (%)" else
         if (health_years_only) "Increase from reference (%)" else "Reduction from reference (%)"
     } else if (identical(metric, "prevented_per_100000")) {
-      paste0(
-        if (is_cumulative || !is_timeline) "Cumulative " else "",
-        if (health_years_only) "gained " else "prevented ", unit,
-        " per 100,000 residents"
-      )
-    } else if (is_timeline && !is_cumulative) {
-      paste0(if (health_years_only) "Gained " else "Prevented ", unit, " per model year")
+      paste0(if (health_years_only) "Gained " else "Prevented ", unit, "\nper 100,000")
     } else {
-      paste0("Cumulative ", if (health_years_only) "gained " else "prevented ", unit)
+      paste0(if (health_years_only) "Gained " else "Prevented ", unit)
     }
     if (mixed_years && !identical(metric, "percent_reduction")) {
       default_y <- paste0(
-        if (is_cumulative || !is_timeline) "Cumulative health benefit" else "Annual health benefit",
-        ": deaths/cases prevented or HALYs gained",
-        if (identical(metric, "prevented_per_100000")) " per 100,000 residents" else ""
+        "Health benefit",
+        if (identical(metric, "prevented_per_100000")) "\nper 100,000" else ""
       )
     }
     default_subtitle <- if (is_timeline) {
@@ -888,11 +875,11 @@ results_plot_trip_mode_distribution <- function(
 .results_unit_labeller <- function(data, metric, scenario = FALSE) {
   data <- data[!duplicated(data$outcome_label), , drop = FALSE]
   label <- .results_health_tooltip_value_name(data$outcome_type,
-    if (scenario) {
-      if (metric == "prevented_per_100000") "modelled_per_100000" else "modelled"
-    } else metric, period = NULL)
-  if (metric == "percent_reduction") label <- paste0(label, " (%)")
-  ggplot2::as_labeller(setNames(paste0(data$outcome_label, "\n", label), data$outcome_label))
+    if (scenario) "modelled" else "prevented", period = NULL)
+  if (metric == "percent_reduction") label <- "Improvement (%)"
+  outcome <- vapply(as.character(data$outcome_label), function(x)
+    paste(strwrap(x, width = 28), collapse = "\n"), character(1))
+  ggplot2::as_labeller(setNames(paste0(outcome, "\n", label), data$outcome_label))
 }
 
 .results_health_outcome_unit <- function(plot_data) {

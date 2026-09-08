@@ -2024,7 +2024,11 @@ Age/mode bars cover the included assessment cycles; timelines are cumulative by
 default. Cumulative per-100,000 values use the represented cohort denominator,
 not a denominator shrinking as late-cycle source rows disappear. This is not an
 incidence rate per person-year. Outcome panels label their units explicitly and
-unlike outcomes are not added together.
+unlike outcomes are not added together. Benefit timelines display outcome lines
+on one shared scale; separate REF/CF timelines retain their outcome panels.
+Axes use short labels, with the period and detailed outcome units in subtitles,
+captions and tooltips. A shared scale does not make HALYs and event counts
+interchangeable or additive.
 
 Mode-attributed percentages have no separate REF denominator. HUB now displays
 an explanatory unavailable view instead of silently switching to absolute values.
