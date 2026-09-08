@@ -40,6 +40,11 @@ prepare_results_exports <- function(
   }
 
   cfg <- cfg %||% miama_default_config()
+  # Preserve the model scale/horizon and descriptive metadata of this run.
+  if (!is.null(results_data$appraisal_record$export_config)) {
+    cfg <- utils::modifyList(cfg, results_data$appraisal_record$export_config)
+  }
+  profile <- results_data$appraisal_record$metadata_profile %||% profile
   request <- results_data$results_request %||% list()
   outcomes <- .results_export_filter(outcomes, request$res_outcomes)
   age_groups <- .results_export_filter(age_groups, request$res_age_groups)
@@ -138,6 +143,8 @@ prepare_results_exports <- function(
       timeline_cumulative = timeline_cumulative,
       trip_mode_distribution = trip_modes,
       assumptions = assumptions,
+      assumption_details = results_data$assumptions %||% data.frame(),
+      appraisal_record = results_data$appraisal_record %||% list(),
       amat_inputs = amat_inputs,
       amat_health_timeline = amat_outputs$timeline,
       amat_health_summary = amat_outputs$summary,
@@ -174,10 +181,20 @@ write_results_xlsx <- function(exports, file) {
     Metadata = exports$metadata,
     Filters = exports$filters,
     Assumptions = exports$assumptions,
+    Completion_assumptions = exports$assumption_details %||% data.frame(),
+    Calculation_inputs = exports$appraisal_record$calculation_inputs %||% data.frame(),
+    Submitted_settings = exports$appraisal_record$submitted_settings %||% data.frame(),
+    Model_parameters = exports$appraisal_record$model_parameters %||% data.frame(),
+    Population_counts = exports$appraisal_record$population_counts %||% data.frame(),
+    Donor_reuse = exports$appraisal_record$donor_reuse %||% data.frame(),
+    Health_diagnostics = exports$appraisal_record$health_diagnostics %||% data.frame(),
     AMAT_metadata = exports$amat_inputs,
     AMAT_health_timeline = exports$amat_health_timeline,
     AMAT_health_summary = exports$amat_health_summary
   )
+  sheets <- lapply(sheets, function(x) {
+    if (!ncol(x)) data.frame(note = "Not recorded for this run") else x
+  })
   openxlsx::write.xlsx(sheets, file = file, overwrite = TRUE, asTable = TRUE)
   invisible(normalizePath(file, winslash = "/", mustWork = FALSE))
 }
@@ -323,10 +340,14 @@ write_results_amat_csv <- function(exports, file, na = "") {
 
 write_results_report <- function(exports,
                                  file,
-                                 format = c("markdown", "docx", "pdf")) {
+                                 format = c("markdown", "docx", "pdf", "html")) {
   .validate_results_exports(exports)
   format <- match.arg(format)
   .ensure_export_parent(file)
+  if (identical(format, "html")) {
+    writeLines(.results_export_html(exports), file, useBytes = TRUE)
+    return(invisible(normalizePath(file, winslash = "/", mustWork = FALSE)))
+  }
   markdown <- .results_export_markdown(exports)
 
   if (identical(format, "markdown")) {
@@ -455,6 +476,15 @@ write_results_report <- function(exports,
     source = "HUB results contract",
     stringsAsFactors = FALSE
   )
+  effective <- results_data$assumptions
+  if (is.data.frame(effective) && nrow(effective)) {
+    fixed <- rbind(fixed, data.frame(
+      item = paste(effective$mode, effective$label),
+      value = paste(effective$value, effective$unit),
+      source = paste(effective$source, effective$proxy),
+      stringsAsFactors = FALSE
+    ))
+  }
   if (length(notes) == 0) return(fixed)
   rbind(
     fixed,
@@ -537,11 +567,16 @@ write_results_report <- function(exports,
       paste0("Estimated premature deaths prevented: ", metric("premature_deaths_prevented"), "."),
       paste0("Estimated HALYs gained: ", metric("halys_gained"), "."),
       paste0("Estimated disease cases prevented: ", metric("disease_cases_prevented"), "."),
-      "Positive prevented values represent lower counterfactual health outcomes than reference."
+      "Positive prevented deaths/cases equal reference minus counterfactual; positive life-year and HALY gains equal counterfactual minus reference."
     ),
     methods = c(
       "Reference and counterfactual synthetic-population activity were mapped to MIAMA-HM cycle outcomes.",
-      "Cycle 0 was excluded from presented impacts; cumulative totals sum model cycles from cycle 1 onward."
+      "Tab 2 supplies active-travel volume; completion assumptions estimate missing people/trip quantities. Tabs 3 and 4 refine the accepted population and trip contracts. Later trip edits do not redefine the accepted person counts.",
+      "Sampling uses population/trip restrictions and distribution weights. New-user and induced-trip settings are distinct; a shifted trip cannot be shifted again. Requested settings are not evidence that their exact proportions were realized.",
+      "Cycle 0 was excluded from presented impacts; cumulative totals sum model cycles from cycle 1 onward.",
+      "This is a modelled appraisal, not a causal estimate from observed intervention outcomes. Sampling variation and structural model uncertainty are not confidence intervals in this report.",
+      "The record is frozen with completed results. Submitted settings can include inactive fields; calculation inputs and effective assumptions identify the values passed to the model. Configuration lists available defaults, not proof each default was used. No individual-level records are included.",
+      "Exports use their recorded selection snapshot, independently of subsequent on-screen plot filters. Headline metrics describe the whole appraisal; the health tables use the export selection shown below."
     ),
     metadata = metadata,
     filters = filters,
@@ -595,41 +630,22 @@ write_results_report <- function(exports,
 
 .results_export_markdown <- function(exports) {
   report <- exports$report
+  sections <- .results_report_sections(exports)
   c(
-    paste0("# ", report$title),
-    "",
-    paste0("Generated: ", exports$generated_at_utc),
-    "",
-    "## Summary",
-    "",
-    paste0("- ", report$summary),
-    "",
-    "## Appraisal metadata",
-    "",
-    .results_export_markdown_table(report$metadata),
-    "",
-    "## Applied result filters",
-    "",
-    .results_export_markdown_table(report$filters),
-    "",
-    "## Methods",
-    "",
-    paste0("- ", report$methods),
-    "",
-    "## Results",
-    "",
-    .results_export_markdown_table(report$results),
-    "",
-    "## Assumptions and limitations",
-    "",
-    .results_export_markdown_table(report$assumptions)
+    paste0("# ", report$title), "",
+    paste0("Generated: ", exports$generated_at_utc), "",
+    "## Summary", "", paste0("- ", report$summary), "",
+    "## Approach", "", paste0("- ", report$methods), "",
+    unlist(lapply(names(sections), function(name) {
+      c(paste0("## ", name), "", .results_export_markdown_table(sections[[name]], Inf), "")
+    }), use.names = FALSE)
   )
 }
 
 .results_export_markdown_table <- function(data, max_rows = 100L) {
   data <- as.data.frame(data)
   if (nrow(data) == 0 || ncol(data) == 0) return("_No data available._")
-  data <- utils::head(data, max_rows)
+  if (is.finite(max_rows)) data <- utils::head(data, max_rows)
   values <- lapply(data, function(column) {
     out <- ifelse(is.na(column), "", as.character(column))
     gsub("|", "\\|", out, fixed = TRUE)

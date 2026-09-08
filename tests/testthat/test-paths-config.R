@@ -58,6 +58,16 @@ test_that("Leeds config uses one aligned packaged profile", {
   })
 })
 
+test_that("all datasets use appraisal counts without geographic expansion", {
+  for (size in c("sample", "leeds", "full")) {
+    cfg <- miama_default_config(dataset_size = size)
+    expect_equal(cfg$population$person_weight, 1)
+    expect_equal(cfg$population$units_contract, "one_record_one_person_v1")
+    expect_true(cfg$population$source_person_weight > 1)
+  }
+  expect_equal(.results_person_weight(list()), 1)
+})
+
 test_that("sample config uses packaged data even when MIAMA_DATA_ROOT is set", {
   external_data <- withr::local_tempdir()
 

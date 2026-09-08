@@ -1,3 +1,69 @@
+test_that("Leeds results count real appraisal people without donor expansion", {
+  cfg <- miama_default_config(dataset_size = "leeds")
+  health <- data.frame(census_id = 1:2, cycle = 1, age1year = 50,
+    female = 0, dead = .1, d_dead = -.01, haly = .8, d_haly = .02)
+  input <- list(health_outcomes = health)
+  request <- list(res_outcomes = c("mortality", "halys"))
+  out <- prepare_results_data(input, cfg = cfg, results_request = request)
+  tab <- results_filter_health_data(out)
+  expect_equal(tab$population, c(2, 2))
+  expect_equal(tab$prevented_value[tab$outcome == "mortality"], .02)
+  expect_equal(tab$prevented_value[tab$outcome == "halys"], .04)
+  expect_identical(input$health_outcomes, health)
+
+  legacy <- cfg
+  legacy$population$person_weight <- cfg$population$source_person_weight
+  old <- results_filter_health_data(prepare_results_data(input, cfg = legacy,
+    results_request = request))
+  expect_equal(old$prevented_value / tab$prevented_value, rep(163.552, 2))
+  expect_equal(old$percent_reduction, tab$percent_reduction)
+  expect_equal(old$prevented_per_100000, tab$prevented_per_100000)
+})
+
+test_that("cycle zero initializes health state without adding reported years", {
+  cfg <- miama_default_config()
+  cfg$population$person_weight <- 1
+  health <- data.frame(census_id = 1, cycle = 0:2, age1year = 50, female = 0,
+    dead = c(0, .1, .1), d_dead = 0,
+    unhealthy = c(.4, .1, -.05), d_unhealthy = 0)
+  out <- prepare_results_data(list(health_outcomes = health), cfg = cfg)
+  amat <- prepare_results_amat_outputs(out)$timeline
+  hly <- amat[amat$measure == "healthy_life_years", ]
+  expect_equal(hly$cycle, 1:2)
+  expect_equal(hly$reference_value, c(.5, .55))
+})
+
+test_that("cumulative impacts retain the cohort denominator as follow-up ends", {
+  cfg <- miama_default_config()
+  cfg$population$person_weight <- 1
+  health <- data.frame(census_id = c(1, 2, 1), cycle = c(1, 1, 2),
+    age1year = 50, female = 0, dead = .1, d_dead = -.01)
+  out <- prepare_results_data(list(health_outcomes = health), cfg = cfg,
+    results_request = list(res_outcomes = "mortality"))
+  cumulative <- results_filter_health_data(out, aggregation = "timeline", timeline_type = "cumulative")
+  annual <- results_filter_health_data(out, aggregation = "timeline", timeline_type = "annual")
+  expect_equal(cumulative$population, c(2, 2))
+  expect_equal(annual$population, c(2, 1))
+  expect_equal(cumulative$prevented_per_100000, c(1000, 1500))
+})
+
+test_that("mixed health-year and event plots label improvement in both directions", {
+  cfg <- miama_default_config()
+  cfg$results$assessment_period_years <- 2L
+  cfg$population$person_weight <- 1
+  health <- data.frame(census_id = 1, cycle = c(0, 1, 2, 3), age1year = 50,
+    female = 0, dead = c(0, .1, .2, .3), d_dead = c(0, -.01, -.02, -.03),
+    haly = c(1, .8, .6, .4), d_haly = c(0, .01, .02, .03))
+  out <- prepare_results_data(list(health_outcomes = health), cfg = cfg,
+    results_request = list(res_outcomes = c("mortality", "halys")))
+  tab <- results_filter_health_data(out)
+  expect_equal(tab$delta_value[tab$outcome == "mortality"], -.06)
+  expect_equal(tab$prevented_value[tab$outcome == "halys"], .06)
+  expect_true(all(out$plot_data$health_cube$cycle %in% 1:3))
+  plot <- results_plot_health_overview(out, metric = "percent_reduction")
+  expect_match(paste(unlist(plot$labels), collapse = " "), "Improvement (%)", fixed = TRUE)
+})
+
 test_that("health outcome options expose configured Tab 5 metadata", {
   options <- get_health_outcome_options()
 

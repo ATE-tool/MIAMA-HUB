@@ -84,7 +84,7 @@ prepare_results_data <- function(
 
   trip_distribution <- .results_trip_mode_distribution(reference_data, counterfactual_data)
   amat_health_timeline <- .results_amat_health_timeline(
-    health_outcomes = health_outcomes,
+    health_outcomes = health_outcomes_all,
     health_cube = health_cube,
     person_weight = person_weight,
     horizon_years = get_assessment_period(cfg)
@@ -122,7 +122,15 @@ prepare_results_data <- function(
     mode_attribution = mode_attribution
   )
 
+  appraisal_record <- .prepare_appraisal_record(appraisal_input_values, cfg)
+  appraisal_record$population_counts <- .appraisal_population_counts(reference_data, counterfactual_data)
+  appraisal_record$donor_reuse <- .appraisal_record_table(reference_data$population_replication_report)
+  health_report <- counterfactual_data$counterfactual_health_report
+  appraisal_record$health_diagnostics <- .appraisal_record_table(health_report[
+    intersect(c("scheme_effect_duration", "n_ind", "n_changed_ind", "n_cycle_rows"),
+              names(health_report))])
   list(
+    appraisal_record = appraisal_record,
     results_request = request,
     headline_metrics = headline_metrics,
     results_table = results_table,
@@ -164,7 +172,7 @@ prepare_results_data <- function(
     return(.empty_amat_health_timeline())
   }
 
-  keep <- !is.na(health_outcomes$cycle) & health_outcomes$cycle > 0 &
+  keep <- !is.na(health_outcomes$cycle) & health_outcomes$cycle >= 0 &
     health_outcomes$cycle <= horizon_years
   if (!any(keep)) return(.empty_amat_health_timeline())
 
@@ -205,9 +213,12 @@ prepare_results_data <- function(
     } else {
       1 - .results_grouped_cumsum(cf_incidence, ids)
     }
+    # Cycle 0 initializes survival/healthy state but earns no reported years.
+    report_rows <- cycles > 0
+    if (!any(report_rows)) return(NULL)
     aggregated <- stats::aggregate(
-      cbind(ref_value, cf_value) * person_weight,
-      by = list(cycle = cycles),
+      cbind(ref_value, cf_value)[report_rows, , drop = FALSE] * person_weight,
+      by = list(cycle = cycles[report_rows]),
       FUN = sum,
       na.rm = TRUE
     )

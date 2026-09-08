@@ -43,6 +43,9 @@ extract_input_values <- function(appraisal_inputs_in, drop_null = FALSE) {
 
   values <- lapply(appraisal_inputs_in, function(field) {
     if (is_input_field(field)) {
+      if (!is.null(field$assumption)) {
+        return(if (isTRUE(field$is_filled)) field$input_value else field$default_value)
+      }
       if ("is_filled" %in% names(field) && !isTRUE(field$is_filled)) {
         return(NULL)
       }
@@ -50,6 +53,23 @@ extract_input_values <- function(appraisal_inputs_in, drop_null = FALSE) {
     }
     field
   })
+
+  if (any(vapply(appraisal_inputs_in, function(field) {
+    is.list(field) && !is.null(field$assumption)
+  }, logical(1)))) {
+    values$.assumptions_enabled <- TRUE
+    values$.assumption_explicit_distance_modes <- character()
+    for (mode in normalize_active_modes(values$modes)) {
+      suffix <- .counterfactual_mode_spec(mode)$suffix
+      fields <- paste0(c("trips_spread_mean_cf_", "trips_spread_bars_cf_"), suffix)
+      explicit <- any(vapply(fields, function(name) {
+        field <- appraisal_inputs_in[[name]]
+        is_input_field(field) && isTRUE(field$is_filled) &&
+          !is.null(field$input_value) && !isTRUE(all.equal(field$input_value, field$default_value))
+      }, logical(1)))
+      if (explicit) values$.assumption_explicit_distance_modes <- c(values$.assumption_explicit_distance_modes, mode)
+    }
+  }
 
   if (isTRUE(drop_null)) {
     values <- values[!vapply(values, is.null, logical(1))]

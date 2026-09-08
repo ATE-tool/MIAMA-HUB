@@ -482,6 +482,37 @@ Only one basic input route is intended to be active at a time. User and trip
 targets use the same counterfactual machinery as the advanced interface; the
 advanced controls add information about who changes and which trips change.
 
+### Assumptions that complete an appraisal
+
+The assumptions-contract draft separates provided volume from the missing
+parameters needed to interpret it. Suggested frequency and trip-size values
+use assessed REF observations when available, otherwise the geographic source,
+then stored England rates and fixed fallbacks. Speed is a fixed assumption.
+At initial geographic loading there is usually no assessed REF yet, so source
+values apply. Defaults remain stable during subsequent sampling to avoid a
+circular calculation; their provenance and any user override are retained.
+
+Distance and speed imply duration; duration and speed imply distance. These are
+never three independent assumptions. Saved overrides affect conversions,
+sampling preferences or new CF activity, not observed REF exposure. For changed
+trips, active minutes are sampled kilometres divided by the effective target-mode
+speed, multiplied by 60. PT refers to the walking access leg. Newly assigned
+users retain donor variation, with its expected activity scaled by the effective
+weekly frequency and duration; the existing accounting avoids adding the same
+user-sourced trip activity again.
+
+The cards omit inputs already provided elsewhere and unchanged distributions.
+An explicit advanced distance refinement supersedes a simple distance mean.
+Accepted person/trip counts remain authoritative: editing an assumption does
+not by itself erase them. A preferred mean is a sampling weight, not a guarantee
+that the realized sample has exactly that mean. Completed results retain the
+effective assumption values, defaults and origins for review.
+
+The implementation and remaining provenance/presentation questions are described
+in [Assumptions that complete an appraisal](appraisal_assumptions.md). The stored
+England values retain earlier UI rates; they are not freshly estimated national
+statistics. This draft requires the matching HUB and UI assumptions branches.
+
 ### Converting distance, duration, and mode share
 
 The behavioral model uses one canonical unit for trip-volume manipulation: the
@@ -492,7 +523,8 @@ For mode $m$, a distance or duration target is first converted to kilometres or
 minutes and then to one week. A per-person input is multiplied by the applicable
 scenario population $N_s$; a total input is already an aggregate. Let $A_{m,s}$
 be that weekly aggregate and let $\bar{a}_{m,REF}$ be the positive mean distance
-or duration among reference trips of mode $m$. The trip-row target is
+or duration among reference trips of mode $m$ (or the effective completion
+assumption, when using the assumptions contract). The trip-row target is
 
 $$
 T_{m,s} = \operatorname{round}\left(
@@ -615,8 +647,8 @@ all current mode users are retained and the difference is recruited from
 eligible baseline non-users across the full retained geographic source. The
 realized current/new split is therefore determined by the explicit counts and
 may exceed the preferred new-user percentage. HUB reports that realized split
-and adds a non-fatal note when this occurs; it rejects the request only when the
-filtered geographic source does not contain enough eligible distinct people.
+and adds a non-fatal note when this occurs. Too few distinct donors trigger
+eligible person replacement; an absence of eligible donor evidence still fails.
 
 The aggregate CF population total is a presentation summary. Row-level
 behavioral changes are controlled by the mode-specific CF user targets. People
@@ -690,8 +722,9 @@ Counterfactual data begin as a one-to-one copy of this flagged baseline. CF
 scope initially equals REF scope. New users are sampled first from baseline
 non-users inside that assessed population. If more are needed, baseline
 non-users from the retained LAD source pool are recruited and added to CF scope.
-No synthetic person is duplicated: the same source row supplies that person's
-original and counterfactual exposure. Existing trips can be switched only for
+When capacity is insufficient, source people and their trip patterns are copied
+with unique appraisal IDs. Retained donor IDs link each copy to its source
+health history; REF and CF use the same appraisal ID. Existing trips can be switched only for
 people in CF scope, while induced trips are assigned to CF scope. All behavioral
 changes are made only in the CF copy; REF scope and behavior remain unchanged.
 
@@ -881,8 +914,9 @@ for empirical validation.
    than applying the MMET change to every health cycle.
 9. **Category and intensity review:** validate age, distance, PA cutoffs and
    MMET intensity factors against agreed evidence and document provenance.
-10. **Mode proxy validation:** replace or validate the current 1:1 cycling
-    proxy for e-bike donors and the configured PT access-walking assumptions
+10. **Mode proxy validation:** validate the provisional cycling-to-e-bike factors
+    (distance 1.30, speed 1.20, duration 1.30 / 1.20; frequency unchanged)
+    and the configured PT access-walking assumptions
     when mode-specific evidence becomes available.
 11. **Uncertainty analysis:** quantify Monte Carlo variation from sampling and
     parameter uncertainty; a fixed seed currently provides reproducibility but
@@ -922,6 +956,22 @@ count the entire donor population or restrict the population to rows with health
 estimates. Mode groups overlap, so their sum is not the total population. These
 are realized counts rather than a second population estimate or sampling input.
 
+The results report combines the appraisal inputs, health impacts and assumptions
+in a single HTML or Word document. It records the calculation inputs at the time
+results are built, including the accepted population and trip values, rather than
+reading subsequently edited controls. Realized travel totals are shown separately
+from requested values. Completion assumptions include their units and source
+(assessed reference, source population, stored national rate or fixed fallback)
+where recorded by the assumptions catalogue.
+
+Submitted settings, effective calculation inputs and configured defaults are
+distinct sections: saved inactive fields are not evidence of use, and defaults
+can be overridden. In particular, a requested new-user or induced-trip percentage
+is not a measured realization of that split. The report is not yet a complete
+donor-selection audit and does not quantify sampling or structural uncertainty.
+It contains no individual-level records. The recorded export selection applies
+to the health tables, while headline metrics describe the full appraisal; later
+on-screen filters do not modify this export snapshot.
 # Implementation traceability
 
 This description is based on the current implementation, principally:

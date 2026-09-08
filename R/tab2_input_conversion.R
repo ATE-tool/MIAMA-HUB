@@ -84,7 +84,7 @@
   } else {
     weekly_amount
   }
-  mean_per_trip <- .tab2_reference_mode_mean(reference_data$trips, spec, kind)
+  mean_per_trip <- .assumption_trip_mean(values, reference_data, spec, kind)
   trip_rows <- .tab2_amount_to_trip_rows(weekly_total, mean_per_trip, field)
 
   list(
@@ -137,7 +137,7 @@
     as.integer(round(target_amount))
   } else {
     kind <- if (identical(total_unit, "distance")) "distance" else "duration"
-    mean_per_trip <- .tab2_reference_mode_mean(reference_data$trips, spec, kind)
+    mean_per_trip <- .assumption_trip_mean(values, reference_data, spec, kind)
     .tab2_amount_to_trip_rows(target_amount, mean_per_trip, shares_field)
   }
 

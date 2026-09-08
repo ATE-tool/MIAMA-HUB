@@ -26,7 +26,8 @@ This developer reference follows the appraisal from setup through results:
 5. [Build the counterfactual and health effects](#5-build-the-counterfactual-and-health-effects)
    describes row sampling, trip changes, MMET exposure, and health lookup.
 6. [Tab 5: Present and export results](#6-tab-5-present-and-export-results)
-   documents result tables, plots, filters, headline metrics, and exports.
+   starts with [health outcome units and aggregation](#61-health-outcome-units-and-aggregation),
+   then covers result tables, plots, filters, headline metrics, and exports.
 7. [Data packaging, deployment, and performance](#7-data-packaging-deployment-and-performance)
    covers packaged profiles, external full data, manifests, and profiling.
 
@@ -436,6 +437,31 @@ The profile is the handoff object at every transition. An applicable submitted
 `input_value` takes precedence over a HUB-generated `default_value`; inactive
 conditional fields must not be marked as submitted by the UI.
 
+### Editable assumptions: complete, do not replace, user inputs
+
+The coordinated `codex/assumptions-contract` draft centralizes this behavior in
+`R/appraisal_assumptions.R`. Cards show the missing frequency, distance **or**
+duration, and speed needed for the selected input route. Already entered
+parameters and unchanged distributions are not duplicated. Defaults and edits
+are stored separately, with their source visible to the user.
+
+The default hierarchy is assessed REF, geographic source, stored England rate,
+then fixed fallback; speed uses fixed configuration. Geography initialization
+normally has only source data available. Defaults then remain stable until
+explicitly rebuilt, avoiding feedback from CF sampling into its own assumptions.
+PT means walking access, not the full public-transport journey.
+
+Saved overrides affect the corresponding volume conversion, candidate weighting
+or changed-trip active minutes on the next calculation. They do not rewrite
+observed REF activity or discard accepted person/trip totals. Explicit advanced
+distance inputs take precedence over a simple mean. Completed results retain
+`results_data$assumptions`, also used by table/report exports.
+
+See [Assumptions that complete an appraisal](docs/appraisal_assumptions.md) for
+the field catalogue, precedence rules, source limitations and review checklist.
+The UI implementation is one shared `utilites/assumptions_cards.R` controller
+on the matching UI branch; no publishing configuration changes are needed.
+
 ### Reference UI value extraction
 
 Tab 2 staging ignores user-count widgets when the active input unit is trips,
@@ -744,8 +770,10 @@ All four UI modes have an explicit runtime interpretation:
 
 - walking uses the walking component of non-PT trips
 - cycling uses observed bicycle records
-- e-biking starts from zero reference volume and uses cycling donors 1:1 for
-  trip distance, duration, user profiles, and MMET intensity
+- e-biking starts from zero reference volume when unobserved. Cycling proxies
+  use provisional factors of 1.30 for distance, 1.20 for speed, and 1.30 / 1.20
+  for duration; user profiles and MMET intensity remain cycling proxies.
+  See [E-bike proxy calibration](docs/appraisal_assumptions.md#e-bike-proxy-calibration).
 - public transport uses PT main-mode records for travel volume, while only the
   walking-access component contributes physical activity and health exposure
 
@@ -1216,8 +1244,9 @@ the UI:
    profile). HUB keeps these rows available as evidence and possible donors.
 2. **Scaled REF population.** Tab 2 describes the amount of existing active
    travel being assessed. HUB translates the entered users/trips/distance or
-   duration into a population boundary and samples that many distinct source
-   people. This is a selection operation, not a behavior change.
+   duration into a population boundary and samples appraisal-person records.
+   When source capacity is insufficient, eligible people and their trips are
+   copied with new appraisal IDs and retained source-donor IDs.
 3. **Refined REF population.** Tab 3 may narrow the scaled REF boundary. A
    percentage changes its size. Age and PA checkboxes are hard eligibility
    rules: an unchecked category cannot be sampled. HUB reconstructs the table
@@ -1227,7 +1256,18 @@ the UI:
    not hard quotas.
 4. **CF population.** CF starts as a copy of refined REF. HUB then changes user
    and trip status. It can recruit baseline non-users from outside REF, but still
-   inside the geographic source population.
+   using geographic source donors, with replacement when necessary.
+
+**Population replacement and scaling:** source capacity is no longer a hard
+person-count ceiling. `R/population_donor_replication.R` supplies the shared
+fallback for basic/advanced staging and final reference construction. See the
+[capacity and scaling review](docs/source_population_capacity_review.md).
+**Appraisal units:** one selected or copied person record represents one real
+appraisal person. Entering 1,000 users requests 1,000 user records, not six
+weighted records. Health aggregation defaults to `cfg$population$person_weight = 1`.
+Source expansion factors are provenance only, stored as `source_person_weight`;
+they neither reduce sampling targets nor multiply appraisal results. Donor reuse
+does not increase the number of independent source observations.
 
 HUB constructs the snapshots in this order:
 
@@ -1260,8 +1300,8 @@ The operational rules are:
    their original behavior until selected for a change.
 3. **More CF users may expand CF.** Eligible baseline non-users already in CF
    scope are converted first. Any shortfall is sampled from baseline non-users
-   elsewhere in the retained geography; those people and their existing trips
-   are then marked `cf_in_scope`.
+   elsewhere in the retained donor pool, including eligible copies; those people
+   and their existing trips are then marked `cf_in_scope`.
 4. **Fewer CF users do not remove residents.** Selected current users become
    ex-users, but remain in CF scope with their other behavior intact.
 5. **More CF trips use shifts plus induction.** Existing eligible utilitarian
@@ -1271,8 +1311,9 @@ The operational rules are:
    to a configured alternative mode. A locked trip cannot be switched twice.
 
 Consequently, a small REF population is not itself an error when CF is larger.
-An input is infeasible only when the full filtered geography lacks enough
-eligible source rows, or when REF values cannot describe an observed subset.
+An input can still be infeasible when there is no eligible donor evidence,
+when mode-user counts exceed the assessed total, or when requested joint mode
+margins require overlaps not represented by the donor profiles.
 These failures use class `miama_appraisal_input_error` and include the relevant
 profile fields, requested/available counts, and a user-facing correction hint.
 
@@ -1302,9 +1343,10 @@ things:
   infers a non-zero person boundary from the CF user or trip-equivalent volume;
   if no source rate exists, it uses the full geographic person pool. REF mode
   users/trips remain zero, while realized CF trip owners are marked as CF users.
-- **Too few eligible people in the full geography:** HUB stops. Automatically
-  duplicating people or ignoring selected categories would change the appraisal
-  question and bias uncertainty, so this requires a revised target or categories.
+- **Too few eligible people in the full geography:** HUB samples donor profiles
+  with replacement, with unique appraisal IDs, copied trip ownership and retained
+  donor IDs for health histories. `population_replication_report` records reuse.
+  Copies increase modelled appraisal size, not the independent evidence sample.
 - **Too few observed REF trips among the selected users:** HUB keeps the fixed
   trip target, samples observed geographic donor trip patterns with replacement,
   and assigns them to the fixed users. The warning and scope report expose how
@@ -1317,8 +1359,8 @@ For example, the message “requested REF population 3,475; 2,939 satisfy the
 selected categories” means that `3,475` remained in the submitted population
 table while the age/PA checkboxes described a smaller eligible group. HUB now
 first replaces `3,475` with the selected-category total stored in the profile.
-If that total is unavailable, it uses at most the `2,939` eligible source rows
-and reports the adjustment. It never samples the same person twice.
+If the accepted target still requires 3,475 records, HUB can copy from the 2,939
+eligible donors. Copies are distinct appraisal records but not distinct observations.
 
 Current implementation nuance: category totals are measured from the staged
 Tab 2 snapshot, but the final refined snapshot is reconstructed from eligible
@@ -1387,8 +1429,8 @@ scaled REF scope. The resulting current/new-user counts and percentages are
 recorded in `counterfactual_report$changes[[...]]$current_new_user_split`. The
 explicit count takes precedence over `pop_new_current_perc`; when it implies a
 higher new-user share, HUB records a non-fatal report note. The request fails
-only if the complete filtered geographic source lacks enough eligible distinct
-people.
+if no eligible donor evidence exists. A shortage of distinct donors alone is
+handled by person replacement during the shared reference-construction step.
 
 ### Trips: derive counterfactual number of active mode trips
 The trip-count handler supports `trips_count_cf_*` and `trips_number_cf_*` for
@@ -1712,6 +1754,168 @@ and releases `health_outcomes` after constructing compact `health_impacts` and
 Future work: add `scheme_effect_duration = "shortterm"`.
 
 ## 6. Tab 5: Present and export results
+
+### Appraisal summary population
+
+The UI currently builds its summary in `modules/tab5/tab5Server.R`, using profile
+metadata and `hub$get_results_options()` for the assessment period. The Hub
+method now also returns `res_population_cf_total`, `res_population_cf_walk`,
+`res_population_cf_bike`, `res_population_cf_ebike` and `res_population_cf_pt`.
+`hub$get_appraisal_population_values()` returns just these five fields.
+The standalone `get_results_options(cfg)` remains a static configuration helper.
+
+Counts come from the final assessed CF individual scope, not the geographic
+source population, REF, requested targets or only people with health outcomes.
+Each appraisal record counts once; mode-user groups can overlap and must not
+be summed to obtain the total. Missing CF data yields NA; an empty assessed CF
+scope yields zero. No cycling proxy is substituted for actual zero e-bike users.
+
+`build_results()` fills matching `default_value` entries in its returned `profile`
+and freezes the values in `results_data$appraisal_summary`. Fields are output-only,
+not sampling targets. The corresponding fields are defined in UI
+`schemes/default.R` on UI dev; your UI profile copy needs the returned
+profile to see refreshed defaults. Alternatively, read the Hub options directly:
+
+```r
+options <- mdata[["hub"]]$get_results_options()
+options$res_population_cf_total
+options$res_population_cf_bike
+```
+
+Implementation is in `R/results_appraisal_summary.R`. The older summary key
+`population_size` retains its geographic/reference meaning for compatibility;
+use `res_population_cf_total` for the new CF appraisal population display.
+
+### 6.1 Health outcome units and aggregation
+
+**Start here for "what do the health numbers mean?"** The input is not a table
+of observed diagnoses. HM simulates replicants, counts events and divides by
+the number of replicants. Its source quantities are per-person expectations.
+HUB matches/interpolates these to synthetic people and calculates CF changes.
+Summing person-level expectations gives expected counts, which may be fractional.
+
+The authoritative source definitions are in MIAMA-HM `scripts/aggregation.R`
+(event counts divided by `n.rep`, but death shares are separate ratios),
+`scripts/sp_hm_join.R` (synthetic-person matching), and
+`scenario_verification/scen_30to45_2mmets.qmd` (scenario aggregation).
+HUB calculation details live in `R/results_data_prepare.R`,
+`R/results_data_plotting_functions.R` and `R/health_outcomes_calculate_halys.R`.
+
+#### Source fields and their units
+
+| Field/family | Meaning in the source | Correct treatment in HUB |
+| --- | --- | --- |
+| `dead` | Expected deaths per source person in a model cycle, normalized by original HM replicants | Sum across people/cycles for expected deaths; do not describe this as disease incidence |
+| `coronary_heart_disease`, `stroke`, `diabetes`, `depression`, `all_cause_dementia`, individual cancer fields, `parkinson.s_disease` | Expected disease-event contributions per source person-cycle | Sum for expected disease cases/events, not the number of unique people with any disease |
+| `unhealthy` | Net transition into diseased-or-dead state per source person-cycle | Accumulate to reconstruct healthy state; negative values can represent recovery/remission, not invalid incidence |
+| `depression_remission` | Modelled depression remission/exits per person-cycle | Use in prevalence reconstruction; not a disease-benefit headline by itself |
+| `death_share_*` | Proportion of deaths occurring with each disease, conditional on deaths in that cycle | Use in prevalence/HALY reconstruction; never sum as deaths or cases |
+| `ly`, `hly`, `yrs_*` in other/overall HM artifacts | Life, healthy-life or disease-state years per modelled person | Not the current Tab 5 aggregation input; current LY/HLY are reconstructed from cycle states, avoiding summing pre-aggregated horizon totals again |
+| `haly`, added by HUB | Health-adjusted person-years contributed in one model cycle | Sum across people and years; benefits have the opposite sign to prevented deaths/cases |
+| `d_*`, added by lookup/HUB | CF minus REF, in the units of the corresponding field | Retain that sign internally; convert to benefit direction only for presentation |
+
+The UI catalogue maps mortality to `dead`; CVD to coronary heart disease plus
+stroke; cancers to the ten configured cancer streams; other options to their
+named underlying stream. The headline disease total counts each configured raw
+stream once. **Do not sum displayed CVD with IHD/stroke, or cancers with their
+displayed subtypes:** those selections overlap. Likewise deaths, cases and HALYs
+are different quantities and must not be added into one generic health total.
+
+#### Aggregation formulas
+
+Let `r[i,t]` and `c[i,t]` be REF/CF person-cycle contributions and `w` the
+configured person weight. The current model uses annual cycles.
+
+```text
+annual REF expected total[t] = sum_i(w * r[i,t])
+annual CF expected total[t]  = sum_i(w * c[i,t])
+period total                = sum over included positive model cycles
+raw delta                   = CF total - REF total
+
+deaths/cases prevented      = REF total - CF total
+life-years/HALYs gained     = CF total - REF total
+relative improvement (%)   = 100 * benefit / REF total
+benefit per 100,000 people  = 100000 * benefit / represented population
+```
+
+Compute ratios **after summing their numerators and denominators**, not by
+averaging individual percentages. A zero REF denominator gives an unavailable
+percentage, not zero benefit. A period total per 100,000 is **not an incidence
+rate per person-year**; no at-risk person-time denominator is calculated here.
+Annual plots use represented people with source rows in that cycle. Cumulative
+plots and overall totals use the cohort denominator (maximum population across
+cycles within each baseline age/sex stratum), not a sum of repeated person-years
+or a shrinking final-cycle denominator. Age groups use baseline age.
+
+For modelled year contributions, transformation comes before aggregation:
+
+```text
+LY[i,t]  = 1 - cumulative deaths[i,0:t]
+HLY[i,t] = 1 - cumulative net unhealth[i,0:t]
+HALY[i,t] = LY[i,t] * (1 - residual pYLD[i,t])
+            * (1 - sum_d(prevalence_among_alive[d,i,t] * adjusted_DW[d,i,t]))
+```
+
+HUB reconstructs prevalence from disease inflows and deaths/remission. See the
+HALY section above for details. Cycle 0 initializes these states but earns no
+reported life-year/HALY and is not counted as an incident event in Tab 5. This
+is a discrete annual-cycle convention, not a within-year survival integral.
+Currently main tables and plots include all available nonzero cycles, while
+AMAT/headline totals stop at the configured assessment horizon. This is not
+intrinsically wrong: it can represent full-follow-up plots alongside a shorter
+appraisal summary. It does require explicit period labels if those differ.
+Whether all products should instead use one horizon is an open decision; no
+change to that selection policy has been made in this review.
+Missing late-life source rows are not newly observed zero-event years.
+
+**One record, one appraisal person:** user counts are real-person targets and
+health aggregation uses `person_weight = 1` by default for all datasets. Leeds'
+historical 163.552 source expansion is retained only as `source_person_weight`.
+Sampling, eligible donor pools and replacement rules are unchanged. Absolute
+Leeds health totals are consequently 1/163.552 of the previous weighted totals
+for identical sampled records; percentages and per-100,000 results are unchanged.
+Recreate `cfg` and rerun the appraisal: existing result objects and previously
+saved configurations retain their old weight. Explicit custom `person_weight`
+overrides remain supported but depart from the default real-person contract.
+
+#### Labels and mode attribution
+
+Use "expected deaths", "expected disease cases", "life-years gained" and
+"HALYs gained" as appropriate. For a mixed percentage overview use "health
+improvement from reference (%)", since fewer deaths/cases but more HALYs are
+beneficial. Do not label the combined panel "incidence rates by disease".
+Unlike outcome units must remain separate even when plotted together.
+
+Mode-specific health effects are allocations of the combined person's health
+delta using signed mode-specific MMET changes. They are not separately modelled
+REF/CF burdens. Their absolute REF/CF values and relative percentages are
+therefore unavailable; attributable changes can be reported as counts or per
+100,000. Opposing mode effects can produce negative allocations or shares above
+100%, while the allocated effects sum to the combined effect.
+
+#### Inspect actual source values
+
+Run `inst/workflows/dev_health_outcome_audit.R` with HUB loaded. It writes the
+outcome catalogue, numeric field ranges/missingness and row counts by cycle.
+By default it reads the configured death-share cycle source. To inspect the
+calculated run instead, first set:
+
+```r
+audit_health_data <- hub$counterfactual_data$health_outcomes
+source("inst/workflows/dev_health_outcome_audit.R")
+```
+
+The 2026-09-07 Leeds source audit found 192,116 rows covering cycles 0-40:
+5,000 rows in cycles 0-10, falling to 3,988 in cycle 40. `dead` ranged from
+0 to 0.297, `diabetes` from 0 to 0.375, `unhealthy` from -0.067 to 0.789;
+death shares ranged within 0-1. No non-finite values occurred in these fields.
+These are descriptive checks, not independent validation of HM probabilities.
+
+Remaining review points: aggregation currently uses `na.rm = TRUE` and can
+hide missing values in future datasets; custom outcome definitions must follow
+the supported event/year semantics; source follow-up coverage and the separate
+real/synthetic unit contract need continued review. The audit should be rerun
+when HM data are replaced.
 
 `prepare_results_data()` prepares compact Step 8 outputs for MIAMA-UI. The
 expensive reference, counterfactual, and HM steps run before this function;
@@ -2189,11 +2393,35 @@ captions adapt to metric, impact type, annual/cumulative presentation, and
 grouping. They do not currently enumerate every selection snapshot filter in
 the title or caption; the separate `filters` table records that context.
 
-Word report generation requires Pandoc. PDF additionally requires a working
-PDF engine/LaTeX installation in the deployment environment; UI should disable
-or handle that download gracefully until Connect has been verified. The first
-report draft includes pre-filled text and tables; plot embedding and final
-branding remain report-template work.
+### Appraisal report: inputs, results and assumptions
+
+`write_results_report(results_exports, "report.html", format = "html")`
+creates a self-contained, printable report without Pandoc or LaTeX. Word still
+requires Pandoc; the HUB PDF writer additionally requires a PDF engine. The UI
+report card offers HTML and Word rather than a placeholder PDF download.
+
+The report covers the appraisal metadata, submitted settings, effective
+calculation inputs (including accepted population/trip values), realized travel
+totals, health results and annual impacts, completion assumptions with provenance,
+and configured sampling/model parameters. The XLSX export includes corresponding
+`Calculation_inputs`, `Submitted_settings`, `Completion_assumptions` and
+`Model_parameters` sheets. Tables are not silently truncated at 100 rows.
+
+`R/results_appraisal_record.R` owns the record and report sections. The calculation
+record is captured by `prepare_results_data()`; `Hub$build_results_data()` adds
+submitted settings, effective assumptions and descriptive metadata from the
+completed run. Older results objects remain exportable but missing sections are
+marked as not recorded. Rebuild results to obtain the full record.
+
+Interpret the sections separately: a saved setting can be inactive; configuration
+contains defaults which explicit inputs may override; requested percentages do
+not prove an identical realized split. This is a parameter record, not a full
+sampling-event audit or uncertainty analysis. Raw people/trips, profile
+`additional_data` and local data paths are not exported. Plot embedding, detailed
+realized donor/fallback diagnostics and final branding remain follow-up work.
+The existing export selection snapshot is unchanged and is listed in the report;
+later Tab 5 plot-filter edits do not change it. Headline metrics cover the whole
+appraisal even if an explicit export selection narrows the health tables.
 
 The AMAT health timeline uses the canonical assessment period configured at
 `cfg$results$assessment_period_years` (currently 40 years).

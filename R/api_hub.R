@@ -172,12 +172,34 @@ Hub <- R6::R6Class(
         ui_updates = reference_ui_values$ui_updates
       )
       defaults_report <- attr(updated_profile, "reference_defaults_report")
+      updated_profile <- prepare_assumption_profile(
+        updated_profile, source_data = self$reference_default_data, cfg = self$cfg
+      )
 
       self$request <- receive_appraisal_inputs(updated_profile)
       self$appraisal_inputs <- self$request$appraisal_inputs_in
       attr(self$appraisal_inputs, "reference_defaults_report") <- defaults_report
 
       self$appraisal_inputs
+    },
+
+    # Lightweight card preparation; never reload or resample geography here.
+    get_assumption_profile = function(profile = NULL) {
+      profile <- profile %||% self$appraisal_inputs
+      # Keep already presented defaults stable through CF edits/navigation.
+      # Geographic reload explicitly rebuilds them in the reference method.
+      fields <- unlist(lapply(.miama_supported_modes(), function(mode) {
+        paste0(.assumption_catalogue()$prefix, .counterfactual_mode_spec(mode)$suffix)
+      }))
+      if (all(vapply(fields, function(name) {
+        is.list(profile[[name]]) && !is.null(profile[[name]]$assumption)
+      }, logical(1)))) return(profile)
+      prepare_assumption_profile(
+        profile,
+        reference_data = self$refinement_reference_data,
+        source_data = self$reference_default_data %||% self$reference_data,
+        cfg = self$cfg
+      )
     },
 
     build_refinement_profile_defaults = function(profile = NULL,
@@ -691,6 +713,15 @@ Hub <- R6::R6Class(
       self$results_data$appraisal_summary <- population_summary
       self$appraisal_inputs <- .populate_appraisal_summary_defaults(
         self$appraisal_inputs, population_summary)
+      self$results_data$assumptions <- get_appraisal_assumptions(self$appraisal_inputs)
+      self$results_data$appraisal_record$submitted_settings <-
+        .appraisal_submitted_settings(self$appraisal_inputs)
+      metadata_keys <- c("appraisal_name", "geo_name", "geo_level", "geo_id",
+                         "ui_version", "modes", "intervention_type", "data_source",
+                         "population_size")
+      self$results_data$appraisal_record$metadata_profile <- setNames(
+        lapply(metadata_keys, function(key)
+          .results_export_profile_value(self$appraisal_inputs, key)), metadata_keys)
 
       self$results_data
     },
