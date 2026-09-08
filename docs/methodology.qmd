@@ -66,6 +66,23 @@ selected geography.
 
 # Reference synthetic population
 
+## Packaged geographic samples
+
+Two independent LAD profiles are available: Leeds (5,000 people) and
+Manchester (10,000 people, Manchester LAD rather than Greater Manchester).
+Manchester is a simple random sample without replacement from 27,864 source
+individuals, using seed 20260908. The same selected person IDs identify the
+associated trip records, overall health outcomes and death-share cycle histories.
+The build rejects missing health histories and duplicate person/person-cycle
+health records. It does not rerun the health model or invent new observations.
+
+Profiles are kept in separate directories and share common health lookup and
+disability-parameter files. Geographic source expansion (55.728 for Manchester)
+is recorded as provenance only; each selected appraisal row still represents
+one person. A larger profile increases the distinct donor evidence available,
+not the weight of each appraisal record. Profile selection occurs before
+loading reference data and is distinct from subsequent REF/CF appraisal sampling.
+
 ## Unit of representation
 
 The synthetic population represents approximately 5% of the source population.

@@ -5,6 +5,8 @@ test_that("mixed health outcomes use units and signs appropriate to the plotted 
   results <- prepare_results_data(list(health_outcomes = health), cfg = cfg,
     results_request = list(res_outcomes = c("mortality", "halys")))
   percent <- results_plot_health_overview(results, metric = "percent_reduction")
+  expect_equal(percent$data$bar_tone[percent$data$outcome == "mortality"], "Mortality gain")
+  expect_true("#102E25" %in% ggplot2::ggplot_build(percent)$data[[2]]$fill)
   expect_equal(percent$labels$y, "Improvement (%)")
   expect_match(percent$labels$caption, "counterfactual minus reference for HALYs")
   for (metric in c("prevented", "prevented_per_100000")) {

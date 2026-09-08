@@ -282,17 +282,21 @@ results_plot_health_overview <- function(
     )
   }
 
+  plot_data$bar_tone <- ifelse(plot_data$outcome == "mortality" &
+                                plot_data$direction == "Health gain",
+                              "Mortality gain", as.character(plot_data$direction))
   ggplot2::ggplot(
     plot_data,
     ggplot2::aes(
       x = stats::reorder(outcome_label, .data[[y_col]]),
-      y = .data[[y_col]], fill = direction, text = tooltip_text
+      y = .data[[y_col]], fill = bar_tone, text = tooltip_text
     )
   ) +
     ggplot2::geom_hline(yintercept = 0, color = "grey65", linewidth = 0.35) +
     ggplot2::geom_col(width = 0.68) +
     ggplot2::coord_flip() +
-    ggplot2::scale_fill_manual(values = c("Health gain" = "#087E6A", "Health loss" = "#C94C4C")) +
+    ggplot2::scale_fill_manual(values = c("Health gain" = "#087E6A",
+      "Mortality gain" = "#102E25", "Health loss" = "#C94C4C")) +
     ggplot2::labs(
       title = labels$title, subtitle = labels$subtitle, caption = labels$caption,
       x = labels$x, y = labels$y, fill = NULL

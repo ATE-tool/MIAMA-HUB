@@ -159,7 +159,8 @@ miama_pick_hm_source <- function(data_dir,
 miama_paths <- function(dataset_size = NULL) {
   project_root <- miama_project_root()
   hm_root      <- miama_hm_root_or_null()
-  uses_packaged_profile <- isTRUE(dataset_size %in% c("sample", "leeds"))
+  lad_profile <- isTRUE(dataset_size %in% c("leeds", "manchester"))
+  uses_packaged_profile <- identical(dataset_size, "sample") || lad_profile
   packaged_data_dir <- if (uses_packaged_profile) {
     miama_packaged_data_dir(project_root)
   } else {
@@ -170,15 +171,15 @@ miama_paths <- function(dataset_size = NULL) {
     # existing MIAMA_DATA_ROOT to replace only the SP side creates targets from
     # full SP rows that cannot be applied to the much smaller sample HM join.
     packaged_data_dir
-  } else if (identical(dataset_size, "leeds")) {
-    # The Leeds profile is a self-contained, aligned SP/HM subset intended for
+  } else if (lad_profile) {
+    # Each LAD profile is a self-contained, aligned SP/HM subset intended for
     # realistic local and published-app testing without external full data.
-    file.path(packaged_data_dir, "profiles", "leeds")
+    file.path(packaged_data_dir, "profiles", dataset_size)
   } else {
     miama_runtime_data_dir(project_root)
   }
   hm_processed <- if (is.null(hm_root)) NULL else file.path(hm_root, "health_data", "processed")
-  profile_hm_processed <- if (identical(dataset_size, "leeds")) NULL else hm_processed
+  profile_hm_processed <- if (lad_profile) NULL else hm_processed
 
   sp_attributes <- miama_pick_synthpop_source(data_dir, "SPindivid_CensusNTSALS")
   sp_trips      <- miama_pick_synthpop_source(data_dir, "SPtrip_CensusNTSALS")
@@ -196,7 +197,7 @@ miama_paths <- function(dataset_size = NULL) {
     data_dir,
     profile_hm_processed,
     "mmet_d_cycle_lookup_death_share",
-    fallback_data_dirs = if (identical(dataset_size, "leeds")) packaged_data_dir else character()
+    fallback_data_dirs = if (lad_profile) packaged_data_dir else character()
   )
 
   list(
