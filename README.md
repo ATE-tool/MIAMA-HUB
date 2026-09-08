@@ -2006,6 +2006,32 @@ into one `selected_modes` series; selecting one mode returns that mode alone.
 Leaving `modes = NULL` in those combined views uses the canonical `all_modes`
 health result.
 
+#### Reporting units in the current UI
+
+The age plot and timeline now pass `modes = NULL`: they show combined appraisal
+health outcomes filtered by age/sex/outcome. Mode selections apply to the separate
+mode-impact and trip plots only. The main overview remains fixed and unfiltered.
+Timeline Presentation affects only the timeline, not the age/mode bars.
+
+| Reporting unit | Benefit/difference plots | Separate REF/CF timeline |
+| --- | --- | --- |
+| Absolute values | Deaths/cases prevented or HALYs gained | Expected deaths/cases or HALYs in each scenario |
+| Values per 100,000 people | Benefit divided by assessed population, times 100,000 | Each scenario value divided by assessed population, times 100,000 |
+| Percentage improvement | 100 times benefit divided by REF outcome total | Unsupported; use the benefit view or another unit |
+
+Positive benefit means REF minus CF for deaths/cases and CF minus REF for HALYs.
+Age/mode bars cover the included assessment cycles; timelines are cumulative by
+default. Cumulative per-100,000 values use the represented cohort denominator,
+not a denominator shrinking as late-cycle source rows disappear. This is not an
+incidence rate per person-year. Outcome panels label their units explicitly and
+unlike outcomes are not added together.
+
+Mode-attributed percentages have no separate REF denominator. HUB now displays
+an explanatory unavailable view instead of silently switching to absolute values.
+Separate REF/CF plots likewise explain that percentage improvement requires a
+difference view. UI captions come from the actual generated plot; filter-only
+changes do not rerun sampling or the health model.
+
 The central UI plotting contract is returned directly by `Hub$build_results()`
 as `result$plot_data` and is also available as
 `result$results_data$plot_data`. Both names refer to the same compact object in

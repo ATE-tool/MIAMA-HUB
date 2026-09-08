@@ -128,14 +128,14 @@
       default = "total"
     ),
     impact_type = list(
-      values = c("Attributable cases" = "attributable", "Counterfactual vs. reference" = "cf_vs_ref"),
+      values = c("Health benefit (difference)" = "attributable", "Counterfactual vs. reference" = "cf_vs_ref"),
       default = "attributable"
     ),
     metric = list(
       values = c(
-        "Prevented cases per 100,000" = "prevented_per_100000",
-        "Prevented cases" = "prevented",
-        "Percent reduction" = "percent_reduction"
+        "Values per 100,000 people" = "prevented_per_100000",
+        "Absolute values" = "prevented",
+        "Percentage improvement" = "percent_reduction"
       ),
       default = "prevented_per_100000"
     ),

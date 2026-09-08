@@ -377,7 +377,7 @@ test_that("result plotting functions return ggplot objects", {
   expect_match(overview$data$tooltip_text, "<b>All-cause mortality</b>")
   expect_match(overview$data$tooltip_text, "Active mode: All modes")
   expect_match(overview$data$tooltip_text, "Reduction from reference: .+%")
-  overview_scenario <- results_plot_health_overview(results_data, impact_type = "cf_vs_ref")
+  overview_scenario <- results_plot_health_overview(results_data, impact_type = "cf_vs_ref", metric = "prevented")
   expect_s3_class(overview_scenario, "ggplot")
   expect_true(all(c("Scenario: Reference", "Scenario: Counterfactual") %in%
     sub(".*<br>(Scenario: [^<]+)<br>.*", "\\1", overview_scenario$data$tooltip_text)))

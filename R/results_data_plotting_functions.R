@@ -113,7 +113,10 @@ results_filter_health_data <- function(
   if (!"mode" %in% names(out)) {
     out$mode <- "selected_modes"
   }
-  out$population <- .results_cube_population(cube, group_cols, out)
+  population_groups <- if (aggregation == "timeline" && timeline_type == "cumulative") {
+    setdiff(group_cols, "cycle")
+  } else group_cols
+  out$population <- .results_cube_population(cube, population_groups, out)
   attributed <- out$mode != "all_modes"
   out$ref_value[attributed] <- NA_real_
   out$cf_value[attributed] <- NA_real_
@@ -187,7 +190,11 @@ results_plot_health_overview <- function(
     return(.results_empty_plot("Reference versus counterfactual burden is available for all modes only"))
   }
   if (any(plot_data$mode != "all_modes") && identical(metric, "percent_reduction")) {
-    metric <- "prevented"
+    return(.results_percentage_unavailable("mode"))
+  }
+
+  if (impact_type == "cf_vs_ref" && metric == "percent_reduction") {
+    return(.results_percentage_unavailable("scenario"))
   }
 
   labels <- .results_health_plot_labels(
@@ -208,12 +215,15 @@ results_plot_health_overview <- function(
       transform(plot_data, scenario = "Reference", value = ref_value),
       transform(plot_data, scenario = "Counterfactual", value = cf_value)
     )
+    if (metric == "prevented_per_100000") {
+      scenario_data$value <- 100000 * .results_divide_or_na(scenario_data$value, scenario_data$population)
+    }
     scenario_data$scenario <- factor(scenario_data$scenario, levels = c("Reference", "Counterfactual"))
     scenario_data$outcome_label <- stats::reorder(scenario_data$outcome_label, scenario_data$value)
     scenario_data$tooltip_text <- .results_health_tooltip(
       scenario_data,
       value = scenario_data$value,
-      metric = "modelled",
+      metric = if (metric == "prevented_per_100000") "modelled_per_100000" else "modelled",
       scenario = scenario_data$scenario,
       period = "Cumulative"
     )
@@ -317,7 +327,7 @@ results_plot_health_impacts <- function(
   if (nrow(plot_data) == 0) return(.results_empty_plot("No detailed health-impact data available"))
 
   if (any(plot_data$mode != "all_modes") && identical(metric, "percent_reduction")) {
-    metric <- "prevented"
+    return(.results_percentage_unavailable("mode"))
   }
 
   y_col <- switch(
@@ -367,7 +377,8 @@ results_plot_health_impacts <- function(
       text = tooltip_text
     )
   ) +
-    ggplot2::facet_wrap(~outcome_label, scales = "free_y") +
+    ggplot2::facet_wrap(~outcome_label, scales = "free_y",
+      labeller = .results_unit_labeller(plot_data, metric)) +
     ggplot2::scale_fill_manual(values = .results_group_colors(length(group_levels)))
 
   p +
@@ -415,7 +426,10 @@ results_plot_health_timeline <- function(
     return(.results_empty_plot("No timeline data available"))
   }
   if (any(plot_data$mode != "all_modes") && identical(metric, "percent_reduction")) {
-    metric <- "prevented"
+    return(.results_percentage_unavailable("mode"))
+  }
+  if (impact_type == "cf_vs_ref" && metric == "percent_reduction") {
+    return(.results_percentage_unavailable("scenario"))
   }
 
   labels <- .results_health_plot_labels(
@@ -437,6 +451,9 @@ results_plot_health_timeline <- function(
       transform(plot_data, scenario = "Reference", value = ref_value),
       transform(plot_data, scenario = "Counterfactual", value = cf_value)
     )
+    if (metric == "prevented_per_100000") {
+      scenario_data$value <- 100000 * .results_divide_or_na(scenario_data$value, scenario_data$population)
+    }
     scenario_data$scenario <- factor(scenario_data$scenario, levels = c("Reference", "Counterfactual"))
     scenario_data$outcome_label <- factor(
       scenario_data$outcome_label,
@@ -445,7 +462,7 @@ results_plot_health_timeline <- function(
     scenario_data$tooltip_text <- .results_health_tooltip(
       scenario_data,
       value = scenario_data$value,
-      metric = "modelled",
+      metric = if (metric == "prevented_per_100000") "modelled_per_100000" else "modelled",
       scenario = scenario_data$scenario,
       cycle = scenario_data$cycle,
       period = if (identical(timeline_type, "cumulative")) "Cumulative" else "Annual"
@@ -462,7 +479,8 @@ results_plot_health_timeline <- function(
         )
       ) +
         ggplot2::geom_line(linewidth = 0.85) +
-        ggplot2::facet_wrap(~outcome_label, scales = "free_y") +
+        ggplot2::facet_wrap(~outcome_label, scales = "free_y",
+          labeller = .results_unit_labeller(plot_data, metric, scenario = TRUE)) +
         ggplot2::scale_color_manual(values = .results_scenario_colors()) +
         ggplot2::labs(
           title = labels$title, subtitle = labels$subtitle, caption = labels$caption,
@@ -509,6 +527,8 @@ results_plot_health_timeline <- function(
   ) +
     ggplot2::geom_hline(yintercept = 0, color = "grey75", linewidth = 0.3) +
     ggplot2::geom_line(linewidth = 0.85) +
+    ggplot2::facet_wrap(~outcome_label, scales = "free_y",
+      labeller = .results_unit_labeller(plot_data, metric)) +
     ggplot2::labs(
       title = labels$title, subtitle = labels$subtitle, caption = labels$caption,
       x = labels$x, y = labels$y, color = NULL
@@ -644,6 +664,7 @@ results_plot_trip_mode_distribution <- function(
   switch(
     metric,
     modelled = paste0(prefix, "modelled ", outcome),
+    modelled_per_100000 = paste0(prefix, "modelled ", outcome, " per 100,000 people"),
     percent_reduction = ifelse(
       outcome_type == "health_years", "Increase from reference", "Reduction from reference"
     ),
@@ -727,6 +748,7 @@ results_plot_trip_mode_distribution <- function(
     } else {
       paste0("Cumulative modelled ", unit)
     }
+    if (metric == "prevented_per_100000") default_y <- paste0(default_y, " per 100,000 people")
     default_subtitle <- if (is_timeline) {
       paste0("Reference and counterfactual values across ", cycle_span)
     } else {
@@ -734,6 +756,7 @@ results_plot_trip_mode_distribution <- function(
     }
     default_caption <- paste(
       "Reference = without scheme; counterfactual = with scheme.",
+      "Scenario totals describe the combined appraisal, not separate mode-attributed burdens.",
       "Values are health-model outputs and should not be summed across unlike outcome types."
     )
   } else {
@@ -754,7 +777,7 @@ results_plot_trip_mode_distribution <- function(
     if (mixed_years && !identical(metric, "percent_reduction")) {
       default_y <- paste0(
         if (is_cumulative || !is_timeline) "Cumulative health benefit" else "Annual health benefit",
-        " (outcome-specific units)",
+        ": deaths/cases prevented or HALYs gained",
         if (identical(metric, "prevented_per_100000")) " per 100,000 residents" else ""
       )
     }
@@ -850,6 +873,26 @@ results_plot_trip_mode_distribution <- function(
       if (is_share) "Share of trip records (%)" else "Trip records per reference week"
     )
   )
+}
+
+.results_percentage_unavailable <- function(kind) {
+  explanation <- if (kind == "mode") {
+    "Mode-attributed impacts have no separate REF denominator. Select absolute values or values per 100,000; use the age plot or benefit timeline for overall percentage improvement."
+  } else {
+    "Percentage improvement is a difference between scenarios. Select Health benefit (difference), or choose absolute values/per 100,000 to display REF and CF separately."
+  }
+  .results_empty_plot("Percentage view unavailable\nfor this comparison") +
+    ggplot2::labs(caption = explanation, x = NULL, y = NULL)
+}
+
+.results_unit_labeller <- function(data, metric, scenario = FALSE) {
+  data <- data[!duplicated(data$outcome_label), , drop = FALSE]
+  label <- .results_health_tooltip_value_name(data$outcome_type,
+    if (scenario) {
+      if (metric == "prevented_per_100000") "modelled_per_100000" else "modelled"
+    } else metric, period = NULL)
+  if (metric == "percent_reduction") label <- paste0(label, " (%)")
+  ggplot2::as_labeller(setNames(paste0(data$outcome_label, "\n", label), data$outcome_label))
 }
 
 .results_health_outcome_unit <- function(plot_data) {

@@ -9,13 +9,13 @@ test_that("mixed health outcomes use units and signs appropriate to the plotted 
   expect_match(percent$labels$caption, "counterfactual minus reference for HALYs")
   for (metric in c("prevented", "prevented_per_100000")) {
     plot <- results_plot_health_impacts(results, metric = metric)
-    expect_match(plot$labels$y, "outcome-specific units", fixed = TRUE)
+    expect_match(plot$labels$y, "deaths/cases prevented or HALYs gained", fixed = TRUE)
     expect_identical(grepl("100,000", plot$labels$y), metric == "prevented_per_100000")
   }
   single <- results_plot_health_overview(results, outcomes = "halys", metric = "percent_reduction")
   expect_equal(single$labels$y, "Increase from reference (%)")
   modelled <- results_plot_health_timeline(results, impact_type = "cf_vs_ref",
-    metric = "percent_reduction")
+    metric = "prevented")
   expect_match(modelled$labels$y, "modelled", ignore.case = TRUE)
   expect_false(grepl("%", modelled$labels$y, fixed = TRUE))
 })
