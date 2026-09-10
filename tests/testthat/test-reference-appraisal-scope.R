@@ -411,14 +411,14 @@ test_that("positive CF trips supply a population boundary when REF trips are zer
   expect_gt(sum(counterfactual$ind$cf_in_scope), 0)
 })
 
-test_that("explicit zero population is overridden only to support positive CF activity", {
+test_that("explicit zero population cannot contain positive CF users", {
   reference_data <- list(ind = data.frame(
     census_id = 1:10,
     walktime_wkhr = c(rep(1, 4), rep(0, 6)),
     cycletime_wkhr = 0
   ))
 
-  scoped <- apply_reference_appraisal_scope(
+  expect_error(apply_reference_appraisal_scope(
     reference_data,
     appraisal_input_values = list(
       at_data_unit = "users", modes = "walking",
@@ -427,15 +427,7 @@ test_that("explicit zero population is overridden only to support positive CF ac
       users_count_cf_walk = 2
     ),
     seed = 10
-  )
-
-  expect_equal(sum(scoped$ind$ref_in_scope), 5)
-  expect_equal(scoped$reference_scope_report$person$submitted, 0)
-  expect_equal(scoped$reference_scope_report$person$submitted_population, 0)
-  expect_equal(
-    scoped$reference_scope_report$person$method,
-    "counterfactual_activity_support_override"
-  )
+  ), "cannot exceed the fixed population total")
 })
 
 test_that("all trip-derived Tab 2 units use CF volume when REF volume is zero", {

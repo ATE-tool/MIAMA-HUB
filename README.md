@@ -1211,18 +1211,41 @@ HUB applies the same source-rate population estimate to the CF user or converted
 weekly-trip target. If the source has no observable rate for a positive CF mode
 (notably e-bike), it retains the full geographic person pool as the defensible
 fallback. Direct trips, distance, duration, and mode-share inputs all pass
-through this rule. A positive explicit population remains authoritative; an
-explicit zero is overridden only when needed to support positive CF activity.
+through this rule. This fallback applies to zero activity with no explicit
+population constraint; an explicitly entered population total remains binding.
 
 CF starts from these flags. Added users are taken first from eligible baseline
 non-users already inside REF scope. If that pool is insufficient, HUB recruits
 eligible baseline non-users from the retained geographic source population and
-marks them `cf_in_scope`. This expands the assessed CF boundary without
-duplicating synthetic people or changing REF. Existing trips become eligible
+marks them `cf_in_scope` only when the population total is inferred. With an
+explicit total, mode-user changes stay inside that boundary. Existing trips become eligible
 for switching only for people in CF scope. Cycle health data are calculated for
 the final CF scope, comparing each included person's original exposure with
 their CF exposure. `build_results()` returns the scope diagnostics as
 `reference_scope_report` as well as attaching them to `reference_data`.
+
+### Explicit population totals are binding
+
+`R/appraisal_population_contract.R` enforces one shared REF/CF total for an
+explicit basic population entry. Accepted advanced Tab 3 totals may differ
+between REF and CF; their respective counts govern subsequent allocation.
+Generated suggestions are not binding overrides until the profile/staging
+contract accepts them. With no explicit total, inferred recruitment remains
+available. The counterfactual report records `population_contract`.
+
+An appraisal of 10,000 people may reuse 5,000 donors, but still assesses exactly
+10,000 people. Donor reserve rows do not enlarge the assessment. Additional
+mode users are allocated within its boundary, including people using another
+AT mode; mode membership is not exclusive. A request for 1,200 cyclists inside
+an explicit total of 1,000 is rejected with an actionable input error, not
+clamped or used to enlarge the total. More trips can instead be assigned to the
+same people using the existing trip-pattern reuse mechanism.
+
+Tab 3 can deliberately revise the accepted population. Tab 4 trip changes do
+not provide permission to enlarge that population. Hard category exclusions
+still apply, and may make a requested change infeasible; donor reuse does not
+override exclusions. This HUB rule does not resolve T11's UI modal save/discard
+handling or the wider T3 state-lifecycle review.
 
 ### Initialize counterfactual data
 `init_counterfactual_data()` starts Step 6 by returning a 1:1 copy of filtered
@@ -1250,8 +1273,8 @@ the UI:
    age/sex/PA spread controls instead change sampling probabilities; they are
    not hard quotas.
 4. **CF population.** CF starts as a copy of refined REF. HUB then changes user
-   and trip status. It can recruit baseline non-users from outside REF, but still
-   inside the geographic source population.
+   and trip status. An explicit total fixes its size; only an inferred boundary
+   may expand through recruitment from the retained donor pool.
 
 HUB constructs the snapshots in this order:
 
@@ -1266,8 +1289,9 @@ HUB constructs the snapshots in this order:
    requested active-mode trip rows. Their original behavior and health exposure
    remain unchanged.
 5. Copy the REF flags to initialize CF.
-6. Apply CF user changes. In-scope baseline non-users are used first; additional
-   baseline non-users are recruited from the geographic source pool when needed.
+6. Apply CF user changes within an explicit population boundary. Without an
+   explicit total, in-scope baseline non-users are used first and additional
+   baseline non-users may be recruited from the geographic source pool.
 7. Apply CF trip changes. Existing eligible trips are switched where possible;
    configured induced trips are represented as additional trip rows.
 8. Recalculate active-travel exposure/MMETs for changed people and compare their
@@ -1282,10 +1306,10 @@ The operational rules are:
    users, a labelled cycling proxy can supply reference e-bike donors.
 2. **CF starts from REF.** Every REF person initially belongs to CF and keeps
    their original behavior until selected for a change.
-3. **More CF users may expand CF.** Eligible baseline non-users already in CF
+3. **More CF users may expand an inferred CF scope only.** Eligible baseline non-users already in CF
    scope are converted first. Any shortfall is sampled from baseline non-users
    elsewhere in the retained geography; those people and their existing trips
-   are then marked `cf_in_scope`.
+   are then marked `cf_in_scope`. Explicit totals prohibit this expansion.
 4. **Fewer CF users do not remove residents.** Selected current users become
    ex-users, but remain in CF scope with their other behavior intact.
 5. **More CF trips use shifts plus induction.** Existing eligible utilitarian
@@ -1319,16 +1343,16 @@ things:
   but preferred age/sex/PA weighting cannot fill the sample. HUB takes all
   positive-weight candidates and samples the unavoidable remainder uniformly.
   This relaxation is recorded in the counterfactual report.
-- **Too few CF non-users in scaled REF:** this is not an error. HUB recruits the
+- **Too few CF non-users in an inferred scaled REF:** HUB recruits the
   shortfall from eligible baseline non-users elsewhere in the geographic source
   population and expands `cf_in_scope`.
 - **Zero REF with positive CF activity:** this is not an empty appraisal. HUB
   infers a non-zero person boundary from the CF user or trip-equivalent volume;
   if no source rate exists, it uses the full geographic person pool. REF mode
   users/trips remain zero, while realized CF trip owners are marked as CF users.
-- **Too few eligible people in the full geography:** HUB stops. Automatically
-  duplicating people or ignoring selected categories would change the appraisal
-  question and bias uncertainty, so this requires a revised target or categories.
+- **Too few distinct eligible people in the full geography:** eligible donors
+  may be reused with new appraisal IDs. Zero eligible donors still requires a
+  revised target or categories; reuse cannot invent missing donor evidence.
 - **Too few observed REF trips among the selected users:** HUB keeps the fixed
   trip target, samples observed geographic donor trip patterns with replacement,
   and assigns them to the fixed users. The warning and scope report expose how

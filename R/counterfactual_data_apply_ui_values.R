@@ -31,8 +31,8 @@
 #
 # Current scope:
 # - The full geography is the source from which the assessed REF person scope is
-#   sampled. CF starts with that boundary, but may recruit baseline non-users
-#   from the retained geography when its user target exceeds the REF scope.
+#   sampled. CF starts with that boundary. Explicit population totals are fixed;
+#   only inferred scopes may recruit additional people from the retained geography.
 # - Individual source rows stay fixed. Recruitment expands `cf_in_scope`; it
 #   does not duplicate people or alter the reference snapshot.
 # - Key indicators (`user_walk`, `user_bike`, `user_ebike`, `user_pt`,
@@ -50,8 +50,8 @@
 #
 # Current constraints:
 # - Counterfactual user-count targets must be finite, non-negative integers after
-#   rounding. Increases are limited by eligible baseline non-users in the full
-#   filtered geography, not by the smaller assessed REF person scope.
+#   rounding. With a fixed total, increases use eligible people inside CF scope.
+#   Otherwise eligible baseline non-users in the filtered geography may join CF.
 # - E-bike reference volume is zero because source bicycle records are retained
 #   as conventional cycling. Cycling supplies donor patterns for e-bike CF
 #   changes. PT contributes physical activity only through access walking.
@@ -85,12 +85,18 @@ apply_counterfactual_ui_values <- function(
   counterfactual_data <- context$counterfactual_data
   report <- .counterfactual_report_init(counterfactual_data)
   report$tab2_input_conversion <- context$tab2_input_conversion
+  report$population_contract <- .explicit_population_contract(context$values)
 
   for (handler in .counterfactual_ui_handler_registry()) {
     result <- handler(counterfactual_data, context)
     counterfactual_data <- result$counterfactual_data
     report$changes <- c(report$changes, result$changes)
     report$notes <- c(report$notes, result$notes)
+  }
+
+  fixed_total <- report$population_contract$cf$value
+  if (!is.null(fixed_total) && sum(.true_values(counterfactual_data$ind$cf_in_scope)) != fixed_total) {
+    stop("Internal population contract violation: CF allocation changed the fixed total.", call. = FALSE)
   }
 
   # Recalculate once after every individual and trip handler has run. User-count
@@ -150,6 +156,11 @@ apply_counterfactual_ui_values <- function(
     modes = modes
   )
   appraisal_input_values <- tab2_conversion$values
+
+  contract <- .explicit_population_contract(appraisal_input_values)
+  .validate_population_user_counts(appraisal_input_values, contract, modes)
+  counterfactual_data <- .set_fixed_cf_population(
+    counterfactual_data, contract$cf, appraisal_input_values, constants, seed)
 
   counterfactual_data <- cf_add_key_indicators(.prepare_mode_features(counterfactual_data), modes)
   reference_data <- cf_add_key_indicators(.prepare_mode_features(reference_data), modes)
@@ -337,6 +348,7 @@ apply_counterfactual_ui_values <- function(
     constants = constants,
     seed = seed,
     sampling_strategy = sampling_strategy,
+    fixed_population = !is.null(.explicit_population_contract(appraisal_input_values)$cf$value),
     population_target = cf_population_sampling_target(
       appraisal_input_values,
       spec$suffix,
@@ -466,7 +478,8 @@ apply_counterfactual_ui_values <- function(
     constants,
     seed,
     sampling_strategy,
-    population_target
+    population_target,
+    fixed_population = FALSE
 ) {
   if (delta == 0) {
     return(list(
@@ -493,6 +506,12 @@ apply_counterfactual_ui_values <- function(
     }
     source_non_users <- !.positive_col(reference_data$ind, spec$activity_col)
     candidate_rows <- which(!cf_users & source_non_users)
+    if (fixed_population) {
+      # A mode user is defined by the appraisal scope, not the donor's original
+      # mode. Other-mode users may become users of this mode as well. Never add
+      # people outside the fixed boundary merely to meet a mode-user target.
+      candidate_rows <- which(!cf_users & cf_person_scope)
+    }
     candidate_rows <- cf_population_candidate_filter(
       counterfactual_data$ind,
       candidate_rows,
@@ -505,7 +524,8 @@ apply_counterfactual_ui_values <- function(
         paste0(
           "The counterfactual ", spec$mode, " user target is ", current_n + delta,
           ", but only ", length(candidate_rows),
-          " eligible baseline non-users are available in the filtered geographic population."
+          if (fixed_population) " eligible people are available within the fixed population."
+          else " eligible baseline non-users are available in the filtered geographic population."
         ),
         stage = "counterfactual_users",
         fields = c(

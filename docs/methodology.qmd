@@ -832,13 +832,26 @@ nested sampling materially changes results.
 If the counterfactual target exceeds the reference user count, HUB samples
 baseline non-users and marks them as `new_users`. It exhausts eligible
 candidates already inside the assessed population before recruiting from the
-rest of the retained LAD. If the target is lower, HUB samples existing users
+rest of the retained LAD when the population is inferred. An explicit population
+total prohibits that expansion: new mode users must be selected within the
+accepted CF boundary, and may already use another active mode. If the target is lower, HUB samples existing users
 and marks them as `ex_users`; those people remain members of CF scope.
 
-A CF target is not capped by the smaller scaled REF population. Its practical
+A CF target is not capped by the source donor sample size. Its practical
 capacity can grow through reuse of baseline non-users that remain eligible
 under the selected population refinements. If no eligible donor evidence exists,
 HUB returns a structured appraisal-input error with requested and available counts.
+
+An explicit basic total fixes the same number of assessed people in REF and CF.
+Advanced Tab 3 may explicitly set different totals; each then remains binding
+downstream. Reusing 5,000 donors to construct 10,000 assessed records satisfies
+a fixed 10,000-person contract. It does not justify putting 12,000 mode users
+inside those 10,000 people: contradictory mode counts require an input correction.
+Walking/cycling membership can overlap, so their counts are not summed as
+exclusive populations. Trip increases can use donor-pattern replacement without
+increasing person counts. Zero REF activity can still use the CF-based population
+fallback when no total is explicitly supplied. Unused donor reserves remain
+available as evidence but are not additional assessed people.
 
 Candidate probabilities combine the available mode-specific Tab 3 constraints:
 

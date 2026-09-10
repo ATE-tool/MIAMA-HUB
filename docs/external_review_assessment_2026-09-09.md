@@ -22,7 +22,7 @@ only, not calculation, UI, or assumptions code.
 - **Scheme lifetime implemented (`9796294`):** build-up/decline scales annual
   health impacts, including zero-effect years. This is not a new dynamic cohort
   model. Variance comparisons must hold timeline settings constant.
-- **T12 decision agreed, implementation open:** an explicitly entered basic
+- **T12 implemented in HUB:** an explicitly entered basic
   population total is binding for REF and CF. Accepted Tab 3 overrides become
   the binding downstream population targets. See Section 6 for the distinction
   between assessed people and the retained donor pool. T11's UI save/discard
@@ -271,16 +271,20 @@ contract. This assessment has not checked that external contract.
   an explicit way to return to inferred counts. This needs concise UI work, not
   an assumptions rewrite. Controlled observer/collector probes reproduce the
   stale-route and overwrite mechanisms; full browser navigation is unverified.
-- [ ] **T12 / P1, decision agreed: enforce explicitly entered basic population.**
+- [x] **T12 / P1: enforce explicitly entered basic population.**
   An explicitly entered basic total is binding for both REF and CF. It counts
   assessed person records, not trip rows or every retained source donor. The
   source remains available for donor patterns and reuse; its size is not an
   appraisal ceiling. An inferred total is not an explicit user constraint.
   In advanced mode, accepted Tab 3 totals and mode-user counts supersede the
   initial suggestions and remain binding through Tab 4 and results.
-  Current code can still expand `cf_in_scope` during user recruitment, so this
-  decision is not yet implemented. Reproduced: entered total 3, REF mode users
-  2, CF mode users 4 -> populations 3 and 4.
+  `R/appraisal_population_contract.R` validates explicit totals and mode counts,
+  reserves donors without expanding REF, and sets the accepted CF boundary before
+  allocation. Fixed-population user allocation cannot recruit outside it.
+  The former reproduction (total 3, REF users 2, CF users 4) now gives an input
+  error instead of silently producing populations 3 and 4. Explicit zero total
+  with positive users is also contradictory; zero REF activity without an
+  explicit total still uses the CF-based population fallback.
 
   Implementation/acceptance checks:
   - Keep explicit basic REF/CF totals unchanged during CF allocation. New mode
@@ -303,9 +307,9 @@ contract. This assessment has not checked that external contract.
    reports without changing sampling or assumptions; UI presentation can follow
    later. Regression coverage includes overlapping mode changes, copies,
    reserves, empty/missing data, and refreshed results-report counts.
-2. **T12: binding population totals.** A bounded correctness fix, but not just
-   an input validator: CF allocation currently permits scope expansion. Keep
-   it separate from a wholesale T3 rewrite and cover the cases above.
+2. **T12 completed in HUB: binding population totals.** Boundary enforcement
+   and validation are implemented separately from the wider T3 review. UI
+   modal save/discard handling remains T11; test the integrated UI as well.
 3. **T7: precision and no-op invariants.** Small regression-focused follow-up,
    particularly the equivalent-user integer boundary already observed.
 4. **T3: split before implementation.** Start with tests showing where accepted

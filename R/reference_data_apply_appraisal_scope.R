@@ -86,6 +86,9 @@ apply_reference_appraisal_scope <- function(reference_data,
     cf_user_targets = cf_user_targets,
     cf_trip_targets = cf_trip_targets
   )
+  contract <- .explicit_population_contract(appraisal_input_values)
+  .validate_population_user_counts(appraisal_input_values, contract, modes)
+  if (!is.null(contract$ref$value)) person_target$value <- contract$ref$value
   population_target <- cf_population_sampling_target(
     appraisal_input_values,
     spread = cfg$spread %||% miama_default_config()$spread,
@@ -96,6 +99,10 @@ apply_reference_appraisal_scope <- function(reference_data,
     out, person_target$value, user_targets, cf_user_targets,
     population_target, seed
   )
+  # Reserve enough records for a larger accepted CF total without enlarging REF.
+  if (!is.null(contract$cf$value)) {
+    out <- .expand_person_donor_pool(out, contract$cf$value, list(), list(), population_target, seed + 1L)
+  }
   eligible_people <- cf_population_candidate_filter(
     out$ind,
     seq_len(nrow(out$ind)),
@@ -485,7 +492,7 @@ apply_reference_appraisal_scope <- function(reference_data,
     label = "reference population", integer = TRUE
   )
   data_unit <- .ui_value(values, "at_data_unit", NULL)
-  if (!is.null(explicit$value) && explicit$value > 0) {
+  if (!is.null(explicit$value)) {
     explicit$method <- "explicit_population"
     explicit$data_unit <- data_unit
     explicit$pooled_requested <- NA_real_
