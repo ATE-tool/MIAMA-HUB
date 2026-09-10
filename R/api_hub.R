@@ -57,6 +57,18 @@ Hub <- R6::R6Class(
     },
 
     set_appraisal_inputs = function(appraisal_inputs) {
+      obsolete <- grep("^(default_trip_|default_trips_per_user_|assump_trip_speed_(walk|bike|ebike|pt)$|pop_new_current_perc$|induced_trips_percent$|trips_diversion_sources_)",
+                       names(appraisal_inputs), value = TRUE)
+      if (length(obsolete)) stop("The UI appraisal schema needs the canonical assumption IDs. Update default.R and its UI consumers; obsolete fields: ",
+                                 paste(obsolete, collapse = ", "), call. = FALSE)
+      parameters <- appraisal_inputs$appraisal_model_parameters
+      if (!is.null(parameters)) {
+        saved <- .assumption_entry_value(parameters)
+        for (section in intersect(names(saved), c("physical_activity", "counterfactual", "spread",
+                                                  "population_refinement", "results", "population"))) {
+          self$cfg[[section]] <- saved[[section]]
+        }
+      }
       new_request <- receive_appraisal_inputs(appraisal_inputs)
 
       if (!is.null(self$request)) {
@@ -172,6 +184,10 @@ Hub <- R6::R6Class(
         ui_updates = reference_ui_values$ui_updates
       )
       defaults_report <- attr(updated_profile, "reference_defaults_report")
+      # Resolve into the appraisal record, never from a card-render callback.
+      updated_profile <- prepare_assumption_profile(
+        updated_profile, source_data = self$reference_default_data, cfg = self$cfg
+      )
 
       self$request <- receive_appraisal_inputs(updated_profile)
       self$appraisal_inputs <- self$request$appraisal_inputs_in
@@ -180,13 +196,33 @@ Hub <- R6::R6Class(
       self$appraisal_inputs
     },
 
+    prepare_assumptions = function(profile = NULL, restore = FALSE) {
+      prepare_assumption_profile(profile %||% self$appraisal_inputs,
+        reference_data = self$refinement_reference_data,
+        source_data = self$reference_default_data %||% self$reference_data,
+        cfg = self$cfg, restore = restore)
+    },
+
+    get_appraisal_assumptions = function(profile = NULL, tab = NULL) {
+      get_appraisal_assumptions(profile %||% self$appraisal_inputs, tab)
+    },
+
+    get_appraisal_assumption_dependencies = function(profile = NULL, tab = NULL) {
+      get_appraisal_assumption_dependencies(profile %||% self$appraisal_inputs, tab)
+    },
+
     build_refinement_profile_defaults = function(profile = NULL,
-                                                 seed = 1L,
+                                                 seed = NULL,
                                                  refresh = FALSE) {
       if (!is.null(profile)) {
         self$set_appraisal_inputs(profile)
       }
       private$.require_request()
+      seed <- .appraisal_seed(self$appraisal_inputs, seed)
+      if (!is.null(self$appraisal_inputs$appraisal_sampling_seed)) {
+        self$appraisal_inputs$appraisal_sampling_seed$input_value <- seed
+        self$appraisal_inputs$appraisal_sampling_seed$is_filled <- TRUE
+      }
 
       if (isTRUE(refresh) || is.null(self$reference_default_data)) {
         self$build_reference_default_data()
@@ -210,12 +246,17 @@ Hub <- R6::R6Class(
     },
 
     build_trip_refinement_profile_defaults = function(profile = NULL,
-                                                      seed = 1L,
+                                                      seed = NULL,
                                                       refresh = FALSE) {
       if (!is.null(profile)) {
         self$set_appraisal_inputs(profile)
       }
       private$.require_request()
+      seed <- .appraisal_seed(self$appraisal_inputs, seed)
+      if (!is.null(self$appraisal_inputs$appraisal_sampling_seed)) {
+        self$appraisal_inputs$appraisal_sampling_seed$input_value <- seed
+        self$appraisal_inputs$appraisal_sampling_seed$is_filled <- TRUE
+      }
 
       if (isTRUE(refresh) || is.null(self$reference_default_data)) {
         self$build_reference_default_data()
@@ -240,11 +281,16 @@ Hub <- R6::R6Class(
       self$appraisal_inputs
     },
 
-    build_results = function(profile = NULL, seed = 1L, refresh = FALSE) {
+    build_results = function(profile = NULL, seed = NULL, refresh = FALSE) {
       if (!is.null(profile)) {
         self$set_appraisal_inputs(profile)
       }
       private$.require_request()
+      seed <- .appraisal_seed(self$appraisal_inputs, seed)
+      if (!is.null(self$appraisal_inputs$appraisal_sampling_seed)) {
+        self$appraisal_inputs$appraisal_sampling_seed$input_value <- seed
+        self$appraisal_inputs$appraisal_sampling_seed$is_filled <- TRUE
+      }
 
       if (isTRUE(refresh)) {
         self$reference_sources <- NULL
@@ -689,6 +735,8 @@ Hub <- R6::R6Class(
       # Freeze values used for this run, independently of later UI changes.
       population_summary <- self$get_appraisal_population_values()
       self$results_data$appraisal_summary <- population_summary
+      self$results_data$appraisal_profile <- self$appraisal_inputs
+      self$results_data$assumptions <- get_appraisal_assumptions(self$appraisal_inputs)
       self$appraisal_inputs <- .populate_appraisal_summary_defaults(
         self$appraisal_inputs, population_summary)
 

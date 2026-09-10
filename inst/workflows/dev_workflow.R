@@ -220,7 +220,7 @@ dev_cf_scenario <- list(
   change_trips = TRUE,
   user_targets = c(cycling = 155, walking = 2247),
   weighted_trip_targets = c(cycling = 1500, walking = 50000),
-  induced_trips_percent = 10,
+  assump_induced_trips_percent = 10,
   # Optional source-mode shares for the shifted (non-induced) trips entering
   # each target mode. Names use HUB modes and values may be proportions or
   # percentages, for example:
@@ -348,7 +348,7 @@ build_dev_counterfactual_inputs <- function(values, reference_ui_values, referen
         source_shares <- 100 * source_shares
       }
       source_shares <- 100 * source_shares / sum(source_shares)
-      values[[paste0("trips_diversion_sources_", suffix)]] <- stats::setNames(
+      values[[paste0("assump_trip_source_shares_", suffix)]] <- stats::setNames(
         lapply(as.numeric(source_shares), function(percent) list(percent = percent)),
         unname(source_names[names(source_shares)])
       )
@@ -423,8 +423,8 @@ dev_cf_targets |>
   print(row.names = FALSE)
 
 counterfactual_constants <- miama_counterfactual_defaults()
-counterfactual_constants$induced_trips_percent_default <-
-  dev_cf_scenario$induced_trips_percent
+counterfactual_constants$assump_induced_trips_percent_default <-
+  dev_cf_scenario$assump_induced_trips_percent
 
 ## 4.1 Inspect derived counterfactual spread bars ----
 # With empty `spread_overrides`, CF bars reproduce reference bars exactly.

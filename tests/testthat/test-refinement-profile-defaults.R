@@ -307,7 +307,7 @@ test_that("Tab 3 handoff stages row-count trip defaults for Tab 4", {
     trips_spread_util_prop_ref_walk = profile_field(),
     trips_spread_util_prop_cf_walk = profile_field(),
     trips_spread_bars_ref_walk = profile_field(),
-    trips_diversion_sources_walk = profile_field()
+    assump_trip_source_shares_walk = profile_field()
   )
   reference_data <- list(
     ind = data.frame(
@@ -341,7 +341,7 @@ test_that("Tab 3 handoff stages row-count trip defaults for Tab 4", {
   expect_equal(updated$trips_number_total_cf$default_value, 3)
   expect_equal(updated$trips_number_ref_walk$default_value, 2)
   expect_equal(updated$trips_number_cf_walk$default_value, 2)
-  expect_equal(updated$trips_diversion_sources_walk$default_value$car$percent, 100)
+  expect_equal(updated$assump_trip_source_shares_walk$default_value$car$percent, 100)
   expect_false(updated$trips_number_ref_walk$is_filled)
   expect_true("trips_number_ref_walk" %in% report$updated_fields)
 })
@@ -368,7 +368,7 @@ test_that("Tab 4 defaults preserve staged Tab 2 REF and CF trip snapshots", {
     trips_spread_util_prop_ref_walk = profile_field(),
     trips_spread_util_prop_cf_walk = profile_field(),
     trips_spread_bars_ref_walk = profile_field(),
-    trips_diversion_sources_walk = profile_field()
+    assump_trip_source_shares_walk = profile_field()
   )
   source <- list(
     ind = data.frame(
@@ -440,7 +440,7 @@ test_that("new-user allocation does not discard staged Tab 2 trip changes", {
     at_data_unit = profile_field("trips", TRUE),
     trips_count_ref_walk = profile_field(1, TRUE),
     trips_count_cf_walk = profile_field(2, TRUE),
-    pop_new_current_perc = profile_field(100, TRUE, 10, TRUE),
+    assump_new_user_percent = profile_field(100, TRUE, 10, TRUE),
     pop_total_ref_advanced = profile_field(default = 3, backup = TRUE),
     pop_total_cf_advanced = profile_field(default = 3, backup = TRUE),
     pop_number_ref_walk_advanced = profile_field(default = 1, backup = TRUE),
@@ -454,8 +454,8 @@ test_that("new-user allocation does not discard staged Tab 2 trip changes", {
     trips_spread_util_prop_ref_walk = profile_field(),
     trips_spread_util_prop_cf_walk = profile_field(),
     trips_spread_bars_ref_walk = profile_field(),
-    trips_diversion_sources_walk = profile_field(),
-    induced_trips_percent = profile_field(default = 10)
+    assump_trip_source_shares_walk = profile_field(),
+    assump_induced_trips_percent = profile_field(default = 10)
   )
   source <- list(
     ind = data.frame(
@@ -491,9 +491,9 @@ test_that("new-user allocation does not discard staged Tab 2 trip changes", {
   expect_false(staged$report$tab3_population_rescoped)
   expect_equal(staged$profile$trips_number_ref_walk$default_value, 1)
   expect_equal(staged$profile$trips_number_cf_walk$default_value, 2)
-  expect_equal(staged$profile$induced_trips_percent$default_value, 100)
-  expect_equal(staged$report$realized_induced_trips_percent, 100)
-  expect_equal(staged$report$induced_trips_percent_default_source, "realized_trip_changes")
+  expect_equal(staged$profile$assump_induced_trips_percent$default_value, 100)
+  expect_equal(staged$report$realized_assump_induced_trips_percent, 100)
+  expect_equal(staged$report$assump_induced_trips_percent_default_source, "realized_trip_changes")
   expect_equal(sum(staged$counterfactual_data$ind$cf_user_scope_walk), 2)
 })
 
@@ -618,7 +618,7 @@ test_that("Tab 3 population refinement preserves an upstream trip quota", {
     trips_spread_util_prop_ref_walk = profile_field(),
     trips_spread_util_prop_cf_walk = profile_field(),
     trips_spread_bars_ref_walk = profile_field(),
-    trips_diversion_sources_walk = profile_field()
+    assump_trip_source_shares_walk = profile_field()
   )
   reference_data <- list(
     ind = data.frame(
@@ -680,7 +680,7 @@ test_that("Tab 2 staging ignores downstream Tab 4 trip values", {
     trips_number_cf_walk = profile_field(100, TRUE, 100, TRUE),
     trips_number_total_ref = profile_field(99, TRUE, 99, TRUE),
     trips_spread_mean_ref_walk = profile_field(10, TRUE, 10, TRUE),
-    trips_diversion_sources_walk = profile_field(
+    assump_trip_source_shares_walk = profile_field(
       list(car = list(percent = 100)), TRUE,
       list(car = list(percent = 100)), TRUE
     )
@@ -694,7 +694,9 @@ test_that("Tab 2 staging ignores downstream Tab 4 trip values", {
   expect_null(values$trips_number_cf_walk)
   expect_null(values$trips_number_total_ref)
   expect_null(values$trips_spread_mean_ref_walk)
-  expect_null(values$trips_diversion_sources_walk)
+  # Canonical assumptions remain available across stages, unlike trip-count
+  # outputs. Unfilled assumption fields use their persisted defaults.
+  expect_equal(values$assump_trip_source_shares_walk, list(car = list(percent = 100)))
 })
 
 test_that("unchanged Tab 4 trip defaults do not override Tab 2 targets", {

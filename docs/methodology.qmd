@@ -224,6 +224,27 @@ an independent mode-specific rerun of the health model.
 
 # Ways to specify counterfactual active travel
 
+## Persisted completion assumptions
+
+Tab 2 combines supplied volume with explicit assumptions to estimate weekly
+active minutes, mode users and the assessed population. These are distinct
+quantities; a trip increase need not imply a proportional increase in users.
+Completion frequency, distance/duration and speed are canonical `assump_*`
+profile fields. The unused trip-size quantity is derived, not independently
+imposed. New-user and induced-trip preferences are separate parameters.
+
+HUB resolves suggestions from assessed REF, geographic source, stored national
+rates or configured fallbacks and records provenance in the profile. Prepared
+values remain stable through routine navigation; card rendering does not sample
+or rewrite them. Explicit edits, including edits equal to defaults, are retained.
+Advanced distributions are explicit sampling inputs, not duplicate assumptions.
+Realized allocations belong in reports and do not overwrite preferred splits.
+
+The profile also records effective model configuration and sampling seed.
+Reproduction requires preserving the referenced external data and compatible
+software. The [assumption API contract](appraisal_assumptions_api.md) documents
+the field names, dependencies and UI integration boundary.
+
 ## Reference defaults
 
 After geography and assessed modes are selected, HUB loads and filters the
@@ -567,7 +588,7 @@ users, trips, distance/duration, or mode-share inputs.
 Tab 4 presents one source-mode diversion pie for each assessed target mode. A
 cycling pie, for example, describes the previous modes of existing trips that
 will shift to cycling; cycling itself is excluded. The pies apply only to shifted
-trips, while `induced_trips_percent` controls newly created trips separately.
+trips, while `assump_induced_trips_percent` controls newly created trips separately.
 HUB uses these target-specific shares as donor sampling weights and records both
 requested and realized source-mode distributions. Defaults come from configured
 assumptions where available, otherwise from eligible local donor-trip
@@ -795,9 +816,9 @@ the displayed target.
 
 For an increase, the default mechanism treats 90% of additional active trips as
 mode shifts and 10% as induced recreational trips. The explicit parameter is
-`induced_trips_percent` in the submitted profile, optionally overridden by a
-mode-specific field such as `induced_trips_percent_walk`. If neither is
-provided, HUB uses `cfg$counterfactual$trips$induced_trips_percent_default`.
+`assump_induced_trips_percent` in the submitted profile, optionally overridden by a
+mode-specific field such as `assump_induced_trips_percent_walk`. If neither is
+provided, HUB uses `cfg$counterfactual$trips$assump_induced_trips_percent_default`.
 This mechanism parameter is distinct from both trip purpose and the new-user
 percentage, even when defaults happen to use the same value.
 
@@ -830,7 +851,7 @@ assumed to remain.
 ::: {.callout-note}
 Legacy scalar and spread-purpose controls may still be present in the profile
 schema. They are not authoritative sampling inputs. The explicit
-`induced_trips_percent` controls the mechanism split, from which purpose is
+`assump_induced_trips_percent` controls the mechanism split, from which purpose is
 inferred.
 :::
 

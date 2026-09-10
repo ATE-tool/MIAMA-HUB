@@ -47,9 +47,7 @@ invalidate_hub_state <- function(state = list(), changed_fields = character()) {
       "trips_count_(ref|cf)_|dist_dur_amount_(ref|cf)_|",
       "trips_timeframe_|trips_denominator_|users_timeframe_|",
       "ui_dist_dur_type_|distance_unit_|duration_unit_|",
-      "dist_dur_denominator_|dist_dur_timeframe_|",
-      "default_trip_distance_|assump_trip_speed_|",
-      "default_trips_per_user_per_week_)"
+      "dist_dur_denominator_|dist_dur_timeframe_)"
   )
   refinement_upstream_changed <- reference_reload ||
     any(changed_fields %in% refinement_upstream_fields) ||
@@ -61,6 +59,8 @@ invalidate_hub_state <- function(state = list(), changed_fields = character()) {
     state$refinement_report <- NULL
   }
   if (length(changed_fields) > 0) {
+    # Assumption edits rebuild CF/results but preserve accepted Tab 3/4 table
+    # snapshots. Tab 2 Next explicitly stages new tables when needed.
     state$counterfactual_data <- NULL
     state$health_impacts <- NULL
     state$results_data <- NULL

@@ -1,5 +1,16 @@
 # MIAMA-HUB
 
+## Assumptions: UI Integration Contract
+
+HUB now prepares effective assumptions in the canonical appraisal profile and
+exposes read-only, field-keyed card data through `get_appraisal_assumptions()`.
+`get_appraisal_assumption_dependencies()` supplies schema IDs for UI refreshes.
+See the [API and UI handoff](docs/appraisal_assumptions_api.md) for exact calls,
+field names, persistence, reset behavior and current limitations; the
+[field/dependency catalogue](docs/appraisal_assumptions_field_catalogue.md)
+explains the design. This is a breaking field-name change: the matching UI
+schema and consumers must be updated together. No legacy aliases are retained.
+
 For a report-style description of the active-travel, sampling, physical-
 activity, and health-impact methodology, see
 [`docs/methodology.qmd`](docs/methodology.qmd). A concise presentation version
@@ -494,7 +505,7 @@ defaults from those row-level snapshots. The returned
 `refinement_defaults_report` records updated fields, reset hidden inputs, the
 scope and counterfactual reports, and the seed.
 
-The Tab 3 `pop_new_current_perc` slider is initialized from the realized
+The Tab 3 `assump_new_user_percent` slider is initialized from the realized
 current/new-user split in that staged CF snapshot when additional mode users
 were produced. The calculation pools mode-user memberships across assessed
 modes and is recorded as `realized_new_user_percent` in the refinement report.
@@ -556,11 +567,11 @@ The UI should use the two profile-building methods at distinct transitions:
    Do not call `build_reference_profile_defaults()` again; that would overwrite
    the staged handoff with geography-wide defaults.
 
-The Tab 4 `induced_trips_percent` slider is initialized from the realized share
+The Tab 4 `assump_induced_trips_percent` slider is initialized from the realized share
 of added CF trips represented by induced rows. This may differ from the Tab 3
 new-user percentage because people and trips are separate mechanisms. When no
 trip addition has yet established a realized split, HUB uses the effective Tab
-3 `pop_new_current_perc` value as the Tab 4 starting assumption. The source and
+3 `assump_new_user_percent` value as the Tab 4 starting assumption. The source and
 value are retained in `trip_refinement_defaults_report`.
 
 HUB owns source-data loading, REF scoping, CF staging, population estimation,
@@ -724,7 +735,7 @@ It also covers advanced Tab 3 and Tab 4 reference fields:
   `trips_spread_util_prop_ref_*`)
 - mode-specific compact trip spread bars (`trips_spread_bars_ref_*`)
 - target-specific source-mode diversion pies
-  (`trips_diversion_sources_[walk|bike|ebike|pt]`)
+  (`assump_trip_source_shares_[walk|bike|ebike|pt]`)
 
 Individual-only walking and cycling user counts can be extracted from
 `walktime_wkhr` and `cycletime_wkhr`. PT user activity is derived from the
@@ -1138,12 +1149,12 @@ resulting constants:
   candidate, unavailable, or requiring a schema decision.
 
 The canonical editable assumptions are
-`default_trips_per_user_per_week_*` and `default_trip_distance_*`. One weekly
+`assump_trips_per_user_per_week_*` and `assump_trip_distance_km_*`. One weekly
 trip rate supports both conversions: `trips = users * rate` and
 `users = trips / rate`; HUB does not store a separate inverse rate. For a trip
 target, the implied weekly user count is retained in the counterfactual report;
 trip rows remain the operative sampling unit. Basic trip sampling uses
-`default_trip_distance_*` as its preferred mean while retaining the observed raw
+`assump_trip_distance_km_*` as its preferred mean while retaining the observed raw
 distance of each selected reference trip. Advanced Tab 4 mean distance inputs
 override that basic default. The Tab 2 user and trip modals intentionally edit
 the same weekly-rate profile field because they expose the same assumption and
@@ -1354,7 +1365,7 @@ scaled REF are recruited:
   the active mode; new users trigger sampling of plausible non-active trips for
   mode shift where matching trip rows exist
 - new-user trip shifts use the canonical mode-specific
-  `default_trips_per_user_per_week_*` rate supplied by the appraisal profile.
+  `assump_trips_per_user_per_week_*` rate supplied by the appraisal profile.
   HUB calculates `new trips = new users * weekly trips per user`. If that
   assumption is absent, observed current-user trip counts remain the fallback.
 
@@ -1371,7 +1382,7 @@ current/new-user percentage is intended only for pathways where user counts are
 inferred from trips, distance, duration, or mode share. For those pathways HUB
 calculates a trip-equivalent changed population as `ceiling(abs(CF trips -
 current trips) / weekly trips per user)`. Existing users of that mode absorb
-the current-user share of additional travel; only `pop_new_current_perc` of the
+the current-user share of additional travel; only `assump_new_user_percent` of the
 trip-equivalent increase is sampled as additional users. The profile defaults to
 `cfg$counterfactual$population$new_user_percent_default` (10%). The resulting
 mode-user scope populates the Tab 3 CF table without modifying individual
@@ -1385,7 +1396,7 @@ recruits the required additional target-mode users from eligible baseline
 non-users across the retained geographic source, including people outside the
 scaled REF scope. The resulting current/new-user counts and percentages are
 recorded in `counterfactual_report$changes[[...]]$current_new_user_split`. The
-explicit count takes precedence over `pop_new_current_perc`; when it implies a
+explicit count takes precedence over `assump_new_user_percent`; when it implies a
 higher new-user share, HUB records a non-fatal report note. The request fails
 only if the complete filtered geographic source lacks enough eligible distinct
 people.
@@ -1403,20 +1414,20 @@ values into a base-week trip count. Increases are split into two mechanisms:
   recreational purpose.
 
 The explicit mechanism parameter is
-`induced_trips_percent` in the submitted profile, with optional mode-specific
-fields such as `induced_trips_percent_walk`. When neither is supplied, HUB uses
-`cfg$counterfactual$trips$induced_trips_percent_default`; shifted trips are the
+`assump_induced_trips_percent` in the submitted profile, with optional mode-specific
+fields such as `assump_induced_trips_percent_walk`. When neither is supplied, HUB uses
+`cfg$counterfactual$trips$assump_induced_trips_percent_default`; shifted trips are the
 complement. This is separate from both trip purpose and the percentage of
 activity assigned to new users, even when defaults happen to use the same
 number. Purpose fields no longer override the induced-trip parameter.
 
 For increases, Tab 4 specifies one source-mode distribution for each assessed
-target mode using `trips_diversion_sources_[walk|bike|ebike|pt]`. For example,
-`trips_diversion_sources_bike` answers: among existing trips shifted to cycling,
+target mode using `assump_trip_source_shares_[walk|bike|ebike|pt]`. For example,
+`assump_trip_source_shares_bike` answers: among existing trips shifted to cycling,
 what percentage previously used car, walking, e-bike, public transport, or
 another mode? Cycling itself is excluded from that pie. These percentages apply
 only to the mode-shift mechanism; induced trips are controlled separately by
-`induced_trips_percent`.
+`assump_induced_trips_percent`.
 
 HUB combines the requested source shares with distance/spread weights when it
 samples eligible utilitarian donor trips. It renormalizes across source modes
@@ -1441,7 +1452,7 @@ e-bike activity and trip-characteristic donor profile. It does not imply that
 all e-bike trips came from cycling. In the absence of a UI override,
 `cfg$counterfactual$trips$source_mode_shares$ebiking` assigns shifted e-bike
 trips equally across cycling, PT, and car source pools. The induced-trip share
-is excluded from this split. A submitted `trips_diversion_sources_ebike` pie
+is excluded from this split. A submitted `assump_trip_source_shares_ebike` pie
 replaces that configured distribution.
 
 Decreases do not delete utilitarian travel demand. Instead, sampled active trips
@@ -1474,7 +1485,7 @@ components `cf_mmet_delta_walking`, `cf_mmet_delta_cycling`, and
 `counterfactual_report$mmet_exposure`.
 
 Advanced Tab 4 fields such as `trips_dist_value`,
-`trips_spread_mean_cf`, `induced_trips_percent`, and the diversion percentage
+`trips_spread_mean_cf`, `assump_induced_trips_percent`, and the diversion percentage
 fields are parsed and recorded. When compact cf spread bars are
 available, distance-based candidate selection uses the configured five-category
 distance distribution. Older direct category controls can still plug into the

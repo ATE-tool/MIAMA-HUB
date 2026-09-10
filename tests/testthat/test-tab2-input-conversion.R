@@ -136,7 +136,7 @@ test_that("converted distance targets use the existing trip sampler and MMET pat
       ui_dist_dur_type_walk = "distance", distance_unit_walk = "km",
       dist_dur_denominator_walk = "total", dist_dur_timeframe_walk = "week",
       dist_dur_amount_cf_walk = 6,
-      induced_trips_percent = 100
+      assump_induced_trips_percent = 100
     ),
     reference_data = data,
     seed = 6

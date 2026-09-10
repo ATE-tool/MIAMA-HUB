@@ -50,7 +50,7 @@ prepare_refinement_profile_defaults <- function(reference_data,
     staged_counterfactual$counterfactual_report
   )
   if (!is.null(realized_new_user_percent)) {
-    updates$pop_new_current_perc <- realized_new_user_percent
+    updates$assump_new_user_percent <- realized_new_user_percent
   }
   updated_profile <- apply_refinement_defaults_to_profile(profile, updates)
   report <- attr(updated_profile, "refinement_defaults_report")
@@ -152,13 +152,13 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
   induced_default_source <- "realized_trip_changes"
   if (is.null(realized_induced_percent)) {
     realized_induced_percent <- .profile_field_effective_value(
-      profile$pop_new_current_perc,
+      profile$assump_new_user_percent,
       default = cfg$counterfactual$population$new_user_percent_default %||% 10
     )
     induced_default_source <- "current_new_user_percent"
   }
   if (!is.null(realized_induced_percent)) {
-    updates$induced_trips_percent <- realized_induced_percent
+    updates$assump_induced_trips_percent <- realized_induced_percent
   }
   updated_profile <- apply_refinement_defaults_to_profile(profile, updates)
   report <- attr(updated_profile, "refinement_defaults_report")
@@ -167,8 +167,8 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
   report$used_staged_tab2_snapshots <- use_staged_snapshots
   report$tab3_population_rescoped <- tab3_changed
   report$tab3_rescope_trigger_fields <- tab3_changed_fields
-  report$realized_induced_trips_percent <- realized_induced_percent
-  report$induced_trips_percent_default_source <- induced_default_source
+  report$realized_assump_induced_trips_percent <- realized_induced_percent
+  report$assump_induced_trips_percent_default_source <- induced_default_source
   report$seed <- as.integer(seed)
   attr(updated_profile, "trip_refinement_defaults_report") <- report
 
@@ -277,7 +277,7 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
   modes <- intersect(modes, names(.miama_tab2_mode_specs()))
   for (mode in modes) {
     suffix <- .miama_mode_suffix(mode)
-    assumption_field <- paste0("default_trips_per_user_per_week_", suffix)
+    assumption_field <- paste0("assump_trips_per_user_per_week_", suffix)
     if (is.null(.ui_value(values, assumption_field, NULL)) &&
         is_input_field(profile[[assumption_field]])) {
       values[[assumption_field]] <- profile[[assumption_field]]$default_value
@@ -628,7 +628,7 @@ materialize_appraisal_scope <- function(data, scenario = c("ref", "cf")) {
     paste0(
       "^(trips_number_total_ref|trips_number_ref_|",
       "trips_spread_(bars|mean|util_prop)_ref_|",
-      "trips_diversion_sources_)"
+      "assump_trip_source_shares_)"
     ),
     names(ref_updates),
     value = TRUE
@@ -667,7 +667,11 @@ apply_refinement_defaults_to_profile <- function(profile, updates) {
       reset <- c(reset, field_name)
     }
 
-    if ("additional_data" %in% names(field) &&
+    if (startsWith(field_name, "assump_")) {
+      # Realized sampling splits belong in the stage report, not in the
+      # persisted preferred split. Keep assumption provenance structured.
+      if (!isTRUE(field$additional_data$resolved)) field$default_value <- updates[[field_name]]
+    } else if ("additional_data" %in% names(field) &&
         !.profile_field_has_default_backup(field)) {
       if (.profile_field_has_scenario_additional_data(field)) {
         field$additional_data$ref <- updates[[field_name]]$ref

@@ -505,8 +505,8 @@ test_that("extract_reference_ui_values derives Tab 4 trip reference fields", {
   # not from the raw two-row arithmetic mean.
   expect_equal(values$ui_updates$trips_spread_mean_ref_bike, 7.5)
   expect_equal(values$ui_updates$trips_spread_util_prop_ref_bike, 1 / 2)
-  expect_equal(values$ui_updates$trips_diversion_sources_walk$bike$percent, 100)
-  expect_equal(values$ui_updates$trips_diversion_sources_bike$walk$percent, 100)
+  expect_equal(values$ui_updates$assump_trip_source_shares_walk$bike$percent, 100)
+  expect_equal(values$ui_updates$assump_trip_source_shares_bike$walk$percent, 100)
 
   diversion_values <- extract_reference_ui_values(
     reference_data,

@@ -18,6 +18,9 @@ get_input_value <- function(appraisal_inputs_in, field_name, default = NULL) {
   }
 
   field <- appraisal_inputs_in[[field_name]]
+  if (is_input_field(field) && startsWith(field_name, "assump_")) {
+    return(.assumption_entry_value(field))
+  }
   if (is.list(field) && "is_filled" %in% names(field) && !isTRUE(field$is_filled)) {
     return(default)
   }
@@ -41,8 +44,12 @@ get_input_value <- function(appraisal_inputs_in, field_name, default = NULL) {
 extract_input_values <- function(appraisal_inputs_in, drop_null = FALSE) {
   assert_named_list(appraisal_inputs_in, "appraisal_inputs_in")
 
-  values <- lapply(appraisal_inputs_in, function(field) {
+  values <- lapply(names(appraisal_inputs_in), function(name) {
+    field <- appraisal_inputs_in[[name]]
     if (is_input_field(field)) {
+      if (startsWith(name, "assump_") || name %in% c("appraisal_model_parameters", "appraisal_sampling_seed")) {
+        return(.assumption_entry_value(field))
+      }
       if ("is_filled" %in% names(field) && !isTRUE(field$is_filled)) {
         return(NULL)
       }
@@ -50,6 +57,16 @@ extract_input_values <- function(appraisal_inputs_in, drop_null = FALSE) {
     }
     field
   })
+  names(values) <- names(appraisal_inputs_in)
+  modes <- normalize_active_modes(values$modes %||% character())
+  required <- unlist(lapply(modes, function(m) paste0(.assumption_catalogue()$prefix, .miama_mode_suffix(m))))
+  if (length(required) && all(vapply(required, function(f) {
+    x <- values[[f]]
+    is.numeric(x) && length(x) == 1L && is.finite(x) && x > 0
+  }, logical(1)))) {
+    values$.assumptions_enabled <- TRUE
+    values$.assumption_explicit_distance_modes <- .assumption_explicit_distance_modes(appraisal_inputs_in)
+  }
 
   if (isTRUE(drop_null)) {
     values <- values[!vapply(values, is.null, logical(1))]

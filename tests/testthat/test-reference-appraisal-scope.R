@@ -547,7 +547,7 @@ test_that("pooled estimate uses source rates rather than the largest mode estima
 test_that("induced trip percentage is explicit and independent of purpose", {
   constants <- miama_counterfactual_defaults(list(
     spread = miama_default_config()$spread,
-    counterfactual = list(trips = list(induced_trips_percent_default = 10))
+    counterfactual = list(trips = list(assump_induced_trips_percent_default = 10))
   ))
   expect_equal(
     .cf_induced_trips_target(
@@ -562,8 +562,8 @@ test_that("induced trip percentage is explicit and independent of purpose", {
       list(
         trips_purpose_type = "mixed",
         trips_purpose_util_perc = 65,
-        induced_trips_percent = 25,
-        induced_trips_percent_walk = 30
+        assump_induced_trips_percent = 25,
+        assump_induced_trips_percent_walk = 30
       ),
       "walk",
       constants

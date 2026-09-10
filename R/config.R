@@ -252,6 +252,11 @@ miama_default_config <- function(dataset_size = NULL) {
   dataset_size <- .miama_dataset_size(dataset_size)
   p <- miama_paths(dataset_size = dataset_size)
   population <- .miama_population_config(dataset_size, p)
+  # Provisional cycling proxies, not measured e-bike observations. Keep the
+  # implied duration factor consistent with distance / speed.
+  ebike_distance_factor <- 1.30
+  ebike_speed_factor <- 1.20
+  ebike_duration_factor <- ebike_distance_factor / ebike_speed_factor
 
   list(
     # 1. Workflow scope ------------------------------------------------------
@@ -271,6 +276,21 @@ miama_default_config <- function(dataset_size = NULL) {
       base_timeframe = "week",
       mmet_per_hour = MIAMA_MMET_PER_HOUR
     ),
+    # Appraisal completion assumptions. England values are stored rates, not
+    # recomputed national estimates. PT distance/duration mean access walking.
+    assumptions = list(
+      england = list(
+        frequency = list(walk = 10.93, bike = 6.20, pt = 5.64),
+        distance = list(walk = 1.15, bike = 5.33)
+      ),
+      fixed = list(
+        frequency = list(walk = 10.93, bike = 6.20, ebike = 6.20, pt = 5.64),
+        distance = list(walk = 1.15, bike = 5.33, ebike = 5.33 * ebike_distance_factor, pt = 0.8),
+        duration = list(walk = 13.8, bike = 5.33 / 15.7 * 60,
+                        ebike = 5.33 / 15.7 * 60 * ebike_duration_factor, pt = 10),
+        speed = list(walk = 5, bike = 15.7, ebike = 15.7 * ebike_speed_factor, pt = 4.8)
+      )
+    ),
     # 5. Counterfactual mechanism assumptions ------------------------------
     counterfactual = list(
       population = list(
@@ -282,9 +302,9 @@ miama_default_config <- function(dataset_size = NULL) {
         ebiking = list(
           reference_volume = "zero",
           donor_mode = "cycling",
-          proxy_distance_factor = 1,
-          proxy_duration_factor = 1,
-          speed_kmh = 15.7
+          proxy_distance_factor = ebike_distance_factor,
+          proxy_duration_factor = ebike_duration_factor,
+          speed_kmh = 15.7 * ebike_speed_factor
         ),
         pt = list(
           activity_component = "walking_access",
@@ -293,11 +313,11 @@ miama_default_config <- function(dataset_size = NULL) {
         )
       ),
       trips = list(
-        # Used unless the profile supplies `induced_trips_percent` (or its
+        # Used unless the profile supplies `assump_induced_trips_percent` (or its
         # mode-specific equivalent). Purpose is a separate trip characteristic
         # and does not determine whether a trip is shifted or induced.
         # Shifted percentage is always the complement (100 - induced).
-        induced_trips_percent_default = 10,
+        assump_induced_trips_percent_default = 10,
         # Source modes apply only to the shifted (non-induced) share of added
         # trips. These are explicit assumptions where no England-derived
         # source-mode evidence is currently available.

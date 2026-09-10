@@ -973,7 +973,7 @@ extract_reference_ui_values <- function(
     ui_updates[[paste0("trips_spread_mean_ref_", suffix)]] <- spread_mean_from_bars(mode_bars)
     ui_updates[[paste0("trips_spread_util_prop_ref_", suffix)]] <- spread_first_variable_prop_from_bars(mode_bars)
 
-    ui_updates[[paste0("trips_diversion_sources_", suffix)]] <-
+    ui_updates[[paste0("assump_trip_source_shares_", suffix)]] <-
       .reference_diversion_source_pie(
         trips = trips,
         target_mode = mode,

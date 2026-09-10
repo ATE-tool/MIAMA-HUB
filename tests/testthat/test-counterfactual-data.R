@@ -214,16 +214,16 @@ test_that("weekly trips-per-user assumptions drive new-user trip targets", {
   )
 
   assumption <- .cf_positive_mode_assumption(
-    list(default_trips_per_user_per_week_bike = 6.2),
-    "default_trips_per_user_per_week",
+    list(assump_trips_per_user_per_week_bike = 6.2),
+    "assump_trips_per_user_per_week",
     "bike"
   )
   expect_equal(assumption$value, 6.2)
-  expect_equal(assumption$field, "default_trips_per_user_per_week_bike")
+  expect_equal(assumption$field, "assump_trips_per_user_per_week_bike")
   expect_error(
     .cf_positive_mode_assumption(
-      list(default_trips_per_user_per_week_bike = 0),
-      "default_trips_per_user_per_week",
+      list(assump_trips_per_user_per_week_bike = 0),
+      "assump_trips_per_user_per_week",
       "bike"
     ),
     "greater than zero"
@@ -235,7 +235,7 @@ test_that("trip distance defaults constrain basic trip sampling", {
   basic <- cf_trip_sampling_target(
     list(
       ui_version = "basic",
-      default_trip_distance_bike = 5.33,
+      assump_trip_distance_km_bike = 5.33,
       trips_spread_mean_cf_bike = 12
     ),
     suffix = "bike",
@@ -244,7 +244,7 @@ test_that("trip distance defaults constrain basic trip sampling", {
   advanced <- cf_trip_sampling_target(
     list(
       ui_version = "advanced",
-      default_trip_distance_bike = 5.33,
+      assump_trip_distance_km_bike = 5.33,
       trips_spread_mean_cf_bike = 12
     ),
     suffix = "bike",
@@ -364,7 +364,7 @@ test_that("new walking users shift trips using the configured weekly trip rate",
     appraisal_input_values = list(
       modes = "walking",
       users_count_cf_walk = 2,
-      default_trips_per_user_per_week_walk = 1
+      assump_trips_per_user_per_week_walk = 1
     ),
     reference_data = reference_data,
     seed = 16
@@ -376,7 +376,7 @@ test_that("new walking users shift trips using the configured weekly trip rate",
   expect_equal(change$trips_per_user_per_week, 1)
   expect_equal(
     change$trips_per_user_per_week_field,
-    "default_trips_per_user_per_week_walk"
+    "assump_trips_per_user_per_week_walk"
   )
   expect_equal(sum(counterfactual_data$trips$trip_walkdist_km > 0), 3)
 })
@@ -410,7 +410,7 @@ test_that("explicit Tab 4 trip totals cap trips inferred from new users", {
       modes = "walking",
       pop_number_cf_walk_advanced = 2,
       trips_number_cf_walk = 1,
-      default_trips_per_user_per_week_walk = 2
+      assump_trips_per_user_per_week_walk = 2
     ),
     reference_data = reference_data,
     seed = 16
@@ -472,7 +472,7 @@ test_that("apply_counterfactual_ui_values increases walking trips by shifting mo
       trips_count_cf_walk = 3,
       trips_timeframe_walk = "week",
       trips_denominator_walk = "total",
-      default_trips_per_user_per_week_walk = 2
+      assump_trips_per_user_per_week_walk = 2
     ),
     reference_data = reference_data,
     seed = 12
@@ -520,9 +520,9 @@ test_that("trip increases can be concentrated among existing mode users", {
     list(
       modes = "walking",
       trips_count_cf_walk = 4,
-      default_trips_per_user_per_week_walk = 1,
-      pop_new_current_perc = 0,
-      induced_trips_percent = 0
+      assump_trips_per_user_per_week_walk = 1,
+      assump_new_user_percent = 0,
+      assump_induced_trips_percent = 0
     ),
     reference_data,
     seed = 8
@@ -565,7 +565,7 @@ test_that("induced trips preserve unlabeled numeric purpose and set recreational
     reference_data = reference_data,
     constants = utils::modifyList(
       miama_counterfactual_defaults(),
-      list(induced_trips_percent_default = 100)
+      list(assump_induced_trips_percent_default = 100)
     ),
     seed = 20
   )
@@ -599,7 +599,7 @@ test_that("source-mode diversion shares are specific to each active target mode"
       trips_count_cf_walk = 2,
       trips_timeframe_walk = "week",
       trips_denominator_walk = "total",
-      trips_diversion_sources_walk = list(
+      assump_trip_source_shares_walk = list(
         car = list(percent = 100), pt = list(percent = 0)
       )
     ),
@@ -613,7 +613,7 @@ test_that("source-mode diversion shares are specific to each active target mode"
       trips_count_cf_walk = 2,
       trips_timeframe_walk = "week",
       trips_denominator_walk = "total",
-      trips_diversion_sources_walk = list(
+      assump_trip_source_shares_walk = list(
         car = list(percent = 0), pt = list(percent = 100)
       )
     ),
@@ -627,7 +627,7 @@ test_that("source-mode diversion shares are specific to each active target mode"
   expect_equal(from_other$trips$trip_mainmode[3], "walking")
   expect_equal(
     from_car$counterfactual_report$changes[[1]]$diversion_source_field,
-    "trips_diversion_sources_walk"
+    "assump_trip_source_shares_walk"
   )
   expect_equal(
     from_car$counterfactual_report$changes[[1]]$source_mode_shares[["driving"]],
@@ -1043,7 +1043,7 @@ test_that("e-bike changes use cycling donors without reclassifying reference cyc
     init_counterfactual_data(reference_data),
     list(
       modes = "ebiking", trips_count_cf_ebike = 1,
-      induced_trips_percent = 0
+      assump_induced_trips_percent = 0
     ),
     reference_data,
     seed = 1
@@ -1092,9 +1092,9 @@ test_that("cross-mode shifts are locked and donor-mode targets are reconciled la
       modes = c("cycling", "ebiking"),
       trips_count_cf_bike = 3,
       trips_count_cf_ebike = 1,
-      induced_trips_percent = 0,
-      default_trips_per_user_per_week_bike = 1,
-      default_trips_per_user_per_week_ebike = 1
+      assump_induced_trips_percent = 0,
+      assump_trips_per_user_per_week_bike = 1,
+      assump_trips_per_user_per_week_ebike = 1
     ),
     reference_data,
     constants = constants,
@@ -1164,7 +1164,7 @@ test_that("PT changes attribute only configured access-walking MMET", {
 
   result <- apply_counterfactual_ui_values(
     init_counterfactual_data(reference_data),
-    list(modes = "pt", trips_count_cf_pt = 2, induced_trips_percent = 0),
+    list(modes = "pt", trips_count_cf_pt = 2, assump_induced_trips_percent = 0),
     reference_data,
     seed = 1
   )

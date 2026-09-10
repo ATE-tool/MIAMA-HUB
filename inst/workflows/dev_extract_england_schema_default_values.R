@@ -272,7 +272,7 @@ for (mode in c("walk", "bike", "pt", "ebike")) {
     "Current MainMode_B04 data combine e-bike with bicycle; retain an explicit reviewed assumption."
   } else ""
 
-  add_candidate(paste0("default_trips_per_user_per_week_", mode), mode, "trips_per_week_user", basis, note = unavailable_note)
+  add_candidate(paste0("assump_trips_per_user_per_week_", mode), mode, "trips_per_week_user", basis, note = unavailable_note)
 
   add_candidate(
     paste0("distdur_default_", mode), mode, "distance_per_week_user_km", basis,
@@ -292,8 +292,8 @@ for (mode in c("walk", "bike", "pt", "car", "ebike")) {
     "Not separately observable; do not copy the bicycle value without an explicit assumption decision."
   } else ""
 
-  add_candidate(paste0("default_trip_distance_", mode), mode, "mean_trip_distance_km", basis, note = unavailable_note)
-  add_candidate(paste0("assump_trip_speed_", mode), mode, "mean_speed_kmh", basis, note = unavailable_note)
+  add_candidate(paste0("assump_trip_distance_km_", mode), mode, "mean_trip_distance_km", basis, note = unavailable_note)
+  add_candidate(paste0("assump_trip_speed_kmh_", mode), mode, "mean_speed_kmh", basis, note = unavailable_note)
 }
 
 schema_candidates <- dplyr::bind_rows(schema_candidates)

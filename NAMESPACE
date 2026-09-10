@@ -1,4 +1,7 @@
 export(calculate_health_adjusted_life_years)
+export(prepare_assumption_profile)
+export(get_appraisal_assumptions)
+export(get_appraisal_assumption_dependencies)
 export(convert_timeframe_value)
 export(get_geo_levels)
 export(get_geo_details)

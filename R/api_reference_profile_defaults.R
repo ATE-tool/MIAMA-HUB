@@ -46,6 +46,13 @@ apply_reference_defaults_to_profile <- function(profile, ui_updates) {
   skipped <- character(0)
 
   for (field_name in names(ui_updates)) {
+    # Prepared assumptions have their own explicit refresh lifecycle.
+    if (startsWith(field_name, "assump_") &&
+        isTRUE(out[[field_name]]$additional_data$resolved)) next
+    if (startsWith(field_name, "assump_") && !is.null(out[[field_name]])) {
+      out[[field_name]]$default_value <- ui_updates[[field_name]]
+      next
+    }
     if (!field_name %in% names(out) || !is_input_field(out[[field_name]])) {
       skipped <- c(skipped, field_name)
       next

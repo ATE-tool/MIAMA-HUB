@@ -604,6 +604,13 @@ cf_population_candidate_filter <- function(ind,
 }
 
 cf_trip_sampling_target <- function(values, suffix = NULL, spread = NULL) {
+  # Generated unchanged spreads must not silently disable an editable scalar
+  # assumption. Explicit advanced refinements still take precedence.
+  if (isTRUE(values$.assumptions_enabled) && length(suffix) == 1L &&
+      !normalize_active_modes(suffix) %in% values$.assumption_explicit_distance_modes) {
+    values[[paste0("trips_spread_bars_cf_", suffix)]] <- NULL
+    values[[paste0("trips_spread_mean_cf_", suffix)]] <- NULL
+  }
   ui_version <- values$ui_version %||% "basic"
   ui_version <- if (identical(ui_version, "advanced")) "advanced" else "basic"
   trip_bars_cf <- .cf_mode_value(values, "trips_spread_bars_cf", suffix)
@@ -624,7 +631,7 @@ cf_trip_sampling_target <- function(values, suffix = NULL, spread = NULL) {
   }
   if (is.null(target_mean_distance) || length(target_mean_distance) == 0 ||
       (length(target_mean_distance) == 1 && is.na(target_mean_distance))) {
-    target_mean_distance <- .cf_mode_value(values, "default_trip_distance", suffix)
+    target_mean_distance <- .cf_mode_value(values, "assump_trip_distance_km", suffix)
   }
 
   list(
@@ -756,12 +763,12 @@ cf_sample_observed_values <- function(values_ref, n, default_value, seed) {
   sample(observed, size = n, replace = TRUE)
 }
 
-cf_trip_mechanism_counts <- function(delta, induced_trips_percent = 10) {
+cf_trip_mechanism_counts <- function(delta, assump_induced_trips_percent = 10) {
   if (delta <= 0) {
     return(list(mode_shift_n = 0L, induced_n = 0L))
   }
 
-  induced_n <- as.integer(round(delta * induced_trips_percent / 100))
+  induced_n <- as.integer(round(delta * assump_induced_trips_percent / 100))
   induced_n <- min(delta, max(0L, induced_n))
   list(
     mode_shift_n = as.integer(delta - induced_n),

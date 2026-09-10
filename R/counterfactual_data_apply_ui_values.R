@@ -72,6 +72,8 @@ apply_counterfactual_ui_values <- function(
     constants = miama_counterfactual_defaults(),
     seed = 1L
 ) {
+  appraisal_input_values <- .assumption_values(appraisal_input_values)
+  constants <- .assumption_cf_constants(appraisal_input_values, constants)
   context <- .counterfactual_context(
     counterfactual_data = counterfactual_data,
     appraisal_input_values = appraisal_input_values,
@@ -219,10 +221,10 @@ apply_counterfactual_ui_values <- function(
 #
 # Related refinement fields used by sampling or recorded in report metadata:
 # - `trips_timeframe_*`, `trips_denominator_*`
-# - `pop_new_current_perc`
+# - `assump_new_user_percent`
 # - `trips_dist_value`, `trips_purpose_type`, `trips_purpose_util_perc`
 # - `trips_spread_mean_cf`, `trips_spread_util_prop_cf`
-# - `trips_diversion_sources_[walk|bike|ebike|pt]`
+# - `assump_trip_source_shares_[walk|bike|ebike|pt]`
 #
 # Data manipulation, first-pass:
 # - Convert user-supplied trip target to a base-week count.
@@ -353,7 +355,7 @@ apply_counterfactual_ui_values <- function(
   )
   trip_rate <- .cf_positive_mode_assumption(
     appraisal_input_values,
-    "default_trips_per_user_per_week",
+    "assump_trips_per_user_per_week",
     spec$suffix
   )
   explicit_trip_target <- .cf_trip_target(appraisal_input_values, spec$suffix)
@@ -554,6 +556,11 @@ apply_counterfactual_ui_values <- function(
       default_value = constants[[spec$default_col]],
       seed = seed + spec$seed_offset + 1000L
     )
+    replacement_values <- .assumption_new_user_activity(
+      replacement_values, constants$assumption_values %||% list(), spec$suffix,
+      reference_mean = mean(reference_data$ind[[donor_spec$activity_col]][donor_users] *
+                              (spec$proxy_duration_factor %||% 1), na.rm = TRUE)
+    )
     role <- "new_users"
   } else {
     candidate_rows <- which(cf_users)
@@ -703,7 +710,7 @@ apply_counterfactual_ui_values <- function(
   )
   trip_rate <- .cf_positive_mode_assumption(
     appraisal_input_values,
-    "default_trips_per_user_per_week",
+    "assump_trips_per_user_per_week",
     spec$suffix
   )
   target_base <- .validate_cf_trip_target(target, reference_data, spec)
@@ -751,7 +758,7 @@ apply_counterfactual_ui_values <- function(
       spread = constants$spread
     ),
     constants = constants,
-    induced_trips_percent = induced_target$percent,
+    assump_induced_trips_percent = induced_target$percent,
     recipient_ids = user_allocation$ids,
     source_diversion_target = source_diversion_target,
     diversion_target = .cf_away_diversion_target(constants)
@@ -815,9 +822,9 @@ apply_counterfactual_ui_values <- function(
   change$sampling_constraints <- assignment$sampling_constraints
   change$mode_shift_n <- assignment$mode_shift_n
   change$induced_n <- assignment$induced_n
-  change$induced_trips_percent <- assignment$induced_trips_percent
-  change$induced_trips_percent_field <- induced_target$field
-  change$induced_trips_percent_source <- induced_target$source
+  change$assump_induced_trips_percent <- assignment$assump_induced_trips_percent
+  change$assump_induced_trips_percent_field <- induced_target$field
+  change$assump_induced_trips_percent_source <- induced_target$source
   change$new_user_percent <- new_user_target$percent
   change$new_user_percent_field <- new_user_target$field
   change$new_user_percent_source <- new_user_target$source
@@ -859,7 +866,7 @@ apply_counterfactual_ui_values <- function(
     sampling_strategy,
     trip_target,
     constants,
-    induced_trips_percent,
+    assump_induced_trips_percent,
     recipient_ids,
     source_diversion_target,
     diversion_target
@@ -877,13 +884,13 @@ apply_counterfactual_ui_values <- function(
       relevant_attributes = relevant_attributes,
       mode_shift_n = 0L,
       induced_n = 0L,
-      induced_trips_percent = induced_trips_percent,
+      assump_induced_trips_percent = assump_induced_trips_percent,
       realized_source_mode_shares = NULL
     ))
   }
 
   if (delta > 0) {
-    mechanisms <- cf_trip_mechanism_counts(delta, induced_trips_percent)
+    mechanisms <- cf_trip_mechanism_counts(delta, assump_induced_trips_percent)
     shifted <- .shift_nonactive_trips_to_mode(
       counterfactual_data = counterfactual_data,
       reference_data = reference_data,
@@ -970,7 +977,7 @@ apply_counterfactual_ui_values <- function(
     relevant_attributes = relevant_attributes,
     mode_shift_n = mode_shift_n,
     induced_n = induced_n,
-    induced_trips_percent = induced_trips_percent,
+    assump_induced_trips_percent = assump_induced_trips_percent,
     realized_source_mode_shares = realized_source_mode_shares
   )
 }
@@ -1036,7 +1043,7 @@ apply_counterfactual_ui_values <- function(
 
 .cf_trip_distribution_args <- function(values, suffix) {
   report_only_fields <- c(
-    "pop_new_current_perc",
+    "assump_new_user_percent",
     "trips_dist_value",
     paste0("trips_spread_mean_cf_", suffix),
     paste0("trips_spread_util_prop_cf_", suffix)
@@ -1048,10 +1055,10 @@ apply_counterfactual_ui_values <- function(
   )]
 
   list(
-    new_user_percent = .ui_value(values, "pop_new_current_perc", NULL),
+    new_user_percent = .ui_value(values, "assump_new_user_percent", NULL),
     trip_distance_default = .ui_value(
       values,
-      paste0("default_trip_distance_", suffix),
+      paste0("assump_trip_distance_km_", suffix),
       NULL
     ),
     purpose_type = .ui_value(values, "trips_purpose_type", NULL),
@@ -1069,8 +1076,8 @@ apply_counterfactual_ui_values <- function(
 
 .cf_induced_trips_target <- function(values, suffix, constants) {
   fields <- c(
-    paste0("induced_trips_percent_", suffix),
-    "induced_trips_percent"
+    paste0("assump_induced_trips_percent_", suffix),
+    "assump_induced_trips_percent"
   )
   field <- NULL
   raw <- NULL
@@ -1085,12 +1092,12 @@ apply_counterfactual_ui_values <- function(
 
   source <- "profile"
   if (is.null(field)) {
-    raw <- constants$induced_trips_percent_default
+    raw <- constants$assump_induced_trips_percent_default
     source <- "config_default"
   }
   value <- suppressWarnings(as.numeric(raw))
   if (length(value) != 1 || !is.finite(value) || value < 0 || value > 100) {
-    label <- field %||% "induced_trips_percent_default"
+    label <- field %||% "assump_induced_trips_percent_default"
     stop("`", label, "` must be between 0 and 100.", call. = FALSE)
   }
 
@@ -1102,7 +1109,7 @@ apply_counterfactual_ui_values <- function(
 }
 
 .cf_new_user_target <- function(values, constants) {
-  field <- "pop_new_current_perc"
+  field <- "assump_new_user_percent"
   raw <- .ui_value(values, field, NULL)
   source <- "profile"
   if (.is_blank_cf_target(raw)) {
@@ -1112,7 +1119,7 @@ apply_counterfactual_ui_values <- function(
   }
   value <- suppressWarnings(as.numeric(raw))
   if (length(value) != 1 || !is.finite(value) || value < 0 || value > 100) {
-    stop("`pop_new_current_perc` must be between 0 and 100.", call. = FALSE)
+    stop("`assump_new_user_percent` must be between 0 and 100.", call. = FALSE)
   }
   list(percent = value, field = field, source = source)
 }
@@ -1638,6 +1645,15 @@ apply_counterfactual_ui_values <- function(
     }
   }
 
+  # In the assumptions contract, changed CF trips use target-mode speed.
+  # The distance is the sampled journey (PT: access leg), not the donor speed.
+  if (!is.null(constants$assumption_values) &&
+      spec$trip_distance_col %in% names(trips) && spec$trip_duration_col %in% names(trips)) {
+    speed <- constants$assumption_values[[paste0("assump_trip_speed_kmh_", spec$suffix)]]
+    trips[[spec$trip_duration_col]][rows] <-
+      .as_plain_numeric(trips[[spec$trip_distance_col]][rows]) / speed * 60
+  }
+
   for (col in setdiff(
     c(
       "trip_walkdist_km", "trip_walktime_min",
@@ -1725,7 +1741,7 @@ apply_counterfactual_ui_values <- function(
                                          mode = NULL,
                                          constants = NULL,
                                          trips = NULL) {
-  field <- paste0("trips_diversion_sources_", suffix)
+  field <- paste0("assump_trip_source_shares_", suffix)
   raw <- .ui_value(values, field, NULL)
   configured <- constants$source_mode_shares[[mode]] %||% NULL
 
@@ -2173,7 +2189,7 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
     pt_access_walk_distance_km_default = cfg$counterfactual$modes$pt$access_walk_distance_km_default,
     pt_access_walk_minutes_default = cfg$counterfactual$modes$pt$access_walk_minutes_default,
     source_mode_shares = source_mode_shares,
-    induced_trips_percent_default = cfg$counterfactual$trips$induced_trips_percent_default %||% 10,
+    assump_induced_trips_percent_default = cfg$counterfactual$trips$assump_induced_trips_percent_default %||% 10,
     new_user_percent_default = cfg$counterfactual$population$new_user_percent_default %||% 10,
     default_diversion_mode = "car",
     plausible_distance_max_multiplier = 1.2,

@@ -24,10 +24,10 @@ ebike_handoff_profile <- function(unit) {
        dist_dur_timeframe_ebike = f("week"),
        mode_share_ref = f(list(ebike = list(percent = 0), car = list(percent = 100))),
        mode_share_cf = f(list(ebike = list(percent = 25), car = list(percent = 75))),
-       mode_share_total_trips = f(12), default_trips_per_user_per_week_ebike = f(2),
+       mode_share_total_trips = f(12), assump_trips_per_user_per_week_ebike = f(2),
        pop_number_ref_ebike_advanced = f(), pop_number_cf_ebike_advanced = f(),
        pop_total_ref_advanced = f(), pop_total_cf_advanced = f(),
-       induced_trips_percent = f(0))
+       assump_induced_trips_percent = f(0))
 }
 
 test_that("all Tab 2 routes infer e-bike CF people despite stale hidden zeros", {

@@ -498,7 +498,7 @@ test_that("apply_reference_defaults_to_profile writes aggregate and per-mode mod
     pop_number_ref_bike_advanced = list(is_filled = FALSE, input_value = NULL),
     trips_number_ref_walk = list(is_filled = FALSE, input_value = NULL),
     trips_number_ref_bike = list(is_filled = FALSE, input_value = NULL),
-    trips_diversion_sources_walk = list(is_filled = FALSE, input_value = NULL),
+    assump_trip_source_shares_walk = list(is_filled = FALSE, input_value = NULL),
     mode_share_ref = list(is_filled = FALSE, input_value = NULL),
     mode_share_ref_walk = list(is_filled = FALSE, input_value = NULL),
     mode_share_ref_bike = list(is_filled = FALSE, input_value = NULL),
@@ -512,7 +512,7 @@ test_that("apply_reference_defaults_to_profile writes aggregate and per-mode mod
       pop_number_ref_bike_advanced = 2,
       trips_number_ref_walk = 3,
       trips_number_ref_bike = 4,
-      trips_diversion_sources_walk = list(car = list(percent = 100)),
+      assump_trip_source_shares_walk = list(car = list(percent = 100)),
       mode_share_ref = list(
         car = list(percent = 87),
         bike = list(percent = 7),
@@ -529,7 +529,7 @@ test_that("apply_reference_defaults_to_profile writes aggregate and per-mode mod
   expect_equal(advanced$pop_number_ref_bike_advanced$default_value, 2)
   expect_equal(advanced$trips_number_ref_walk$default_value, 3)
   expect_equal(advanced$trips_number_ref_bike$default_value, 4)
-  expect_equal(advanced$trips_diversion_sources_walk$default_value$car$percent, 100)
+  expect_equal(advanced$assump_trip_source_shares_walk$default_value$car$percent, 100)
   expect_equal(advanced$mode_share_ref$default_value$car$percent, 87)
   expect_equal(advanced$mode_share_ref_walk$default_value, 6)
   expect_equal(advanced$mode_share_ref_bike$default_value, 7)
