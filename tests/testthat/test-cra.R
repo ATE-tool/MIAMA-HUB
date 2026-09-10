@@ -104,6 +104,8 @@ test_that("death-share outcome loading filters people and assessment cycles", {
 })
 
 test_that("apply_counterfactual_health_outcomes calculates lookup deltas and cf columns", {
+  # Lookup arithmetic is tested in an active year with no build-up. Cycle zero
+  # is now reserved for REF state and must never receive a scheme delta.
   reference_data <- list(
     ind = data.frame(
       census_id = c(1, 2),
@@ -121,7 +123,7 @@ test_that("apply_counterfactual_health_outcomes calculates lookup deltas and cf 
   hm_cycle_outcomes <- data.frame(
     census_id = c(1, 2),
     mr_decile = c(4L, 5L),
-    cycle = c(0L, 0L),
+    cycle = c(1L, 1L),
     mmets_cycle = c(1, 5),
     dead = c(10, 20),
     diabetes = c(1, 2)
@@ -130,7 +132,7 @@ test_that("apply_counterfactual_health_outcomes calculates lookup deltas and cf 
     age1year = c(30L, 30L, 40L),
     female = c(0, 0, 1),
     mr_decile = c(4L, 4L, 5L),
-    cycle = c(0L, 0L, 0L),
+    cycle = c(1L, 1L, 1L),
     mmets_lo = c(0, 2, 0),
     mmets_hi = c(2, 4, 35),
     outcome = c("d_dead_per_mmet", "d_dead_per_mmet", "d_dead_per_mmet"),
@@ -141,6 +143,7 @@ test_that("apply_counterfactual_health_outcomes calculates lookup deltas and cf 
     counterfactual_data,
     reference_data,
     include_cf_columns = TRUE,
+    scheme_profile = list(scheme_peak_year = 0),
     hm_cycle_outcomes = hm_cycle_outcomes,
     hm_cycle_lookup = hm_cycle_lookup
   )
@@ -177,7 +180,7 @@ test_that("apply_counterfactual_health_outcomes accepts data.table inputs from w
   hm_cycle_outcomes <- data.table::data.table(
     census_id = 1,
     mr_decile = 4L,
-    cycle = 0L,
+    cycle = 1L,
     mmets_cycle = 1,
     dead = 10
   )
@@ -185,7 +188,7 @@ test_that("apply_counterfactual_health_outcomes accepts data.table inputs from w
     age1year = c(30L, 30L),
     female = c(0, 0),
     mr_decile = c(4L, 4L),
-    cycle = c(0L, 0L),
+    cycle = c(1L, 1L),
     mmets_lo = c(0, 2),
     mmets_hi = c(2, 4),
     outcome = c("d_dead_per_mmet", "d_dead_per_mmet"),
@@ -195,6 +198,7 @@ test_that("apply_counterfactual_health_outcomes accepts data.table inputs from w
   out <- apply_counterfactual_health_outcomes(
     counterfactual_data,
     reference_data,
+    scheme_profile = list(scheme_peak_year = 0),
     hm_cycle_outcomes = hm_cycle_outcomes,
     hm_cycle_lookup = hm_cycle_lookup
   )
@@ -221,14 +225,14 @@ test_that("apply_counterfactual_health_outcomes accepts labelled numeric inputs"
 
   hm_cycle_outcomes <- data.frame(census_id = 1, dead = 10)
   hm_cycle_outcomes$mr_decile <- labelled(4)
-  hm_cycle_outcomes$cycle <- labelled(0)
+  hm_cycle_outcomes$cycle <- labelled(1)
   hm_cycle_outcomes$mmets_cycle <- labelled(1)
 
   hm_cycle_lookup <- data.frame(outcome = c("d_dead_per_mmet", "d_dead_per_mmet"))
   hm_cycle_lookup$age1year <- labelled(c(30, 30))
   hm_cycle_lookup$female <- labelled(c(0, 0))
   hm_cycle_lookup$mr_decile <- labelled(c(4, 4))
-  hm_cycle_lookup$cycle <- labelled(c(0, 0))
+  hm_cycle_lookup$cycle <- labelled(c(1, 1))
   hm_cycle_lookup$mmets_lo <- labelled(c(0, 2))
   hm_cycle_lookup$mmets_hi <- labelled(c(2, 4))
   hm_cycle_lookup$slope <- labelled(c(0.1, 0.2))
@@ -236,6 +240,7 @@ test_that("apply_counterfactual_health_outcomes accepts labelled numeric inputs"
   out <- apply_counterfactual_health_outcomes(
     counterfactual_data,
     reference_data,
+    scheme_profile = list(scheme_peak_year = 0),
     hm_cycle_outcomes = hm_cycle_outcomes,
     hm_cycle_lookup = hm_cycle_lookup
   )
@@ -254,7 +259,7 @@ test_that("apply_counterfactual_health_outcomes handles reduced mmets with negat
   hm_cycle_outcomes <- data.frame(
     census_id = 1,
     mr_decile = 4L,
-    cycle = 0L,
+    cycle = 1L,
     mmets_cycle = 3,
     dead = 10
   )
@@ -262,7 +267,7 @@ test_that("apply_counterfactual_health_outcomes handles reduced mmets with negat
     age1year = c(30L, 30L),
     female = c(0, 0),
     mr_decile = c(4L, 4L),
-    cycle = c(0L, 0L),
+    cycle = c(1L, 1L),
     mmets_lo = c(0, 2),
     mmets_hi = c(2, 4),
     outcome = c("d_dead_per_mmet", "d_dead_per_mmet"),
@@ -272,6 +277,7 @@ test_that("apply_counterfactual_health_outcomes handles reduced mmets with negat
   out <- apply_counterfactual_health_outcomes(
     counterfactual_data,
     reference_data,
+    scheme_profile = list(scheme_peak_year = 0),
     hm_cycle_outcomes = hm_cycle_outcomes,
     hm_cycle_lookup = hm_cycle_lookup
   )

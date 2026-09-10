@@ -41,9 +41,13 @@ get_input_value <- function(appraisal_inputs_in, field_name, default = NULL) {
 extract_input_values <- function(appraisal_inputs_in, drop_null = FALSE) {
   assert_named_list(appraisal_inputs_in, "appraisal_inputs_in")
 
-  values <- lapply(appraisal_inputs_in, function(field) {
+  values <- lapply(names(appraisal_inputs_in), function(name) {
+    field <- appraisal_inputs_in[[name]]
     if (is_input_field(field)) {
-      if (!is.null(field$assumption)) {
+      # The release retains the published assumptions interface. Only the four
+      # timeline fields additionally use their defaults before being submitted.
+      if (!is.null(field$assumption) || name %in%
+          c("scheme_peak_year", "scheme_no_decline", "scheme_decline_year", "scheme_end_year")) {
         return(if (isTRUE(field$is_filled)) field$input_value else field$default_value)
       }
       if ("is_filled" %in% names(field) && !isTRUE(field$is_filled)) {
@@ -53,6 +57,7 @@ extract_input_values <- function(appraisal_inputs_in, drop_null = FALSE) {
     }
     field
   })
+  names(values) <- names(appraisal_inputs_in)
 
   if (any(vapply(appraisal_inputs_in, function(field) {
     is.list(field) && !is.null(field$assumption)

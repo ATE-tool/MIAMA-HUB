@@ -81,6 +81,7 @@ test_that("copied people get exactly one donor history per appraisal person", {
   lookup <- data.frame(age1year = 40, female = 0, mr_decile = 1,
     cycle = 1:2, mmets_lo = 0, mmets_hi = 100, outcome = "d_dead", slope = -0.01)
   out <- apply_counterfactual_health_outcomes(cf, ref,
+    scheme_profile = list(scheme_peak_year = 0),
     hm_cycle_outcomes = hm, hm_cycle_lookup = lookup)
   expect_equal(nrow(out$health_outcomes), 24)
   expect_equal(anyDuplicated(out$health_outcomes[c("census_id", "cycle")]), 0)

@@ -30,10 +30,14 @@ apply_counterfactual_health_outcomes <- function(
     scheme_effect_duration = "longterm",
     include_cf_columns = FALSE,
     hm_cycle_outcomes = NULL,
-    hm_cycle_lookup = NULL
+    hm_cycle_lookup = NULL,
+    scheme_profile = list()
 ) {
   assert_named_list(counterfactual_data, "counterfactual_data")
   assert_named_list(reference_data, "reference_data")
+  # Fail before loading large health tables when direct API callers provide
+  # invalid years (UI also validates before navigation).
+  get_scheme_effect_timeline(scheme_profile, numeric())
 
   if (!identical(scheme_effect_duration, "longterm")) {
     stop("Only `scheme_effect_duration = \"longterm\"` is currently implemented.", call. = FALSE)
@@ -54,6 +58,8 @@ apply_counterfactual_health_outcomes <- function(
   }
   hm_cycle_outcomes <- .expand_hm_donor_histories(
     hm_cycle_outcomes, reference_data$ind, census_ids)
+  timeline <- get_scheme_effect_timeline(scheme_profile,
+    sort(unique(.as_plain_numeric(hm_cycle_outcomes$cycle))))
   if (is.null(hm_cycle_lookup)) {
     lookup_scope <- .counterfactual_health_lookup_scope(hm_cycle_outcomes, exposure)
     hm_cycle_lookup <- load_hm_cycle_lookup_death_share(
@@ -67,7 +73,8 @@ apply_counterfactual_health_outcomes <- function(
     hm_cycle_outcomes = hm_cycle_outcomes,
     hm_cycle_lookup = hm_cycle_lookup,
     exposure = exposure,
-    include_cf_columns = include_cf_columns
+    include_cf_columns = include_cf_columns,
+    active_cycles = timeline$cycle[timeline$effect_factor > 0]
   )
 
   haly <- .try_add_haly_outcomes(
@@ -75,7 +82,7 @@ apply_counterfactual_health_outcomes <- function(
     cfg = cfg %||% miama_default_config(),
     include_cf_columns = include_cf_columns
   )
-  health_outcomes <- haly$data
+  health_outcomes <- .scale_scheme_health_outcomes(haly$data, timeline)
 
   counterfactual_data$health_outcomes <- health_outcomes
   counterfactual_data$counterfactual_health_report <- .counterfactual_health_report(
@@ -85,6 +92,7 @@ apply_counterfactual_health_outcomes <- function(
     include_cf_columns = include_cf_columns,
     haly_report = haly$report
   )
+  counterfactual_data$counterfactual_health_report$scheme_effect_timeline <- timeline
 
   counterfactual_data
 }
@@ -309,7 +317,8 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL,
 # overlap changed intervals with lookup bands, multiply by per-MMET slopes, and
 # return reference, delta, and counterfactual outcome values by cycle.
 
-.apply_mmet_delta_lookup <- function(hm_cycle_outcomes, hm_cycle_lookup, exposure, include_cf_columns) {
+.apply_mmet_delta_lookup <- function(hm_cycle_outcomes, hm_cycle_lookup, exposure, include_cf_columns,
+                                    active_cycles = NULL) {
   hm_cycle_outcomes <- .health_plain_numeric_columns(
     hm_cycle_outcomes,
     c("mr_decile", "cycle", "mmets_cycle"),
@@ -341,6 +350,12 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL,
   lookup_max <- max(hm_cycle_lookup$mmets_hi, na.rm = TRUE)
   cycle_data$mmets_cycle <- pmin(cycle_data$mmets_cycle, lookup_max)
   cycle_data$mmets_new <- pmin(cycle_data$mmets_cycle + cycle_data$mmets_delta, lookup_max)
+  # Sampling happens once at maximum effect, not once per cycle. Avoid the
+  # expensive change lookup for inactive years while retaining REF health rows.
+  if (!is.null(active_cycles)) {
+    inactive <- !cycle_data$cycle %in% active_cycles
+    cycle_data$mmets_new[inactive] <- cycle_data$mmets_cycle[inactive]
+  }
   cycle_data$mmets_min <- pmin(cycle_data$mmets_cycle, cycle_data$mmets_new)
   cycle_data$mmets_max <- pmax(cycle_data$mmets_cycle, cycle_data$mmets_new)
 
