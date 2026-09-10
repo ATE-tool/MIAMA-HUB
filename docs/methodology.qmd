@@ -895,6 +895,14 @@ the displayed target.
 
 ## Changing the number of trips
 
+When converting aggregate distance or duration to trip counts, HUB first uses
+valid observed values for that mode and measure. E-bike distance and duration
+each fall back to cycling evidence only when their native measure is unavailable.
+Proxy adjustment factors apply only to cycling-derived values, not to observed
+e-bike values. If neither provides usable evidence, conversion reports an error
+rather than manufacturing a mean. Explicit applicable assumptions take priority
+over this observed-value fallback.
+
 For an increase, the default mechanism treats 90% of additional active trips as
 mode shifts and 10% as induced recreational trips. The explicit parameter is
 `assump_induced_trips_percent` in the submitted profile, optionally overridden by a

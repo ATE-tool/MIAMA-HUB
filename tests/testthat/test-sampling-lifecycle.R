@@ -12,14 +12,7 @@ lifecycle_source <- function(mode) {
     trip_ebikedist_km = 0, trip_ebiketime_min = 0)
   trips[[spec$trip_distance_col]][1:2] <- 1
   trips[[spec$trip_duration_col]][1:2] <- 10
-  # Current e-bike conversion uses cycling proxy means; keep that evidence in
-  # the fixture as in the supported packaged populations.
-  if (mode == "ebiking") {
-    ind$cycletime_wkhr[3:4] <- 1
-    trips$trip_mainmode[3:4] <- "cycling"
-    trips$trip_cycledist_km[3:4] <- 1
-    trips$trip_cycletime_min[3:4] <- 10
-  }
+  # Native e-bike evidence must work without adding cycling proxy donors.
   list(ind = ind, trips = trips)
 }
 

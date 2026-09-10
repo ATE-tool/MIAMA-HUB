@@ -231,11 +231,10 @@ contract. This assessment has not checked that external contract.
   realised current/new users, trips per group, MMET increments and donor fallbacks.
   Leverage 9002's persisted assumptions rather than creating another storage path.
   Effort: 1-2 days for agreement/audit; 2-4 days for agreed implementation.
-- [ ] **T5 / P1: refresh and extend the existing variance analysis.** Run the
-  actual staged UI/HUB lifecycle as well as the low-level sampler; compare fresh
-  sessions with route-switch/back-navigation runs. Start with 10 diagnostic draws,
-  then 50-100 for selected small/threshold scenarios. Effort: 1-3 days setup plus
-  runtime; this is an extension, not a new simulation framework.
+- [x] **T5: matched-route diagnostic benchmark.** Completed the agreed fixed-
+  population comparison of users/trips inputs, all four modes where source
+  evidence permits, basic/advanced staging, and 10 diagnostic sampling draws.
+  The broader original variance/lifecycle scope is tracked separately in T5b.
   A matched-snapshot pilot is now implemented in `docs/route_benchmark.qmd` and
   `inst/workflows/dev_route_benchmark.R`: one fixed population, explicit car-to-AT
   switches, users-only/trips-only reconstructions, normal and benchmark-informed
@@ -252,10 +251,17 @@ contract. This assessment has not checked that external contract.
   197 owned observed walking trips. All 13 additional people have PT access
   walking only: 197 walking-trip owners + 33 PT-access owners - 20 overlapping
   owners = 210. This is a mode-definition mismatch, not random loss. See
-  [walking/PT audit](walking_pt_definition_audit.md) for the correction plan.
-  The trips route used the latter starting
-  count. Reconcile these definitions before interpreting that difference as
-  seed variance. See `docs/route_benchmark.html` for the completed report.
+  [walking/PT audit](walking_pt_definition_audit.md) for the agreed rule:
+  trip categories remain separate, but PT walkers qualify as existing recipients
+  of additional walking trips. The eligibility change has focused regression
+  coverage; the completed benchmark report predates that change.
+  See `docs/route_benchmark.html` for the completed diagnostic report.
+- [ ] **T5b: expanded variance and integrated lifecycle verification.** Rerun
+  the benchmark after the PT eligibility change; use 50-100 draws for selected
+  small/threshold scenarios if greater precision is needed. Extend to final
+  `Hub$build_results()` reconstruction (with T3), then browser route switching
+  and back-navigation when the UI changes are integrated (with T9/T11).
+  T5 completion does not establish these checks or production uncertainty.
 - [x] **T6: baseline state reconstruction, including the results caller.**
   Unfiltered health rows feed LY/HLY reconstruction; ordinary event reporting
   still excludes baseline. Regression calls `prepare_results_data()` and checks
@@ -269,10 +275,11 @@ contract. This assessment has not checked that external contract.
   100%/all-age/all-PA no-ops, and accepting/re-entering staged advanced snapshots.
   Tests explicitly supply source data at the API boundary; they do not establish
   browser save/discard, reload, or installed-package correctness (T9/T11).
-  Fixtures include cycling donor evidence for e-bike conversion. A separate
-  uncovered-data concern remains: `.tab2_reference_mode_mean()` unconditionally
-  selects the cycling proxy for e-bike, and fails with native e-bike-only data
-  when no cycling means exist. Assess that fallback separately from T7.
+  E-bike conversion now prefers valid native observations for each measure,
+  using cycling and proxy factors only as fallback. Native-only, proxy-only,
+  mixed and invalid/missing evidence are tested for distance and duration.
+  Lifecycle fixtures no longer need artificial cycling donors. The full HUB
+  suite passes with the existing expected donor-reuse warning.
 - [x] **T8 / P2: make diagnostics use explicit denominators.** Shared
   `population_diagnostics` now accompanies counterfactual and results reports:
   retained/assessed records, unique donors, copied records, and distinct net/any
@@ -337,9 +344,17 @@ contract. This assessment has not checked that external contract.
    modal save/discard handling remains T11; test the integrated UI as well.
 3. **T7 HUB work completed:** precision fix and cross-mode/unit lifecycle
    regression coverage. Browser integration verification remains separate.
+   **E-bike fallback correction completed:** native distance/duration evidence
+   now precedes cycling proxies, with proxy factors limited to fallback values.
+   No UI schema change is needed.
 4. **T3: split before implementation.** Start with tests showing where accepted
    population targets change between staging and results. Updating the new-user
    control and freezing the complete accepted scenario is a larger follow-up.
+   Coverage review: current high-level `build_results()` tests supply already
+   computed health outcomes; lifecycle tests exercise CF construction and staging
+   separately. Add a small health-enabled fixture exercising accepted Tab 3/4
+   values through final results, checking counts, identities and exposure, before
+   changing reconstruction logic. This gap is not evidence of a new defect.
 5. **T9: coordinate with UI assumptions work.** A focused manual/browser test
    pass is useful, but this is not a HUB-only fix. Test the intended integrated
    branch; avoid diagnosing a known older installed package as current code.

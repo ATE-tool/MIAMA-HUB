@@ -1448,6 +1448,11 @@ people.
 
 ### Trips: derive counterfactual number of active mode trips
 
+Distance/duration conversion prefers valid observed values for the requested
+mode and measure. For e-bikes, cycling is a fallback only when no positive,
+finite native value is available; configured proxy factors apply only to that
+fallback, never to native e-bike observations. Missing trip IDs are excluded.
+
 For additional walking trips, in-scope PT-access walkers qualify as existing
 walking recipients, even without separate walking trips in REF. Walking and PT
 trips remain separate categories. Eligibility alone does not increase displayed

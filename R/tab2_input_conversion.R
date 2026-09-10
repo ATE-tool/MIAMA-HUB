@@ -198,6 +198,19 @@
 }
 
 .tab2_reference_mode_mean <- function(trips, spec, kind) {
+  # Prefer observed target-mode values for the requested measure. A native
+  # distance can be usable even when duration needs a proxy (and vice versa).
+  column_for <- function(x) {
+    if (identical(kind, "distance")) x$trip_distance_col else x$trip_duration_col
+  }
+  native_column <- column_for(spec)
+  if (!is.na(native_column) && native_column %in% names(trips)) {
+    active <- spec$trip_filter(trips) & !is.na(trips$nts_tripid)
+    native_values <- .as_plain_numeric(trips[[native_column]])[active]
+    native_values <- native_values[is.finite(native_values) & native_values > 0]
+    if (length(native_values) > 0L) return(mean(native_values))
+  }
+
   donor_spec <- .mode_proxy_spec(spec)
   active <- donor_spec$trip_filter(trips) & !is.na(trips$nts_tripid)
   column <- if (identical(kind, "distance")) donor_spec$trip_distance_col else donor_spec$trip_duration_col
