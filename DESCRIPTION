@@ -1,6 +1,6 @@
 Package: MIAMAHUB
 Title: Integration Layer for MIAMA UI and Health Model Workflows
-Version: 0.0.0.9000
+Version: 0.0.0.9003
 Authors@R: person(given = "Thomas", family = "Gotschi", role = c("aut", "cre"), email = "gotschi@berkeley.edu")
 Description: Scaffold package for the MIAMA integration layer that mediates
   between MIAMA-UI inputs, synthetic population reference data, counterfactual
