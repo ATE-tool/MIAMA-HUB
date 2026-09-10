@@ -1792,6 +1792,45 @@ overrides remain supported but depart from the default real-person contract.
 Source-derived default counts describe an example appraisal, not the entire LAD;
 the full geographic population estimate in Tab 1 remains contextual information.
 
+### Population diagnostic counts
+
+`counterfactual_data$counterfactual_report$population_diagnostics` and
+`results_data$results_report$population_diagnostics` distinguish appraisal size
+from donor evidence. Results recompute these diagnostics from the final snapshots.
+The implementation is in `R/appraisal_population_diagnostics.R`.
+
+The `populations` table has one row each for REF and CF:
+
+| Field | Meaning |
+|---|---|
+| `retained_person_records` | All person rows held in that snapshot, including unused donor reserves. |
+| `assessed_people` | Rows inside that snapshot's assessed population boundary. |
+| `retained_unique_source_donors` | Distinct source people behind all retained rows. |
+| `assessed_unique_source_donors` | Distinct source people behind assessed rows only. |
+| `retained_copied_records` | Retained rows whose appraisal ID differs from their source donor ID. |
+| `assessed_copied_records` | Such copied rows included in the assessed population. |
+
+For example, 10,000 assessed records drawn from 5,000 donors still represent
+10,000 appraisal people, not 5,000 independent new observations. Copies are not
+removed from health totals. Copies count even if their original donor row is
+outside the assessed population; copy counts therefore need not equal assessed
+people minus unique donors. Source IDs are provenance, not an effective sample
+size or proof of statistical independence.
+
+`exposure_changes` counts people once across the REF/CF union:
+`assessed_union_people`, `net_mmet_changed_people`, and
+`any_mode_mmet_changed_people`. The last two differ when mode-specific MMET
+changes cancel. They use absolute tolerance `1e-10`, count appraisal records
+(including copies), and exclude unused reserves. These are exposure counts,
+not counts of people with nonzero health outcomes in a selected year.
+
+All diagnostics are unweighted and precede Tab 5 outcome/year/group filters.
+Missing information is `NA`, whereas an empty known population is zero. Without
+scope flags, all supplied person rows are considered assessed; without donor
+provenance, `census_id` is the source ID. Existing `n_ind`/`n_trips` report fields
+still describe retained rows, not necessarily the assessed population. These
+new fields are available to consumers; no UI display change is required.
+
 ### Tab 5 health outcome choices
 
 The exported helper returns the stable configured choices without loading HM

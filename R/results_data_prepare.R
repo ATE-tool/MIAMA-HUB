@@ -124,6 +124,9 @@ prepare_results_data <- function(
     mode_attribution = mode_attribution
   )
 
+  # Refresh from the final snapshots, not a potentially earlier staging report.
+  report$population_diagnostics <- .appraisal_population_diagnostics(reference_data, counterfactual_data)
+
   list(
     results_request = request,
     headline_metrics = headline_metrics,

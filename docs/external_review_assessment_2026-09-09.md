@@ -22,8 +22,11 @@ only, not calculation, UI, or assumptions code.
 - **Scheme lifetime implemented (`9796294`):** build-up/decline scales annual
   health impacts, including zero-effect years. This is not a new dynamic cohort
   model. Variance comparisons must hold timeline settings constant.
-- **New T11/T12:** basic-modal state handling and the shared-population contract
-  need attention; see the [focused follow-up](basic_population_navigation_review_2026-09-10.md).
+- **T12 decision agreed, implementation open:** an explicitly entered basic
+  population total is binding for REF and CF. Accepted Tab 3 overrides become
+  the binding downstream population targets. See Section 6 for the distinction
+  between assessed people and the retained donor pool. T11's UI save/discard
+  handling remains separate; see the [focused follow-up](basic_population_navigation_review_2026-09-10.md).
 
 The version table and numerical probes below describe the original review
 unless explicitly updated. No original PDF scenario has been reconstructed.
@@ -245,10 +248,13 @@ contract. This assessment has not checked that external contract.
   Fresh-vs-reused trips/users/trips now passed in a focused walking fixture;
   broader mode/unit coverage and the ceiling boundary remain open. HUB tests
   can proceed without changing the UI or assumption parameters.
-- [ ] **T8 / P2: make diagnostics use explicit denominators.** Separate unique
-  source donors, appraisal records, REF/CF assessed people, changed people and
-  copied records. Do not simply exclude copies from health results: copies are
-  intentional appraisal records, but not independent evidence. Effort: 0.5-1.5 days.
+- [x] **T8 / P2: make diagnostics use explicit denominators.** Shared
+  `population_diagnostics` now accompanies counterfactual and results reports:
+  retained/assessed records, unique donors, copied records, and distinct net/any
+  mode MMET-change counts across the assessed union. Results refresh these from
+  final snapshots. Counts are unweighted and independent of Tab 5 filters;
+  copies remain in health calculations. README and methodology document the
+  definitions. UI presentation is separate, not part of this HUB-only task.
 - [ ] **T9 / P2: browser-check mode-share editing and assumptions controls.**
   Confirm values survive modal save/reopen and reach HUB. Repeat with distance,
   duration, e-bike and PT. Do not infer widget correctness from API tests.
@@ -265,13 +271,49 @@ contract. This assessment has not checked that external contract.
   an explicit way to return to inferred counts. This needs concise UI work, not
   an assumptions rewrite. Controlled observer/collector probes reproduce the
   stale-route and overwrite mechanisms; full browser navigation is unverified.
-- [ ] **T12 / P1, contract decision: explicitly entered basic population.**
-  The modal promises one fixed REF/CF total, but recruitment can expand CF scope.
-  Decide whether an explicit total is binding (validate/reconcile targets),
-  distinct from an inferred REF scope that may recruit outside it. Do not
-  silently introduce a source-population ceiling or change recruitment policy.
-  Reproduced: entered total 3, REF mode users 2, CF mode users 4 -> populations
-  3 and 4. Interaction with T4 means this needs an agreed rule before a fix.
+- [ ] **T12 / P1, decision agreed: enforce explicitly entered basic population.**
+  An explicitly entered basic total is binding for both REF and CF. It counts
+  assessed person records, not trip rows or every retained source donor. The
+  source remains available for donor patterns and reuse; its size is not an
+  appraisal ceiling. An inferred total is not an explicit user constraint.
+  In advanced mode, accepted Tab 3 totals and mode-user counts supersede the
+  initial suggestions and remain binding through Tab 4 and results.
+  Current code can still expand `cf_in_scope` during user recruitment, so this
+  decision is not yet implemented. Reproduced: entered total 3, REF mode users
+  2, CF mode users 4 -> populations 3 and 4.
+
+  Implementation/acceptance checks:
+  - Keep explicit basic REF/CF totals unchanged during CF allocation. New mode
+    users must be accommodated within that assessed population, not silently
+    added on top. Audit fallback behaviour when its observed patterns are sparse.
+  - Reject contradictory explicit counts with an actionable input error:
+    four cyclists cannot fit in three people. Do not silently clamp a user's
+    mode count or increase their total.
+  - Allow cross-mode overlap: walking and cycling counts need not sum to the
+    total, and a person may belong to both groups.
+  - Distinguish explicit overrides from generated defaults and preserve the
+    existing zero-REF-volume fallback. Zero active users is not zero population.
+  - Test direct basic results, advanced staging/results, multiple modes, donor
+    reuse above source size, and explicit Tab 3 overrides. A final count check
+    alone is insufficient: the allocation must respect the contract throughout.
+
+### Suggested Next Small Work Packages
+
+1. **T8 completed: explicit diagnostic counts.** Available in existing HUB
+   reports without changing sampling or assumptions; UI presentation can follow
+   later. Regression coverage includes overlapping mode changes, copies,
+   reserves, empty/missing data, and refreshed results-report counts.
+2. **T12: binding population totals.** A bounded correctness fix, but not just
+   an input validator: CF allocation currently permits scope expansion. Keep
+   it separate from a wholesale T3 rewrite and cover the cases above.
+3. **T7: precision and no-op invariants.** Small regression-focused follow-up,
+   particularly the equivalent-user integer boundary already observed.
+4. **T3: split before implementation.** Start with tests showing where accepted
+   population targets change between staging and results. Updating the new-user
+   control and freezing the complete accepted scenario is a larger follow-up.
+5. **T9: coordinate with UI assumptions work.** A focused manual/browser test
+   pass is useful, but this is not a HUB-only fix. Test the intended integrated
+   branch; avoid diagnosing a known older installed package as current code.
 
 ## 7. How to Separate Variance From Route Bugs
 

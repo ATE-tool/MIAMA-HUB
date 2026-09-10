@@ -2287,6 +2287,7 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
   report$n_ind <- if (!is.null(counterfactual_data$ind)) nrow(counterfactual_data$ind) else NA_integer_
   report$n_trips <- if (!is.null(counterfactual_data$trips)) nrow(counterfactual_data$trips) else NA_integer_
   report$mmet_exposure <- .counterfactual_mmet_exposure_report(counterfactual_data$ind)
+  report$population_diagnostics <- .appraisal_population_diagnostics(reference_data, counterfactual_data)
   report$comparison <- .counterfactual_comparison_report(reference_data, counterfactual_data)
   report
 }

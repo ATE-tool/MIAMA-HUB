@@ -925,6 +925,31 @@ the corresponding values across included trip rows. Source weights remain in
 the data for future methodological work, but they do not change current count
 targets. Health-result population expansion is a separate configured operation.
 
+### Distinguishing appraisal size from donor evidence
+
+Population diagnostics accompany both the counterfactual and final results
+reports (`population_diagnostics`). They separate retained person records
+(including unused reserves), assessed REF/CF people, unique source donors, and
+copied records. Each assessed record remains one appraisal person under the
+default unit contract, including records produced by donor reuse. Thus 10,000
+assessed people may be supported by only 5,000 distinct source donors. Reuse
+does not provide additional independent evidence, and distinct donor counts
+are not an estimate of effective sample size.
+
+Copies are identified by an appraisal ID differing from the source donor ID,
+not by duplicate position within the selected sample. A copy may be assessed
+while its original donor is not. Health aggregation does not discard copies
+or multiply results by these diagnostic counts.
+
+The diagnostics also count the union of assessed REF/CF people, those with a
+nonzero net MMET change, and those with any mode-specific MMET change (absolute
+tolerance `1e-10`). Each person is counted once, even if walking and cycling
+both change; opposite mode changes can cancel in net MMET. These exposure
+counts are not annual health-beneficiary counts. Unused donor reserves are
+excluded. Counts precede results filters and are unweighted; unavailable
+information is reported as `NA`, not zero. The README's **Population diagnostic
+counts** section defines the individual output fields and missing-data rules.
+
 # What each refinement currently controls
 
 | UI information | Stored/reconstructed quantity | Current effect on counterfactual data |
