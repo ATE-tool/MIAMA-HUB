@@ -462,6 +462,16 @@ the field catalogue, precedence rules, source limitations and review checklist.
 The UI implementation is one shared `utilites/assumptions_cards.R` controller
 on the matching UI branch; no publishing configuration changes are needed.
 
+HUB also guards against hidden Tab 2 widgets still being submitted: only the
+selected `at_data_unit` supplies Tab 2 volume fields. For example, old
+`users_count_ref/cf_*` values are ignored on a trips route, and old
+`trips_count_ref/cf_*` values are ignored on a users route. This applies at
+request receipt and both staging steps. The original profile entries are kept
+for switching back, but do not enter calculation while inactive. Applicable
+Tab 3 population counts and Tab 4 `trips_number_*` overrides remain authoritative
+in advanced mode. Assumption values and their update rules are not changed by
+this safeguard.
+
 ### Reference UI value extraction
 
 Tab 2 staging ignores user-count widgets when the active input unit is trips,
@@ -1916,6 +1926,13 @@ hide missing values in future datasets; custom outcome definitions must follow
 the supported event/year semantics; source follow-up coverage and the separate
 real/synthetic unit contract need continued review. The audit should be rerun
 when HM data are replaced.
+
+In the AMAT-compatible export, life years and healthy life years reconstruct
+the initial state at cycle 0 before adding subsequent net transitions. Cycle 0
+is then excluded from the reported years. HM's `unhealthy` includes disease
+and death and may decrease with recovery; it is not a sum of separate disease
+incidences. Disability-weighted HALYs are a separate, already calculated annual
+measure and are not cumulatively reconstructed by this export step.
 
 `prepare_results_data()` prepares compact Step 8 outputs for MIAMA-UI. The
 expensive reference, counterfactual, and HM steps run before this function;

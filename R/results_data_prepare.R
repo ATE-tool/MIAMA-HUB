@@ -174,7 +174,7 @@ prepare_results_data <- function(
 
   keep <- !is.na(health_outcomes$cycle) & health_outcomes$cycle >= 0 &
     health_outcomes$cycle <= horizon_years
-  if (!any(keep)) return(.empty_amat_health_timeline())
+  if (!any(keep & health_outcomes$cycle > 0)) return(.empty_amat_health_timeline())
 
   value_cols <- intersect(
     c(
@@ -191,6 +191,7 @@ prepare_results_data <- function(
   ord <- order(x$census_id, x$cycle)
   ids <- x$census_id[ord]
   cycles <- as.integer(x$cycle[ord])
+  report_cycles <- cycles > 0
 
   build_measure <- function(measure, ref_col, delta_col, cf_col, direct_values = FALSE) {
     if (!ref_col %in% names(x)) return(NULL)
@@ -213,12 +214,11 @@ prepare_results_data <- function(
     } else {
       1 - .results_grouped_cumsum(cf_incidence, ids)
     }
-    # Cycle 0 initializes survival/healthy state but earns no reported years.
-    report_rows <- cycles > 0
-    if (!any(report_rows)) return(NULL)
+    # Cycle 0 supplies initial disease/death state for the cumulative net
+    # transitions. Exclude it from reporting only AFTER reconstructing occupancy.
     aggregated <- stats::aggregate(
-      cbind(ref_value, cf_value)[report_rows, , drop = FALSE] * person_weight,
-      by = list(cycle = cycles[report_rows]),
+      cbind(ref_value, cf_value)[report_cycles, , drop = FALSE] * person_weight,
+      by = list(cycle = cycles[report_cycles]),
       FUN = sum,
       na.rm = TRUE
     )

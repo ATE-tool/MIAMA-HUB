@@ -3,6 +3,38 @@
 # canonical weekly, per-mode trip-row targets used by the existing constrained
 # reference and counterfactual samplers.
 
+# Filter the submitted UI representation, not an already converted sampler
+# request. Hidden widgets remain in the saved profile so switching back restores
+# the user's entries, but only the selected route may supply Tab 2 volume.
+.active_tab2_input_values <- function(values) {
+  unit <- .ui_value(values, "at_data_unit", NULL)
+  routes <- c(
+    users = "^users_(count_(ref|cf)|timeframe)_",
+    trips = "^trips_(count_(ref|cf)|timeframe|denominator)_",
+    distance = paste0("^(dist_dur_(amount_(ref|cf)|denominator|timeframe)|",
+                      "ui_dist_dur_type|distance_unit|duration_unit)_"),
+    mode_share = "^(mode_share_(ref$|cf$|total_)|ui_mode_share_)"
+  )
+  if (length(unit) != 1L || is.na(unit) || !unit %in% names(routes)) return(values)
+  inactive <- names(values)[grepl(paste(routes[names(routes) != unit], collapse = "|"), names(values))]
+
+  # The optional basic population modal is not an input on the users route or
+  # in advanced mode. Advanced table counts, however, remain authoritative there.
+  ui <- .ui_value(values, "ui_version", NULL)
+  if (identical(unit, "users") || identical(ui, "advanced")) {
+    inactive <- c(inactive, grep("^pop_(total|number)_(ref|cf).*_basic$", names(values), value = TRUE))
+  }
+  if (identical(ui, "basic")) {
+    inactive <- c(inactive, grep(
+      "^(pop_(total|number)_(ref|cf).*_advanced$|trips_number_(total_)?(ref|cf)(_|$))",
+      names(values), value = TRUE
+    ))
+  }
+  inactive <- unique(inactive)
+  values[inactive] <- rep(list(NULL), length(inactive))
+  values
+}
+
 .derive_tab2_trip_count_targets <- function(values,
                                             reference_data,
                                             scenario = c("ref", "cf"),
