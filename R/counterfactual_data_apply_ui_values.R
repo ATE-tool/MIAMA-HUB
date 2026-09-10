@@ -779,7 +779,7 @@ apply_counterfactual_ui_values <- function(
     ),
     constants = constants,
     assump_induced_trips_percent = induced_target$percent,
-    recipient_ids = user_allocation$ids,
+    recipient_ids = user_allocation$recipient_ids %||% user_allocation$ids,
     source_diversion_target = source_diversion_target,
     diversion_target = .cf_away_diversion_target(constants)
   )
@@ -827,7 +827,7 @@ apply_counterfactual_ui_values <- function(
   change$implied_weekly_users <- if (is.null(trip_rate$value)) {
     user_allocation$target_users
   } else {
-    as.integer(ceiling(target_base$count / trip_rate$value))
+    .sampling_count_ceiling(target_base$count / trip_rate$value)
   }
   change$trips_per_user_per_week <- trip_rate$value
   change$trips_per_user_per_week_field <- trip_rate$field
@@ -1191,7 +1191,7 @@ apply_counterfactual_ui_values <- function(
   }
   current_rows <- which(current_mode)
   trip_delta <- target_trip_count - current_trip_count
-  equivalent_changed_users <- as.integer(ceiling(abs(trip_delta) / rate))
+  equivalent_changed_users <- .sampling_count_ceiling(abs(trip_delta) / rate)
 
   if (trip_delta <= 0) {
     removed_users <- min(
@@ -1244,11 +1244,25 @@ apply_counterfactual_ui_values <- function(
     sample(new_at_candidates, new_n, replace = FALSE)
   }
 
+  # PT access walkers are existing walking recipients, even when a trip-based
+  # REF scope contains only owners of separate walking trips. Eligibility does
+  # not itself add them to the walking-user table: only an actual assigned trip
+  # does that. The explicit-user-contract return above deliberately takes priority.
+  pt_walker_rows <- integer(0)
+  if (identical(spec$mode, "walking")) {
+    pt_users <- if ("cf_user_scope_pt" %in% names(ind)) {
+      .true_values(ind$cf_user_scope_pt)
+    } else {
+      .positive_col(ind, "pttime_wkhr")
+    }
+    pt_walker_rows <- which(in_scope & pt_users)
+  }
+
   # Normally the remaining additional trips are concentrated among existing
   # users of the target mode. E-bike has no observed baseline users, so current
   # active-travel users provide the explicit proxy recipient pool.
   selected_current <- integer(0)
-  if (length(current_rows) == 0L) {
+  if (length(current_rows) == 0L && length(pt_walker_rows) == 0L) {
     proxy_n <- min(
       equivalent_changed_users - length(selected_new),
       sum(in_scope & any_current_at)
@@ -1263,12 +1277,14 @@ apply_counterfactual_ui_values <- function(
   target_users <- length(selected)
   list(
     ids = ind$census_id[selected],
+    recipient_ids = ind$census_id[unique(c(selected, pt_walker_rows))],
     target_users = target_users,
     report = list(
       method = "trips_per_user",
       trips_per_user_per_week = rate,
       target_users = target_users,
       retained_current_mode_users = length(current_rows),
+      eligible_pt_walking_users = length(pt_walker_rows),
       equivalent_changed_users = equivalent_changed_users,
       requested_new_user_percent = new_user_percent,
       added_current_at_users = length(selected_current),

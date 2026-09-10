@@ -1377,6 +1377,14 @@ handoff remains a possible refinement if simulation testing shows a material
 effect.
 
 ### Users: derive counterfactual number of active mode users
+
+Trip-derived equivalent user counts round upward, but first remove numerical
+noise within eight machine-precision units of a positive integer. For example,
+`695 / (695/155)` produces 155 users, not 156; a genuine fractional user still
+rounds up. `R/sampling_count_rounding.R` supplies the shared rule for allocation
+and its diagnostic count. It does not change entered population targets or
+sampling weights. Cross-mode/unit lifecycle tests cover repeated builds and
+no-op refinements; browser save/discard remains a separate UI test concern.
 The current implementation supports `users_count_cf_*` in the basic UI,
 `pop_number_cf_*_basic` as the basic population-modal alternative, and
 `pop_number_cf_*_advanced` in the advanced UI for all four modes. HUB uses
@@ -1439,6 +1447,13 @@ only if the complete filtered geographic source lacks enough eligible distinct
 people.
 
 ### Trips: derive counterfactual number of active mode trips
+
+For additional walking trips, in-scope PT-access walkers qualify as existing
+walking recipients, even without separate walking trips in REF. Walking and PT
+trips remain separate categories. Eligibility alone does not increase displayed
+walking-user counts; actual assigned trips establish those users. Explicit
+accepted population/user scopes remain binding. See the
+[walking/PT audit](docs/walking_pt_definition_audit.md).
 The trip-count handler supports `trips_count_cf_*` and `trips_number_cf_*` for
 active-mode trip rows. It converts Tab 2 targets from total or mean-per-person
 values into a base-week trip count. Increases are split into two mechanisms:
@@ -2664,6 +2679,16 @@ development; pass `include_cf_columns = TRUE` only when explicit convenience
 columns are needed.
 
 ### Profiling full-data API performance
+
+For a controlled users-versus-trips comparison, see
+[`docs/route_benchmark.qmd`](docs/route_benchmark.qmd). Its companion runner,
+`inst/workflows/dev_route_benchmark.R`, fixes a sampled population and constructs
+explicit REF/CF trip switches before deriving alternative input descriptions.
+It covers all four modes, basic allocation and advanced staging, two assumption
+settings, and repeated seeds. It records unavailable cases and run failures.
+The older `sampling_variance_evaluation.qmd` remains a separate, broader
+experiment; its cached results are not reused by this pilot. Neither low-level
+allocation nor staging tests establish browser or final results-rebuild parity.
 
 [inst/workflows/dev_profile_api_performance.R](inst/workflows/dev_profile_api_performance.R)
 profiles the two UI-facing data calls against the real MIAMA-UI default profile.

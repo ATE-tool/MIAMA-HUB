@@ -25,6 +25,9 @@ test_that("diagnostics distinguish reserves, copies and overlapping mode changes
   expect_equal(out$exposure_changes, list(assessed_union_people = 4L,
     net_mmet_changed_people = 1L, any_mode_mmet_changed_people = 2L))
   expect_identical(serialize(data, NULL), before)
+  tabular <- data
+  tabular$ind <- data.table::as.data.table(tabular$ind)
+  expect_equal(.appraisal_population_diagnostics(tabular, tabular), out)
   # Reporting must not depend on row order or sum overlapping mode users.
   reversed <- data
   reversed$ind <- reversed$ind[5:1, ]

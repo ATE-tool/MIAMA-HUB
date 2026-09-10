@@ -829,6 +829,14 @@ nested sampling materially changes results.
 
 ## Changing the number of users
 
+When a trip volume is divided by a trips-per-user assumption, the equivalent
+user count rounds upward. Before rounding, HUB snaps values within
+`8 * .Machine$double.eps * max(1, abs(value))` of a positive integer to that
+integer. This avoids manufacturing an extra user through floating-point error;
+it is not a rounding allowance for genuine fractional counts. Positive values
+near zero still round up to one. The same rule is used in allocation and its
+reported implied-user counts.
+
 If the counterfactual target exceeds the reference user count, HUB samples
 baseline non-users and marks them as `new_users`. It exhausts eligible
 candidates already inside the assessed population before recruiting from the

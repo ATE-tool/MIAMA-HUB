@@ -15,8 +15,9 @@ only, not calculation, UI, or assumptions code.
   state to LY/HLY reconstruction. Its regression checks HLY .60/.65 and LY
   .88/.85, while cycle 0 remains excluded from reported events and years.
   Earlier helper-only tests missed this integration gap.
-- **Next HUB-only task:** extend T7's lifecycle invariants and integer-boundary
-  checks before expanding variance runs.
+- **T7 HUB checks implemented:** machine-precision-safe user ceilings and
+  lifecycle regression tests across all four modes and Tab 2 units, including
+  both distance and duration. Browser state/collector behaviour remains T9/T11.
 - **T3/T4 remain deferred:** accepted-count/allocation policy and assumptions
   integration are not resolved by the timeline feature.
 - **Scheme lifetime implemented (`9796294`):** build-up/decline scales annual
@@ -235,19 +236,43 @@ contract. This assessment has not checked that external contract.
   sessions with route-switch/back-navigation runs. Start with 10 diagnostic draws,
   then 50-100 for selected small/threshold scenarios. Effort: 1-3 days setup plus
   runtime; this is an extension, not a new simulation framework.
+  A matched-snapshot pilot is now implemented in `docs/route_benchmark.qmd` and
+  `inst/workflows/dev_route_benchmark.R`: one fixed population, explicit car-to-AT
+  switches, users-only/trips-only reconstructions, normal and benchmark-informed
+  completion assumptions, basic and advanced staging, and repeated seeds.
+  This is a controlled diagnostic, not the complete browser/final-results
+  lifecycle requested above. Detailed profiles, exposure records and source/code
+  fingerprints accompany the report. Source-sample uncertainty is held fixed.
+  First completed run: 500 Leeds people, 10 seeds, 560 successful reconstructions.
+  Matched basic/advanced staging HALYs were identical. Existing-e-biker scenarios
+  were unavailable because the sample had no native e-bikers. No extra person or
+  trip rows were needed. A reporting-only data.table compatibility bug in T8
+  was fixed and regression-tested during the pilot.
+  Follow-up: 210 walking users were counted from individual activity, but only
+  197 owned observed walking trips. All 13 additional people have PT access
+  walking only: 197 walking-trip owners + 33 PT-access owners - 20 overlapping
+  owners = 210. This is a mode-definition mismatch, not random loss. See
+  [walking/PT audit](walking_pt_definition_audit.md) for the correction plan.
+  The trips route used the latter starting
+  count. Reconcile these definitions before interpreting that difference as
+  seed variance. See `docs/route_benchmark.html` for the completed report.
 - [x] **T6: baseline state reconstruction, including the results caller.**
   Unfiltered health rows feed LY/HLY reconstruction; ordinary event reporting
   still excludes baseline. Regression calls `prepare_results_data()` and checks
   disease, remission, death, REF/CF occupancy and exclusion of cycle 0. Broader
   reconciliation with HM remains part of continuing verification.
-- [ ] **T7 / P2: add lifecycle invariants and precision checks.** No-op method
-  switches, 100%/all-category refinements, accepted default tables, repeated Next,
-  fresh versus reused sessions, all four modes and all four input units. Include
-  integer conversion near exact boundaries: the probe reported 156 equivalent
-  users for 695 / (695/155), indicating floating-point ceiling sensitivity.
-  Fresh-vs-reused trips/users/trips now passed in a focused walking fixture;
-  broader mode/unit coverage and the ceiling boundary remain open. HUB tests
-  can proceed without changing the UI or assumption parameters.
+- [x] **T7 / P2: HUB lifecycle invariants and precision checks.** Both equivalent
+  user ceilings now snap only machine-precision noise near positive integers:
+  `695 / (695/155)` gives 155, while genuine fractional counts still round up.
+  Tests cover all four modes and users/trips/distance/duration/mode-share routes:
+  repeated builds, fresh/reused Hub instances, reverse route traversal,
+  100%/all-age/all-PA no-ops, and accepting/re-entering staged advanced snapshots.
+  Tests explicitly supply source data at the API boundary; they do not establish
+  browser save/discard, reload, or installed-package correctness (T9/T11).
+  Fixtures include cycling donor evidence for e-bike conversion. A separate
+  uncovered-data concern remains: `.tab2_reference_mode_mean()` unconditionally
+  selects the cycling proxy for e-bike, and fails with native e-bike-only data
+  when no cycling means exist. Assess that fallback separately from T7.
 - [x] **T8 / P2: make diagnostics use explicit denominators.** Shared
   `population_diagnostics` now accompanies counterfactual and results reports:
   retained/assessed records, unique donors, copied records, and distinct net/any
@@ -310,8 +335,8 @@ contract. This assessment has not checked that external contract.
 2. **T12 completed in HUB: binding population totals.** Boundary enforcement
    and validation are implemented separately from the wider T3 review. UI
    modal save/discard handling remains T11; test the integrated UI as well.
-3. **T7: precision and no-op invariants.** Small regression-focused follow-up,
-   particularly the equivalent-user integer boundary already observed.
+3. **T7 HUB work completed:** precision fix and cross-mode/unit lifecycle
+   regression coverage. Browser integration verification remains separate.
 4. **T3: split before implementation.** Start with tests showing where accepted
    population targets change between staging and results. Updating the new-user
    control and freezing the complete accepted scenario is a larger follow-up.

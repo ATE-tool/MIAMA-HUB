@@ -1,0 +1,177 @@
+---
+title: "Users versus trips: a matched-snapshot experiment"
+format:
+  html:
+    toc: true
+    embed-resources: true
+params:
+  data_dir: "_route_benchmark"
+execute:
+  echo: false
+  warning: false
+---
+
+# What this comparison can show
+
+We start with one fixed sample of people and their linked trips. For each mode,
+we construct a counterfactual by switching existing short car trips. We then
+ask HUB to reconstruct that scenario from either its user counts or its trip
+counts. Neither reconstruction is supplied with the other route's count target.
+
+Differences **between repeated seeds** measure sampling variation conditional
+on this fixed population. Persistent differences **between routes** can reflect
+different completion/allocation assumptions, missing information, or defects;
+they are not automatically bugs. Equal total MMET does not imply equal health
+benefits if different people receive the activity.
+
+```{r}
+library(dplyr)
+library(ggplot2)
+runs <- read.csv(file.path(params$data_dir, "runs.csv"))
+runs$warnings[is.na(runs$warnings)] <- ""
+bench <- read.csv(file.path(params$data_dir, "benchmarks.csv"))
+unavailable <- read.csv(file.path(params$data_dir, "unavailable.csv"))
+manifest <- readRDS(file.path(params$data_dir, "manifest.rds"))
+ok <- filter(runs, status == "ok")
+knitr::kable(data.frame(Population = manifest$population_size,
+  Seeds = length(manifest$seeds), Successful = nrow(ok), Failed = sum(runs$status != "ok")))
+```
+
+# Design and boundaries
+
+- All modes: walking, cycling, e-biking, and PT access walking.
+- Two benchmarks: new users (previously no AT in any mode), and extra trips
+  among current users of the target mode. Up to five eligible people receive up
+  to two switched trips each. Donor journeys are positive-distance, at most
+  5 km, and utilitarian. The benchmark does not add rows or induce trips.
+- Fixed population identities, no geographic population multiplier, 40 model
+  years and immediate full effect for every route.
+- **Defaults:** normal completion assumptions, except shared zero induction and
+  car-only diversion. **Benchmark-informed:** trip frequency and distance are
+  derived from the actual switched trips; new-user preference is 100% or 0%
+  according to scenario. These settings still do not encode recipient identities.
+- **Basic:** direct HUB scope/allocation APIs. **Advanced:** Tab 2 population
+  staging followed by acceptance of the generated Tab 3 tables and Tab 4
+  staging. Both use the same health function afterwards. This is **not** a
+  browser test or a test of the final `Hub$build_results()` reconstruction.
+- Seeds are shared across routes for convenience; identical seeds do not
+  guarantee identical people are sampled. Source selection uses a separate,
+  fixed seed. This pilot does not measure uncertainty in the source sample or HM.
+
+An existing-users benchmark can have identical REF/CF user counts but additional
+trips. The users-only route cannot convey that increase. A zero result on that
+route is an expected information limitation, not evidence of sampling failure.
+Native e-bike current-user scenarios are unavailable if the sample has no e-bikers.
+
+The benchmark's new users have no prior AT in any mode. Explicit user-count
+requests, however, can recruit people who already use another AT mode; they
+override the new-user percentage. Consequently, even benchmark-informed
+aggregate assumptions do not guarantee the same recipient pool or dose per
+person. This is one of the allocation distinctions the experiment is meant to
+expose, rather than hide by forcing identical recipients into both routes.
+
+## Benchmarks and unavailable cases
+
+```{r}
+knitr::kable(select(bench, mode, scenario, ref_users, users, ref_trips, trips,
+                    trip_minutes, mmet_delta, halys), digits = 3)
+if (nrow(unavailable)) knitr::kable(unavailable)
+```
+
+# Health results
+
+## First things to inspect
+
+```{r}
+#| results: asis
+keys <- c("mode", "scenario", "route", "assumptions", "seed")
+paired <- merge(filter(ok, workflow == "basic"), filter(ok, workflow == "advanced"), by = keys)
+if (nrow(paired)) cat("- Largest matched basic/advanced HALY difference: **",
+  format(max(abs(paired$halys.x - paired$halys.y)), digits = 4), "**. This covers staging, not the final results rebuild.\n", sep = "")
+cat("- For extra trips among existing users, the users-only inputs are unchanged. Their zero-change result is expected.\n")
+cat("- Compare the two assumption settings before attributing a route difference to randomness. Even matching trip counts need not match person-level activity or baseline risk.\n")
+cat("- Review walking user counts in the audit table. The initial pilot exposed different counts from individual activity versus observed trip ownership; this is a definitional issue to investigate separately.\n")
+```
+
+Black horizontal lines show benchmark HALYs. Points are individual seeds;
+colours distinguish assumption settings. The panels deliberately have separate
+scales. Ten draws are an exploratory check, not a reliable confidence interval.
+
+```{r}
+#| fig-width: 12
+#| fig-height: 13
+plot_runs <- ok |> mutate(path = factor(paste(workflow, route, sep = " / "),
+  levels = c("basic / users", "basic / trips", "advanced / users", "advanced / trips")))
+ggplot(plot_runs, aes(path, halys, colour = assumptions)) +
+  geom_hline(data = bench, aes(yintercept = halys), inherit.aes = FALSE) +
+  geom_point(position = position_jitter(width = 0.12, height = 0, seed = 1), alpha = 0.6) +
+  facet_wrap(vars(mode, scenario), scales = "free_y", ncol = 2,
+    labeller = labeller(mode = c(walking = "Walking", cycling = "Cycling", ebiking = "E-biking", pt = "PT access walking"),
+      scenario = c(new_users = "New users", existing_users = "Extra trips among existing users"))) +
+  scale_colour_manual(values = c(defaults = "#167568", benchmark_informed = "#B7406B"),
+    breaks = c("defaults", "benchmark_informed"), labels = c("Default assumptions", "Benchmark-informed")) +
+  labs(x = NULL, y = "HALYs gained over 40 years", colour = "Assumptions") +
+  theme_minimal() + theme(legend.position = "bottom", axis.text.x = element_text(angle = 25, hjust = 1))
+```
+
+## Route means and variation
+
+```{r}
+summary <- ok |> group_by(mode, scenario, workflow, route, assumptions) |>
+  summarise(n = n(), mean_halys = mean(halys), sd_halys = sd(halys),
+    mean_difference_from_benchmark = mean(haly_difference),
+    distinct_exposures = n_distinct(exposure_hash), .groups = "drop")
+knitr::kable(summary, digits = 4)
+```
+
+# Where differences arise
+
+Inspect counts first, then exposure, then health. `person_mmet_mae` is the mean
+absolute difference from the benchmark's person-level MMET changes, including
+unchanged people. Trip minutes and individual-record minutes are shown separately:
+HUB can assign exposure through different components, so those measures must not
+be added together as if independent. `mmet_delta` is the reconciled exposure.
+
+```{r}
+audit <- ok |> group_by(mode, scenario, workflow, route, assumptions) |>
+  summarise(users = mean(users), trips = mean(trips),
+    trip_minutes = mean(trip_minutes), individual_minutes = mean(individual_minutes),
+    mmet_delta = mean(mmet_delta), changed_people = mean(changed_people),
+    person_mmet_mae = mean(person_mmet_mae),
+    max_copied_people = max(donor_copies), max_extra_trip_rows = max(extra_trip_rows),
+    .groups = "drop")
+knitr::kable(audit, digits = 3)
+```
+
+## Errors and fallbacks
+
+Failed runs are retained, not excluded without explanation. Added trip rows or
+copies mean the reconstruction used a fallback outside the benchmark's simple
+shift-only mechanism; interpret that difference separately from seed variance.
+
+```{r}
+knitr::kable(runs |> filter(status != "ok" | nzchar(warnings)) |>
+  select(any_of(c("mode", "scenario", "workflow", "route", "assumptions", "seed", "status", "error", "warnings"))))
+```
+
+# Reproduce and inspect
+
+From the HUB root, with the project's R dependencies available:
+
+```bash
+Rscript inst/workflows/dev_route_benchmark.R 10 500
+quarto render docs/route_benchmark.qmd
+```
+
+Outputs in `docs/_route_benchmark/` include CSV summaries, exact benchmark
+snapshots and per-run profiles/exposure records, and a manifest with code checksums,
+source/health/lookup hashes, configuration and seeds. Runs are recomputed rather
+than reusing the older variance report's caches. This directory is git-ignored;
+the rendered report is the shareable overview. The code checksum captures local
+uncommitted changes as well as the recorded Git commit.
+
+```{r}
+knitr::kable(data.frame(Item = c("Run time", "HUB commit", "Source fingerprint", "Zero-change HALYs"),
+  Value = c(as.character(manifest$timestamp), manifest$commit, manifest$source_hash,
+            as.character(manifest$zero_change_health["halys"]))))
+```

@@ -2,6 +2,10 @@
 .appraisal_population_diagnostics <- function(reference_data, counterfactual_data) {
   cf <- counterfactual_data$ind
   ref <- reference_data$ind
+  # Runtime loading may return data.table; use data.frame column selection
+  # semantics in this reporting-only helper, without changing the snapshots.
+  if (!is.null(cf)) cf <- as.data.frame(cf)
+  if (!is.null(ref)) ref <- as.data.frame(ref)
   # CF retains the REF boundary even when the original snapshot is not supplied.
   if (is.null(ref) && "ref_in_scope" %in% names(cf)) ref <- cf
 
