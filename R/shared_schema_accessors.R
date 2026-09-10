@@ -47,7 +47,8 @@ extract_input_values <- function(appraisal_inputs_in, drop_null = FALSE) {
   values <- lapply(names(appraisal_inputs_in), function(name) {
     field <- appraisal_inputs_in[[name]]
     if (is_input_field(field)) {
-      if (startsWith(name, "assump_") || name %in% c("appraisal_model_parameters", "appraisal_sampling_seed")) {
+      if (startsWith(name, "assump_") || name %in% c("appraisal_model_parameters", "appraisal_sampling_seed",
+          "scheme_peak_year", "scheme_no_decline", "scheme_decline_year", "scheme_end_year")) {
         return(.assumption_entry_value(field))
       }
       if ("is_filled" %in% names(field) && !isTRUE(field$is_filled)) {

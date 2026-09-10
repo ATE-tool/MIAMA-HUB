@@ -173,7 +173,8 @@ prepare_results_data <- function(
       "census_id", "cycle",
       "dead", "d_dead", "dead_cf",
       "unhealthy", "d_unhealthy", "unhealthy_cf",
-      "haly", "d_haly", "haly_cf"
+      "haly", "d_haly", "haly_cf", "scheme_effect_factor",
+      "scheme_full_d_dead", "scheme_full_d_unhealthy"
     ),
     names(health_outcomes)
   )
@@ -205,6 +206,13 @@ prepare_results_data <- function(
       cf_incidence
     } else {
       1 - .results_grouped_cumsum(cf_incidence, ids)
+    }
+    # A scheme curve scales annual LY/HLY benefits, not net state transitions.
+    # HALYs already contain their annual multiplier and must not be scaled twice.
+    full_delta <- paste0("scheme_full_", delta_col)
+    if (!direct_values && full_delta %in% names(x) && "scheme_effect_factor" %in% names(x)) {
+      full_cf <- 1 - .results_grouped_cumsum(ref_incidence + x[[full_delta]][ord], ids)
+      cf_value <- ref_value + (full_cf - ref_value) * x$scheme_effect_factor[ord]
     }
     # Cycle 0 supplies initial disease/death state for the cumulative net
     # transitions. Exclude it from reporting only AFTER reconstructing occupancy.

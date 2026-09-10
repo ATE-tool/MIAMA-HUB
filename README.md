@@ -23,6 +23,9 @@ between `MIAMA-UI` and `MIAMA-HM`.
 
 ## README guide
 
+New feature: [Scheme effect over time](docs/scheme_effect_timeline.md) describes
+the Tab 2 year inputs, annual scaling, zero-effect years, and UI integration.
+
 This developer reference follows the appraisal from setup through results:
 
 1. [Architecture and API](#1-architecture-and-api) explains package ownership,
@@ -1664,9 +1667,9 @@ Terminology in this step is explicit:
 - `baseline`: avoided here except when referring to HM source tables, because it
   can also mean the first simulation year
 
-The function keeps all filtered individuals and all HM cycle rows. For the
-current `scheme_effect_duration = "longterm"` setting, the individual-level
-MMET delta from Step 6 is applied to every model cycle:
+The function keeps all filtered individuals and all HM cycle rows. The
+individual-level MMET delta from Step 6 defines the maximum-effect scenario.
+It is evaluated for cycles with nonzero scheme effect:
 
 ```r
 mmets_delta = mmets_cf_ind - mmets_ref
@@ -1730,7 +1733,15 @@ explicit `*_cf` columns. The high-level `Hub$build_results()` method consumes
 and releases `health_outcomes` after constructing compact `health_impacts` and
 `results_data`; plots and exports do not require the raw cycle table afterward.
 
-Future work: add `scheme_effect_duration = "shortterm"`.
+The profile's scheme timeline now scales annual outcome differences after HALY
+calculation. Default: one-year linear build-up, followed by permanent effect.
+Optional decline uses two further year inputs. Zero-effect years skip MMET-change
+lookup and have zero annual benefit; REF values and earlier cumulative benefits
+remain. LY/HLY exports scale annual occupancy differences, not accumulated scaled
+transitions. This is an outcome-scaling approximation, not a time-varying exposure
+simulation or financial discounting. The existing `scheme_effect_duration`
+argument remains `"longterm"` for the underlying lookup model; the profile curve
+controls appraisal lifetime. See [the contract](docs/scheme_effect_timeline.md).
 
 ## 6. Tab 5: Present and export results
 

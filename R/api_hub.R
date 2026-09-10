@@ -714,7 +714,8 @@ Hub <- R6::R6Class(
         reference_data = reference_data,
         cfg = self$cfg,
         scheme_effect_duration = scheme_effect_duration,
-        include_cf_columns = include_cf_columns
+        include_cf_columns = include_cf_columns,
+        scheme_profile = self$request$appraisal_input_values
       )
 
       self$counterfactual_data

@@ -158,8 +158,9 @@ $$
 \Delta MMET_i = MMET_{i,cf} - MMET_{i,ref}
 $$
 
-Under the currently implemented **long-term** assumption, the same individual
-MMET change is applied in every modeled cycle:
+The underlying **long-term, maximum-effect** lookup uses the same individual
+MMET change in each active modeled cycle. The scheme lifetime multiplier below
+then adjusts annual health differences, rather than changing sampled rows:
 
 $$
 MMET_{i,t,cf} = MMET_{i,t,ref} + \Delta MMET_i
@@ -169,7 +170,37 @@ The changed MMET interval is intersected with the applicable lookup bands for
 the person's age, sex, mortality-risk decile, and model cycle. For each overlap,
 the model multiplies the interval width by the band-specific outcome slope and
 sums across bands. Counterfactual outcomes equal reference outcomes plus this
-technical delta.
+technical delta, subsequently multiplied by the annual scheme effect.
+
+### Scheme build-up, persistence and decline
+
+**Approximate, implemented:** Tab 2 specifies years since scheme start at which
+maximum effect is reached, decline starts, and effect reaches zero. A no-decline
+option maintains the plateau. The default is a one-year linear build-up followed
+by permanent effect. Tab 2 REF/CF volumes describe the maximum-effect snapshot;
+the curve scales the difference, never existing REF activity.
+
+The curve is linear between these points. For reporting cycle $t$, the multiplier
+is the mean effect during $[t-1,t]$, not merely the value at year end. Thus the
+default gives 50% in year 1 and 100% from year 2. With peak year 2, decline year 4,
+and zero-effect year 6, annual factors are 25%, 75%, 100%, 100%, 75%, 25%, then 0%.
+Year 6 includes the final decline to zero; years starting at or after 6 have none.
+
+Annual CF-minus-REF outcome differences, including HALYs, are multiplied by this
+factor before aggregation; CF becomes REF plus that scaled difference. LY/HLY
+exports first reconstruct full-effect annual occupancy and then scale its
+difference from REF. Scaling their net transitions instead would wrongly retain
+benefits in later zero-effect years. Cumulative benefits retain previous gains
+but do not increase during zero-effect years. Cycle 0 informs baseline health
+state and receives no scheme benefit.
+
+People/trips are sampled **once** at maximum effect, not separately per cycle.
+Zero-effect years are excluded from the expensive MMET-change lookup, but REF
+health rows remain for comparison. Travel tables therefore remain maximum-effect
+snapshots, not year-specific travel forecasts. The method assumes no residual
+annual benefit after cessation; it is not a dynamic health-state simulation,
+does not simulate delayed disease responses, and is not monetary discounting.
+See [implementation and field contract](scheme_effect_timeline.md).
 
 ```{mermaid}
 flowchart TD
