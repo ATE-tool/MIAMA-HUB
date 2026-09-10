@@ -55,14 +55,14 @@ cfg$cache$enabled         <- TRUE
 cfg$cache$refresh         <- FALSE
 
 # Confirm the complete source set before loading. Step 5 uses the one-row-per-
-# person overall HM table to obtain reference MMETs; Step 7 separately uses the
+# person cycle-0 HM state to obtain reference MMETs; Step 7 separately uses the
 # cycle death-share table and MMET lookup to calculate counterfactual outcomes.
 message("Dataset size:          ", cfg$workflow$dataset_size)
 message("Synthpop individuals:  ", cfg$sources$sp_attributes$path)
 message("Synthpop trips:        ", cfg$sources$sp_trips$path)
 hm_overall_key <- if (identical(cfg$workflow$dataset_size, "sample")) "overall_sample" else "overall"
 hm_cycle_key <- if (identical(cfg$workflow$dataset_size, "sample")) "cycle_sample" else "cycle"
-message("HM overall reference:  ", .hm_source_path(cfg$sources$hm_outcomes[[hm_overall_key]]))
+message("HM cycle-0 reference:  ", .hm_source_path(cfg$sources$hm_outcomes[[hm_overall_key]]))
 message("HM death-share cycles: ", .hm_source_path(cfg$sources$hm_death_share[[hm_cycle_key]]))
 message("HM MMET lookup:        ", .hm_source_path(cfg$sources$hm_death_share$lookup_cycle))
 
@@ -453,7 +453,7 @@ cf_spread_bar_report[
 
 
 # 5. Load health-enriched reference data for build_results ----
-# Mirrors the first data stage inside `Hub$build_results()`. Overall HM outcomes
+# Mirrors the first data stage inside `Hub$build_results()`. Cycle-0 HM states
 # provide one reference MMET row per person. Cycle/death-share data remain
 # deferred until Step 7.
 

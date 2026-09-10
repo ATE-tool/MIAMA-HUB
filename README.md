@@ -1651,8 +1651,19 @@ It also includes `changed_trip_rows` for trip mode switches and induced trips.
 counterfactual physical activity to health model outcomes. It uses the updated
 MIAMA-HM death-share cycle artifacts:
 
-- `sp_cycle_outcomes_death_share`
-- `mmet_d_cycle_lookup_death_share`
+- `sp_cycle_outcomes`
+- `mmet_d_cycle_lookup`
+
+These are now the only standard HM exports and already include death shares.
+The packaged data were refreshed from MIAMA-HM `08e78e2` on 10 September 2026
+for the new relative risks. Reference sampling takes one cycle-0 row per person
+(`census_id`, `mr_decile`, `mmets_cycle` renamed to `mmets`); no overall export
+is required. Annual health calculation reads the full histories and matching
+lookup. Death-share columns and HALY formulas are unchanged.
+
+For future data-only updates, including smoothing, use the
+[health refresh procedure](docs/hm_data_contract.md). It preserves the existing
+sampled people/trips and records the upstream revision and source checksums.
 
 Those artifacts are produced by `MIAMA-HM/scripts/sp_hm_join.R`. HUB does not
 source or duplicate that script; it reads the processed artifacts and reproduces
@@ -2495,8 +2506,9 @@ MIAMA_HM_ROOT=/absolute/path/to/MIAMA-HM
 
 `MIAMA_DATA_ROOT` must contain the full synthpop parquet directories under
 `synthetic_pop/`. `MIAMA_HM_ROOT` must contain
-`health_data/processed/sp_cycle_outcomes_death_share/`. The common death-share
-MMET lookup is packaged with HUB and may also be supplied from MIAMA-HM. Setting
+`health_data/processed/sp_cycle_outcomes/` and its matching
+`health_data/processed/mmet_d_cycle_lookup/`. The common lookup is packaged for
+sample/LAD runs. Setting
 a root only points HUB at existing files; it does not download them.
 
 The UI should construct its shared config once with
@@ -2535,12 +2547,13 @@ Current expected layout:
 - packaged HM sample processed outputs live under
   `MIAMA-HUB/inst/extdata/data/health_data/`
 - packaged HM sample results support includes
-  `sp_cycle_outcomes_sample_death_share/` and
-  `mmet_d_cycle_lookup_death_share/`
+  `sp_cycle_outcomes/` and `mmet_d_cycle_lookup/`; sample size is determined by
+  the containing profile, not the filename
 - full HM processed outputs are read from `MIAMA-HM` via `MIAMA_HM_ROOT`
 
-Regenerate the Leeds profile only when the full upstream synthpop or HM data
-change, or when intentionally changing its sample size or seed:
+For a health-only update, use `dev_refresh_packaged_health_data.R` instead of
+resampling people. Regenerate the Leeds profile when synthpop data change or
+when intentionally changing its sample size or seed:
 
 ```bash
 MIAMA_LEEDS_OVERWRITE=true \
@@ -2555,15 +2568,17 @@ files are not accepted by this workflow.
 
 HM outcome loading follows this hierarchy:
 
-1. cached RDS files in `cfg$cache$dir` when cache is enabled and no
-   census-id prefilter is requested
+1. source-fingerprinted RDS files in `cfg$cache$dir` when cache is enabled and no
+   census-id prefilter is requested; changed source files invalidate the cache
 2. packaged sample parquet directories such as
-   `inst/extdata/data/health_data/sp_overall_outcomes_sample/`
+   `inst/extdata/data/health_data/sp_cycle_outcomes/`
 3. external MIAMA-HM parquet directories under `MIAMA_HM_ROOT/health_data/processed/`
 
-Reference and counterfactual individual/trip data use the HM `overall` table,
-which has one row per individual. A timeline results request does not join the
-cycle table to trips: death-share cycle outcomes are loaded and filtered by
+Reference and counterfactual individual/trip data use cycle 0 only, selected
+before loading, with one row per individual. Internal `overall` config keys
+now point to the same cycle file; they do not require an overall export.
+A timeline results request does not join the cycle table to trips: full cycle
+outcomes are loaded and filtered by
 `census_id` only after counterfactual MMET exposure has been created. This
 avoids an invalid cycle-by-trip row expansion.
 

@@ -36,7 +36,7 @@ apply_counterfactual_health_outcomes <- function(
   assert_named_list(counterfactual_data, "counterfactual_data")
   assert_named_list(reference_data, "reference_data")
   # Fail before loading large health tables when direct API callers provide
-  # invalid years (UI also validates before navigation).
+  # invalid years, independently of UI validity handling.
   get_scheme_effect_timeline(scheme_profile, numeric())
 
   if (!identical(scheme_effect_duration, "longterm")) {
@@ -98,8 +98,8 @@ apply_counterfactual_health_outcomes <- function(
 }
 
 # Data Loading ---------------------------------------------------------------
-# These helpers deliberately use the updated death-share cycle tables, because
-# those support health-adjusted life years and the full current outcome set.
+# The internal helper names retain "death_share" to describe their semantics.
+# Upstream filenames no longer have that suffix: these are the only HM outputs.
 
 load_hm_cycle_outcomes_death_share <- function(cfg = NULL,
                                                census_ids = NULL,
@@ -182,7 +182,9 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL,
   }
   configured_source <- cfg$sources$hm_death_share[[configured_key]]
   configured_path <- if (is.null(configured_source)) NULL else .hm_source_path(configured_source)
-  if (!is.null(configured_path) && dir.exists(configured_path)) {
+  if (!is.null(configured_path)) {
+    # A missing packaged file is a broken release, not permission to mix it
+    # with a different HM vintage from a sibling checkout.
     return(normalizePath(configured_path, winslash = "/", mustWork = FALSE))
   }
 
@@ -219,12 +221,10 @@ load_hm_cycle_lookup_death_share <- function(cfg = NULL,
 }
 
 .hm_death_share_dataset_candidates <- function(cfg, dataset_name) {
-  if (identical(dataset_name, "sp_cycle_outcomes_death_share") &&
-      identical(cfg$workflow$dataset_size, "sample")) {
-    return(c("sp_cycle_outcomes_sample_death_share", dataset_name))
-  }
-
-  dataset_name
+  switch(dataset_name,
+    sp_cycle_outcomes_death_share = "sp_cycle_outcomes",
+    mmet_d_cycle_lookup_death_share = "mmet_d_cycle_lookup",
+    stop("Unknown HM cycle dataset: ", dataset_name, call. = FALSE))
 }
 
 # Exposure Preparation -------------------------------------------------------

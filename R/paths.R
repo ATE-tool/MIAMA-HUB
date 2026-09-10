@@ -179,24 +179,20 @@ miama_paths <- function(dataset_size = NULL) {
     miama_runtime_data_dir(project_root)
   }
   hm_processed <- if (is.null(hm_root)) NULL else file.path(hm_root, "health_data", "processed")
-  profile_hm_processed <- if (lad_profile) NULL else hm_processed
+  profile_hm_processed <- if (uses_packaged_profile) NULL else hm_processed
 
   sp_attributes <- miama_pick_synthpop_source(data_dir, "SPindivid_CensusNTSALS")
   sp_trips      <- miama_pick_synthpop_source(data_dir, "SPtrip_CensusNTSALS")
-  hm_sp_overall <- miama_pick_hm_source(data_dir, profile_hm_processed, "sp_overall_outcomes")
   hm_sp_cycle <- miama_pick_hm_source(data_dir, profile_hm_processed, "sp_cycle_outcomes")
-  hm_sp_overall_sample <- miama_pick_hm_source(data_dir, profile_hm_processed, "sp_overall_outcomes_sample")
-  hm_sp_cycle_sample <- miama_pick_hm_source(data_dir, profile_hm_processed, "sp_cycle_outcomes_sample")
-  hm_cycle_death_share <- miama_pick_hm_source(data_dir, profile_hm_processed, "sp_cycle_outcomes_death_share")
-  hm_cycle_sample_death_share <- miama_pick_hm_source(
-    data_dir,
-    profile_hm_processed,
-    "sp_cycle_outcomes_sample_death_share"
-  )
+  # HM now publishes only cycle outcomes and their matching lookup. Sample/LAD
+  # size is determined by the containing directory, not a different filename.
+  # Keep config accessor names stable; none resolve obsolete overall files.
+  hm_sp_overall <- hm_sp_overall_sample <- hm_sp_cycle_sample <- hm_sp_cycle
+  hm_cycle_death_share <- hm_cycle_sample_death_share <- hm_sp_cycle
   hm_lookup_cycle_death_share <- miama_pick_hm_source(
     data_dir,
     profile_hm_processed,
-    "mmet_d_cycle_lookup_death_share",
+    "mmet_d_cycle_lookup",
     fallback_data_dirs = if (lad_profile) packaged_data_dir else character()
   )
 
@@ -225,7 +221,7 @@ miama_paths <- function(dataset_size = NULL) {
     hm_cycle_death_share  = hm_cycle_death_share,
     hm_cycle_sample_death_share = hm_cycle_sample_death_share,
     hm_lookup_cycle_death_share = hm_lookup_cycle_death_share,
-    hm_lookup_overall     = if (is.null(hm_processed)) NULL else file.path(hm_processed, "mmet_d_overall_lookup"),
-    hm_lookup_cycle       = if (is.null(hm_processed)) NULL else file.path(hm_processed, "mmet_d_cycle_lookup")
+    hm_lookup_overall     = NULL,
+    hm_lookup_cycle       = hm_lookup_cycle_death_share$path
   )
 }

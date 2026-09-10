@@ -495,14 +495,21 @@ load_hm_outcomes <- function(cfg = NULL, results_request = list(), census_ids = 
   hm_source <- cfg$sources$hm_outcomes[[key]]
   parquet_path <- .hm_source_path(hm_source)
 
-  cache_file <- file.path(
-    cfg$cache$dir,
-    paste0("hm_outcomes_", key, ".rds")
-  )
+  # A reference person is the cycle-0 state, not an overall outcome sum.
+  # Version the cache and verify its source fingerprint so a data-only HM
+  # refresh (including future smoothing) cannot reuse old health values.
+  cache_file <- file.path(cfg$cache$dir, paste0("hm_cycle_v2_", key, ".rds"))
+  files <- sort(list.files(parquet_path, pattern = "\\.parquet$", recursive = TRUE, full.names = TRUE))
+  info <- file.info(files)
+  signature <- list(path = normalizePath(parquet_path, mustWork = FALSE),
+                    files = files, size = info$size, mtime = as.numeric(info$mtime))
 
   if (isTRUE(cfg$cache$enabled) && is.null(census_ids) && file.exists(cache_file) && !isTRUE(cfg$cache$refresh)) {
-    message("Loading HM outcomes from cache: ", cache_file)
-    return(readRDS(cache_file))
+    cached <- readRDS(cache_file)
+    if (identical(cached$signature, signature)) {
+      message("Loading HM outcomes from cache: ", cache_file)
+      return(cached$data)
+    }
   }
 
   if (!dir.exists(parquet_path)) {
@@ -513,6 +520,13 @@ load_hm_outcomes <- function(cfg = NULL, results_request = list(), census_ids = 
   hm_outcomes <- .with_miama_arrow_runtime(cfg, {
     message("Loading HM outcomes from ", source_label, " parquet: ", parquet_path)
     hm_ds <- arrow::open_dataset(parquet_path, format = "parquet")
+    if (identical(hm_suffix, "overall")) {
+      # Push down both row and column selection: never collect the full cycle
+      # table just to establish one person row for reference sampling.
+      hm_ds <- hm_ds |>
+        dplyr::filter(.data$cycle == 0) |>
+        dplyr::select(census_id, mr_decile, mmets = mmets_cycle)
+    }
 
     if (!is.null(census_ids)) {
       hm_ds <- dplyr::filter(hm_ds, census_id %in% census_ids)
@@ -523,7 +537,7 @@ load_hm_outcomes <- function(cfg = NULL, results_request = list(), census_ids = 
 
   if (isTRUE(cfg$cache$enabled) && is.null(census_ids)) {
     dir.create(cfg$cache$dir, recursive = TRUE, showWarnings = FALSE)
-    saveRDS(hm_outcomes, cache_file)
+    saveRDS(list(signature = signature, data = hm_outcomes), cache_file)
     message("Cached HM outcomes to: ", cache_file)
   }
 
@@ -546,14 +560,12 @@ load_hm_outcomes <- function(cfg = NULL, results_request = list(), census_ids = 
   "configured"
 }
 
-# Load mmet lookup table for the requested aggregation.
+# Only cycle lookup data are published; aggregation happens after calculation.
 load_hm_lookup <- function(cfg = NULL, results_request = list()) {
   cfg <- cfg %||% miama_default_config()
-  hm_suffix <- miama_hm_suffix_from_request(results_request)
-
-  lookup_path <- cfg$sources$hm_lookup[[hm_suffix]]
+  lookup_path <- cfg$sources$hm_lookup$cycle
   if (is.null(lookup_path)) {
-    stop("HM lookup path is unavailable. Set MIAMA_HM_ROOT for lookup suffix: ", hm_suffix, call. = FALSE)
+    stop("HM cycle lookup path is unavailable. Set MIAMA_HM_ROOT.", call. = FALSE)
   }
   if (!dir.exists(lookup_path)) {
     stop("HM lookup parquet directory not found: ", lookup_path, call. = FALSE)

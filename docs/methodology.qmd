@@ -72,7 +72,7 @@ Two independent LAD profiles are available: Leeds (5,000 people) and
 Manchester (10,000 people, Manchester LAD rather than Greater Manchester).
 Manchester is a simple random sample without replacement from 27,864 source
 individuals, using seed 20260908. The same selected person IDs identify the
-associated trip records, overall health outcomes and death-share cycle histories.
+associated trip records and health cycle histories including death shares.
 The build rejects missing health histories and duplicate person/person-cycle
 health records. It does not rerun the health model or invent new observations.
 
@@ -151,6 +151,21 @@ MIAMA-HM provides reference person-cycle health outcomes and a piecewise lookup
 describing the change in each outcome per additional MMET. HUB does not rerun
 the underlying microsimulation. It applies the scenario logic to the processed
 health-model outputs.
+
+The upstream files are `sp_cycle_outcomes` and `mmet_d_cycle_lookup`; death
+shares remain columns, but are no longer a filename suffix. HUB initialises
+reference people from cycle 0, taking their ID, mortality-risk stratum and
+reference MMETs. It does not sum annual incidence or death-share proportions
+to manufacture an overall record. All annual outcomes are loaded later for
+health calculation. Cycle 0 informs state reconstruction but is not a benefit
+year. Older people may have fewer follow-up cycles at the HM age boundary.
+
+The September 2026 packaged refresh uses the new relative risks from HM
+`08e78e2`, without changing sampled people or trips. Future smoothing is a
+data-release change, not a new sampling rule, provided the schema stays the
+same. Both files must be refreshed together. The
+[data contract and refresh procedure](hm_data_contract.md) describe provenance
+and cache invalidation.
 
 For each synthetic person:
 

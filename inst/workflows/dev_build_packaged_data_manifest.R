@@ -44,88 +44,63 @@ suppressPackageStartupMessages({
 # 1. Artifact Definitions ----
 # -----------------------------------------------------------------------------#
 
+release <- readRDS(file.path(data_root, "health_data", "release.rds"))
 artifacts <- data.frame(
   artifact = c(
     "synthetic_pop/SPindivid_CensusNTSALS_parquet",
     "synthetic_pop/SPtrip_CensusNTSALS_parquet",
-    "health_data/sp_overall_outcomes_sample",
-    "health_data/sp_cycle_outcomes_sample",
-    "health_data/sp_cycle_outcomes_sample_death_share",
-    "health_data/mmet_d_cycle_lookup_death_share",
+    "health_data/sp_cycle_outcomes",
+    "health_data/mmet_d_cycle_lookup",
     "health_data/haly_parameters/pyld_table.csv",
     "health_data/haly_parameters/dw_table.csv",
+    "health_data/release.rds",
     "lookup/geo_options.rds",
     "lookup/england_mode_default_candidates.csv",
     "lookup/england_schema_default_candidates.csv"
   ),
-  format = c(
-    "parquet", "parquet", "parquet", "parquet", "parquet", "parquet",
-    "csv", "csv", "rds", "csv", "csv"
-  ),
+  format = c(rep("parquet", 4), "csv", "csv", "rds", "rds", "csv", "csv"),
   source = c(
-    "MIAMA synthetic population: Census/NTS/ALS",
-    "MIAMA synthetic population: Census/NTS/ALS",
-    "MIAMA-HM sample output",
-    "MIAMA-HM sample output",
-    "MIAMA-HM death-share sample output",
-    "MIAMA-HM death-share MMET lookup",
-    "MIAMA-HM residual pYLD parameters",
-    "MIAMA-HM adjusted disability-weight parameters",
-    "Derived from full MIAMA synthetic population",
-    "Derived from full MIAMA synthetic population",
-    "Derived from full MIAMA synthetic population"
+    rep("MIAMA synthetic population: Census/NTS/ALS", 2),
+    "MIAMA-HM cycle outcomes including death shares",
+    "MIAMA-HM matching MMET cycle lookup",
+    "MIAMA-HM residual pYLD", "MIAMA-HM adjusted disability weights",
+    "MIAMA-HM source checksums and revision",
+    rep("Derived from full MIAMA synthetic population", 3)
   ),
-  source_version = c(
-    "unrecorded", "unrecorded", "unrecorded", "unrecorded", "unrecorded", "unrecorded",
-    "unrecorded", "unrecorded",
-    "Census 2021 5% synthpop scale", "unrecorded", "unrecorded"
-  ),
+  source_version = c(rep("unrecorded", 2), rep(release$hm_commit, 5),
+                     "Census 2021 5% synthpop scale", rep("unrecorded", 2)),
   purpose = c(
-    "Packaged sample individual attributes",
-    "Packaged sample trip records",
-    "Packaged sample overall health outcomes",
-    "Packaged sample cycle health outcomes",
-    "Packaged sample cycle outcomes used for counterfactual health recalculation",
-    "MMET-delta lookup used for sample counterfactual health recalculation",
-    "Age/sex residual disability rates used in HALY calculations",
-    "Age/sex/disease comorbidity-adjusted weights used in HALY calculations",
-    "Full-derived geography options and scaled population labels",
-    "England-wide mode assumption evidence",
-    "England-wide UI schema default candidates"
+    "Packaged sample individual attributes", "Packaged sample trip records",
+    "Baseline person roster and annual health outcomes",
+    "Counterfactual health recalculation", "Residual disability parameters",
+    "Comorbidity-adjusted disability weights", "Health release provenance",
+    "Full-derived geography options", "England mode evidence", "England defaults"
   ),
   generated_by = c(
-    "upstream sample extraction",
-    "upstream sample extraction",
-    "MIAMA-HM sample export",
-    "MIAMA-HM sample export",
-    "MIAMA-HM sample death-share export",
-    "MIAMA-HM death-share lookup export",
-    "MIAMA-HM health_data/processed/pyld_table.csv",
-    "MIAMA-HM health_data/processed/dw_table.csv",
+    rep("upstream sample extraction", 2),
+    rep("inst/workflows/dev_refresh_packaged_health_data.R", 5),
     "build_geo_lookup()",
-    "inst/workflows/dev_extract_england_schema_default_values.R",
-    "inst/workflows/dev_extract_england_schema_default_values.R"
+    rep("inst/workflows/dev_extract_england_schema_default_values.R", 2)
   ),
   stringsAsFactors = FALSE
 )
-
-# Discover independently packaged LAD profiles, including future additions.
+# Discover the same independently packaged LAD profiles as before the refresh.
 for (profile_dir in list.dirs(file.path(data_root, "profiles"),
                              full.names = TRUE, recursive = FALSE)) {
   metadata <- readRDS(file.path(profile_dir, "profile.rds"))
   relative <- c("profile.rds",
                 "synthetic_pop/SPindivid_CensusNTSALS_parquet",
                 "synthetic_pop/SPtrip_CensusNTSALS_parquet",
-                "health_data/sp_overall_outcomes",
-                "health_data/sp_cycle_outcomes_death_share",
+                "health_data/sp_cycle_outcomes",
                 "lookup/geo_options.rds")
   artifacts <- rbind(artifacts, data.frame(
     artifact = file.path("profiles", metadata$profile_id, relative),
-    format = c("rds", rep("parquet", 4), "rds"),
+    format = c("rds", rep("parquet", 3), "rds"),
     source = paste(metadata$geo_name, c("sampling metadata", "synthpop attributes",
-                   "synthpop trips", "HM overall outcomes", "HM death-share cycles",
+                   "synthpop trips", "HM cycles including death shares",
                    "geography lookup")),
-    source_version = paste("Census 2021 synthpop; profile seed", metadata$seed),
+    source_version = ifelse(grepl("^health_data/", relative), metadata$hm_commit,
+                           paste("Census 2021 synthpop; profile seed", metadata$seed)),
     purpose = paste(metadata$sampled_individuals, "person", metadata$geo_name,
                     "profile:", relative),
     generated_by = "inst/workflows/dev_build_packaged_lad_profile.R",
