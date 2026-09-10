@@ -1,15 +1,32 @@
 # External Review: Current Bugs, Route Differences and Sampling Variance
 
-Assessment date: 9 September 2026. No calculation or UI code changed.
+Original assessment: 9 September 2026. Status refreshed 10 September after
+HUB dev `9796294`; UI dev remains `bd4f9c3`. This refresh changes documentation
+only, not calculation, UI, or assumptions code.
 
-**Implementation update, 10 September:** the historical assessment below is
-retained. T2 (inactive Tab 2 inputs at receipt/staging) and T6 (baseline-inclusive
-HLY/LY reconstruction) are now implemented locally in HUB dev. The full test
-suite passes. A Leeds 695-to-1,390 cycling-trip check produces identical sampled
-people, trips and exposure with or without stale 155-to-310 users inputs. Actual
-Leeds HLY reconstruction agrees with an independent baseline-inclusive sum.
-No UI or assumptions code changed; T3/T4 and the variance work remain deferred.
-These changes are not yet packaged into UI's installed 9001 archive.
+## Current priorities
+
+- **T2 completed in HUB dev (`89b3ba7`):** inactive Tab 2 volume fields are
+  filtered at receipt and staging. This does not solve UI modal save/discard
+  semantics. UI's installed 9001 archive does not yet contain the fix. The
+  isolated full-app timeline test build initially lacked it; it now includes
+  the backport, alongside the LY/HLY caller fix and 40-year timeline bounds.
+- **T6 fixed, including caller:** `prepare_results_data()` now passes baseline
+  state to LY/HLY reconstruction. Its regression checks HLY .60/.65 and LY
+  .88/.85, while cycle 0 remains excluded from reported events and years.
+  Earlier helper-only tests missed this integration gap.
+- **Next HUB-only task:** extend T7's lifecycle invariants and integer-boundary
+  checks before expanding variance runs.
+- **T3/T4 remain deferred:** accepted-count/allocation policy and assumptions
+  integration are not resolved by the timeline feature.
+- **Scheme lifetime implemented (`9796294`):** build-up/decline scales annual
+  health impacts, including zero-effect years. This is not a new dynamic cohort
+  model. Variance comparisons must hold timeline settings constant.
+- **New T11/T12:** basic-modal state handling and the shared-population contract
+  need attention; see the [focused follow-up](basic_population_navigation_review_2026-09-10.md).
+
+The version table and numerical probes below describe the original review
+unless explicitly updated. No original PDF scenario has been reconstructed.
 
 ## 1. Scope and Versions
 
@@ -98,14 +115,14 @@ for other scenario sizes, populations, constraints or routes.
 | **A: user recruits weighted toward existing users' age/sex/PA** | Supported by current code. Reference mode-user distributions feed candidate weights even without an explicit advanced distribution edit. Important modelling assumption, not automatically a bug. The claim that it gives almost the smallest possible benefit is not established. | P1 decision and audit, 1-2 days; policy implementation 2-4 days after agreement |
 | **A2/J: fixed 10% / 90% allocation** | Partly correct. Ten percent is a configurable preference, not an immutable constant. Its formula uses an equivalent-user count; trips are then assigned across the recipient pool. It is NOT a guaranteed 90:10 split of trips or of actually affected people. | P1 define denominator and recruitment policy; shared with A/B |
 | **B: new-user slider ineffective after accepted advanced counts** | Reproduced: 10% and 100% gave identical results. Explicit population targets short-circuit trip-derived recruitment. Current staging reuses snapshots without treating this slider as a population restaging trigger. | P1, 2-4 days with staged-contract regression tests |
-| **D: stale users fields affect trips route** | Reproduced. Tab 2 staging already clears stale users for non-users routes, contrary to the report's blanket statement. Final/basic results input resolution still admits them; both handlers can run. Latest HUB has not comprehensively closed this path. | P1, 1-3 days including reverse route and Tab 4 override tests |
+| **D: stale users fields affect trips route** | Originally reproduced in 9001; fixed at receipt/staging in HUB dev `89b3ba7`. Fresh-vs-reused trips/users/trips probe now agrees. UI save/discard state is a separate unresolved concern. | Completed in source; package deployment separate |
 | **I: selecting a Tab 4 method changes the answer** | Not reproduced in the focused current lifecycle: results were identical. The setting still clears reference-default caches but does not clear retained Tab 3 snapshots. Broader click/back-navigation coverage remains needed. | P2 regression coverage, 0.5-1 day; fix only if reproduced |
 | **F: convex users-route response** | Not reproduced as a complete size series. It cannot be diagnosed as a dose-response bug from changing user counts alone: different recipients, doses, lookup coverage and finite draws are involved. | P1 investigation combined with variance work, 1-2 days of setup |
 | **H: changed people exceed n_ind because the frames differ** | The cited health diagnostic computes BOTH quantities from the same exposure frame; `n_changed_ind <= n_ind` there. Comparing against an original source size or UI total is a different question. Donor-copy counts need clearer labels. | P2, 0.5-1.5 days |
 | **G: mode-share CF cells not editable** | Report itself says not retested. Source/API functionality does not prove the widget works. Keep as an unconfirmed browser regression, not a confirmed current blocker. | P2 test, 0.5 day; likely 0.5-2 days to fix if reproduced |
-| **Healthy life years is a cumulative-incidence mistake** | The report misidentifies the upstream field. HM's `unhealthy` is a NET health-state transition, including death and remission. A separate cycle-0 initial-state bug is reproduced in HUB's HLY export reconstruction. | P1 before relying on absolute HLY exports, 0.5-1.5 days |
+| **Healthy life years is a cumulative-incidence mistake** | Incorrect diagnosis of the HM field. The separate baseline-state omission is now fixed in helper and caller, with a top-level regression. | Fixed; retain HM reconciliation checks |
 | **No seed or uncertainty machinery exists** | Incorrect for HUB/research workflow. Both versions accept seeds; 9002 can persist a seed in the profile. The existing variance QMD already has replicates, SD/bootstrap summaries and other experiments. Production UI still lacks a sampling interval. | P1 refresh research workflow, 1-3 days; production presentation separately 2-4 days |
-| **Only long-term closed-cohort health behaviour** | Confirmed limitation; deliberately deferred, not a regression. Shorter reporting horizons do not implement a different cohort/recruitment model. | P3 methodology decision first; implementation likely multiple weeks |
+| **Only long-term closed-cohort health behaviour** | Scheme build-up/decline is now implemented as annual outcome scaling. Dynamic exposure history, cohort entry/exit and residual health benefits remain outside this approximation. | Lifetime curve done; cohort redesign remains P3 |
 | **Combined modes nearly additive** | A property of the reported example, not an invariant. Shared recipients and nonlinear health response allow non-additivity. Trip locking already prevents re-shifting a physical row. | P2 extend existing joint-mode tests, 1-2 days |
 
 Effort estimates are engineering person-days including focused tests, not
@@ -159,12 +176,15 @@ then differences that state between cycles. Negative transitions permit recovery
 The packaged Leeds data contain 33,573 negative `unhealthy` transitions, providing
 direct evidence against the report's no-recovery interpretation.
 
-However, HUB `.results_amat_years_timeline()` removes cycle 0 before the cumulative
-sum. In a minimal test, baseline unhealth 0.30 followed by +0.10 and -0.05 gives
+Originally, `.results_amat_years_timeline()` removed cycle 0 before the cumulative
+sum. The helper was fixed first, but `prepare_results_data()` still removed
+that cycle before calling the export builder. In the pre-fix top-level test,
+baseline unhealth 0.30 followed by +0.10 and -0.05 gives
 healthy occupancy **0.90 and 0.95**, instead of **0.60 and 0.65**.
 In the actual Leeds file, 4,776 of 5,000 people have positive cycle-0 unhealth.
 
-Fix reconstruction to include the initial state, then filter the reported years.
+The caller integration is now fixed: reconstruction receives the initial state,
+then filters the reported years. A top-level regression checks both LY and HLY.
 Verify bounds and reconstruction against HM outputs. Equal REF/CF baseline offsets
 may cancel from the absolute difference, so this finding does not imply the same
 error in HLY gains, and it is not evidence that the separately calculated HALYs
@@ -191,10 +211,11 @@ contract. This assessment has not checked that external contract.
   effective assumptions, supplied versus generated fields, and realised travel.
   Resolve Manchester's denominator and the inconsistent AMAT totals. Effort:
   0.5-1 day plus obtaining the original inputs/workbook.
-- [ ] **T2 / P1: complete active-route input isolation.** Ignore stale Tab 2
+- [x] **T2 / P1: complete active-route input isolation (HUB dev).** Ignore stale Tab 2
   inputs on every entry point, including direct basic results. Preserve genuinely
   authoritative downstream person/trip targets. A blanket ban on the users or
-  trips handler would break legitimate Tab 3/4 overrides. Effort: 1-3 days.
+  trips handler would break legitimate Tab 3/4 overrides. Implemented in
+  `89b3ba7`; installed UI package and UI save/discard behaviour are separate.
 - [ ] **T3 / P1: preserve the accepted scenario across staging/results.** Default
   basic and advanced paths should not silently choose different recipients or
   doses. Make the new-user control update its derived population before Tab 3
@@ -211,17 +232,19 @@ contract. This assessment has not checked that external contract.
   sessions with route-switch/back-navigation runs. Start with 10 diagnostic draws,
   then 50-100 for selected small/threshold scenarios. Effort: 1-3 days setup plus
   runtime; this is an extension, not a new simulation framework.
-- [ ] **T6 / P1 for HLY consumers: fix baseline state reconstruction.** Keep
-  cycle 0 for reconstruction, exclude it only from reporting. Test baseline
-  disease, remission, death and probability bounds against HM. Clarify HLY versus
-  HALY labels rather than deleting a measure on the report's incorrect rationale.
-  Effort: 0.5-1.5 days.
+- [x] **T6: baseline state reconstruction, including the results caller.**
+  Unfiltered health rows feed LY/HLY reconstruction; ordinary event reporting
+  still excludes baseline. Regression calls `prepare_results_data()` and checks
+  disease, remission, death, REF/CF occupancy and exclusion of cycle 0. Broader
+  reconciliation with HM remains part of continuing verification.
 - [ ] **T7 / P2: add lifecycle invariants and precision checks.** No-op method
   switches, 100%/all-category refinements, accepted default tables, repeated Next,
   fresh versus reused sessions, all four modes and all four input units. Include
   integer conversion near exact boundaries: the probe reported 156 equivalent
   users for 695 / (695/155), indicating floating-point ceiling sensitivity.
-  Effort: 1-2 days; overlaps T2/T3.
+  Fresh-vs-reused trips/users/trips now passed in a focused walking fixture;
+  broader mode/unit coverage and the ceiling boundary remain open. HUB tests
+  can proceed without changing the UI or assumption parameters.
 - [ ] **T8 / P2: make diagnostics use explicit denominators.** Separate unique
   source donors, appraisal records, REF/CF assessed people, changed people and
   copied records. Do not simply exclude copies from health results: copies are
@@ -235,6 +258,20 @@ contract. This assessment has not checked that external contract.
   uncertainty. Only then decide UI presentation, seed averaging and a future
   short-term/open-population model. These are distinct work packages; cohort
   redesign is not required to fix present route/state bugs.
+- [ ] **T11 / P1, UI boundary: basic population modal and save/discard state.**
+  Before staging the modal, synchronize the current route/modes with the saved
+  volume inputs. Prevent generic Next collection from committing discarded or
+  stale modal values. Preserve genuinely saved population overrides; provide
+  an explicit way to return to inferred counts. This needs concise UI work, not
+  an assumptions rewrite. Controlled observer/collector probes reproduce the
+  stale-route and overwrite mechanisms; full browser navigation is unverified.
+- [ ] **T12 / P1, contract decision: explicitly entered basic population.**
+  The modal promises one fixed REF/CF total, but recruitment can expand CF scope.
+  Decide whether an explicit total is binding (validate/reconcile targets),
+  distinct from an inferred REF scope that may recruit outside it. Do not
+  silently introduce a source-population ceiling or change recruitment policy.
+  Reproduced: entered total 3, REF mode users 2, CF mode users 4 -> populations
+  3 and 4. Interaction with T4 means this needs an agreed rule before a fix.
 
 ## 7. How to Separate Variance From Route Bugs
 
@@ -281,7 +318,7 @@ health-model random draw in that conditional step.
 | --- | --- |
 | All widget values marked filled | UI `utilites/appraisal_list_tools.R:1-23`; `server.R:153-204` |
 | New-user slider rendering | UI `modules/tab3/tab3Server.R:378-404` |
-| Inactive route cleanup at Tab 2 only | HUB `R/api_refinement_profile_defaults.R:245`, `.tab2_stage_input_values()` |
+| Inactive route cleanup at receipt and staging | HUB `R/tab2_input_conversion.R`, `.active_tab2_input_values()`; `R/api_receive_appraisal_inputs.R`; `R/api_refinement_profile_defaults.R` |
 | Accepted snapshots and rescoping | HUB `R/api_refinement_profile_defaults.R:68`, `prepare_trip_refinement_profile_defaults()` |
 | Final table targets / reconstruction | HUB `R/api_hub.R:859`, `.counterfactual_input_values()`; `build_counterfactual_data()` |
 | Recipient selection and explicit-count precedence | HUB `R/counterfactual_data_apply_ui_values.R:459`, `:641`, `:1127` |
@@ -293,7 +330,7 @@ health-model random draw in that conditional step.
 | Refresh rules | HUB `R/shared_state_invalidation.R`; `R/api_hub.R:284` |
 | Existing Monte Carlo study | HUB `docs/sampling_variance_evaluation.qmd:333`, `:472`, `:1620` |
 
-Line numbers refer to inspected source snapshots and may move. HUB 9002 improves
-assumption persistence, provenance and API visibility, but does not by itself
-resolve the route isolation, accepted-population allocation or HLY initial-state
-issues identified here.
+Line numbers refer to inspected source snapshots and may move. HUB 9002 improved
+assumption persistence, provenance and API visibility; later HUB dev fixes route
+isolation and adds the lifetime curve. The HLY initial-state caller is now fixed;
+accepted-population allocation remains open as described above.

@@ -1,3 +1,21 @@
+test_that("result preparation preserves baseline for LY/HLY but not event totals", {
+  health <- data.frame(
+    census_id = 1, cycle = 0:2, age1year = 40, female = 0,
+    unhealthy = c(.30, .10, -.05), d_unhealthy = c(0, -.05, -.05),
+    dead = c(.10, .02, .03), d_dead = c(0, -.01, -.01)
+  )
+  out <- prepare_results_data(list(health_outcomes = health))
+  years <- out$plot_data$amat_health_timeline
+  hly <- years[years$measure == "healthy_life_years", ]
+  ly <- years[years$measure == "life_years", ]
+  expect_equal(hly$reference_value, c(.60, .65))
+  expect_equal(hly$counterfactual_value, c(.65, .75))
+  expect_equal(ly$reference_value, c(.88, .85))
+  expect_equal(ly$counterfactual_value, c(.89, .87))
+  expect_false(any(years$cycle == 0))
+  expect_false(any(out$plot_data$health_cube$cycle == 0))
+})
+
 test_that("health-year exports reconstruct baseline before selecting report years", {
   health <- data.frame(
     census_id = 1, cycle = 0:2,

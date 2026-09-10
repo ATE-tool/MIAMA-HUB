@@ -4,8 +4,8 @@
   values <- if (any(vapply(profile, is.list, logical(1)))) extract_input_values(profile) else profile
   read_year <- function(id, fallback) {
     x <- values[[id]] %||% fallback
-    if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x < 0 || x != floor(x)) {
-      stop(id, " must be a non-negative whole year since scheme start.", call. = FALSE)
+    if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x < 0 || x > 40 || x != floor(x)) {
+      stop(id, " must be a whole year between 0 and 40 since scheme start.", call. = FALSE)
     }
     x
   }

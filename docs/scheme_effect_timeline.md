@@ -12,7 +12,7 @@ All four fields live in UI `schemes/default.R`, with normal `default_value`,
 | `scheme_decline_year` | 10 | Year decline starts; ignored when no decline is selected |
 | `scheme_end_year` | 20 | Year effect reaches zero; ignored when no decline is selected |
 
-Years must be finite non-negative integers. For declining schemes:
+Years must be whole numbers from 0 to 40 inclusive. For declining schemes:
 `peak <= decline < end`. Settings apply equally to basic/advanced routes,
 all Tab 2 input units, and all active modes. They do not modify Tab 3/4 targets.
 
@@ -58,8 +58,10 @@ show peak-effect snapshots; they are not annual trip time series.
 The UI branch adds four dictionary entries, a first-input Tab 2 section, and a
 live preview. Existing wrappers and `update_all_appraisal_inputs()` save values
 on navigation. The preview calls HUB's public API rather than duplicating math.
-It shows validation errors locally while fields are being edited. HUB validates
-again before calculation. Both branch versions are required for the new widget;
+The ggplot preview spans years 0-40. Numeric controls use the same bounds;
+HUB defensively validates bounds and ordering before calculation. There is no
+separate timeline-specific UI error handler: the UI's shared validity system
+will own user-facing validation. Both branch versions are required for the widget;
 the installed 9001/9002 packages do not contain this API.
 
 The UI feature patch is based on UI dev. That branch still uses legacy

@@ -1,5 +1,13 @@
 # Brief Response to the MIAMAT Review
 
+**10 September update:** inactive-route input leakage is fixed in HUB dev,
+though not yet in UI's installed 9001 package. The HLY/LY fix now also covers
+the top-level export caller, with a regression for baseline occupancy and
+reported-year filtering. Scheme build-up/decline is implemented as outcome scaling, not a
+dynamic cohort model. See the [updated assessment](external_review_assessment_2026-09-09.md)
+and [basic population/navigation follow-up](basic_population_navigation_review_2026-09-10.md).
+The response below records the original review findings.
+
 Thank you for tracing the input routes and highlighting how strongly recipient
 selection can influence the result. We checked the observations against the
 currently installed HUB package (9001), the latest HUB source (9002), and UI dev.
