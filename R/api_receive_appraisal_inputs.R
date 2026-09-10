@@ -21,7 +21,7 @@
 #' @export
 receive_appraisal_inputs <- function(appraisal_inputs) {
   appraisal_inputs_in <- normalize_appraisal_inputs(appraisal_inputs)
-  appraisal_input_values <- extract_input_values(appraisal_inputs_in)
+  appraisal_input_values <- .active_tab2_input_values(extract_input_values(appraisal_inputs_in))
 
   list(
     appraisal_inputs_in = appraisal_inputs_in,

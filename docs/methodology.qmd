@@ -190,7 +190,14 @@ above.
 ## Health-adjusted life years
 
 Healthy life years (HLYs) and health-adjusted life years (HALYs) are separate
-measures. HALYs are calculated after the MMET lookup has produced the
+measures. For HLY export, HM's `unhealthy` is the net transition in diseased-or-dead
+state, including recovery. Healthy occupancy in year $t$ is
+$1-\sum_{s=0}^{t} unhealthy_{i,s}$: cycle 0 supplies the initial state. Life years
+are reconstructed similarly from `dead`. Only years 1 onward are reported or
+summed over the assessment period; excluding baseline from reporting does not
+mean excluding baseline from reconstruction.
+
+HALYs are calculated after the MMET lookup has produced the
 counterfactual incidence trajectories. For each person and year, HUB
 reconstructs prevalence from incidence, deaths, disease-specific death share,
 and, for depression, remission/exits. It does this independently for reference
@@ -344,6 +351,13 @@ flowchart TD
 ```
 
 ### How Tab 2 units reach Tabs 3 and 4
+
+At request receipt and staging, HUB ignores volume fields belonging to an
+inactive Tab 2 route, even if a hidden widget submitted them as filled. Their
+stored profile entries are preserved for switching back. This filtering happens
+before conversion to sampler targets: valid advanced Tab 3 population counts
+and Tab 4 trip-count overrides are not discarded simply because Tab 2 used a
+different unit. No assumption values are changed by this route safeguard.
 
 All four Tab 2 input routes are normalized to weekly synthetic-row targets.
 This conversion creates the same downstream contract regardless of which unit

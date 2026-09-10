@@ -243,19 +243,7 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
 }
 
 .tab2_stage_input_values <- function(profile) {
-  values <- extract_input_values(profile)
-
-  # Only the selected Tab 2 route owns volume inputs. Hidden user widgets
-  # (notably a generated e-bike zero) must not become explicit person targets
-  # when the submitted volume is trips, distance or mode share.
-  if (!identical(.ui_value(values, "at_data_unit", "users"), "users")) {
-    inactive <- grep("^users_count_(ref|cf)_", names(values), value = TRUE)
-    values[inactive] <- rep(list(NULL), length(inactive))
-  }
-  if (identical(.ui_value(values, "ui_version", "basic"), "advanced")) {
-    inactive <- grep("^pop_(total|number)_(ref|cf).*_basic$", names(values), value = TRUE)
-    values[inactive] <- rep(list(NULL), length(inactive))
-  }
+  values <- .active_tab2_input_values(extract_input_values(profile))
 
   # Tab 3 and Tab 4 controls may already contain defaults or stale hidden
   # Shiny inputs. Neither tab is an upstream source while the Tab 2 snapshot
@@ -308,7 +296,7 @@ prepare_trip_refinement_profile_defaults <- function(reference_data,
 }
 
 .tab3_stage_input_values <- function(profile) {
-  values <- extract_input_values(profile)
+  values <- .active_tab2_input_values(extract_input_values(profile))
 
   # Category counts are already stored in the profile from the Tab 2 -> Tab 3
   # staging call. Reconstruct the table targets here as well as in Shiny so a
