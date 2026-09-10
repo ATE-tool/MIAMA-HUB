@@ -79,14 +79,18 @@ sp_trips_source <- require_directory(
   file.path(data_root, "synthetic_pop", "SPtrip_CensusNTSALS_parquet"),
   "Full synthpop trips parquet"
 )
-hm_overall_source <- require_directory(
-  file.path(hm_root, "health_data", "processed", "sp_overall_outcomes"),
-  "Full overall HM outcomes parquet"
-)
 hm_cycle_source <- require_directory(
-  file.path(hm_root, "health_data", "processed", "sp_cycle_outcomes_death_share"),
+  file.path(hm_root, "health_data", "processed", "sp_cycle_outcomes"),
   "Full death-share cycle HM outcomes parquet"
 )
+
+# The new subset must not silently use a shared lookup from an older release.
+release_path <- file.path(hub_root, "inst", "extdata", "data", "health_data", "release.rds")
+release <- readRDS(release_path)
+hm_commit <- system2("git", c("-C", shQuote(hm_root), "rev-parse", "HEAD"), stdout = TRUE)
+if (!identical(hm_commit, release$hm_commit)) {
+  stop("Refresh packaged HM data and its shared lookup before building a new LAD profile.", call. = FALSE)
+}
 
 profile_root <- file.path(hub_root, "inst", "extdata", "data", "profiles", profile_id)
 if (dir.exists(profile_root)) {
@@ -143,11 +147,6 @@ trips_sample <- arrow::open_dataset(sp_trips_source) |>
   dplyr::collect() |>
   dplyr::arrange(.data$census_id, .data$nts_tripid)
 
-hm_overall_sample <- arrow::open_dataset(hm_overall_source) |>
-  dplyr::filter(.data$census_id %in% selected_ids) |>
-  dplyr::collect() |>
-  dplyr::arrange(.data$census_id)
-
 hm_cycle_sample <- arrow::open_dataset(hm_cycle_source) |>
   dplyr::filter(.data$census_id %in% selected_ids) |>
   dplyr::collect() |>
@@ -156,12 +155,12 @@ hm_cycle_sample <- arrow::open_dataset(hm_cycle_source) |>
 
 # 4. Validate Cross-Table Alignment ----
 # -----------------------------------------------------------------------------#
-# Every sampled person must have overall and cycle HM records. Trip records are
+# Every sampled person must have baseline and cycle HM records. Trip records are
 # optional because people with no observed travel legitimately have no rows.
 
 id_sets <- list(
   attributes = unique(attributes_sample$census_id),
-  hm_overall = unique(hm_overall_sample$census_id),
+  hm_baseline = unique(hm_cycle_sample$census_id[hm_cycle_sample$cycle == 0]),
   hm_cycle = unique(hm_cycle_sample$census_id)
 )
 
@@ -180,8 +179,7 @@ for (name in names(id_sets)) {
 if (any(!trips_sample$census_id %in% selected_ids)) {
   stop("LAD trip subset contains IDs outside the person sample.", call. = FALSE)
 }
-if (anyDuplicated(hm_overall_sample$census_id) ||
-    anyDuplicated(hm_cycle_sample[c("census_id", "cycle")])) {
+if (anyDuplicated(hm_cycle_sample[c("census_id", "cycle")])) {
   stop("Health outcomes contain duplicate person or person-cycle records.", call. = FALSE)
 }
 
@@ -211,12 +209,8 @@ write_profile_parquet(
   file.path("synthetic_pop", "SPtrip_CensusNTSALS_parquet")
 )
 write_profile_parquet(
-  hm_overall_sample,
-  file.path("health_data", "sp_overall_outcomes")
-)
-write_profile_parquet(
   hm_cycle_sample,
-  file.path("health_data", "sp_cycle_outcomes_death_share")
+  file.path("health_data", "sp_cycle_outcomes")
 )
 
 base_person_weight <- 20
@@ -243,17 +237,16 @@ metadata <- list(
     format(sample_fraction, digits = 6)
   ),
   generated_at_utc = format(Sys.time(), tz = "UTC", usetz = TRUE),
+  hm_commit = hm_commit,
   sources = list(
     sp_attributes = "MIAMA_DATA_ROOT/synthetic_pop/SPindivid_CensusNTSALS_parquet",
     sp_trips = "MIAMA_DATA_ROOT/synthetic_pop/SPtrip_CensusNTSALS_parquet",
-    hm_overall = "MIAMA_HM_ROOT/health_data/processed/sp_overall_outcomes",
-    hm_cycle_death_share = "MIAMA_HM_ROOT/health_data/processed/sp_cycle_outcomes_death_share"
+    hm_cycle = "MIAMA_HM_ROOT/health_data/processed/sp_cycle_outcomes"
   ),
   rows = list(
     attributes = nrow(attributes_sample),
     trips = nrow(trips_sample),
-    hm_overall = nrow(hm_overall_sample),
-    hm_cycle_death_share = nrow(hm_cycle_sample)
+    hm_cycle = nrow(hm_cycle_sample)
   )
 )
 saveRDS(metadata, file.path(profile_root, "profile.rds"), version = 3)
@@ -280,7 +273,6 @@ saveRDS(geo_options, file.path(lookup_dir, "geo_options.rds"), version = 3)
 message("Built packaged ", geo_name, " profile: ", profile_root)
 message("Individuals:             ", format(sample_n, big.mark = ","))
 message("Trips:                   ", format(nrow(trips_sample), big.mark = ","))
-message("Overall HM rows:         ", format(nrow(hm_overall_sample), big.mark = ","))
 message("Death-share cycle rows: ", format(nrow(hm_cycle_sample), big.mark = ","))
 message("Source expansion (metadata only): ", format(effective_person_weight, digits = 7))
 message("Represented population:  ", format(represented_population, big.mark = ","))

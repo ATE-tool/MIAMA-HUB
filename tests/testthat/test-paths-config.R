@@ -262,7 +262,7 @@ test_that("full config rejects packaged sample synthpop sources", {
 
 test_that("miama_paths() selects HUB-local HM sample before external HM", {
   tmp <- withr::local_tempdir()
-  hub_dir <- file.path(tmp, "data", "health_data", "sp_overall_outcomes_sample")
+  hub_dir <- file.path(tmp, "data", "health_data", "sp_cycle_outcomes")
   dir.create(hub_dir, recursive = TRUE)
 
   withr::with_envvar(list(
@@ -278,7 +278,7 @@ test_that("miama_paths() selects HUB-local HM sample before external HM", {
 
 test_that("miama_paths() can resolve HUB-local HM sample without MIAMA_HM_ROOT", {
   tmp <- withr::local_tempdir()
-  hub_dir <- file.path(tmp, "data", "health_data", "sp_cycle_outcomes_sample")
+  hub_dir <- file.path(tmp, "data", "health_data", "sp_cycle_outcomes")
   dir.create(hub_dir, recursive = TRUE)
 
   withr::with_envvar(list(

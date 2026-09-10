@@ -1,6 +1,6 @@
 # MIAMA-HUB Module: Reference Data / Load Reference Sources
 # Purpose: Load the upstream data sources that feed `reference_data_raw`:
-#   one-row-per-person HM overall outcomes and synthetic population
+#   one-row-per-person HM cycle-0 state and synthetic population
 #   (attributes + trips).
 # Inputs: A resolved config plus request sections used for source selection and
 #   parquet pushdown filters.
@@ -56,7 +56,7 @@ load_reference_sources <- function(cfg = NULL, reference_request = list(), resul
       n_matched_ids = length(source_data$matched_ids),
       geo_level = reference_request$geo_level %||% NULL,
       geo_id = reference_request$geo_id %||% NULL,
-      hm_suffix = "overall",
+      hm_suffix = "cycle_0",
       requested_results_hm_suffix = miama_hm_suffix_from_request(results_request),
       arrow_cpu_count = cfg$arrow$cpu_count %||% NULL,
       arrow_release_unused = isTRUE(cfg$arrow$release_unused),

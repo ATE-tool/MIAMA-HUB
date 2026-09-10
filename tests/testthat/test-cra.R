@@ -1,8 +1,8 @@
-test_that("death-share path prefers sample outcome table for sample workflows", {
+test_that("minimal config resolves the canonical outcome name without optional exports", {
   tmp <- withr::local_tempdir()
   hub_root <- file.path(tmp, "MIAMA-HUB")
   hm_root <- file.path(tmp, "MIAMA-HM")
-  sample_dir <- file.path(hm_root, "health_data", "processed", "sp_cycle_outcomes_sample_death_share")
+  sample_dir <- file.path(hm_root, "health_data", "processed", "sp_cycle_outcomes")
   full_dir <- file.path(hm_root, "health_data", "processed", "sp_cycle_outcomes_death_share")
   dir.create(hub_root, recursive = TRUE)
   dir.create(sample_dir, recursive = TRUE)
@@ -25,7 +25,7 @@ test_that("death-share path uses shared lookup table without sample suffix", {
   tmp <- withr::local_tempdir()
   hub_root <- file.path(tmp, "MIAMA-HUB")
   hm_root <- file.path(tmp, "MIAMA-HM")
-  lookup_dir <- file.path(hm_root, "health_data", "processed", "mmet_d_cycle_lookup_death_share")
+  lookup_dir <- file.path(hm_root, "health_data", "processed", "mmet_d_cycle_lookup")
   dir.create(hub_root, recursive = TRUE)
   dir.create(lookup_dir, recursive = TRUE)
 
