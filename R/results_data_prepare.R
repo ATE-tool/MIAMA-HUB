@@ -84,6 +84,8 @@ prepare_results_data <- function(
 
   trip_distribution <- .results_trip_mode_distribution(reference_data, counterfactual_data)
   amat_health_timeline <- .results_amat_health_timeline(
+    # LY/HLY reconstruct occupancy from the initial state before dropping year 0.
+    # Event totals above still exclude baseline: it is not an appraisal year.
     health_outcomes = health_outcomes_all,
     health_cube = health_cube,
     person_weight = person_weight,

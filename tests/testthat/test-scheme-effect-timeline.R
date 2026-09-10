@@ -32,6 +32,11 @@ test_that("scheme annual factors integrate build-up, plateau and decline", {
   expect_error(get_scheme_effect_timeline(list(scheme_peak_year = NA_real_)), "whole year")
   expect_error(get_scheme_effect_timeline(list(scheme_peak_year = -1)), "whole year")
   expect_error(get_scheme_effect_timeline(list(scheme_peak_year = 1.5)), "whole year")
+  for (id in c("scheme_peak_year", "scheme_decline_year", "scheme_end_year")) {
+    expect_error(get_scheme_effect_timeline(modifyList(p, setNames(list(41), id))), "between 0 and 40")
+  }
+  expect_silent(get_scheme_effect_timeline(list(scheme_peak_year = 40)))
+  expect_silent(get_scheme_effect_timeline(modifyList(p, list(scheme_end_year = 40))))
   expect_error(get_scheme_effect_timeline(modifyList(p, list(scheme_end_year = 4))), "maximum effect")
   expect_error(get_scheme_effect_timeline(modifyList(p, list(scheme_decline_year = 1))), "maximum effect")
   # Inactive decline fields cannot invalidate a permanent scheme.
