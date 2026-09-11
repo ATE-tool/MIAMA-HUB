@@ -236,6 +236,72 @@
   )
 }
 
+# Sampling preset catalogue -------------------------------------------------
+# Priority: saved profile edit > usable REF/source observations > fixed preset.
+# AMAT/TAG is the default fixed source; absent evidence uses explicitly named
+# alternatives. New-user/induced percentages cannot be extracted from donor
+# composition. The preset therefore supplies those preferences directly.
+# All pies describe source modes among SHIFTED trips, excluding induced trips.
+# TAG Data Book May 2026 v2.03, A5.4.7 (metropolitan): car 24%, taxi 6%,
+# bus 14%, rail 10%, light rail/metro 9%, walk 14%, no travel 23%.
+# Car+taxi = 30; PT = 14+10+9 = 33. Remove no travel and divide by 77.
+# https://www.gov.uk/government/publications/tag-data-book
+# TAG A5.1 3.7.12 permits an indicative cycling proxy for walking. Swapping
+# its walking-source share to cycling is a MIAMA mapping assumption, not a
+# separately evidenced TAG walking distribution.
+# https://www.gov.uk/government/publications/tag-unit-a5-1-active-mode-appraisal
+# HEAT v4.2 carbon guidance: cycle car/bus/rail/walk = 30/40/10/20;
+# walk car/bus/rail/cycle = 20/50/10/20. Combine bus+rail as PT.
+# https://heat4.heatwalkingcycling.org/ (Carbon module, diversion rates Table 1)
+# MIAMA rounds TAG cycling to 40/40/20 and uses HEAT walking 20/60/20.
+# E-bike 30/30/30/10 (car/PT/cycle/walk) is OUR rounded approximation informed
+# by Bigazzi & Wong (2020), DOI 10.1016/j.trd.2020.102412, not a reported joint
+# estimate: the review's separate medians are 24/33/27/10 and need not sum to 100.
+# No receiving-PT distribution is established here; that route retains local
+# composition. A separately evidenced fixed PT fallback remains to be agreed.
+# New users are PEOPLE newly participating; induced trips are journeys not
+# replacing a prior trip. None of these sources establishes our new-user %.
+# Retain a MIAMA 10% new-user preference for all presets. HEAT/local/MIAMA
+# retain 10% induced; TAG uses 23% globally (walking/ebike/PT extension is a
+# MIAMA simplification of a cycling estimate, not mode-specific TAG evidence).
+# Select through miama_default_config(assumption_preset = ...); resolved leaves
+# remain editable config overrides. Do not change the provenance label alone.
+.miama_sampling_preset <- function(preset) {
+  if (length(preset) != 1L || is.na(preset) ||
+      !preset %in% c("AMAT/TAG", "HEAT", "MIAMA", "uniform")) {
+    stop("Unknown assumption preset; use AMAT/TAG, HEAT, MIAMA, or uniform.", call. = FALSE)
+  }
+  miama <- list(
+    cycling = c(driving = .4, pt = .4, walking = .2),
+    walking = c(driving = .2, pt = .6, cycling = .2),
+    ebiking = c(driving = .3, pt = .3, cycling = .3, walking = .1)
+  )
+  shares <- switch(preset,
+    "AMAT/TAG" = list(cycling = c(driving = 30, pt = 33, walking = 14) / 77,
+                      walking = c(driving = 30, pt = 33, cycling = 14) / 77,
+                      ebiking = miama$ebiking),
+    "HEAT" = list(cycling = c(driving = .3, pt = .5, walking = .2),
+                  walking = miama$walking, ebiking = miama$ebiking),
+    "MIAMA" = miama,
+    "uniform" = list()
+  )
+  sources <- list(
+    cycling = switch(preset, "AMAT/TAG" = "TAG A5.4.7 (shifted-only, aggregated)",
+      "HEAT" = "HEAT v4.2 (PT aggregated)", "MIAMA" = "MIAMA (rounded TAG)",
+      "uniform" = "Local trip mix"),
+    walking = switch(preset, "AMAT/TAG" = "TAG cycling proxy (MIAMA walking mapping)",
+      "HEAT" = "HEAT v4.2 (PT aggregated)", "MIAMA" = "MIAMA (HEAT walking)",
+      "uniform" = "Local trip mix"),
+    ebiking = "MIAMA approximation (Bigazzi and Wong, 2020)",
+    new_users = "MIAMA preference (not an induced-trip estimate)",
+    induced_trips = if (preset == "AMAT/TAG")
+      "TAG cycling no-travel 23% (MIAMA extension to other modes)" else "MIAMA preference"
+  )
+  list(shares = shares, fallback = miama,
+       new_user_percent = 10, induced_trips_percent = if (preset == "AMAT/TAG") 23 else 10,
+       sources = sources)
+}
+
 #' Build the MIAMA-HUB runtime configuration
 #'
 #' `MIAMA_DATASET_SIZE` controls whether the default configuration uses the
@@ -246,9 +312,12 @@
 #'
 #' @param dataset_size Optional `"sample"`, `"leeds"`, `"manchester"`, or `"full"`. Defaults to the
 #'   `MIAMA_DATASET_SIZE` environment variable, or `"sample"` when unset.
+#' @param assumption_preset Sampling defaults: `"MIAMA"`, `"AMAT/TAG"`,
+#'   `"HEAT"`, or `"uniform"` (local donor-mode composition).
 #' @return A nested MIAMA-HUB configuration list.
 #' @export
-miama_default_config <- function(dataset_size = NULL) {
+miama_default_config <- function(dataset_size = NULL, assumption_preset = "AMAT/TAG") {
+  sampling <- .miama_sampling_preset(assumption_preset)
   dataset_size <- .miama_dataset_size(dataset_size)
   p <- miama_paths(dataset_size = dataset_size)
   population <- .miama_population_config(dataset_size, p)
@@ -279,6 +348,8 @@ miama_default_config <- function(dataset_size = NULL) {
     # Appraisal completion assumptions. England values are stored rates, not
     # recomputed national estimates. PT distance/duration mean access walking.
     assumptions = list(
+      sampling_preset = assumption_preset,
+      sampling_sources = sampling$sources,
       england = list(
         frequency = list(walk = 10.93, bike = 6.20, pt = 5.64),
         distance = list(walk = 1.15, bike = 5.33)
@@ -296,7 +367,7 @@ miama_default_config <- function(dataset_size = NULL) {
       population = list(
         # Used when a trip-derived input implies additional active travel but
         # no explicit counterfactual user count is supplied.
-        new_user_percent_default = 10
+        new_user_percent_default = sampling$new_user_percent
       ),
       modes = list(
         ebiking = list(
@@ -317,13 +388,14 @@ miama_default_config <- function(dataset_size = NULL) {
         # mode-specific equivalent). Purpose is a separate trip characteristic
         # and does not determine whether a trip is shifted or induced.
         # Shifted percentage is always the complement (100 - induced).
-        assump_induced_trips_percent_default = 10,
+        assump_induced_trips_percent_default = sampling$induced_trips_percent,
         # Source modes apply only to the shifted (non-induced) share of added
         # trips. These are explicit assumptions where no England-derived
         # source-mode evidence is currently available.
-        source_mode_shares = list(
-          ebiking = c(cycling = 1 / 3, pt = 1 / 3, driving = 1 / 3)
-        )
+        source_mode_shares = sampling$shares,
+        # For local-composition sampling, lack of usable observations falls
+        # back to these fixed receiver-specific MIAMA rates, never equal modes.
+        source_mode_shares_fallback = sampling$fallback
       )
     ),
     # 6. Tab 3/4 spread category definitions -------------------------------

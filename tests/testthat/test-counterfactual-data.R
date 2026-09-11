@@ -1043,6 +1043,7 @@ test_that("e-bike changes use cycling donors without reclassifying reference cyc
     init_counterfactual_data(reference_data),
     list(
       modes = "ebiking", trips_count_cf_ebike = 1,
+      assump_trip_source_shares_ebike = list(bike = list(percent = 100)),
       assump_induced_trips_percent = 0
     ),
     reference_data,
@@ -1124,7 +1125,8 @@ test_that("configured e-bike source shares balance cycling, PT, and car pools", 
     sum(weights[source == mode])
   }, numeric(1))
 
-  expect_equal(unname(target$shares), rep(1 / 3, 3))
+  expect_equal(target$shares[c("driving", "pt", "cycling", "walking")],
+               c(driving = .3, pt = .3, cycling = .3, walking = .1))
   expect_equal(unname(mass), rep(1 / 3, 3))
 })
 
@@ -1139,7 +1141,7 @@ test_that("basic trip inputs derive source shares from reference donors", {
 
   target <- .cf_source_diversion_target(
     list(), "walk", mode = "walking",
-    constants = miama_counterfactual_defaults(), trips = trips
+    constants = miama_counterfactual_defaults(miama_default_config(assumption_preset = "uniform")), trips = trips
   )
 
   expect_equal(target$source, "reference_donor_composition")

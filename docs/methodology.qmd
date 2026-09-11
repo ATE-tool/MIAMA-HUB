@@ -298,6 +298,23 @@ Reproduction requires preserving the referenced external data and compatible
 software. The [assumption API contract](appraisal_assumptions_api.md) documents
 the field names, dependencies and UI integration boundary.
 
+### What belongs in summaries and assumption cards
+
+The proposed rule is: **summaries describe the appraisal's counts and changed
+refinement targets; assumptions explain how sampling completes those inputs.**
+Untouched distribution sliders need no summary row. The assumptions explain
+which REF/source distributions supply weights and which eligibility/reuse rules
+apply; weighted sampling does not promise exact distribution matching.
+Realized counts, deviations and fallbacks belong in a separate sampling audit.
+MET/MMET intensity and health aggregation belong in the full results-method
+inventory, not the Tab 4 trip card.
+
+The [coverage table and method inventory](tab3_tab4_summary_assumptions.md)
+lists field IDs, proposed indicators, provenance labels and remaining decisions.
+It is a proposal for the broader summary redesign; the current UI does not yet
+implement every row. Observed source-trip mixes are explicitly labelled as
+proxies, not empirical scheme-diversion rates.
+
 ## Reference defaults
 
 After geography and assessed modes are selected, HUB loads and filters the
@@ -649,16 +666,65 @@ Tab 4 presents one source-mode diversion pie for each assessed target mode. A
 cycling pie, for example, describes the previous modes of existing trips that
 will shift to cycling; cycling itself is excluded. The pies apply only to shifted
 trips, while `assump_induced_trips_percent` controls newly created trips separately.
+The priority is **saved user edit > usable REF/source-population evidence > fixed
+fallback**, with **AMAT/TAG preferred among fixed sources**. An explicit alternative
+preset changes the fixed fallback, not the priority of data. The effective value
+and actual source are persisted in the profile; a redraw is not a fresh estimate.
+Source composition is only a diversion proxy. New-user and induced-trip rates
+cannot be inferred from cross-sectional donor records, so they start from fixed
+preferences. Existing feasibility-derived slider updates remain a separate step.
+
+The UI assumptions feature branch now updates Tab 3/4 summaries from changed
+scope controls and saved distribution targets. Assumption cards describe the
+applicable eligibility, weighting and donor-reuse rules alongside effective
+completion values. Modal drafts are excluded until saved; no sampling runs on
+card redraw. See [coverage and remaining gaps](tab3_tab4_summary_assumptions.md).
+
+The preset is selected with `miama_default_config(assumption_preset = "AMAT/TAG")`;
+alternatives are `"MIAMA"`, `"HEAT"`, and `"uniform"` (local mode composition,
+not equal mode shares). The selected preset resolves values into canonical
+`assump_*` entries. User edits take precedence and are labelled **user defined**.
+
+| Preset | To cycling: car/PT/walking | To walking: car/PT/cycling | New-user / induced-trip defaults |
+|---|---|---|---|
+| MIAMA | 40/40/20% | 20/60/20% | 10% / 10% |
+| AMAT/TAG | 30/77, 33/77, 14/77 | Same fractions; indicative walking proxy | 10% / 23% |
+| HEAT | 30/50/20% | 20/60/20% | 10% / 10% |
+| uniform | Local eligible mode composition | Local eligible mode composition | 10% / 10% |
+
+TAG Data Book May 2026 v2.03 Table A5.4.7 supplies car/taxi 24+6%, bus/rail/light
+rail 14+10+9%, walking 14%, and no travel 23%. Excluding no travel and dividing
+by 77 gives the shifted-only pie. TAG A5.1 section 3.7.12 permits cycling factors
+as indicative walking proxies; substituting cycling for the walking-source
+category is our additional assumption. The global 23% induced setting extends
+cycling evidence to other selected modes. It does not establish a new-user rate.
+HEAT v4.2 PT shares combine bus and rail. The 10% new-user preference and the
+non-TAG induced defaults are MIAMA choices, not claims from those sources.
+
+For all fixed presets, e-bike sources are car/PT/cycling/walking = 30/30/30/10%:
+a MIAMA approximation informed by Bigazzi and Wong (2020), whose separate
+medians were 24/33/27/10%, not a normalized joint distribution. Local composition
+falls back to fixed MIAMA values for walking, cycling and e-bike if observations
+are unusable. Receiving-PT fixed rates remain an open evidence question.
+
+Sources and exact transformations are documented beside `.miama_sampling_preset`
+in `R/config.R` and in the [README preset section](../README.md#sampling-assumption-presets):
+[TAG](https://www.gov.uk/government/publications/tag-data-book),
+[HEAT](https://heat4.heatwalkingcycling.org/),
+[Bigazzi and Wong, 2020](https://doi.org/10.1016/j.trd.2020.102412).
+The configuration snapshot retains the preset/provenance alongside resolved
+parameters; this preset mechanism does not yet cover all completion assumptions.
+
 HUB uses these target-specific shares as donor sampling weights and records both
-requested and realized source-mode distributions. Defaults come from configured
-assumptions where available, otherwise from eligible local donor-trip
-composition. The pies are count-based conditional distributions and do not need
+requested and realized source-mode distributions. Defaults come from eligible
+local donor-trip composition where available, otherwise configured fixed
+assumptions. The pies are count-based conditional distributions and do not need
 a separate trip, distance, or duration denominator.
 
 This same fallback covers appraisals that stop at the basic Tab 2 mode-share
-input. In the absence of a submitted Tab 4 pie, HUB uses a configured
-target-specific split where one exists; otherwise it uses eligible utilitarian
-reference donors outside the assessed active modes. This avoids order-dependent
+input. In the absence of a submitted Tab 4 pie, HUB first uses eligible utilitarian
+reference donors outside the assessed active modes, then the configured
+target-specific fallback when usable observations are absent. This avoids order-dependent
 competition between basic active-mode targets. It is a neutral sampling
 fallback, not an empirical estimate of intervention diversion behavior.
 
@@ -872,7 +938,17 @@ increasing person counts. Zero REF activity can still use the CF-based populatio
 fallback when no total is explicitly supplied. Unused donor reserves remain
 available as evidence but are not additional assessed people.
 
-Candidate probabilities combine the available mode-specific Tab 3 constraints:
+::: {.callout-warning}
+**Implementation boundary (September 2026):** the weighting below applies when
+the CF user-status sampler receives distribution targets and selects people.
+Tab 2 staging strips downstream spread targets; changed Tab 3 snapshots use a
+reference scoper that applies category filters but not these distribution
+weights. Advanced finalization preserves those people. Thus saved advanced PA
+means are not consistently applied, and the current review-card wording can
+overstate their effect. See the [detailed route/configuration review](population_sampling_weighting_review.md).
+:::
+
+When invoked, candidate probabilities combine the available mode-specific constraints:
 
 $$
 w_i = w_{sex,i} \times w_{age,i} \times w_{PA,i}.

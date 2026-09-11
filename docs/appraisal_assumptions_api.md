@@ -62,7 +62,7 @@ For each `walk`, `bike`, `ebike`, `pt`:
 - `assump_trip_duration_min_[mode]`
 - `assump_trip_speed_kmh_[mode]`
 - `assump_trip_source_shares_[mode]`
-- `assump_mmet_per_hour_[mode]` (read-only card)
+- `assump_mmet_per_hour_[mode]` (full inventory/results methodology, not a Tab 2-4 card)
 
 Shared: `assump_new_user_percent`, `assump_induced_trips_percent`, and
 `assump_new_user_activity_pattern` (only `observed_donor_patterns` supported).

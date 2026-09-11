@@ -64,7 +64,11 @@
 #' @export
 prepare_assumption_profile <- function(profile, reference_data = NULL,
                                        source_data = NULL, cfg = NULL, restore = FALSE) {
+  configured_shares <- cfg$counterfactual$trips$source_mode_shares
   cfg <- utils::modifyList(miama_default_config(), cfg %||% list())
+  # An intentionally empty local-composition preset must not inherit MIAMA pies
+  # through recursive list merging.
+  if (!is.null(configured_shares)) cfg$counterfactual$trips$source_mode_shares <- configured_shares
   geography <- paste(unlist(.assumption_display_values(profile)[c("geo_level", "geo_id")]), collapse = ":")
   for (field in names(profile)[startsWith(names(profile), "assump_")]) {
     if (!identical(profile[[field]]$additional_data$geography, geography)) {
@@ -116,22 +120,23 @@ prepare_assumption_profile <- function(profile, reference_data = NULL,
       profile[[field]] <- entry
     }
     field <- paste0("assump_trip_source_shares_", suffix)
-    profile <- .prepare_mechanism_field(profile, field,
-      .reference_diversion_source_pie(reference_data$trips, mode, cfg, source_data$trips),
-      if (!is.null(cfg$counterfactual$trips$source_mode_shares[[mode]])) "Configured source shares"
-      else if (!is.null(reference_data$trips)) "REF/source trip distribution"
-      else "Source trip distribution or uniform fallback", restore)
+    if (!is.null(profile[[field]]) && (restore || !isTRUE(profile[[field]]$additional_data$resolved))) {
+      diversion <- .reference_diversion_source_defaults(reference_data$trips, mode, cfg, source_data$trips)
+      profile <- .prepare_mechanism_field(profile, field, diversion$value, diversion$source, restore)
+    }
     profile <- .prepare_mechanism_field(profile, paste0("assump_mmet_per_hour_", suffix),
       unname(cfg$physical_activity$mmet_per_hour[[mode]]), "Configured marginal intensity", restore)
   }
   profile <- .prepare_mechanism_field(profile, "assump_new_user_percent",
-    cfg$counterfactual$population$new_user_percent_default, "Configured preference", restore)
+    cfg$counterfactual$population$new_user_percent_default,
+    cfg$assumptions$sampling_sources$new_users %||% "Configured preference", restore)
   profile <- .prepare_mechanism_field(profile, "assump_induced_trips_percent",
-    cfg$counterfactual$trips$assump_induced_trips_percent_default, "Configured preference", restore)
+    cfg$counterfactual$trips$assump_induced_trips_percent_default,
+    cfg$assumptions$sampling_sources$induced_trips %||% "Configured preference", restore)
   profile <- .prepare_mechanism_field(profile, "assump_new_user_activity_pattern",
     "observed_donor_patterns", "Implemented sampling policy", restore)
   profile <- .prepare_mechanism_field(profile, "appraisal_model_parameters",
-    cfg[c("physical_activity", "counterfactual", "spread", "population_refinement", "results", "population")],
+    cfg[c("assumptions", "physical_activity", "counterfactual", "spread", "population_refinement", "results", "population")],
     "Configuration snapshot", restore)
   profile <- .prepare_mechanism_field(profile, "appraisal_sampling_seed", 1L,
     "Default random seed", restore)
@@ -217,12 +222,16 @@ get_appraisal_assumptions <- function(profile, tab = NULL) {
         "trip_diversion" %in% values$trips_refine_choice
       reason <- "Source distribution for shifted trips, not mode shares"
     }
-    if (startsWith(field, "assump_mmet_per_hour_")) owner <- if (basic) 2L else 4L
+    if (startsWith(field, "assump_mmet_per_hour_")) {
+      # Retain intensity in the full inventory, not the population/trip cards.
+      owner <- integer(0)
+      reason <- "Converts active time to physical-activity exposure for health results"
+    }
     if (!is.null(tab) && (!used || collected || !tab %in% owner)) next
     entry$display <- list(value = .assumption_entry_value(entry), tab = owner,
       used = used, collected_elsewhere = collected, reason = reason,
       editable = !grepl("^assump_(mmet_per_hour_|new_user_activity_pattern$)", field),
-      source = if (isTRUE(entry$is_filled)) "User override" else entry$additional_data$source)
+      source = if (isTRUE(entry$is_filled)) "user defined" else entry$additional_data$source)
     rows[[field]] <- entry
   }
   rows
