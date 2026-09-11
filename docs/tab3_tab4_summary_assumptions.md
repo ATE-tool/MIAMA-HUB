@@ -63,18 +63,20 @@ For a default, show the actual source used, not a list of possible fallbacks:
 - `Source population` / `Source trip mix (proxy)` when geographic source data supply it;
 - `England population (stored rate)` where the configured stored rate applies;
 - `Fixed fallback` or `Fixed assumption (configured source shares)` for a configured value;
-- `User provided` when the saved parameter overrides its default. Retain original
+- `user defined` when the saved parameter overrides its default. Retain original
   default provenance in the profile so Restore remains meaningful.
 
 Observed donor-trip composition is **not measured causal diversion** for a
 scheme. It is an initial source-distribution proxy. A pie of 87% car can therefore
 be data-derived without proving that 87% of the scheme's trips would replace car
-travel. The e-bike cycling/PT/car thirds are an explicit assumption, distinct
+travel. The e-bike car/PT/cycling/walking 30/30/30/10 split is an explicit approximation
+informed by Bigazzi and Wong (2020), distinct
 from using cycling as an activity-pattern donor proxy.
 
-The existing last-resort no-data pie is uniform. Replacement target-specific
-rates need agreement; do not invent empirical evidence for a more plausible
-looking default. Configured per-target shares can already replace it.
+Named MIAMA, AMAT/TAG and HEAT presets now provide fixed receiver-specific
+defaults. The `uniform` preset uses local composition, falling back to MIAMA
+rates for walking/cycling/e-bike if unavailable. A receiving-PT fixed fallback
+remains to be agreed. See the README sampling preset table for provenance.
 
 ## 4. Full inventory and implementation references
 

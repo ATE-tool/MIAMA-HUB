@@ -266,6 +266,8 @@ apply_counterfactual_ui_values <- function(
     !is.null(context$constants$source_mode_shares[[mode]])
   }, logical(1))
   processing_modes <- context$modes[order(!cross_mode_first)]
+  allocation_constants <- context$constants
+  allocation_constants$completed_trip_modes <- character()
 
   for (mode in processing_modes) {
     result <- .apply_cf_trip_count_for_mode(
@@ -273,7 +275,7 @@ apply_counterfactual_ui_values <- function(
       reference_data = context$reference_data,
       appraisal_input_values = context$values,
       mode = mode,
-      constants = context$constants,
+      constants = allocation_constants,
       seed = context$seed,
       sampling_strategy = context$trip_sampling_strategy
     )
@@ -281,6 +283,7 @@ apply_counterfactual_ui_values <- function(
     counterfactual_data <- result$counterfactual_data
     changes <- c(changes, result$changes)
     notes <- c(notes, result$notes)
+    allocation_constants$completed_trip_modes <- c(allocation_constants$completed_trip_modes, mode)
   }
 
   list(
@@ -1514,6 +1517,12 @@ apply_counterfactual_ui_values <- function(
     !active & (cross_mode_source | !active_any_mode) & unlocked &
       !is.na(trips$nts_tripid)
   )
+  # Fixed cross-mode pies must not undo trip targets completed earlier in this
+  # pass. Other eligible pools or the existing induced fallback meet the target.
+  for (completed_mode in constants$completed_trip_modes %||% character()) {
+    completed <- .counterfactual_mode_spec(completed_mode)$trip_filter(trips)
+    candidates <- candidates[!completed[candidates]]
+  }
   if ("cf_in_scope" %in% names(trips)) {
     candidates <- candidates[.true_values(trips$cf_in_scope[candidates])]
   }
@@ -1800,15 +1809,20 @@ apply_counterfactual_ui_values <- function(
     return(list(field = field, shares = shares, source = "ui"))
   }
 
-  shares <- .normalize_diversion_source_shares(configured, target_mode = mode)
-  source <- if (is.null(shares)) "unconstrained" else "config"
-  if (is.null(shares)) {
-    shares <- .observed_diversion_source_shares(
+  shares <- .observed_diversion_source_shares(
       trips,
       target_mode = mode,
       exclude_assessed_active = TRUE
     )
-    if (!is.null(shares)) source <- "reference_donor_composition"
+  source <- if (is.null(shares)) "unconstrained" else "reference_donor_composition"
+  if (is.null(shares)) {
+    shares <- .normalize_diversion_source_shares(configured, target_mode = mode)
+    if (!is.null(shares)) source <- "config"
+  }
+  if (is.null(shares)) {
+    shares <- .normalize_diversion_source_shares(
+      constants$source_mode_shares_fallback[[mode]], target_mode = mode)
+    if (!is.null(shares)) source <- "miama_fixed_fallback"
   }
   list(
     field = field,
@@ -2233,6 +2247,7 @@ miama_counterfactual_defaults <- function(cfg = NULL) {
     pt_access_walk_distance_km_default = cfg$counterfactual$modes$pt$access_walk_distance_km_default,
     pt_access_walk_minutes_default = cfg$counterfactual$modes$pt$access_walk_minutes_default,
     source_mode_shares = source_mode_shares,
+    source_mode_shares_fallback = cfg$counterfactual$trips$source_mode_shares_fallback,
     assump_induced_trips_percent_default = cfg$counterfactual$trips$assump_induced_trips_percent_default %||% 10,
     new_user_percent_default = cfg$counterfactual$population$new_user_percent_default %||% 10,
     default_diversion_mode = "car",

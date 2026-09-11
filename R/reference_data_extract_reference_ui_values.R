@@ -998,16 +998,21 @@ extract_reference_ui_values <- function(
                                                  fallback_trips = NULL) {
   cfg <- cfg %||% miama_default_config()
   configured <- cfg$counterfactual$trips$source_mode_shares[[target_mode]] %||% NULL
-  shares <- .normalize_diversion_source_shares(configured, target_mode)
-  source <- "Fixed assumption (configured source shares)"
-
-  if (is.null(shares)) {
-    shares <- .observed_diversion_source_shares(trips, target_mode)
-    source <- "REF trip mix (proxy)"
-  }
+  shares <- .observed_diversion_source_shares(trips, target_mode)
+  source <- "REF trip mix (proxy)"
   if (is.null(shares) && !is.null(fallback_trips)) {
     shares <- .observed_diversion_source_shares(fallback_trips, target_mode)
     source <- "Source trip mix (proxy)"
+  }
+  if (is.null(shares)) {
+    shares <- .normalize_diversion_source_shares(configured, target_mode)
+    source <- cfg$assumptions$sampling_sources[[target_mode]] %||%
+      "Fixed assumption (configured source shares)"
+  }
+  if (is.null(shares)) {
+    shares <- .normalize_diversion_source_shares(
+      cfg$counterfactual$trips$source_mode_shares_fallback[[target_mode]], target_mode)
+    if (!is.null(shares)) source <- "MIAMA fixed fallback (no usable trip mix)"
   }
 
   internal_modes <- setdiff(

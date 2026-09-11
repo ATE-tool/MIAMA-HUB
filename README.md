@@ -1512,20 +1512,88 @@ and `realized_source_mode_shares`. Diversion pies are count-based conditional
 distributions and therefore require no total-trip, distance, or duration
 denominator.
 
+### Sampling assumption presets
+
+**Resolution order, in plain language:**
+
+1. Use a saved user edit when present (`user defined`). Never silently replace it.
+2. Otherwise use usable evidence extracted from the assessed REF, then the
+   geographic source population. Missing or invalid evidence does not count.
+3. Otherwise use a documented fixed fallback. AMAT/TAG is the preferred fixed
+   source; where it supplies no suitable parameter, use the named alternative
+   (e.g. the Bigazzi-informed MIAMA e-bike split). Explicitly selecting HEAT or
+   MIAMA changes this fixed-fallback preference, not the priority of data.
+4. Persist the resolved value and actual source in the canonical profile.
+   Ordinary redraws do not overwrite accepted values. Rebuilding defaults for
+   a new scope or restoring defaults is distinct from editing a current value.
+
+Not every parameter is extractable: source trip composition is a proxy for
+diversion, not measured intervention behaviour. Cross-sectional source data do
+not identify induced-trip or new-user percentages, so those start from fixed
+preferences. Feasibility/allocation-derived values may still update staged
+sliders under existing rules; these are not source-data evidence or manual edits.
+
+Select a preset when constructing config, before preparing a new appraisal:
+
+```r
+cfg <- miama_default_config(assumption_preset = "AMAT/TAG")
+# Alternatives: "MIAMA", "HEAT", "uniform"
+```
+
+The preset resolves the existing config leaves; changing only
+`cfg$assumptions$sampling_preset` afterwards does not switch values. Pass the
+constructed config to HUB. Saved `assump_*` profile values remain authoritative;
+the configuration and provenance are retained in `appraisal_model_parameters`.
+
+| Preset | Cycling: car/PT/walk | Walking: car/PT/cycle | New users | Induced trips |
+|---|---|---|---|---|
+| MIAMA | 40/40/20% | 20/60/20% | 10% | 10% |
+| AMAT/TAG (default) | 30/77, 33/77, 14/77 | Same fractions, cycling-source proxy | 10% MIAMA preference | 23% cycling evidence, extended to other modes |
+| HEAT | 30/50/20% | 20/60/20% | 10% MIAMA preference | 10% MIAMA preference |
+| uniform | Local donor-mode composition | Local donor-mode composition | 10% MIAMA preference | 10% MIAMA preference |
+
+`uniform` means no fixed source-mode preference, **not equal probabilities per
+mode**. The card uses REF composition, then source data; absent usable data,
+walking/cycling/e-bike use fixed MIAMA receiver-specific fallbacks. Sampling
+still respects eligible donors and other applicable weights. Receiving-PT
+defaults remain local; an evidence-based fixed receiving-PT fallback is pending.
+
+TAG Data Book May 2026 v2.03 A5.4.7 gives car 24%, taxi 6%, bus 14%, rail 10%,
+light rail 9%, walking 14%, no travel 23%. Combine car/taxi and the three PT
+categories; exclude no travel and divide by 77 for shifted-only pies. TAG A5.1
+3.7.12 permits an indicative cycling proxy for walking; replacing its walking
+source by cycling is our additional mapping assumption. HEAT v4.2 combines
+bus+rail (40+10 for cycling, 50+10 for walking). MIAMA rounds TAG cycling and
+retains HEAT walking. See [TAG data book](https://www.gov.uk/government/publications/tag-data-book),
+[TAG A5.1](https://www.gov.uk/government/publications/tag-unit-a5-1-active-mode-appraisal),
+and [HEAT carbon diversion guidance](https://heat4.heatwalkingcycling.org/).
+
+New users are people; induced trips do not replace earlier trips. The 10%
+new-user preference is **not** derived from TAG's no-travel percentage. The
+shared induced slider cannot express distinct mode-specific literature defaults;
+the TAG preset's global 23% is explicitly an extension of cycling evidence.
+User edits override these defaults and appear as **user defined** in cards.
+Other completion assumptions retain their REF/source/England/fixed hierarchy;
+these presets do not yet select all speed, distance or health parameters.
+
 The basic Tab 2 path does not require a diversion modal. If no pie was submitted,
-HUB first checks `cfg$counterfactual$trips$source_mode_shares` for the target
-mode. If no configured split exists, it derives a neutral default from the mode
+HUB first derives a neutral default from the mode
 composition of eligible utilitarian trips outside the assessed active modes in
 the reference scope. This prevents one basic-mode target from consuming rows
-needed by another. Thus the default reflects donor availability rather than
-claiming an empirically observed intervention diversion rate.
+needed by another. Local-composition defaults are proxies, not empirically
+observed intervention diversion rates; configured presets instead express a
+receiver-specific expected mix when no usable observations exist.
 
 Source-mode assumptions are separate from donor-profile assumptions. Because
 the current data cannot identify observed e-bike trips, cycling supplies the
 e-bike activity and trip-characteristic donor profile. It does not imply that
 all e-bike trips came from cycling. In the absence of a UI override,
 `cfg$counterfactual$trips$source_mode_shares$ebiking` assigns shifted e-bike
-trips equally across cycling, PT, and car source pools. The induced-trip share
+trips across car/PT/cycling/walking at 30/30/30/10% for fixed presets. This is a
+MIAMA approximation informed by [Bigazzi and Wong (2020)](https://doi.org/10.1016/j.trd.2020.102412),
+not their exact reported joint estimate. Their separate medians are 24/33/27/10%.
+The local-composition preset instead uses observed modes where available.
+The induced-trip share
 is excluded from this split. A submitted `assump_trip_source_shares_ebike` pie
 replaces that configured distribution.
 

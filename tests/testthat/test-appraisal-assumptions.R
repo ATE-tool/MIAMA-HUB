@@ -48,7 +48,7 @@ test_that("intensities remain in the full inventory, not sampling cards", {
 })
 
 test_that("diversion defaults identify the actual source and user overrides", {
-  cfg <- miama_default_config()
+  cfg <- miama_default_config(assumption_preset = "uniform")
   trips <- data.frame(nts_tripid = 1:4, trip_mainmode = c("Car driver", "Car driver", "Car driver", "Walk"))
   ref <- .reference_diversion_source_defaults(trips, "cycling", cfg)
   expect_identical(ref$source, "REF trip mix (proxy)")
@@ -57,16 +57,17 @@ test_that("diversion defaults identify the actual source and user overrides", {
   expect_identical(src$source, "Source trip mix (proxy)")
   expect_identical(src$value, ref$value)
   empty <- .reference_diversion_source_defaults(data.frame(), "cycling", cfg, data.frame())
-  expect_identical(empty$source, "Uniform fallback (no usable trip mix)")
-  fixed <- .reference_diversion_source_defaults(trips, "ebiking", cfg)
-  expect_identical(fixed$source, "Fixed assumption (configured source shares)")
-  expect_equal(fixed$value$car$percent, 100 / 3)
+  expect_identical(empty$source, "MIAMA fixed fallback (no usable trip mix)")
+  expect_equal(empty$value$car$percent, 40)
+  fixed <- .reference_diversion_source_defaults(NULL, "ebiking", miama_default_config())
+  expect_identical(fixed$source, "MIAMA approximation (Bigazzi and Wong, 2020)")
+  expect_equal(fixed$value$car$percent, 30)
 
-  p <- prepare_assumption_profile(assumption_test_profile(), source_data = list(trips = trips), restore = TRUE)
+  p <- prepare_assumption_profile(assumption_test_profile(), source_data = list(trips = trips), cfg = cfg, restore = TRUE)
   expect_identical(p$assump_trip_source_shares_bike$additional_data$source, src$source)
   p$assump_trip_source_shares_bike$input_value <- list(car = list(percent = 100))
   p$assump_trip_source_shares_bike$is_filled <- TRUE
-  expect_identical(get_appraisal_assumptions(p)$assump_trip_source_shares_bike$display$source, "User provided")
+  expect_identical(get_appraisal_assumptions(p)$assump_trip_source_shares_bike$display$source, "user defined")
   expect_identical(p$assump_trip_source_shares_bike$additional_data$source, src$source)
 })
 
