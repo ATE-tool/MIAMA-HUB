@@ -327,7 +327,7 @@ write_results_report <- function(exports,
   .validate_results_exports(exports)
   format <- match.arg(format)
   .ensure_export_parent(file)
-  markdown <- .results_export_markdown(exports)
+  markdown <- .results_export_markdown(exports, pdf = identical(format, "pdf"))
 
   if (identical(format, "markdown")) {
     writeLines(markdown, con = file, useBytes = TRUE)
@@ -338,11 +338,25 @@ write_results_report <- function(exports,
     stop("Package `rmarkdown` and Pandoc are required for Word/PDF reports.", call. = FALSE)
   }
 
-  markdown_file <- tempfile(fileext = ".md")
-  on.exit(unlink(markdown_file, force = TRUE), add = TRUE)
+  directory <- tempfile("miama-report-")
+  dir.create(directory)
+  on.exit(unlink(directory, recursive = TRUE, force = TRUE), add = TRUE)
+  markdown_file <- file.path(directory, "report.md")
   writeLines(markdown, con = markdown_file, useBytes = TRUE)
   to <- if (identical(format, "docx")) "docx" else "pdf"
-  rmarkdown::pandoc_convert(markdown_file, to = to, output = file)
+  # Pandoc infers PDF compilation from the suffix, not only its `to` argument.
+  # Shiny supplies an extensionless destination; copy only the finished product.
+  rendered <- file.path(directory, paste0("report.", format))
+  options <- if (identical(format, "pdf")) {
+    if (!nzchar(Sys.which("pdflatex"))) stop("PDF reports require a LaTeX installation with pdflatex.", call. = FALSE)
+    c("--variable=geometry:margin=0.7in", "--variable=fontsize:10pt")
+  } else character()
+  rmarkdown::pandoc_convert(markdown_file, to = to, output = rendered, options = options)
+  if (identical(format, "pdf") &&
+      (!file.exists(rendered) || !identical(readChar(rendered, 5L, useBytes = TRUE), "%PDF-"))) {
+    stop("The report renderer did not produce a PDF.", call. = FALSE)
+  }
+  if (!file.copy(rendered, file, overwrite = TRUE)) stop("Could not copy the rendered report to its destination.", call. = FALSE)
   invisible(normalizePath(file, winslash = "/", mustWork = FALSE))
 }
 
@@ -593,40 +607,44 @@ write_results_report <- function(exports,
 
 # Markdown helpers ----------------------------------------------------------
 
-.results_export_markdown <- function(exports) {
+.results_export_markdown <- function(exports, pdf = FALSE) {
   report <- exports$report
+  text <- if (pdf) .results_pdf_cell else identity
   c(
-    paste0("# ", report$title),
+    paste0("# ", text(report$title)),
     "",
     paste0("Generated: ", exports$generated_at_utc),
     "",
     "## Summary",
     "",
-    paste0("- ", report$summary),
+    paste0("- ", text(report$summary)),
     "",
     "## Appraisal metadata",
     "",
-    .results_export_markdown_table(report$metadata),
+    .results_export_markdown_table(report$metadata, pdf = pdf),
     "",
     "## Applied result filters",
     "",
-    .results_export_markdown_table(report$filters),
+    .results_export_markdown_table(report$filters, pdf = pdf),
     "",
     "## Methods",
     "",
-    paste0("- ", report$methods),
+    paste0("- ", text(report$methods)),
     "",
+    if (pdf) c("\\newpage", ""),
     "## Results",
     "",
-    .results_export_markdown_table(report$results),
+    .results_export_markdown_table(report$results, pdf = pdf),
     "",
+    if (pdf) c("\\newpage", ""),
     "## Assumptions and limitations",
     "",
-    .results_export_markdown_table(report$assumptions)
+    .results_export_markdown_table(report$assumptions, pdf = pdf)
   )
 }
 
-.results_export_markdown_table <- function(data, max_rows = 100L) {
+.results_export_markdown_table <- function(data, max_rows = 100L, pdf = FALSE) {
+  if (pdf) return(.results_pdf_table(data))
   data <- as.data.frame(data)
   if (nrow(data) == 0 || ncol(data) == 0) return("_No data available._")
   data <- utils::head(data, max_rows)
@@ -639,6 +657,47 @@ write_results_report <- function(exports,
   separator <- paste0("| ", paste(rep("---", ncol(values)), collapse = " | "), " |")
   rows <- apply(values, 1, function(row) paste0("| ", paste(row, collapse = " | "), " |"))
   c(header, separator, rows)
+}
+
+
+# PDF presentation of the existing report contract --------------------------
+
+.results_pdf_cell <- function(x) {
+  x <- ifelse(is.na(x), "Not available", as.character(x))
+  x <- gsub("[\r\n\t]+", " ", x)
+  vapply(x, function(value) {
+    chars <- strsplit(value, "", fixed = TRUE)[[1]]
+    escaped <- vapply(chars, function(char) {
+      if (char %in% c("\\", "`", "*", "_", "{", "}", "[", "]", "<", ">", "#", "|", "!", "$")) {
+        paste0("\\", char)
+      } else char
+    }, character(1))
+    # Give Pandoc/LaTeX break opportunities inside long schema identifiers.
+    breaks <- chars %in% c("_", ".", "/", "=", ";")
+    escaped[breaks] <- paste0(escaped[breaks], "\\allowbreak{}")
+    paste(escaped, collapse = "")
+  }, character(1), USE.NAMES = FALSE)
+}
+
+.results_pdf_table <- function(data) {
+  if (is.null(data) || !nrow(data) || !ncol(data)) return("No data available.")
+  data <- as.data.frame(data)
+  # Keep every column and row, repeating row numbers across narrow panels.
+  panels <- if (ncol(data) <= 3L) list(seq_len(ncol(data))) else
+    split(seq_len(ncol(data)), ceiling(seq_len(ncol(data)) / 3L))
+  c(if (length(panels) > 1L) c(
+    "All columns are shown in panels below. Row numbers identify the same result across panels.", ""),
+    unlist(lapply(seq_along(panels), function(i) {
+      part <- data[, panels[[i]], drop = FALSE]
+      if (length(panels) > 1L) part <- cbind(Row = seq_len(nrow(part)), part)
+      values <- lapply(part, .results_pdf_cell)
+      headers <- .results_pdf_cell(gsub("_", " ", names(part), fixed = TRUE))
+      widths <- if (ncol(part) == 2L) c(35, 55) else if (ncol(part) == 4L) c(6, 28, 28, 28) else rep(30, ncol(part))
+      c(if (length(panels) > 1L) paste0("Table: Panel ", i, " of ", length(panels)), "",
+        paste0("| ", paste(headers, collapse = " | "), " |"),
+        paste0("| ", paste(vapply(widths, function(n) paste(rep("-", n), collapse = ""), character(1)), collapse = " | "), " |"),
+        apply(as.data.frame(values, stringsAsFactors = FALSE), 1, function(row) paste0("| ", paste(row, collapse = " | "), " |")), "")
+    }), use.names = FALSE))
 }
 
 
