@@ -1514,6 +1514,12 @@ denominator.
 
 ### Sampling assumption presets
 
+**Person-weighting caveat:** default PA weighting is not applied consistently
+across staged advanced and direct/basic results paths. Category exclusions are
+hard eligibility filters; distribution percentages are uncalibrated probability
+weights, not exact matching. See the [PA weighting and configuration review](docs/population_sampling_weighting_review.md)
+for target origins, route differences, verification and proposed configuration.
+
 The UI assumptions feature branch provides dynamic Tab 3/4 summaries of changed
 refinement targets and sampling-rule explanations beside editable assumptions.
 See the [coverage catalogue](docs/tab3_tab4_summary_assumptions.md) for completed

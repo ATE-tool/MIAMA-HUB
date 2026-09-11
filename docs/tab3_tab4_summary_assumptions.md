@@ -1,6 +1,12 @@
 # Tab 3 and Tab 4: summaries, assumptions and method inventory
 
 **Status: core dynamic coverage implemented on the UI assumptions feature branch.**
+**Subsequent sampling review:** saved age/PA targets do not consistently steer
+staged advanced person selection. The card's weighting claims therefore require
+correction alongside that route's implementation. See
+[PA weighting review](population_sampling_weighting_review.md); displaying a
+target must not be interpreted as verification that it was applied.
+
 `utilites/refinement_review.R` adds changed scope, age/sex/PA, trip-distance,
 source-mode and new-user/induced targets to the existing count summaries.
 Assumptions explain eligibility, weights, source priorities and donor reuse.

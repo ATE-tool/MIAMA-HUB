@@ -938,7 +938,17 @@ increasing person counts. Zero REF activity can still use the CF-based populatio
 fallback when no total is explicitly supplied. Unused donor reserves remain
 available as evidence but are not additional assessed people.
 
-Candidate probabilities combine the available mode-specific Tab 3 constraints:
+::: {.callout-warning}
+**Implementation boundary (September 2026):** the weighting below applies when
+the CF user-status sampler receives distribution targets and selects people.
+Tab 2 staging strips downstream spread targets; changed Tab 3 snapshots use a
+reference scoper that applies category filters but not these distribution
+weights. Advanced finalization preserves those people. Thus saved advanced PA
+means are not consistently applied, and the current review-card wording can
+overstate their effect. See the [detailed route/configuration review](population_sampling_weighting_review.md).
+:::
+
+When invoked, candidate probabilities combine the available mode-specific constraints:
 
 $$
 w_i = w_{sex,i} \times w_{age,i} \times w_{PA,i}.
