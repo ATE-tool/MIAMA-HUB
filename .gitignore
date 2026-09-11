@@ -13,3 +13,5 @@ Thumbs.db
 # Resumable outputs from the executable sampling-variance report.
 /docs/_sampling_variance_cache/
 /docs/_route_benchmark/
+/docs/_sampling_variance_current/
+/docs/_sampling_variance_cycling_trips/

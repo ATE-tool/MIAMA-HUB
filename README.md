@@ -2700,11 +2700,41 @@ For a controlled users-versus-trips comparison, see
 [`docs/route_benchmark.qmd`](docs/route_benchmark.qmd). Its companion runner,
 `inst/workflows/dev_route_benchmark.R`, fixes a sampled population and constructs
 explicit REF/CF trip switches before deriving alternative input descriptions.
-It covers all four modes, basic allocation and advanced staging, two assumption
-settings, and repeated seeds. It records unavailable cases and run failures.
-The older `sampling_variance_evaluation.qmd` remains a separate, broader
-experiment; its cached results are not reused by this pilot. Neither low-level
-allocation nor staging tests establish browser or final results-rebuild parity.
+It covers all four modes, basic and advanced final-results paths, two canonical
+assumption settings, and repeated seeds. It records unavailable cases and failures.
+
+[`docs/sampling_variance_evaluation.qmd`](docs/sampling_variance_evaluation.qmd)
+now uses `inst/workflows/dev_sampling_variance.R`: whole-appraisal versus fixed-REF
+repetition through staging and `Hub$build_results()`. Effective assumptions and
+their provenance are frozen per scenario and checked per replicate. Unrounded
+health-cube outcomes, recipient/activity diagnostics, seeds, profiles and code/data
+fingerprints are saved. Default execution requests 100 replicates; smaller runs
+are diagnostic pilots. The old weighted-count, low-level implementation is in
+`docs/archive/`; neither workflow reuses its caches. Neither is a browser test,
+and sampling variability does not resolve source-weight representativeness.
+The variance report verifies mode-specific weekly REF/CF trip targets across
+saved runs and includes their increments in tables and plot labels. Relative
+SD refers to health benefits, not trip counts: five additional cycling trips
+and 74 additional walking trips are not equivalent interventions merely because
+both scenarios assess 100 people. Numeric trip inputs and the full summary with
+trip context are exported alongside the existing analysis CSVs.
+For a less sparse intervention-volume study, call the same runner with
+`additional_cycling_trips = c(100, 500, 1000)` and a separate output directory.
+This holds all 5,000 Leeds source people fixed and varies additional weekly
+cycling trips, retaining the configured new-user and induced-trip assumptions.
+It does not silently enlarge the donor population or call all additional trips
+mode shifts. The existing small-population results remain a separate comparison.
+The completed ten-draw follow-up is available as
+[PDF](docs/cycling_trip_scale_variance.pdf) and
+[HTML](docs/cycling_trip_scale_variance.html). It contains 60 successful appraisals
+(three increments, ten seeds, two matching calculation paths); the paired paths
+are not independent repetitions. HALY relative SD is 15.6%, 6.7% and 5.6% for
+100, 500 and 1,000 additional weekly cycling trips, respectively.
+The report includes labelled experiment colours, relative-SD curves against
+additional trip volume and assessed population, and mean-benefit +/- SD plots.
+Population curves use the earlier study and also change trip volumes; they are
+not an isolated population-size experiment. Colours in the raw scatter plots
+denote resampling experiments, not REF versus CF.
 
 [inst/workflows/dev_profile_api_performance.R](inst/workflows/dev_profile_api_performance.R)
 profiles the two UI-facing data calls against the real MIAMA-UI default profile.

@@ -1,0 +1,1686 @@
+---
+title: "Sampling variance in MIAMA counterfactual assessments"
+subtitle: "ARCHIVED: pre-canonical-assumptions, pre-T3 implementation"
+author: "MIAMA project team"
+date: last-modified
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    embed-resources: true
+  pdf:
+    toc: true
+    number-sections: true
+    geometry:
+      - margin=22mm
+params:
+  dataset_size: "leeds"
+  geography_id: "E08000035"
+  assessment_period_years: 10
+  n_replicates: 10
+  effect_percent: "10,20,30,40,50,60,70,80,90,100"
+  include_no_change: true
+  sd_bootstrap_draws: 1000
+  run_sample_size_experiment: false
+  sample_sizes: "250,500,1000,2500,5000"
+  sample_size_effect_percent: "10,50,100"
+  sample_size_replicates: 10
+  run_combined_mode_experiment: false
+  combined_effect_percent: "10,50,100"
+  combined_replicates: 10
+  master_seed: 20260827
+  run_simulation: true
+  reuse_cached_runs: true
+  cache_version: "v3"
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+::: {.callout-note}
+## Status and interpretation
+
+**Archived implementation, not current evidence.** Its units, assumptions and
+low-level execution predate the current contract. Do not use its results to
+describe present HUB behaviour. Use `docs/sampling_variance_evaluation.qmd`.
+
+This is an executable pilot study of **Monte Carlo sampling variance in the
+current MIAMA-HUB implementation**. It is not yet a validation of structural
+model uncertainty, health-model parameter uncertainty, or the
+representativeness of the Leeds synthetic population.
+
+The full design contains `r params$n_replicates * (length(strsplit(as.character(params$effect_percent), ",", fixed = TRUE)[[1]]) + as.integer(params$include_no_change)) * 2 * 2`
+runs. Each replicate uses a different random seed. A master seed makes the set
+of replicate seeds reproducible; it does not fix every assessment to the same
+sample.
+:::
+
+# Research questions
+
+This report evaluates four questions.
+
+1. How much variation in total HALYs gained is introduced solely by the random
+   selection of people and trips in the current counterfactual algorithm?
+2. Does absolute or relative sampling variation change as the requested active
+   travel increase grows from 10% to 100%?
+3. Does variation differ between walking and cycling, whose reference user and
+   trip pools differ substantially?
+4. Does variation differ when an assessment is entered as additional weekly
+   **users** rather than additional weekly **trips**?
+
+The experiment changes one mode and one input unit at a time. For example, the
+walking-user scenario increases walking users but does not independently impose
+a walking-trip target. This isolates each counterfactual handler and the
+downstream trip and physical-activity changes it generates.
+
+# Experimental design
+
+## Factorial scenarios
+
+| Factor | Levels |
+|---|---|
+| Dataset | Packaged Leeds profile: 5,000 synthetic people |
+| Mode | Walking; cycling |
+| Active-travel input unit | Distinct weekly users; weighted weekly trips |
+| Requested increase | No change, then +10%, +20%, ..., +100% relative to the reference value |
+| Replicates | `r params$n_replicates` independently seeded runs per scenario |
+| Primary outcome | Total HALYs gained over a 10-year POC assessment period |
+
+For user scenarios, the target is rounded to a whole person because HUB samples
+individual rows. For trip scenarios, the target remains a numeric weighted
+weekly trip total. HUB converts the target into physical rows using the current
+trip-count implementation; the realized weighted total may therefore differ
+slightly from the requested target.
+
+## Outcome and estimands
+
+The primary run-level outcome is:
+
+\[
+\text{HALYs gained} = w_p \sum_{i,t=1}^{T} (HALY_{cf,i,t}-HALY_{ref,i,t}),
+\]
+
+where $w_p$ is the effective person weight for the Leeds sample and $T$ is the
+configured assessment period. Cycle 0 is excluded because it is the initial
+state rather than a modeled follow-up year.
+
+For each mode × input-unit × effect-size scenario, the report calculates:
+
+- mean and median HALYs gained;
+- standard deviation (SD), interquartile range (IQR), and full range;
+- a 95% empirical interval based on replicate quantiles;
+- coefficient of variation, `100 * SD / abs(mean)`;
+- signal-to-noise ratio, `abs(mean) / SD`;
+- the probability that a replicate has a sign opposite to the scenario mean;
+- requested and realized changes in users or trips; and
+- MMET exposure change as an intermediate diagnostic.
+
+With only ten replicates, quantiles, CVs, and sign probabilities are descriptive
+diagnostics rather than precise uncertainty estimates.
+
+# Simulation implementation
+
+## Setup
+
+```{r}
+#| label: setup
+#| include: false
+
+project_candidates <- c(".", "..")
+project_root <- project_candidates[
+  vapply(project_candidates, function(path) {
+    desc <- file.path(path, "DESCRIPTION")
+    file.exists(desc) && identical(unname(read.dcf(desc)[1, "Package"]), "MIAMAHUB")
+  }, logical(1))
+][1]
+
+if (is.na(project_root)) {
+  stop("Render from the MIAMA-HUB package root or its docs directory.", call. = FALSE)
+}
+project_root <- normalizePath(project_root, winslash = "/", mustWork = TRUE)
+
+# Evaluate the current checkout, not an older installed package.
+if (!requireNamespace("devtools", quietly = TRUE)) {
+  stop("The development report requires the devtools package.", call. = FALSE)
+}
+devtools::load_all(project_root, quiet = TRUE)
+
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(ggplot2)
+})
+
+effect_percent <- as.numeric(strsplit(as.character(params$effect_percent), ",", fixed = TRUE)[[1]])
+if (any(!is.finite(effect_percent)) || any(effect_percent <= 0)) {
+  stop("effect_percent must contain positive comma-separated numbers.", call. = FALSE)
+}
+design_effect_percent <- if (isTRUE(params$include_no_change)) c(0, effect_percent) else effect_percent
+sample_sizes <- as.integer(strsplit(as.character(params$sample_sizes), ",", fixed = TRUE)[[1]])
+sample_size_effect_percent <- as.numeric(
+  strsplit(as.character(params$sample_size_effect_percent), ",", fixed = TRUE)[[1]]
+)
+combined_effect_percent <- as.numeric(
+  strsplit(as.character(params$combined_effect_percent), ",", fixed = TRUE)[[1]]
+)
+if (any(!is.finite(sample_sizes)) || any(sample_sizes < 2) ||
+    any(!is.finite(sample_size_effect_percent)) || any(sample_size_effect_percent <= 0) ||
+    any(!is.finite(combined_effect_percent)) || any(combined_effect_percent <= 0)) {
+  stop("Sample-size parameters must contain valid positive comma-separated numbers.", call. = FALSE)
+}
+if (params$n_replicates < 2) {
+  stop("n_replicates must be at least 2 to estimate variance.", call. = FALSE)
+}
+
+mode_specs <- list(
+  walking = list(suffix = "walk", label = "Walking"),
+  cycling = list(suffix = "bike", label = "Cycling")
+)
+units <- c("users", "trips")
+
+design <- expand.grid(
+  mode = names(mode_specs),
+  at_data_unit = units,
+  effect_percent = design_effect_percent,
+  replicate = seq_len(params$n_replicates),
+  stringsAsFactors = FALSE
+) |>
+  arrange(.data$at_data_unit, .data$mode, .data$effect_percent, .data$replicate)
+
+set.seed(as.integer(params$master_seed))
+design$seed <- sample.int(.Machine$integer.max, nrow(design), replace = FALSE)
+stopifnot(!anyDuplicated(design$seed))
+design$scenario_id <- sprintf(
+  "%s_%s_p%03d_r%03d",
+  design$mode,
+  design$at_data_unit,
+  as.integer(design$effect_percent),
+  design$replicate
+)
+
+cache_dir <- file.path(
+  project_root, "docs", "_sampling_variance_cache", params$cache_version
+)
+dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+```
+
+## Load the common reference data once
+
+All runs use the same reference population and health-enriched reference data.
+Only the stochastic counterfactual sampling and resulting health lookup are
+repeated. This both isolates the source of variation and avoids repeatedly
+reading identical parquet files.
+
+```{r}
+#| label: reference-data
+
+field <- function(value) {
+  list(is_filled = TRUE, input_value = value)
+}
+
+profile <- MIAMAHUB:::build_mock_appraisal_inputs(
+  overrides = list(
+    ui_version = field("basic"),
+    geo_level = field("lad"),
+    geo_id = field(params$geography_id),
+    modes = field(c("walking", "cycling")),
+    at_data_unit = field("trips"),
+    users_timeframe_walk = field("week"),
+    users_timeframe_bike = field("week"),
+    trips_timeframe_walk = field("week"),
+    trips_timeframe_bike = field("week"),
+    trips_denominator_walk = field("total"),
+    trips_denominator_bike = field("total"),
+    res_aggregation = field("timeline"),
+    res_outcomes = field("halys")
+  )
+)
+
+cfg <- MIAMAHUB::miama_default_config(dataset_size = params$dataset_size)
+cfg$results$assessment_period_years <- as.integer(params$assessment_period_years)
+hub <- MIAMAHUB::Hub$new(cfg = cfg)
+profile <- hub$build_reference_profile_defaults(profile)
+hub$build_reference_data_from_defaults()
+
+reference_data <- hub$reference_data
+reference_updates <- hub$reference_default_ui_values$ui_updates
+base_values <- MIAMAHUB::receive_appraisal_inputs(profile)$appraisal_input_values
+assessment_period <- MIAMAHUB::get_assessment_period(cfg)
+person_weight <- cfg$population$person_weight
+
+# Load only the POC cycle horizon once. These immutable tables are reused by
+# every replicate; only counterfactual exposure and sampling vary by run.
+census_ids <- unique(stats::na.omit(reference_data$ind$census_id))
+hm_cycle_outcomes <- MIAMAHUB:::load_hm_cycle_outcomes_death_share(
+  cfg,
+  census_ids = census_ids,
+  cycles = 0:assessment_period
+)
+reference_exposure <- MIAMAHUB:::.counterfactual_health_exposure(
+  reference_data$ind,
+  reference_data$ind
+)
+lookup_scope <- MIAMAHUB:::.counterfactual_health_lookup_scope(
+  hm_cycle_outcomes,
+  reference_exposure
+)
+hm_cycle_lookup <- MIAMAHUB:::load_hm_cycle_lookup_death_share(
+  cfg,
+  strata = lookup_scope$strata,
+  cycles = lookup_scope$cycles
+)
+
+derive_reference_levels <- function(reference_data_run) {
+  bind_rows(lapply(names(mode_specs), function(mode) {
+  suffix <- mode_specs[[mode]]$suffix
+  mode_spec <- MIAMAHUB:::.miama_tab2_mode_specs()[[mode]]
+  active_trips <- mode_spec$trip_filter(reference_data_run$trips) &
+    !is.na(reference_data_run$trips$nts_tripid)
+  all_active <- MIAMAHUB:::.miama_tab2_mode_specs()$walking$trip_filter(reference_data_run$trips) |
+    MIAMAHUB:::.miama_tab2_mode_specs()$cycling$trip_filter(reference_data_run$trips)
+  broad_trip_candidates <- !all_active & !is.na(reference_data_run$trips$nts_tripid)
+  if ("trip_utilitarian" %in% names(reference_data_run$trips)) {
+    broad_trip_candidates <- broad_trip_candidates &
+      MIAMAHUB:::.true_values(reference_data_run$trips$trip_utilitarian)
+  }
+  active_users <- MIAMAHUB:::.positive_col(reference_data_run$ind, mode_spec$ind_duration_col)
+  data.frame(
+    mode = mode,
+    mode_label = mode_specs[[mode]]$label,
+    reference_users = sum(active_users, na.rm = TRUE),
+    reference_trips = sum(
+      MIAMAHUB:::.trip_weights(reference_data_run$trips)[active_trips],
+      na.rm = TRUE
+    ),
+    reference_active_trip_rows = sum(active_trips, na.rm = TRUE),
+    eligible_new_users = sum(!active_users, na.rm = TRUE),
+    broad_eligible_trip_rows = sum(broad_trip_candidates, na.rm = TRUE),
+    stringsAsFactors = FALSE
+  )
+  }))
+}
+
+reference_levels <- derive_reference_levels(reference_data)
+
+# Ensure the direct derivation used by controlled subsamples agrees with the
+# production UI reference extract for the complete Leeds profile.
+for (mode in names(mode_specs)) {
+  suffix <- mode_specs[[mode]]$suffix
+  row <- reference_levels[reference_levels$mode == mode, , drop = FALSE]
+  stopifnot(isTRUE(all.equal(
+    row$reference_users,
+    as.numeric(reference_updates[[paste0("users_count_ref_", suffix)]])
+  )))
+  stopifnot(isTRUE(all.equal(
+    row$reference_trips,
+    as.numeric(reference_updates[[paste0("trips_count_ref_", suffix)]])
+  )))
+}
+
+reference_levels
+```
+
+The effective person weight is `r round(person_weight, 3)`, and the configured
+assessment period is `r assessment_period` years.
+
+## One independently seeded assessment
+
+The function below calls the production counterfactual and health-outcome
+functions. It deliberately retains only compact run-level diagnostics and then
+releases the large counterfactual object.
+
+```{r}
+#| label: simulation-function
+#| echo: true
+
+run_sampling_assessment <- function(mode,
+                                    at_data_unit,
+                                    effect_percent,
+                                    replicate,
+                                    seed,
+                                    reference_data_run = reference_data,
+                                    reference_levels_run = reference_levels,
+                                    person_weight_run = person_weight,
+                                    hm_cycle_outcomes_run = hm_cycle_outcomes,
+                                    experiment = "main") {
+  started <- proc.time()[["elapsed"]]
+  spec <- mode_specs[[mode]]
+  suffix <- spec$suffix
+  ref_row <- reference_levels_run[reference_levels_run$mode == mode, , drop = FALSE]
+  values <- base_values
+  values$modes <- mode
+  values$at_data_unit <- at_data_unit
+
+  no_change <- identical(as.numeric(effect_percent), 0)
+  if (no_change) {
+    reference_target <- if (identical(at_data_unit, "users")) {
+      ref_row$reference_users
+    } else {
+      ref_row$reference_trips
+    }
+    requested_target <- reference_target
+  } else if (identical(at_data_unit, "users")) {
+    reference_target <- ref_row$reference_users
+    requested_target <- as.integer(round(reference_target * (1 + effect_percent / 100)))
+    requested_target <- max(as.integer(reference_target + 1), requested_target)
+    values[[paste0("users_count_cf_", suffix)]] <- requested_target
+  } else {
+    reference_target <- ref_row$reference_trips
+    requested_target <- reference_target * (1 + effect_percent / 100)
+    values[[paste0("trips_timeframe_", suffix)]] <- "week"
+    values[[paste0("trips_denominator_", suffix)]] <- "total"
+    values[[paste0("trips_count_cf_", suffix)]] <- requested_target
+  }
+
+  counterfactual_data <- MIAMAHUB:::init_counterfactual_data(reference_data_run)
+  counterfactual_data <- MIAMAHUB:::apply_counterfactual_ui_values(
+    counterfactual_data = counterfactual_data,
+    appraisal_input_values = values,
+    reference_data = reference_data_run,
+    constants = MIAMAHUB:::miama_counterfactual_defaults(cfg),
+    seed = as.integer(seed)
+  )
+
+  mode_spec <- MIAMAHUB:::.miama_tab2_mode_specs()[[mode]]
+  if (identical(at_data_unit, "users")) {
+    realized_target <- sum(
+      MIAMAHUB:::.positive_col(counterfactual_data$ind, mode_spec$ind_duration_col),
+      na.rm = TRUE
+    )
+  } else {
+    active <- mode_spec$trip_filter(counterfactual_data$trips) &
+      !is.na(counterfactual_data$trips$nts_tripid)
+    realized_target <- sum(
+      MIAMAHUB:::.trip_weights(counterfactual_data$trips)[active],
+      na.rm = TRUE
+    )
+  }
+
+  active_rows <- mode_spec$trip_filter(counterfactual_data$trips) &
+    !is.na(counterfactual_data$trips$nts_tripid)
+  realized_physical_trip_rows <- sum(active_rows, na.rm = TRUE)
+
+  comparison <- counterfactual_data$counterfactual_report$comparison
+  changed_individuals <- nrow(comparison$changed_ind_rows)
+  changed_trip_rows <- nrow(comparison$changed_trip_rows)
+  selection_keys <- c(
+    if ("census_id" %in% names(comparison$changed_ind_rows)) {
+      paste0("i:", comparison$changed_ind_rows$census_id)
+    },
+    if ("nts_tripid" %in% names(comparison$changed_trip_rows)) {
+      paste0("t:", comparison$changed_trip_rows$nts_tripid)
+    }
+  )
+  selection_keys <- sort(unique(selection_keys))
+  selection_code <- if (length(selection_keys) == 0) {
+    "none"
+  } else {
+    code_points <- utf8ToInt(paste(selection_keys, collapse = "|"))
+    as.character(sum(code_points * (seq_along(code_points) %% 1000003)) %% 2147483647)
+  }
+
+  exposure <- counterfactual_data$counterfactual_report$mmet_exposure
+  total_mmet_delta <- exposure$total_mmet_wkhr_delta[exposure$component == "total"]
+  if (length(total_mmet_delta) == 0) total_mmet_delta <- NA_real_
+
+  counterfactual_data <- MIAMAHUB:::apply_counterfactual_health_outcomes(
+    counterfactual_data = counterfactual_data,
+    reference_data = reference_data_run,
+    cfg = cfg,
+    scheme_effect_duration = "longterm",
+    hm_cycle_outcomes = hm_cycle_outcomes_run,
+    hm_cycle_lookup = hm_cycle_lookup
+  )
+
+  health <- counterfactual_data$health_outcomes
+  keep <- is.finite(health$cycle) & health$cycle > 0 & health$cycle <= assessment_period
+  halys_gained <- sum(health$d_haly[keep], na.rm = TRUE) * person_weight_run
+
+  data.frame(
+    mode = mode,
+    mode_label = spec$label,
+    at_data_unit = at_data_unit,
+    unit_label = if (at_data_unit == "users") "Distinct weekly users" else "Weighted weekly trips",
+    effect_percent = effect_percent,
+    replicate = replicate,
+    seed = seed,
+    experiment = experiment,
+    synthetic_sample_size = nrow(reference_data_run$ind),
+    effective_person_weight = person_weight_run,
+    reference_target = reference_target,
+    requested_target = requested_target,
+    realized_target = realized_target,
+    requested_absolute_change = requested_target - reference_target,
+    realized_absolute_change = realized_target - reference_target,
+    realized_effect_percent = 100 * (realized_target / reference_target - 1),
+    reference_active_trip_rows = ref_row$reference_active_trip_rows,
+    realized_active_trip_rows = realized_physical_trip_rows,
+    eligible_new_users = ref_row$eligible_new_users,
+    broad_eligible_trip_rows = ref_row$broad_eligible_trip_rows,
+    changed_individuals = changed_individuals,
+    changed_trip_rows = changed_trip_rows,
+    selection_code = selection_code,
+    total_mmet_wkhr_delta = total_mmet_delta,
+    halys_gained = halys_gained,
+    halys_per_mmet_wkhr = ifelse(total_mmet_delta != 0, halys_gained / total_mmet_delta, NA_real_),
+    elapsed_seconds = proc.time()[["elapsed"]] - started,
+    stringsAsFactors = FALSE
+  )
+}
+```
+
+## Execute or resume the factorial simulation
+
+Each run is saved separately. Re-rendering resumes from completed runs when
+`reuse_cached_runs` is true. Increment `cache_version` after changing model code
+or the simulation definition; otherwise old and new results could be mixed.
+
+```{r}
+#| label: execute-simulation
+
+run_one_design_row <- function(row) {
+  cache_path <- file.path(cache_dir, paste0(row$scenario_id, ".rds"))
+  if (isTRUE(params$reuse_cached_runs) && file.exists(cache_path)) {
+    return(readRDS(cache_path))
+  }
+  if (!isTRUE(params$run_simulation)) {
+    return(NULL)
+  }
+
+  result <- run_sampling_assessment(
+    mode = row$mode,
+    at_data_unit = row$at_data_unit,
+    effect_percent = row$effect_percent,
+    replicate = row$replicate,
+    seed = row$seed
+  )
+  temporary_path <- paste0(cache_path, ".tmp")
+  saveRDS(result, temporary_path)
+  if (!file.rename(temporary_path, cache_path)) {
+    stop("Could not finalize simulation cache: ", cache_path, call. = FALSE)
+  }
+  result
+}
+
+simulation_rows <- lapply(seq_len(nrow(design)), function(i) {
+  result <- run_one_design_row(design[i, , drop = FALSE])
+  if (i %% 10 == 0 || i == nrow(design)) {
+    message("Sampling simulation: ", i, " / ", nrow(design), " runs checked")
+  }
+  result
+})
+simulation_rows <- Filter(Negate(is.null), simulation_rows)
+
+if (length(simulation_rows) == 0) {
+  stop(
+    "No simulation results are available. Set run_simulation: true or provide cached runs.",
+    call. = FALSE
+  )
+}
+simulation_results <- bind_rows(simulation_rows)
+
+if (nrow(simulation_results) != nrow(design)) {
+  warning(
+    "The report is incomplete: ", nrow(simulation_results), " of ", nrow(design),
+    " requested runs are available."
+  )
+}
+
+# Structural checks: varying seeds must be unique, while no-change runs must
+# remain exactly unchanged regardless of seed or selected handler context.
+if (anyDuplicated(simulation_results$seed)) {
+  stop("Simulation output contains duplicated random seeds.", call. = FALSE)
+}
+no_change_results <- simulation_results[simulation_results$effect_percent == 0, , drop = FALSE]
+if (nrow(no_change_results) > 0) {
+  invariant_failed <- abs(no_change_results$halys_gained) > 1e-10 |
+    abs(no_change_results$total_mmet_wkhr_delta) > 1e-10 |
+    no_change_results$changed_individuals != 0 |
+    no_change_results$changed_trip_rows != 0
+  if (any(invariant_failed)) {
+    stop("No-change invariant failed for one or more independently seeded runs.", call. = FALSE)
+  }
+}
+```
+
+# Results
+
+## Target fidelity
+
+This diagnostic distinguishes variance in the requested sampling mechanism from
+failure to attain the requested user or trip total.
+
+```{r}
+#| label: target-fidelity
+
+target_fidelity <- simulation_results |>
+  group_by(.data$mode_label, .data$unit_label, .data$effect_percent) |>
+  summarise(
+    requested_change = mean(.data$requested_absolute_change),
+    mean_realized_change = mean(.data$realized_absolute_change),
+    mean_realized_effect_percent = mean(.data$realized_effect_percent),
+    max_absolute_target_error = max(abs(.data$realized_target - .data$requested_target)),
+    mean_changed_individuals = mean(.data$changed_individuals),
+    mean_changed_trip_rows = mean(.data$changed_trip_rows),
+    .groups = "drop"
+  )
+
+target_fidelity
+```
+
+## Randomization and no-change audits
+
+Different seeds are necessary but not sufficient evidence that different rows
+were sampled. `selection_code` is a compact checksum of changed person and trip
+identifiers. It is used only as an audit diagnostic, not as a random seed.
+
+```{r}
+#| label: randomization-audit
+
+selection_audit <- simulation_results |>
+  filter(.data$effect_percent > 0) |>
+  group_by(.data$mode_label, .data$unit_label, .data$effect_percent) |>
+  summarise(
+    replicates = n(),
+    distinct_seeds = n_distinct(.data$seed),
+    distinct_changed_row_sets = n_distinct(.data$selection_code),
+    min_changed_individuals = min(.data$changed_individuals),
+    max_changed_individuals = max(.data$changed_individuals),
+    min_changed_trip_rows = min(.data$changed_trip_rows),
+    max_changed_trip_rows = max(.data$changed_trip_rows),
+    .groups = "drop"
+  )
+
+selection_audit
+```
+
+```{r}
+#| label: no-change-audit
+
+if (nrow(no_change_results) > 0) {
+  no_change_results |>
+    summarise(
+      runs = n(),
+      maximum_absolute_haly = max(abs(.data$halys_gained)),
+      maximum_absolute_mmet_delta = max(abs(.data$total_mmet_wkhr_delta)),
+      changed_individuals = sum(.data$changed_individuals),
+      changed_trip_rows = sum(.data$changed_trip_rows)
+    )
+}
+```
+
+All no-change quantities must be exactly zero within numerical tolerance. The
+report stops during execution rather than merely warning if this invariant is
+violated.
+
+## Replicate-level HALY impacts
+
+Each point is one independently seeded assessment. The line is the scenario
+mean; the shaded interval spans the minimum and maximum among the available
+replicates. A wider vertical spread at a given effect size indicates greater
+Monte Carlo sensitivity to which people or trips were sampled.
+
+```{r}
+#| label: impact-points
+#| fig-width: 10
+#| fig-height: 7
+
+impact_summary <- simulation_results |>
+  group_by(.data$mode_label, .data$unit_label, .data$effect_percent) |>
+  summarise(
+    mean_haly = mean(.data$halys_gained),
+    min_haly = min(.data$halys_gained),
+    max_haly = max(.data$halys_gained),
+    .groups = "drop"
+  )
+
+ggplot(simulation_results, aes(x = .data$effect_percent, y = .data$halys_gained)) +
+  geom_ribbon(
+    data = impact_summary,
+    aes(x = .data$effect_percent, ymin = .data$min_haly, ymax = .data$max_haly),
+    inherit.aes = FALSE,
+    fill = "#B8D8CF", alpha = 0.45
+  ) +
+  geom_line(data = impact_summary, aes(y = .data$mean_haly), color = "#006B57", linewidth = 0.8) +
+  geom_point(
+    aes(group = factor(.data$replicate)),
+    position = position_jitter(width = 1.2, height = 0),
+    alpha = 0.65, size = 1.7, color = "#314A59"
+  ) +
+  facet_grid(.data$unit_label ~ .data$mode_label, scales = "free_y") +
+  scale_x_continuous(breaks = effect_percent) +
+  labs(
+    title = "Total HALYs gained across independently sampled assessments",
+    subtitle = "Points are replicates; line is the mean; ribbon is the replicate range",
+    x = "Requested increase from reference (%)",
+    y = paste0("HALYs gained over ", assessment_period, " years")
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(panel.grid.minor = element_blank())
+```
+
+## Scenario-level sampling spread
+
+```{r}
+#| label: variance-summary
+
+variance_summary <- simulation_results |>
+  group_by(.data$mode, .data$mode_label, .data$at_data_unit, .data$unit_label, .data$effect_percent) |>
+  summarise(
+    n = n(),
+    mean_haly = mean(.data$halys_gained),
+    median_haly = median(.data$halys_gained),
+    sd_haly = sd(.data$halys_gained),
+    iqr_haly = IQR(.data$halys_gained),
+    min_haly = min(.data$halys_gained),
+    max_haly = max(.data$halys_gained),
+    q025_haly = unname(quantile(.data$halys_gained, 0.025)),
+    q975_haly = unname(quantile(.data$halys_gained, 0.975)),
+    negative_rate = mean(.data$halys_gained < 0),
+    mean_realized_effect_percent = mean(.data$realized_effect_percent),
+    mean_mmet_delta = mean(.data$total_mmet_wkhr_delta),
+    .groups = "drop"
+  ) |>
+  mutate(
+    cv_percent = ifelse(abs(.data$mean_haly) > 0, 100 * .data$sd_haly / abs(.data$mean_haly), NA_real_),
+    signal_to_noise = ifelse(.data$sd_haly > 0, abs(.data$mean_haly) / .data$sd_haly, Inf),
+    opposite_sign_rate = ifelse(
+      .data$mean_haly > 0,
+      .data$negative_rate,
+      ifelse(.data$mean_haly < 0, 1 - .data$negative_rate, NA_real_)
+    )
+  )
+
+variance_summary
+```
+
+## Centered views that expose within-scenario variance
+
+The dose-response relationship can visually overwhelm replicate variation.
+The next plot removes each scenario mean and expresses every run as a percentage
+deviation from that mean. It should be read alongside absolute SD because a
+large percentage deviation can still represent a small number of HALYs.
+
+```{r}
+#| label: centered-variation-plot
+#| fig-width: 11
+#| fig-height: 7
+
+centered_results <- simulation_results |>
+  filter(.data$effect_percent > 0) |>
+  group_by(.data$mode_label, .data$unit_label, .data$effect_percent) |>
+  mutate(
+    scenario_mean_haly = mean(.data$halys_gained),
+    haly_deviation = .data$halys_gained - .data$scenario_mean_haly,
+    relative_deviation_percent = 100 * .data$haly_deviation / abs(.data$scenario_mean_haly)
+  ) |>
+  ungroup()
+
+ggplot(
+  centered_results,
+  aes(x = factor(.data$effect_percent), y = .data$relative_deviation_percent)
+) +
+  geom_hline(yintercept = 0, color = "grey50", linewidth = 0.35) +
+  geom_boxplot(width = 0.55, outlier.shape = NA, fill = "#DCECE7", color = "#006B57") +
+  geom_jitter(width = 0.14, height = 0, alpha = 0.65, size = 1.5, color = "#314A59") +
+  facet_grid(.data$unit_label ~ .data$mode_label, scales = "free_y") +
+  labs(
+    title = "Replicate deviation from each scenario's mean HALY impact",
+    subtitle = "Centering removes the dominant increase in mean impact across effect sizes",
+    x = "Requested increase from reference (%)",
+    y = "Deviation from scenario mean (%)"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(panel.grid.minor = element_blank())
+```
+
+```{r}
+#| label: absolute-centered-variation-plot
+#| fig-width: 11
+#| fig-height: 7
+
+ggplot(
+  centered_results,
+  aes(x = factor(.data$effect_percent), y = .data$haly_deviation)
+) +
+  geom_hline(yintercept = 0, color = "grey50", linewidth = 0.35) +
+  geom_boxplot(width = 0.55, outlier.shape = NA, fill = "#E6EAF0", color = "#314A59") +
+  geom_jitter(width = 0.14, height = 0, alpha = 0.65, size = 1.5, color = "#8C2F5C") +
+  facet_grid(.data$unit_label ~ .data$mode_label, scales = "free_y") +
+  labs(
+    title = "Absolute replicate deviation from scenario mean",
+    x = "Requested increase from reference (%)",
+    y = "HALY deviation from scenario mean"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(panel.grid.minor = element_blank())
+```
+
+## Uncertainty in the estimated standard deviation
+
+With ten replicates, the SD itself is uncertain. This non-parametric bootstrap
+resamples the available replicate outcomes within each scenario. It does not
+replace additional model runs, but it shows whether an apparently precise SD is
+supported by the number of replicates.
+
+```{r}
+#| label: sd-bootstrap
+
+bootstrap_sd_interval <- function(values, draws, seed) {
+  values <- as.numeric(values)
+  if (length(values) < 2 || draws < 1) return(c(low = NA_real_, high = NA_real_))
+  set.seed(seed)
+  estimates <- replicate(draws, stats::sd(sample(values, replace = TRUE)))
+  stats::quantile(estimates, c(0.025, 0.975), names = FALSE, na.rm = TRUE) |>
+    setNames(c("low", "high"))
+}
+
+scenario_groups <- split(
+  simulation_results[simulation_results$effect_percent > 0, , drop = FALSE],
+  interaction(
+    simulation_results$mode[simulation_results$effect_percent > 0],
+    simulation_results$at_data_unit[simulation_results$effect_percent > 0],
+    simulation_results$effect_percent[simulation_results$effect_percent > 0],
+    drop = TRUE
+  )
+)
+
+sd_uncertainty <- bind_rows(lapply(seq_along(scenario_groups), function(index) {
+  group <- scenario_groups[[index]]
+  interval <- bootstrap_sd_interval(
+    group$halys_gained,
+    draws = as.integer(params$sd_bootstrap_draws),
+    seed = as.integer(params$master_seed) + index
+  )
+  data.frame(
+    mode_label = group$mode_label[1],
+    unit_label = group$unit_label[1],
+    effect_percent = group$effect_percent[1],
+    sd_haly = sd(group$halys_gained),
+    sd_low = interval[["low"]],
+    sd_high = interval[["high"]]
+  )
+}))
+
+ggplot(sd_uncertainty, aes(x = .data$effect_percent, y = .data$sd_haly)) +
+  geom_ribbon(aes(ymin = .data$sd_low, ymax = .data$sd_high), fill = "#E7CAD8", alpha = 0.55) +
+  geom_line(color = "#8C2F5C", linewidth = 0.8) +
+  geom_point(color = "#8C2F5C", size = 1.8) +
+  facet_grid(.data$unit_label ~ .data$mode_label, scales = "free_y") +
+  labs(
+    title = "Estimated HALY SD and bootstrap uncertainty",
+    subtitle = paste0(params$sd_bootstrap_draws, " bootstrap resamples within each scenario"),
+    x = "Requested increase from reference (%)",
+    y = "SD of total HALYs gained"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(panel.grid.minor = element_blank())
+```
+
+```{r}
+#| label: absolute-spread-plot
+#| fig-width: 10
+#| fig-height: 6
+
+ggplot(variance_summary, aes(x = .data$effect_percent, y = .data$sd_haly)) +
+  geom_line(color = "#006B57", linewidth = 0.8) +
+  geom_point(color = "#006B57", size = 2) +
+  facet_grid(.data$unit_label ~ .data$mode_label, scales = "free_y") +
+  scale_x_continuous(breaks = effect_percent) +
+  labs(
+    title = "Absolute Monte Carlo spread in total HALYs",
+    subtitle = "Standard deviation across independently seeded assessments",
+    x = "Requested increase from reference (%)",
+    y = "SD of total HALYs gained"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(panel.grid.minor = element_blank())
+```
+
+## Sampling spread relative to effect size
+
+Absolute SD may rise with a larger intervention even while uncertainty becomes
+small relative to the mean effect. CV and signal-to-noise therefore answer a
+different question than SD.
+
+```{r}
+#| label: relative-spread-plot
+#| fig-width: 10
+#| fig-height: 6
+
+ggplot(variance_summary, aes(x = .data$effect_percent, y = .data$cv_percent)) +
+  geom_hline(yintercept = c(5, 10, 20), linetype = "dotted", color = "grey65") +
+  geom_line(color = "#8C2F5C", linewidth = 0.8) +
+  geom_point(color = "#8C2F5C", size = 2) +
+  facet_grid(.data$unit_label ~ .data$mode_label, scales = "free_y") +
+  scale_x_continuous(breaks = effect_percent) +
+  labs(
+    title = "Sampling spread relative to mean HALY impact",
+    subtitle = "CV = 100 × SD / absolute mean; high values indicate a weak signal relative to Monte Carlo variation",
+    x = "Requested increase from reference (%)",
+    y = "Coefficient of variation (%)"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(panel.grid.minor = element_blank())
+```
+
+## Relationship to the number of additional sampled units
+
+This plot places the variation against the absolute requested increase rather
+than its percentage. Walking and cycling can then be compared in terms of the
+actual number of added users or weighted trips represented by a scenario.
+
+```{r}
+#| label: size-spread-plot
+#| fig-width: 10
+#| fig-height: 5
+
+size_summary <- simulation_results |>
+  group_by(.data$mode_label, .data$unit_label, .data$effect_percent) |>
+  summarise(
+    additional_units = mean(.data$requested_absolute_change),
+    mean_haly = mean(.data$halys_gained),
+    sd_haly = sd(.data$halys_gained),
+    .groups = "drop"
+  ) |>
+  mutate(
+    cv_percent = ifelse(abs(.data$mean_haly) > 0, 100 * .data$sd_haly / abs(.data$mean_haly), NA_real_)
+  )
+
+ggplot(size_summary, aes(x = .data$additional_units, y = .data$cv_percent, color = .data$mode_label)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 2) +
+  facet_wrap(vars(.data$unit_label), scales = "free_x") +
+  labs(
+    title = "Relative sampling spread by absolute intervention size",
+    x = "Requested additional users or weighted weekly trips",
+    y = "Coefficient of variation (%)",
+    color = "Mode"
+  ) +
+  scale_color_manual(values = c("Walking" = "#006B57", "Cycling" = "#8C2F5C")) +
+  theme_minimal(base_size = 10) +
+  theme(panel.grid.minor = element_blank(), legend.position = "top")
+```
+
+## Baseline donor pools and candidate saturation
+
+The same percentage increase can require very different numbers of sampled
+rows. These denominators identify scenarios approaching the available donor
+pool, where fallback rules or deterministic inclusion of most candidates can
+reduce apparent random variation.
+
+```{r}
+#| label: donor-pool-summary
+
+reference_levels |>
+  select(
+    .data$mode_label, .data$reference_users, .data$eligible_new_users,
+    .data$reference_active_trip_rows, .data$reference_trips,
+    .data$broad_eligible_trip_rows
+  )
+```
+
+```{r}
+#| label: candidate-saturation-data
+
+saturation_data <- simulation_results |>
+  filter(.data$effect_percent > 0) |>
+  mutate(
+    donor_pool = ifelse(
+      .data$at_data_unit == "users",
+      .data$eligible_new_users,
+      .data$broad_eligible_trip_rows
+    ),
+    changed_rows = ifelse(
+      .data$at_data_unit == "users",
+      .data$changed_individuals,
+      .data$changed_trip_rows
+    ),
+    candidate_pool_used_percent = 100 * .data$changed_rows / .data$donor_pool
+  )
+```
+
+The candidate-pool relationship is summarized below using the already centered
+HALY results. The broad trip pool is an upper bound: final eligibility also
+depends on plausible distance and other active constraints.
+
+```{r}
+#| label: candidate-saturation-final-plot
+#| fig-width: 10
+#| fig-height: 5
+
+saturation_plot_data <- saturation_data |>
+  select(
+    .data$mode_label, .data$unit_label, .data$effect_percent,
+    .data$replicate, .data$candidate_pool_used_percent
+  ) |>
+  left_join(
+    centered_results |>
+      select(
+        .data$mode_label, .data$unit_label, .data$effect_percent,
+        .data$replicate, .data$relative_deviation_percent
+      ),
+    by = c("mode_label", "unit_label", "effect_percent", "replicate")
+  )
+
+ggplot(
+  saturation_plot_data,
+  aes(x = .data$candidate_pool_used_percent, y = abs(.data$relative_deviation_percent))
+) +
+  geom_point(alpha = 0.55, color = "#314A59") +
+  geom_smooth(method = "loess", se = FALSE, color = "#006B57", linewidth = 0.8) +
+  facet_grid(.data$unit_label ~ .data$mode_label, scales = "free") +
+  labs(
+    title = "Relative HALY deviation versus share of broad candidate pool changed",
+    x = "Broad candidate pool used (%)",
+    y = "Absolute deviation from scenario mean (%)"
+  ) +
+  theme_minimal(base_size = 10)
+```
+
+## MMET-exposure versus health-response variation
+
+Random sampling can affect HALYs through at least two pathways: the amount of
+MMET exposure generated and the health trajectories of the people receiving
+that exposure. Within-scenario regression on total MMET change provides a first
+decomposition. Residual variation includes variation in who receives exposure,
+nonlinearity, and any information not represented by the aggregate MMET total;
+it is not independent health-model randomness, because the health lookup itself
+is deterministic conditional on the sampled counterfactual.
+
+```{r}
+#| label: mmet-haly-decomposition
+
+decomposition_groups <- split(
+  simulation_results[simulation_results$effect_percent > 0, , drop = FALSE],
+  interaction(
+    simulation_results$mode[simulation_results$effect_percent > 0],
+    simulation_results$at_data_unit[simulation_results$effect_percent > 0],
+    simulation_results$effect_percent[simulation_results$effect_percent > 0],
+    drop = TRUE
+  )
+)
+
+health_response_decomposition <- bind_rows(lapply(decomposition_groups, function(group) {
+  estimable <- nrow(group) >= 3 &&
+    length(unique(group$total_mmet_wkhr_delta[is.finite(group$total_mmet_wkhr_delta)])) >= 2
+  fit <- if (estimable) stats::lm(halys_gained ~ total_mmet_wkhr_delta, data = group) else NULL
+  data.frame(
+    mode_label = group$mode_label[1],
+    unit_label = group$unit_label[1],
+    effect_percent = group$effect_percent[1],
+    mmet_haly_correlation = if (estimable) stats::cor(group$total_mmet_wkhr_delta, group$halys_gained) else NA_real_,
+    mmet_r_squared = if (estimable) summary(fit)$r.squared else NA_real_,
+    residual_haly_sd = if (estimable) stats::sd(stats::residuals(fit)) else NA_real_,
+    total_haly_sd = stats::sd(group$halys_gained),
+    stringsAsFactors = FALSE
+  )
+}))
+
+health_response_decomposition
+```
+
+```{r}
+#| label: mmet-haly-plot
+#| fig-width: 10
+#| fig-height: 7
+
+ggplot(
+  simulation_results |> filter(.data$effect_percent > 0),
+  aes(
+    x = .data$total_mmet_wkhr_delta,
+    y = .data$halys_gained,
+    color = .data$effect_percent
+  )
+) +
+  geom_point(alpha = 0.65, size = 1.5) +
+  facet_grid(.data$unit_label ~ .data$mode_label, scales = "free") +
+  scale_color_viridis_c(option = "C", end = 0.85) +
+  labs(
+    title = "HALYs gained versus total weekly MMET change",
+    subtitle = "Color denotes the requested percentage increase",
+    x = "Total MMET-hours/week change across synthetic people",
+    y = paste0("HALYs gained over ", assessment_period, " years"),
+    color = "Increase (%)"
+  ) +
+  theme_minimal(base_size = 10)
+```
+
+```{r}
+#| label: halys-per-mmet-plot
+#| fig-width: 10
+#| fig-height: 6
+
+ggplot(
+  simulation_results |> filter(.data$effect_percent > 0),
+  aes(x = factor(.data$effect_percent), y = .data$halys_per_mmet_wkhr)
+) +
+  geom_boxplot(outlier.shape = NA, fill = "#DCECE7", color = "#006B57") +
+  geom_jitter(width = 0.14, alpha = 0.55, size = 1.3, color = "#314A59") +
+  facet_grid(.data$unit_label ~ .data$mode_label, scales = "free_y") +
+  labs(
+    title = "Health response per unit of aggregate MMET change",
+    x = "Requested increase from reference (%)",
+    y = "HALYs gained per MMET-hour/week"
+  ) +
+  theme_minimal(base_size = 10)
+```
+
+## Weighted-trip conversion diagnostics
+
+For trip scenarios, weighted target error and the number of physical rows
+changed are separate quantities. The table and plot below test whether larger
+weighted-target errors coincide with larger departures from the scenario mean.
+
+```{r}
+#| label: weighted-trip-diagnostics
+
+weighted_trip_diagnostics <- simulation_results |>
+  filter(.data$at_data_unit == "trips", .data$effect_percent > 0) |>
+  mutate(
+    weighted_target_error = .data$realized_target - .data$requested_target,
+    weighted_target_error_percent = 100 * .data$weighted_target_error / .data$requested_target
+  ) |>
+  left_join(
+    centered_results |>
+      select(
+        .data$mode_label, .data$unit_label, .data$effect_percent,
+        .data$replicate, .data$haly_deviation, .data$relative_deviation_percent
+      ),
+    by = c("mode_label", "unit_label", "effect_percent", "replicate")
+  )
+
+weighted_trip_diagnostics |>
+  group_by(.data$mode_label, .data$effect_percent) |>
+  summarise(
+    mean_weighted_target_error_percent = mean(.data$weighted_target_error_percent),
+    max_absolute_weighted_target_error_percent = max(abs(.data$weighted_target_error_percent)),
+    mean_changed_trip_rows = mean(.data$changed_trip_rows),
+    .groups = "drop"
+  )
+```
+
+```{r}
+#| label: weighted-trip-error-plot
+#| fig-width: 9
+#| fig-height: 4.5
+
+ggplot(
+  weighted_trip_diagnostics,
+  aes(x = .data$weighted_target_error_percent, y = .data$relative_deviation_percent)
+) +
+  geom_hline(yintercept = 0, color = "grey70", linewidth = 0.3) +
+  geom_vline(xintercept = 0, color = "grey70", linewidth = 0.3) +
+  geom_point(aes(color = .data$effect_percent), alpha = 0.65) +
+  facet_wrap(vars(.data$mode_label), scales = "free") +
+  scale_color_viridis_c(option = "C", end = 0.85) +
+  labs(
+    title = "Weighted-trip target error versus HALY deviation",
+    x = "Realized minus requested weighted trips (%)",
+    y = "HALY deviation from scenario mean (%)",
+    color = "Increase (%)"
+  ) +
+  theme_minimal(base_size = 10)
+```
+
+## Expected stabilization from averaging independent seeds
+
+If independent seeded runs are averaged, their Monte Carlo standard error is
+expected to decrease approximately with $1/\sqrt{k}$. This is an analytical
+projection from the observed replicate SD, not a substitute for validating
+independence or running the model repeatedly.
+
+```{r}
+#| label: seed-averaging-plot
+#| fig-width: 10
+#| fig-height: 6
+
+average_counts <- c(1, 2, 5, 10, 20, 50)
+seed_averaging <- bind_rows(lapply(average_counts, function(k) {
+  transform(
+    variance_summary[variance_summary$effect_percent > 0, , drop = FALSE],
+    averaged_runs = k
+  )
+})) |>
+  mutate(expected_cv_of_mean = .data$cv_percent / sqrt(.data$averaged_runs))
+
+ggplot(
+  seed_averaging,
+  aes(x = .data$averaged_runs, y = .data$expected_cv_of_mean, group = .data$effect_percent)
+) +
+  geom_line(alpha = 0.45, color = "#314A59") +
+  geom_point(alpha = 0.6, size = 1.2, color = "#006B57") +
+  facet_grid(.data$unit_label ~ .data$mode_label, scales = "free_y") +
+  scale_x_continuous(breaks = average_counts) +
+  labs(
+    title = "Projected relative Monte Carlo error after averaging independent runs",
+    subtitle = "Each line represents one requested effect size",
+    x = "Number of independently seeded runs averaged",
+    y = "Expected CV of averaged impact (%)"
+  ) +
+  theme_minimal(base_size = 10)
+```
+
+# Optional controlled sample-size experiment
+
+The main design varies intervention size but keeps the 5,000-person synthetic
+sample fixed. The optional experiment below uses nested subsamples of the same
+Leeds profile to distinguish intervention effect size from the number of
+synthetic people available to the sampler.
+
+Each smaller sample is rescaled to represent the same Leeds population. This
+tests Monte Carlo precision under reduced synthetic resolution; it does **not**
+simulate a genuinely smaller town. One fixed nested reference subsample is used
+per size so the first comparison isolates counterfactual sampling conditional
+on that reference. Repeating the reference-subsample draw is a further required
+refinement.
+
+This experiment is disabled by default because its configured design adds
+`r length(sample_sizes) * length(sample_size_effect_percent) * 2 * 2 * params$sample_size_replicates`
+health-model runs. Enable it with:
+
+```sh
+quarto render docs/sampling_variance_evaluation.qmd --to html \
+  -P run_sample_size_experiment:true
+```
+
+```{r}
+#| label: sample-size-experiment
+
+sample_size_results <- data.frame()
+
+if (isTRUE(params$run_sample_size_experiment)) {
+  if (max(sample_sizes) > nrow(reference_data$ind)) {
+    stop("A requested sample size exceeds the available Leeds profile.", call. = FALSE)
+  }
+  if (params$sample_size_replicates < 2) {
+    stop("sample_size_replicates must be at least 2.", call. = FALSE)
+  }
+
+  set.seed(as.integer(params$master_seed) + 50000L)
+  nested_id_order <- sample(unique(reference_data$ind$census_id), replace = FALSE)
+  sample_bundles <- lapply(sample_sizes, function(sample_n) {
+    selected_ids <- nested_id_order[seq_len(sample_n)]
+    reference_subset <- reference_data
+    reference_subset$ind <- reference_data$ind[
+      reference_data$ind$census_id %in% selected_ids, , drop = FALSE
+    ]
+    reference_subset$trips <- reference_data$trips[
+      reference_data$trips$census_id %in% selected_ids, , drop = FALSE
+    ]
+    health_subset <- hm_cycle_outcomes[
+      hm_cycle_outcomes$census_id %in% selected_ids, , drop = FALSE
+    ]
+    list(
+      sample_size = sample_n,
+      reference_data = reference_subset,
+      reference_levels = derive_reference_levels(reference_subset),
+      hm_cycle_outcomes = health_subset,
+      # Preserve the represented Leeds population while reducing synthetic
+      # resolution. This scaling does not affect CV but does affect absolute SD.
+      person_weight = person_weight * nrow(reference_data$ind) / sample_n
+    )
+  })
+  names(sample_bundles) <- as.character(sample_sizes)
+
+  sample_design <- expand.grid(
+    synthetic_sample_size = sample_sizes,
+    mode = names(mode_specs),
+    at_data_unit = units,
+    effect_percent = sample_size_effect_percent,
+    replicate = seq_len(params$sample_size_replicates),
+    stringsAsFactors = FALSE
+  ) |>
+    arrange(
+      .data$synthetic_sample_size, .data$at_data_unit, .data$mode,
+      .data$effect_percent, .data$replicate
+    )
+
+  set.seed(as.integer(params$master_seed) + 60000L)
+  sample_design$seed <- sample.int(
+    .Machine$integer.max,
+    nrow(sample_design),
+    replace = FALSE
+  )
+  sample_design$scenario_id <- sprintf(
+    "sample_n%05d_%s_%s_p%03d_r%03d",
+    sample_design$synthetic_sample_size,
+    sample_design$mode,
+    sample_design$at_data_unit,
+    as.integer(sample_design$effect_percent),
+    sample_design$replicate
+  )
+
+  sample_rows <- lapply(seq_len(nrow(sample_design)), function(i) {
+    row <- sample_design[i, , drop = FALSE]
+    cache_path <- file.path(cache_dir, paste0(row$scenario_id, ".rds"))
+    if (isTRUE(params$reuse_cached_runs) && file.exists(cache_path)) {
+      return(readRDS(cache_path))
+    }
+    if (!isTRUE(params$run_simulation)) return(NULL)
+
+    bundle <- sample_bundles[[as.character(row$synthetic_sample_size)]]
+    result <- run_sampling_assessment(
+      mode = row$mode,
+      at_data_unit = row$at_data_unit,
+      effect_percent = row$effect_percent,
+      replicate = row$replicate,
+      seed = row$seed,
+      reference_data_run = bundle$reference_data,
+      reference_levels_run = bundle$reference_levels,
+      person_weight_run = bundle$person_weight,
+      hm_cycle_outcomes_run = bundle$hm_cycle_outcomes,
+      experiment = "controlled_sample_size"
+    )
+    temporary_path <- paste0(cache_path, ".tmp")
+    saveRDS(result, temporary_path)
+    if (!file.rename(temporary_path, cache_path)) {
+      stop("Could not finalize sample-size cache: ", cache_path, call. = FALSE)
+    }
+    result
+  })
+
+  sample_rows <- Filter(Negate(is.null), sample_rows)
+  if (length(sample_rows) > 0) sample_size_results <- bind_rows(sample_rows)
+}
+
+if (nrow(sample_size_results) == 0) {
+  cat("Controlled sample-size experiment not run in this render.\n")
+}
+```
+
+```{r}
+#| label: sample-size-results
+#| fig-width: 11
+#| fig-height: 7
+
+if (nrow(sample_size_results) > 0) {
+  sample_size_summary <- sample_size_results |>
+    group_by(
+      .data$synthetic_sample_size, .data$mode_label, .data$unit_label,
+      .data$effect_percent
+    ) |>
+    summarise(
+      mean_haly = mean(.data$halys_gained),
+      sd_haly = sd(.data$halys_gained),
+      mean_changed_individuals = mean(.data$changed_individuals),
+      mean_changed_trip_rows = mean(.data$changed_trip_rows),
+      .groups = "drop"
+    ) |>
+    mutate(
+      cv_percent = 100 * .data$sd_haly / abs(.data$mean_haly)
+    )
+
+  print(
+    ggplot(
+      sample_size_summary,
+      aes(
+        x = .data$synthetic_sample_size,
+        y = .data$cv_percent,
+        color = factor(.data$effect_percent),
+        group = factor(.data$effect_percent)
+      )
+    ) +
+      geom_line(linewidth = 0.75) +
+      geom_point(size = 1.8) +
+      facet_grid(.data$unit_label ~ .data$mode_label, scales = "free_y") +
+      scale_x_log10(breaks = sample_sizes) +
+      labs(
+        title = "Relative HALY sampling variation by synthetic sample size",
+        subtitle = "Nested Leeds subsamples rescaled to the same represented population",
+        x = "Synthetic people available (log scale)",
+        y = "Coefficient of variation (%)",
+        color = "Increase (%)"
+      ) +
+      theme_minimal(base_size = 10)
+  )
+}
+```
+
+# Optional combined-mode and ordering experiment
+
+Walking and cycling compete for some of the same non-active trip candidates.
+The production sampler locks a shifted trip so it cannot subsequently switch
+again, but the composition of the remaining candidate pool can still depend on
+which mode is processed first. This paired experiment applies the same
+percentage increase to both modes, runs both processing orders with the same
+seed, and compares the combined impact with separate-mode results.
+
+It is disabled by default. Its standard configuration adds
+`r length(combined_effect_percent) * 2 * 2 * params$combined_replicates` runs.
+
+```{r}
+#| label: combined-mode-experiment
+
+run_combined_assessment <- function(at_data_unit,
+                                    effect_percent,
+                                    replicate,
+                                    seed,
+                                    mode_order) {
+  started <- proc.time()[["elapsed"]]
+  values <- base_values
+  values$modes <- mode_order
+  values$at_data_unit <- at_data_unit
+
+  targets <- list()
+  for (mode in mode_order) {
+    spec <- mode_specs[[mode]]
+    ref_row <- reference_levels[reference_levels$mode == mode, , drop = FALSE]
+    if (identical(at_data_unit, "users")) {
+      reference_target <- ref_row$reference_users
+      target <- max(
+        as.integer(reference_target + 1),
+        as.integer(round(reference_target * (1 + effect_percent / 100)))
+      )
+      values[[paste0("users_count_cf_", spec$suffix)]] <- target
+    } else {
+      reference_target <- ref_row$reference_trips
+      target <- reference_target * (1 + effect_percent / 100)
+      values[[paste0("trips_timeframe_", spec$suffix)]] <- "week"
+      values[[paste0("trips_denominator_", spec$suffix)]] <- "total"
+      values[[paste0("trips_count_cf_", spec$suffix)]] <- target
+    }
+    targets[[mode]] <- c(reference = reference_target, requested = target)
+  }
+
+  counterfactual_data <- MIAMAHUB:::init_counterfactual_data(reference_data)
+  counterfactual_data <- MIAMAHUB:::apply_counterfactual_ui_values(
+    counterfactual_data = counterfactual_data,
+    appraisal_input_values = values,
+    reference_data = reference_data,
+    constants = MIAMAHUB:::miama_counterfactual_defaults(cfg),
+    seed = as.integer(seed)
+  )
+
+  realized <- vapply(names(mode_specs), function(mode) {
+    mode_spec <- MIAMAHUB:::.miama_tab2_mode_specs()[[mode]]
+    if (identical(at_data_unit, "users")) {
+      sum(
+        MIAMAHUB:::.positive_col(counterfactual_data$ind, mode_spec$ind_duration_col),
+        na.rm = TRUE
+      )
+    } else {
+      active <- mode_spec$trip_filter(counterfactual_data$trips) &
+        !is.na(counterfactual_data$trips$nts_tripid)
+      sum(MIAMAHUB:::.trip_weights(counterfactual_data$trips)[active], na.rm = TRUE)
+    }
+  }, numeric(1))
+
+  exposure <- counterfactual_data$counterfactual_report$mmet_exposure
+  total_mmet_delta <- exposure$total_mmet_wkhr_delta[exposure$component == "total"]
+  comparison <- counterfactual_data$counterfactual_report$comparison
+  counterfactual_data <- MIAMAHUB:::apply_counterfactual_health_outcomes(
+    counterfactual_data = counterfactual_data,
+    reference_data = reference_data,
+    cfg = cfg,
+    scheme_effect_duration = "longterm",
+    hm_cycle_outcomes = hm_cycle_outcomes,
+    hm_cycle_lookup = hm_cycle_lookup
+  )
+  health <- counterfactual_data$health_outcomes
+  keep <- is.finite(health$cycle) & health$cycle > 0 & health$cycle <= assessment_period
+
+  data.frame(
+    at_data_unit = at_data_unit,
+    unit_label = if (at_data_unit == "users") "Distinct weekly users" else "Weighted weekly trips",
+    effect_percent = effect_percent,
+    replicate = replicate,
+    seed = seed,
+    mode_order = paste(mode_order, collapse = " then "),
+    walking_reference = targets$walking[["reference"]],
+    walking_requested = targets$walking[["requested"]],
+    walking_realized = realized[["walking"]],
+    cycling_reference = targets$cycling[["reference"]],
+    cycling_requested = targets$cycling[["requested"]],
+    cycling_realized = realized[["cycling"]],
+    changed_individuals = nrow(comparison$changed_ind_rows),
+    changed_trip_rows = nrow(comparison$changed_trip_rows),
+    total_mmet_wkhr_delta = total_mmet_delta,
+    halys_gained = sum(health$d_haly[keep], na.rm = TRUE) * person_weight,
+    elapsed_seconds = proc.time()[["elapsed"]] - started,
+    stringsAsFactors = FALSE
+  )
+}
+
+combined_results <- data.frame()
+if (isTRUE(params$run_combined_mode_experiment)) {
+  if (params$combined_replicates < 2) {
+    stop("combined_replicates must be at least 2.", call. = FALSE)
+  }
+  paired_design <- expand.grid(
+    at_data_unit = units,
+    effect_percent = combined_effect_percent,
+    replicate = seq_len(params$combined_replicates),
+    stringsAsFactors = FALSE
+  )
+  set.seed(as.integer(params$master_seed) + 70000L)
+  paired_design$seed <- sample.int(.Machine$integer.max, nrow(paired_design), replace = FALSE)
+  combined_design <- bind_rows(lapply(seq_len(nrow(paired_design)), function(i) {
+    row <- paired_design[i, , drop = FALSE]
+    bind_rows(lapply(c("walking_first", "cycling_first"), function(order_id) {
+      transform(row, order_id = order_id)
+    }))
+  }))
+  combined_design$scenario_id <- sprintf(
+    "combined_%s_%s_p%03d_r%03d",
+    combined_design$order_id,
+    combined_design$at_data_unit,
+    as.integer(combined_design$effect_percent),
+    combined_design$replicate
+  )
+
+  combined_rows <- lapply(seq_len(nrow(combined_design)), function(i) {
+    row <- combined_design[i, , drop = FALSE]
+    cache_path <- file.path(cache_dir, paste0(row$scenario_id, ".rds"))
+    if (isTRUE(params$reuse_cached_runs) && file.exists(cache_path)) {
+      return(readRDS(cache_path))
+    }
+    if (!isTRUE(params$run_simulation)) return(NULL)
+    mode_order <- if (row$order_id == "walking_first") {
+      c("walking", "cycling")
+    } else {
+      c("cycling", "walking")
+    }
+    result <- run_combined_assessment(
+      at_data_unit = row$at_data_unit,
+      effect_percent = row$effect_percent,
+      replicate = row$replicate,
+      seed = row$seed,
+      mode_order = mode_order
+    )
+    temporary_path <- paste0(cache_path, ".tmp")
+    saveRDS(result, temporary_path)
+    if (!file.rename(temporary_path, cache_path)) {
+      stop("Could not finalize combined-mode cache: ", cache_path, call. = FALSE)
+    }
+    result
+  })
+  combined_rows <- Filter(Negate(is.null), combined_rows)
+  if (length(combined_rows) > 0) combined_results <- bind_rows(combined_rows)
+}
+
+if (nrow(combined_results) == 0) {
+  cat("Combined-mode experiment not run in this render.\n")
+}
+```
+
+```{r}
+#| label: combined-mode-results
+#| fig-width: 10
+#| fig-height: 5
+
+if (nrow(combined_results) > 0) {
+  order_comparison <- combined_results |>
+    select(
+      .data$unit_label, .data$effect_percent, .data$replicate,
+      .data$mode_order, .data$halys_gained
+    ) |>
+    reshape(
+      idvar = c("unit_label", "effect_percent", "replicate"),
+      timevar = "mode_order",
+      direction = "wide"
+    )
+  order_columns <- grep("^halys_gained\\.", names(order_comparison), value = TRUE)
+  order_comparison$order_difference_haly <-
+    order_comparison[[order_columns[1]]] - order_comparison[[order_columns[2]]]
+
+  print(
+    ggplot(
+      order_comparison,
+      aes(x = factor(.data$effect_percent), y = .data$order_difference_haly)
+    ) +
+      geom_hline(yintercept = 0, color = "grey50", linewidth = 0.35) +
+      geom_boxplot(outlier.shape = NA, fill = "#DCECE7", color = "#006B57") +
+      geom_jitter(width = 0.14, alpha = 0.65, color = "#314A59") +
+      facet_wrap(vars(.data$unit_label), scales = "free_y") +
+      labs(
+        title = "Paired effect of walking-versus-cycling processing order",
+        subtitle = "Each pair uses the same random seed and combined targets",
+        x = "Requested increase in both modes (%)",
+        y = "Difference in combined HALYs between processing orders"
+      ) +
+      theme_minimal(base_size = 10)
+  )
+
+  separate_means <- simulation_results |>
+    filter(.data$effect_percent %in% combined_effect_percent) |>
+    group_by(.data$unit_label, .data$effect_percent, .data$mode) |>
+    summarise(mean_haly = mean(.data$halys_gained), .groups = "drop") |>
+    group_by(.data$unit_label, .data$effect_percent) |>
+    summarise(sum_separate_mode_haly = sum(.data$mean_haly), .groups = "drop")
+  combined_interaction <- combined_results |>
+    group_by(.data$unit_label, .data$effect_percent, .data$mode_order) |>
+    summarise(mean_combined_haly = mean(.data$halys_gained), .groups = "drop") |>
+    left_join(separate_means, by = c("unit_label", "effect_percent")) |>
+    mutate(
+      interaction_haly = .data$mean_combined_haly - .data$sum_separate_mode_haly,
+      interaction_percent = 100 * .data$interaction_haly / abs(.data$sum_separate_mode_haly)
+    )
+
+  combined_interaction
+}
+```
+
+# Interpretation framework
+
+The following diagnostics should be considered together:
+
+- **Target fidelity:** Large requested-versus-realized discrepancies indicate a
+  target-conversion or candidate-pool issue, not merely health-impact variance.
+- **Absolute SD:** Answers how many HALYs the result changes when the random
+  sample changes.
+- **CV:** Answers whether that spread is large compared with the estimated
+  impact. It becomes unstable when the mean is near zero.
+- **Signal-to-noise:** Values below 1 mean replicate SD exceeds the mean effect;
+  values above 5 or 10 indicate increasingly stable rank/order conclusions.
+- **Sign reversals:** Any sign changes for an intervention expected to improve
+  health require inspection of sampled exposure and health trajectories.
+- **MMET spread:** Helps distinguish transport-sampling variation from
+  nonlinear variation introduced by the health lookup.
+
+No universal acceptable CV threshold is imposed here. A threshold should be
+chosen with reference to the decision being supported and the smallest policy-
+relevant HALY difference, not solely statistical convention.
+
+# Limitations of this pilot
+
+1. The Leeds profile has 5,000 synthetic rows but represents the full Leeds
+   population through an effective person weight. The weight scales both means
+   and SDs; it does not create additional independent sampled people.
+2. Ten replicates provide a first view but estimate tails and SD imprecisely.
+   Bootstrap intervals now expose this imprecision, while the replicate count
+   remains configurable for targeted 50–100-run follow-up scenarios.
+3. Relative intervention size is not the same as statistical sample size.
+   Cycling may have a much smaller reference pool than walking even at the same
+   percentage increase.
+4. The optional controlled sample-size experiment varies synthetic resolution
+   but uses one fixed nested reference draw per size. Multiple independent
+   reference draws are still needed to include reference-sample composition
+   uncertainty and it does not represent genuinely smaller towns.
+5. Only HALYs are assessed. Disease-specific outcomes may have higher variance,
+   especially for uncommon outcomes or narrow demographic strata.
+6. The health-model trajectories and HALY parameters are treated as fixed.
+7. User and trip scenarios invoke different counterfactual mechanisms. Their
+   variance should not be interpreted as a pure comparison of two equivalent
+   measurement units.
+
+# Recommended decision criteria
+
+This pilot can identify scenarios that are clearly unstable, but a minimum
+supported assessment size should be set only after the refinements below. A
+candidate operational rule should combine:
+
+- a minimum absolute number of changed synthetic people or trips;
+- a maximum Monte Carlo CV for the primary outcome;
+- a minimum signal-to-noise ratio;
+- no material sign-reversal rate; and
+- acceptable requested-versus-realized target error.
+
+If a scenario fails the rule, the application could increase the number of
+replicates, report a simulation interval, use a larger underlying synthetic
+sample, or warn that the result is below the supported assessment scale.
+
+# Refinement task list
+
+- [x] Make replicate count configurable for targeted 50–100-run scenarios and
+      quantify uncertainty in the estimated SD with a bootstrap interval.
+- [x] Add a no-change scenario across seeds; it must return exactly zero and
+      acts as an implementation invariant.
+- [x] Add an optional nested-subsample design with 250, 500, 1,000, 2,500, and
+      5,000 people to separate intervention effect size from synthetic sample
+      size; next add independent reference draws at every size.
+- [x] Stratify by baseline active-mode pool size and number of eligible donor
+      people/trips, not only requested percentage.
+- [x] Add an optional paired combined walking-and-cycling experiment to assess
+      ordering and cross-mode candidate competition.
+- [ ] Compare unconstrained sampling with each advanced age, sex, PA, distance,
+      purpose, and diversion constraint separately.
+- [x] Decompose variance into aggregate MMET-exposure variation and residual
+      health-response variation; next extend beyond aggregate MMET totals.
+- [ ] Repeat for mortality and selected common/rare disease outcomes.
+- [ ] Test short-term versus long-term scheme-effect duration.
+- [x] Evaluate whether weighted-trip target error covaries with HALY variation
+      beyond selection of physical trip rows.
+- [ ] Define policy-relevant absolute HALY tolerances before choosing a CV or
+      signal-to-noise threshold.
+- [x] Project the expected reduction in Monte Carlo error from averaging
+      independent seeds; production adoption still requires a threshold and
+      run-level audit design.
+
+# Reproducibility record
+
+```{r}
+#| label: reproducibility
+
+data.frame(
+  item = c(
+    "Dataset", "Geography", "Synthetic people", "Reference trip rows",
+    "Person weight", "Assessment period", "Requested runs", "Completed runs",
+    "Completed sample-size runs", "Completed combined-mode runs",
+    "Master seed", "Cache version"
+  ),
+  value = c(
+    params$dataset_size,
+    params$geography_id,
+    nrow(reference_data$ind),
+    nrow(reference_data$trips),
+    person_weight,
+    assessment_period,
+    nrow(design),
+    nrow(simulation_results),
+    nrow(sample_size_results),
+    nrow(combined_results),
+    params$master_seed,
+    params$cache_version
+  ),
+  stringsAsFactors = FALSE
+)
+```
+
+```{r}
+#| label: session-info
+#| echo: true
+
+sessionInfo()
+```

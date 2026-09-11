@@ -275,14 +275,45 @@ contract. This assessment has not checked that external contract.
   [walking/PT audit](walking_pt_definition_audit.md) for the agreed rule:
   trip categories remain separate, but PT walkers qualify as existing recipients
   of additional walking trips. The eligibility change has focused regression
-  coverage; the completed benchmark report predates that change.
+  coverage. The original 560-run report predates that change.
+  Current-code refresh: 112 successful reconstructions (two seeds) now run both
+  workflows through `Hub$build_results()` with canonical persisted assumptions.
+  Walking, cycling and e-biking match between basic and advanced. PT does not:
+  advanced generated Tab 4 defaults become zero despite REF/CF trip targets
+  of 85/94, and final CF trips become zero. Maximum paired HALY difference is
+  1.429874. This is a correctness finding, not an estimate of sampling variance;
+  resolve it before treating PT route comparisons as valid.
   See `docs/route_benchmark.html` for the completed diagnostic report.
-- [ ] **T5b: expanded variance and integrated lifecycle verification.** Rerun
-  the benchmark after the PT eligibility change; use 50-100 draws for selected
-  small/threshold scenarios if greater precision is needed. Extend to final
-  `Hub$build_results()` reconstruction (with T3), then browser route switching
-  and back-navigation when the UI changes are integrated (with T9/T11).
-  T5 completion does not establish these checks or production uncertainty.
+- [ ] **T5b: expanded variance and integrated lifecycle verification.** The
+  matched benchmark has been refreshed after PT eligibility changes and now
+  includes final `Hub$build_results()` reconstruction. A new variance runner
+  compares repeated whole appraisals with repeated CF allocation conditional
+  on one fixed REF, keeping canonical assumption values/provenance unchanged.
+  Completed diagnostic: 180 appraisals, ten seeds, assessed sizes 100/500/1500,
+  walking/cycling/combined; no failures or warnings. The report is refreshed in
+  `docs/sampling_variance_evaluation.html`. Sixteen analysis-helper assertions pass.
+  The report now verifies and displays mode-specific REF/CF weekly trip counts
+  and increments across all saved runs. The 100-person cycling pilot adds only
+  five trips/week, so population-only comparisons overstate comparability with
+  walking. Health-relative SD must not be interpreted as trip-count variability.
+  A separate full-source (5,000 people) follow-up now tests +100/+500/+1,000
+  weekly cycling trips: 60 successful appraisals, ten seeds per scenario/path,
+  no warnings, exact agreement between paths and matching Tab 4 trip defaults.
+  HALY relative SD is 15.6%/6.7%/5.6%; do not pool the duplicate path checks as
+  independent draws. See `docs/cycling_trip_scale_variance.pdf` and `.html`.
+  Remaining: resolve the PT finding above, increase to 50-100 draws for selected
+  small/threshold scenarios, and test browser route switching/back-navigation
+  when UI changes are integrated (T9/T11). These are conditional sampling
+  diagnostics, not source-data or health-model uncertainty intervals.
+- [ ] **T5c: preserve PT access walking in staged default views (high priority).**
+  A real-data replay retains 85 REF / 94 CF PT access-walking trips in staged
+  data but loses their walking activity in `materialize_appraisal_scope()`.
+  The walking-scope pass zeros shared component columns; PT's later pass cannot
+  restore them. This makes Tab 4 defaults zero and changes advanced final results.
+  Add a regression with distinct walking/PT scope masks and numeric NTS modes,
+  preserve both modes' activity, then rerun the matched-route benchmark.
+  Expected scope: narrow HUB-only fix plus focused and real-data tests; no UI
+  schema change indicated. Not fixed as part of the variance runner refresh.
 - [x] **T6: baseline state reconstruction, including the results caller.**
   Unfiltered health rows feed LY/HLY reconstruction; ordinary event reporting
   still excludes baseline. Regression calls `prepare_results_data()` and checks
@@ -400,17 +431,15 @@ contract. This assessment has not checked that external contract.
 7. Check small appraisals, increases/decreases, zero change with actual submitted
    REF/CF targets, restrictive categories, donor reuse, and combined-mode order.
 
-The existing `sampling_variance_evaluation.qmd` already implements several of
-these components. Its main experiment calls low-level CF functions directly,
-so it does not test Shiny state or the complete staged lifecycle. Its no-change
-case leaves the count target unset, rather than testing all explicit equal-target
-UI pathways. Those are important coverage gaps.
-
-Its cache uses a manually selected version and scenario filenames. Invalidate
-old caches for this work and add code/data/input/seed identities before trusting
-reuse. Its old weighted-trip terminology also needs updating: current
-`.trip_weights()` returns one per row. The proposed precision experiment is no
-longer a test of survey-weight conversion.
+The legacy low-level experiment has been archived under `docs/archive/`.
+`sampling_variance_evaluation.qmd` now consumes fresh whole-appraisal and fixed-REF
+runs through the current staged/final-results lifecycle. Its companion workflow
+freezes canonical assumptions and checks their effective-value/provenance signature.
+It saves input profiles, seeds, source/code/data fingerprints and person-level
+exposure diagnostics. No old caches are reused. Explicit no-change invariants
+are covered by HUB regression tests, not a separate factorial arm of this study.
+Browser state, higher-repetition precision estimates and source-weight validity
+remain separate limitations. Current trip counts are rows, not weighted totals.
 
 When repeating `build_results(seed=...)` on the same object, do not assume the seed
 argument alone invalidates cached results. Use fresh instances or an explicit
@@ -434,7 +463,7 @@ health-model random draw in that conditional step.
 | Changed-person diagnostic | HUB `R/counterfactual_data_apply_health_outcomes.R:468-484` |
 | Donor identities and replication | HUB `R/population_donor_replication.R` |
 | Refresh rules | HUB `R/shared_state_invalidation.R`; `R/api_hub.R:284` |
-| Existing Monte Carlo study | HUB `docs/sampling_variance_evaluation.qmd:333`, `:472`, `:1620` |
+| Current Monte Carlo study | HUB `docs/sampling_variance_evaluation.qmd`, `inst/workflows/dev_sampling_variance.R`; previous study archived under `docs/archive/` |
 
 Line numbers refer to inspected source snapshots and may move. HUB 9002 improved
 assumption persistence, provenance and API visibility; later HUB dev fixes route

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="MIAMA project team">
-<meta name="dcterms.date" content="2026-09-04">
+<meta name="dcterms.date" content="2026-09-10">
 
 <title>MIAMA active travel and health impact methodology</title>
 <style>
@@ -5214,46 +5214,54 @@ window.Quarto = {
   <li><a href="#purpose-and-scope" id="toc-purpose-and-scope" class="nav-link active" data-scroll-target="#purpose-and-scope"><span class="header-section-number">1</span> Purpose and scope</a></li>
   <li><a href="#reference-synthetic-population" id="toc-reference-synthetic-population" class="nav-link" data-scroll-target="#reference-synthetic-population"><span class="header-section-number">2</span> Reference synthetic population</a>
   <ul class="collapse">
-  <li><a href="#unit-of-representation" id="toc-unit-of-representation" class="nav-link" data-scroll-target="#unit-of-representation"><span class="header-section-number">2.1</span> Unit of representation</a></li>
-  <li><a href="#key-variables-from-active-travel-to-physical-activity" id="toc-key-variables-from-active-travel-to-physical-activity" class="nav-link" data-scroll-target="#key-variables-from-active-travel-to-physical-activity"><span class="header-section-number">2.2</span> Key variables from active travel to physical activity</a></li>
-  <li><a href="#weekly-physical-activity-exposure" id="toc-weekly-physical-activity-exposure" class="nav-link" data-scroll-target="#weekly-physical-activity-exposure"><span class="header-section-number">2.3</span> Weekly physical-activity exposure</a></li>
+  <li><a href="#packaged-geographic-samples" id="toc-packaged-geographic-samples" class="nav-link" data-scroll-target="#packaged-geographic-samples"><span class="header-section-number">2.1</span> Packaged geographic samples</a></li>
+  <li><a href="#unit-of-representation" id="toc-unit-of-representation" class="nav-link" data-scroll-target="#unit-of-representation"><span class="header-section-number">2.2</span> Unit of representation</a></li>
+  <li><a href="#key-variables-from-active-travel-to-physical-activity" id="toc-key-variables-from-active-travel-to-physical-activity" class="nav-link" data-scroll-target="#key-variables-from-active-travel-to-physical-activity"><span class="header-section-number">2.3</span> Key variables from active travel to physical activity</a></li>
+  <li><a href="#weekly-physical-activity-exposure" id="toc-weekly-physical-activity-exposure" class="nav-link" data-scroll-target="#weekly-physical-activity-exposure"><span class="header-section-number">2.4</span> Weekly physical-activity exposure</a></li>
   </ul></li>
   <li><a href="#from-physical-activity-to-health-trajectories" id="toc-from-physical-activity-to-health-trajectories" class="nav-link" data-scroll-target="#from-physical-activity-to-health-trajectories"><span class="header-section-number">3</span> From physical activity to health trajectories</a>
   <ul class="collapse">
+  <li><a href="#scheme-build-up-persistence-and-decline" id="toc-scheme-build-up-persistence-and-decline" class="nav-link" data-scroll-target="#scheme-build-up-persistence-and-decline"><span class="header-section-number">3.0.1</span> Scheme build-up, persistence and decline</a></li>
   <li><a href="#health-adjusted-life-years" id="toc-health-adjusted-life-years" class="nav-link" data-scroll-target="#health-adjusted-life-years"><span class="header-section-number">3.1</span> Health-adjusted life years</a></li>
   </ul></li>
   <li><a href="#ways-to-specify-counterfactual-active-travel" id="toc-ways-to-specify-counterfactual-active-travel" class="nav-link" data-scroll-target="#ways-to-specify-counterfactual-active-travel"><span class="header-section-number">4</span> Ways to specify counterfactual active travel</a>
   <ul class="collapse">
-  <li><a href="#reference-defaults" id="toc-reference-defaults" class="nav-link" data-scroll-target="#reference-defaults"><span class="header-section-number">4.1</span> Reference defaults</a></li>
-  <li><a href="#continuity-from-tab-2-to-tabs-3-and-4" id="toc-continuity-from-tab-2-to-tabs-3-and-4" class="nav-link" data-scroll-target="#continuity-from-tab-2-to-tabs-3-and-4"><span class="header-section-number">4.2</span> Continuity from Tab 2 to Tabs 3 and 4</a>
+  <li><a href="#persisted-completion-assumptions" id="toc-persisted-completion-assumptions" class="nav-link" data-scroll-target="#persisted-completion-assumptions"><span class="header-section-number">4.1</span> Persisted completion assumptions</a></li>
+  <li><a href="#reference-defaults" id="toc-reference-defaults" class="nav-link" data-scroll-target="#reference-defaults"><span class="header-section-number">4.2</span> Reference defaults</a></li>
+  <li><a href="#continuity-from-tab-2-to-tabs-3-and-4" id="toc-continuity-from-tab-2-to-tabs-3-and-4" class="nav-link" data-scroll-target="#continuity-from-tab-2-to-tabs-3-and-4"><span class="header-section-number">4.3</span> Continuity from Tab 2 to Tabs 3 and 4</a>
   <ul class="collapse">
-  <li><a href="#workflow-overview" id="toc-workflow-overview" class="nav-link" data-scroll-target="#workflow-overview"><span class="header-section-number">4.2.1</span> Workflow overview</a></li>
-  <li><a href="#how-tab-2-units-reach-tabs-3-and-4" id="toc-how-tab-2-units-reach-tabs-3-and-4" class="nav-link" data-scroll-target="#how-tab-2-units-reach-tabs-3-and-4"><span class="header-section-number">4.2.2</span> How Tab 2 units reach Tabs 3 and 4</a></li>
-  <li><a href="#what-refinements-change" id="toc-what-refinements-change" class="nav-link" data-scroll-target="#what-refinements-change"><span class="header-section-number">4.2.3</span> What refinements change</a></li>
+  <li><a href="#workflow-overview" id="toc-workflow-overview" class="nav-link" data-scroll-target="#workflow-overview"><span class="header-section-number">4.3.1</span> Workflow overview</a></li>
+  <li><a href="#how-tab-2-units-reach-tabs-3-and-4" id="toc-how-tab-2-units-reach-tabs-3-and-4" class="nav-link" data-scroll-target="#how-tab-2-units-reach-tabs-3-and-4"><span class="header-section-number">4.3.2</span> How Tab 2 units reach Tabs 3 and 4</a></li>
+  <li><a href="#what-refinements-change" id="toc-what-refinements-change" class="nav-link" data-scroll-target="#what-refinements-change"><span class="header-section-number">4.3.3</span> What refinements change</a></li>
   </ul></li>
-  <li><a href="#basic-specification-tab-2" id="toc-basic-specification-tab-2" class="nav-link" data-scroll-target="#basic-specification-tab-2"><span class="header-section-number">4.3</span> Basic specification (Tab 2)</a>
+  <li><a href="#basic-specification-tab-2" id="toc-basic-specification-tab-2" class="nav-link" data-scroll-target="#basic-specification-tab-2"><span class="header-section-number">4.4</span> Basic specification (Tab 2)</a>
   <ul class="collapse">
-  <li><a href="#converting-distance-duration-and-mode-share" id="toc-converting-distance-duration-and-mode-share" class="nav-link" data-scroll-target="#converting-distance-duration-and-mode-share"><span class="header-section-number">4.3.1</span> Converting distance, duration, and mode share</a></li>
+  <li><a href="#converting-distance-duration-and-mode-share" id="toc-converting-distance-duration-and-mode-share" class="nav-link" data-scroll-target="#converting-distance-duration-and-mode-share"><span class="header-section-number">4.4.1</span> Converting distance, duration, and mode share</a></li>
   </ul></li>
-  <li><a href="#refined-population-specification-tab-3" id="toc-refined-population-specification-tab-3" class="nav-link" data-scroll-target="#refined-population-specification-tab-3"><span class="header-section-number">4.4</span> Refined population specification (Tab 3)</a></li>
-  <li><a href="#refined-trip-specification-tab-4" id="toc-refined-trip-specification-tab-4" class="nav-link" data-scroll-target="#refined-trip-specification-tab-4"><span class="header-section-number">4.5</span> Refined trip specification (Tab 4)</a></li>
+  <li><a href="#refined-population-specification-tab-3" id="toc-refined-population-specification-tab-3" class="nav-link" data-scroll-target="#refined-population-specification-tab-3"><span class="header-section-number">4.5</span> Refined population specification (Tab 3)</a></li>
+  <li><a href="#refined-trip-specification-tab-4" id="toc-refined-trip-specification-tab-4" class="nav-link" data-scroll-target="#refined-trip-specification-tab-4"><span class="header-section-number">4.6</span> Refined trip specification (Tab 4)</a></li>
   </ul></li>
   <li><a href="#counterfactual-sampling-and-redistribution" id="toc-counterfactual-sampling-and-redistribution" class="nav-link" data-scroll-target="#counterfactual-sampling-and-redistribution"><span class="header-section-number">5</span> Counterfactual sampling and redistribution</a>
   <ul class="collapse">
   <li><a href="#general-design" id="toc-general-design" class="nav-link" data-scroll-target="#general-design"><span class="header-section-number">5.1</span> General design</a></li>
   <li><a href="#changing-the-number-of-users" id="toc-changing-the-number-of-users" class="nav-link" data-scroll-target="#changing-the-number-of-users"><span class="header-section-number">5.2</span> Changing the number of users</a></li>
   <li><a href="#changing-the-number-of-trips" id="toc-changing-the-number-of-trips" class="nav-link" data-scroll-target="#changing-the-number-of-trips"><span class="header-section-number">5.3</span> Changing the number of trips</a></li>
-  <li><a href="#count-units-and-represented-totals" id="toc-count-units-and-represented-totals" class="nav-link" data-scroll-target="#count-units-and-represented-totals"><span class="header-section-number">5.4</span> Count units and represented totals</a></li>
+  <li><a href="#count-units-and-represented-totals" id="toc-count-units-and-represented-totals" class="nav-link" data-scroll-target="#count-units-and-represented-totals"><span class="header-section-number">5.4</span> Count units and represented totals</a>
+  <ul class="collapse">
+  <li><a href="#distinguishing-appraisal-size-from-donor-evidence" id="toc-distinguishing-appraisal-size-from-donor-evidence" class="nav-link" data-scroll-target="#distinguishing-appraisal-size-from-donor-evidence"><span class="header-section-number">5.4.1</span> Distinguishing appraisal size from donor evidence</a></li>
+  </ul></li>
   </ul></li>
   <li><a href="#what-each-refinement-currently-controls" id="toc-what-each-refinement-currently-controls" class="nav-link" data-scroll-target="#what-each-refinement-currently-controls"><span class="header-section-number">6</span> What each refinement currently controls</a></li>
   <li><a href="#validation-uncertainty-and-remaining-work" id="toc-validation-uncertainty-and-remaining-work" class="nav-link" data-scroll-target="#validation-uncertainty-and-remaining-work"><span class="header-section-number">7</span> Validation, uncertainty, and remaining work</a>
   <ul class="collapse">
   <li><a href="#priority-methodological-todos" id="toc-priority-methodological-todos" class="nav-link" data-scroll-target="#priority-methodological-todos"><span class="header-section-number">7.1</span> Priority methodological TODOs</a></li>
-  <li><a href="#recommended-checks-for-each-appraisal" id="toc-recommended-checks-for-each-appraisal" class="nav-link" data-scroll-target="#recommended-checks-for-each-appraisal"><span class="header-section-number">7.2</span> Recommended checks for each appraisal</a></li>
+  <li><a href="#current-sampling-variation-diagnostics" id="toc-current-sampling-variation-diagnostics" class="nav-link" data-scroll-target="#current-sampling-variation-diagnostics"><span class="header-section-number">7.2</span> Current sampling-variation diagnostics</a></li>
+  <li><a href="#recommended-checks-for-each-appraisal" id="toc-recommended-checks-for-each-appraisal" class="nav-link" data-scroll-target="#recommended-checks-for-each-appraisal"><span class="header-section-number">7.3</span> Recommended checks for each appraisal</a></li>
   </ul></li>
-  <li><a href="#implementation-traceability" id="toc-implementation-traceability" class="nav-link" data-scroll-target="#implementation-traceability"><span class="header-section-number">8</span> Implementation traceability</a></li>
+  <li><a href="#appraisal-population-summary" id="toc-appraisal-population-summary" class="nav-link" data-scroll-target="#appraisal-population-summary"><span class="header-section-number">8</span> Appraisal population summary</a></li>
+  <li><a href="#implementation-traceability" id="toc-implementation-traceability" class="nav-link" data-scroll-target="#implementation-traceability"><span class="header-section-number">9</span> Implementation traceability</a></li>
   </ul>
-<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="../methodology.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></nav>
+<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="methodology.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></nav>
 </div>
 <main class="content" id="quarto-document-content">
 
@@ -5277,7 +5285,7 @@ window.Quarto = {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">September 4, 2026</p>
+      <p class="date">September 10, 2026</p>
     </div>
   </div>
   
@@ -5333,8 +5341,13 @@ window.Quarto = {
 </section>
 <section id="reference-synthetic-population" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Reference synthetic population</h1>
-<section id="unit-of-representation" class="level2" data-number="2.1">
-<h2 data-number="2.1" class="anchored" data-anchor-id="unit-of-representation"><span class="header-section-number">2.1</span> Unit of representation</h2>
+<section id="packaged-geographic-samples" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="packaged-geographic-samples"><span class="header-section-number">2.1</span> Packaged geographic samples</h2>
+<p>Two independent LAD profiles are available: Leeds (5,000 people) and Manchester (10,000 people, Manchester LAD rather than Greater Manchester). Manchester is a simple random sample without replacement from 27,864 source individuals, using seed 20260908. The same selected person IDs identify the associated trip records and health cycle histories including death shares. The build rejects missing health histories and duplicate person/person-cycle health records. It does not rerun the health model or invent new observations.</p>
+<p>Profiles are kept in separate directories and share common health lookup and disability-parameter files. Geographic source expansion (55.728 for Manchester) is recorded as provenance only; each selected appraisal row still represents one person. A larger profile increases the distinct donor evidence available, not the weight of each appraisal record. Profile selection occurs before loading reference data and is distinct from subsequent REF/CF appraisal sampling.</p>
+</section>
+<section id="unit-of-representation" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="unit-of-representation"><span class="header-section-number">2.2</span> Unit of representation</h2>
 <p>The synthetic population represents approximately 5% of the source population. Each person row is currently assigned a population factor of 20 when aggregate health results are presented. Individual rows remain fixed between scenarios: investment in active travel changes behavior, not the number of residents.</p>
 <p>The data contain two related levels:</p>
 <ul>
@@ -5343,8 +5356,8 @@ window.Quarto = {
 </ul>
 <p>Person and trip records are required for the most complete workflow. Trip rows contain person identifiers and selected attached attributes, but they do not replace the individual table: people without usable trip rows and person-level physical-activity measures still matter.</p>
 </section>
-<section id="key-variables-from-active-travel-to-physical-activity" class="level2" data-number="2.2">
-<h2 data-number="2.2" class="anchored" data-anchor-id="key-variables-from-active-travel-to-physical-activity"><span class="header-section-number">2.2</span> Key variables from active travel to physical activity</h2>
+<section id="key-variables-from-active-travel-to-physical-activity" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="key-variables-from-active-travel-to-physical-activity"><span class="header-section-number">2.3</span> Key variables from active travel to physical activity</h2>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 33%">
@@ -5398,8 +5411,8 @@ window.Quarto = {
 </table>
 <p>Mode-user indicators are derived from positive mode-specific weekly time, with trip evidence used where appropriate. Active-trip indicators use the mode-specific trip component fields and main-mode coding. HUB adds explicit <code>user_walk</code>, <code>user_bike</code>, <code>user_ebike</code>, <code>user_pt</code>, <code>trip_activemode</code>, and <code>trip_utilitarian</code> fields to make these model currencies inspectable.</p>
 </section>
-<section id="weekly-physical-activity-exposure" class="level2" data-number="2.3">
-<h2 data-number="2.3" class="anchored" data-anchor-id="weekly-physical-activity-exposure"><span class="header-section-number">2.3</span> Weekly physical-activity exposure</h2>
+<section id="weekly-physical-activity-exposure" class="level2" data-number="2.4">
+<h2 data-number="2.4" class="anchored" data-anchor-id="weekly-physical-activity-exposure"><span class="header-section-number">2.4</span> Weekly physical-activity exposure</h2>
 <p>The model uses the week as its base behavioral timeframe. Current conversion factors are configurable and equal to:</p>
 <table class="caption-top table">
 <thead>
@@ -5438,15 +5451,23 @@ window.Quarto = {
 <section id="from-physical-activity-to-health-trajectories" class="level1" data-number="3">
 <h1 data-number="3"><span class="header-section-number">3</span> From physical activity to health trajectories</h1>
 <p>MIAMA-HM provides reference person-cycle health outcomes and a piecewise lookup describing the change in each outcome per additional MMET. HUB does not rerun the underlying microsimulation. It applies the scenario logic to the processed health-model outputs.</p>
+<p>The upstream files are <code>sp_cycle_outcomes</code> and <code>mmet_d_cycle_lookup</code>; death shares remain columns, but are no longer a filename suffix. HUB initialises reference people from cycle 0, taking their ID, mortality-risk stratum and reference MMETs. It does not sum annual incidence or death-share proportions to manufacture an overall record. All annual outcomes are loaded later for health calculation. Cycle 0 informs state reconstruction but is not a benefit year. Older people may have fewer follow-up cycles at the HM age boundary.</p>
+<p>The September 2026 packaged refresh uses the new relative risks from HM <code>08e78e2</code>, without changing sampled people or trips. Future smoothing is a data-release change, not a new sampling rule, provided the schema stays the same. Both files must be refreshed together. The <a href="hm_data_contract.md">data contract and refresh procedure</a> describe provenance and cache invalidation.</p>
 <p>For each synthetic person:</p>
 <p><span class="math display">\[
 \Delta MMET_i = MMET_{i,cf} - MMET_{i,ref}
 \]</span></p>
-<p>Under the currently implemented <strong>long-term</strong> assumption, the same individual MMET change is applied in every modeled cycle:</p>
+<p>The underlying <strong>long-term, maximum-effect</strong> lookup uses the same individual MMET change in each active modeled cycle. The scheme lifetime multiplier below then adjusts annual health differences, rather than changing sampled rows:</p>
 <p><span class="math display">\[
 MMET_{i,t,cf} = MMET_{i,t,ref} + \Delta MMET_i
 \]</span></p>
-<p>The changed MMET interval is intersected with the applicable lookup bands for the person’s age, sex, mortality-risk decile, and model cycle. For each overlap, the model multiplies the interval width by the band-specific outcome slope and sums across bands. Counterfactual outcomes equal reference outcomes plus this technical delta.</p>
+<p>The changed MMET interval is intersected with the applicable lookup bands for the person’s age, sex, mortality-risk decile, and model cycle. For each overlap, the model multiplies the interval width by the band-specific outcome slope and sums across bands. Counterfactual outcomes equal reference outcomes plus this technical delta, subsequently multiplied by the annual scheme effect.</p>
+<section id="scheme-build-up-persistence-and-decline" class="level3" data-number="3.0.1">
+<h3 data-number="3.0.1" class="anchored" data-anchor-id="scheme-build-up-persistence-and-decline"><span class="header-section-number">3.0.1</span> Scheme build-up, persistence and decline</h3>
+<p><strong>Approximate, implemented:</strong> Tab 2 specifies years since scheme start at which maximum effect is reached, decline starts, and effect reaches zero. A no-decline option maintains the plateau. The default is a one-year linear build-up followed by permanent effect. Tab 2 REF/CF volumes describe the maximum-effect snapshot; the curve scales the difference, never existing REF activity.</p>
+<p>The curve is linear between these points. For reporting cycle <span class="math inline">\(t\)</span>, the multiplier is the mean effect during <span class="math inline">\([t-1,t]\)</span>, not merely the value at year end. Thus the default gives 50% in year 1 and 100% from year 2. With peak year 2, decline year 4, and zero-effect year 6, annual factors are 25%, 75%, 100%, 100%, 75%, 25%, then 0%. Year 6 includes the final decline to zero; years starting at or after 6 have none.</p>
+<p>Annual CF-minus-REF outcome differences, including HALYs, are multiplied by this factor before aggregation; CF becomes REF plus that scaled difference. LY/HLY exports first reconstruct full-effect annual occupancy and then scale its difference from REF. Scaling their net transitions instead would wrongly retain benefits in later zero-effect years. Cumulative benefits retain previous gains but do not increase during zero-effect years. Cycle 0 informs baseline health state and receives no scheme benefit.</p>
+<p>People/trips are sampled <strong>once</strong> at maximum effect, not separately per cycle. Zero-effect years are excluded from the expensive MMET-change lookup, but REF health rows remain for comparison. Travel tables therefore remain maximum-effect snapshots, not year-specific travel forecasts. The method assumes no residual annual benefit after cessation; it is not a dynamic health-state simulation, does not simulate delayed disease responses, and is not monetary discounting. See <a href="scheme_effect_timeline.md">implementation and field contract</a>.</p>
 <div class="cell" data-layout-align="default">
 <div class="cell-output-display">
 <div>
@@ -5466,9 +5487,11 @@ MMET_{i,t,cf} = MMET_{i,t,ref} + \Delta MMET_i
 </div>
 </div>
 <p>The internal <code>d_*</code> fields use <code>counterfactual - reference</code>. Presentation fields reverse the sign so that a positive prevented value denotes a health gain. The configured assessment period is currently 40 years, excluding cycle 0 from impact totals. Population totals apply the synthetic-person factor described above.</p>
+</section>
 <section id="health-adjusted-life-years" class="level2" data-number="3.1">
 <h2 data-number="3.1" class="anchored" data-anchor-id="health-adjusted-life-years"><span class="header-section-number">3.1</span> Health-adjusted life years</h2>
-<p>Healthy life years (HLYs) and health-adjusted life years (HALYs) are separate measures. HALYs are calculated after the MMET lookup has produced the counterfactual incidence trajectories. For each person and year, HUB reconstructs prevalence from incidence, deaths, disease-specific death share, and, for depression, remission/exits. It does this independently for reference and counterfactual trajectories.</p>
+<p>Healthy life years (HLYs) and health-adjusted life years (HALYs) are separate measures. For HLY export, HM’s <code>unhealthy</code> is the net transition in diseased-or-dead state, including recovery. Healthy occupancy in year <span class="math inline">\(t\)</span> is <span class="math inline">\(1-\sum_{s=0}^{t} unhealthy_{i,s}\)</span>: cycle 0 supplies the initial state. Life years are reconstructed similarly from <code>dead</code>. Only years 1 onward are reported or summed over the assessment period; excluding baseline from reporting does not mean excluding baseline from reconstruction.</p>
+<p>HALYs are calculated after the MMET lookup has produced the counterfactual incidence trajectories. For each person and year, HUB reconstructs prevalence from incidence, deaths, disease-specific death share, and, for depression, remission/exits. It does this independently for reference and counterfactual trajectories.</p>
 <p>Life years are first adjusted for the age/sex residual prevalence of years lived with disability outside the explicitly modelled diseases. They are then adjusted for reconstructed disease prevalence multiplied by age-, sex-, and disease-specific disability weights that account for comorbidity:</p>
 <p><span class="math display">\[
 HALY_{i,t}=LY_{i,t}(1-pYLD_{i,t})
@@ -5481,18 +5504,24 @@ HALY_{i,t}=LY_{i,t}(1-pYLD_{i,t})
 </section>
 <section id="ways-to-specify-counterfactual-active-travel" class="level1" data-number="4">
 <h1 data-number="4"><span class="header-section-number">4</span> Ways to specify counterfactual active travel</h1>
-<section id="reference-defaults" class="level2" data-number="4.1">
-<h2 data-number="4.1" class="anchored" data-anchor-id="reference-defaults"><span class="header-section-number">4.1</span> Reference defaults</h2>
+<section id="persisted-completion-assumptions" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="persisted-completion-assumptions"><span class="header-section-number">4.1</span> Persisted completion assumptions</h2>
+<p>Tab 2 combines supplied volume with explicit assumptions to estimate weekly active minutes, mode users and the assessed population. These are distinct quantities; a trip increase need not imply a proportional increase in users. Completion frequency, distance/duration and speed are canonical <code>assump_*</code> profile fields. The unused trip-size quantity is derived, not independently imposed. New-user and induced-trip preferences are separate parameters.</p>
+<p>HUB resolves suggestions from assessed REF, geographic source, stored national rates or configured fallbacks and records provenance in the profile. Prepared values remain stable through routine navigation; card rendering does not sample or rewrite them. Explicit edits, including edits equal to defaults, are retained. Advanced distributions are explicit sampling inputs, not duplicate assumptions. Realized allocations belong in reports and do not overwrite preferred splits.</p>
+<p>The profile also records effective model configuration and sampling seed. Reproduction requires preserving the referenced external data and compatible software. The <a href="appraisal_assumptions_api.md">assumption API contract</a> documents the field names, dependencies and UI integration boundary.</p>
+</section>
+<section id="reference-defaults" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="reference-defaults"><span class="header-section-number">4.2</span> Reference defaults</h2>
 <p>After geography and assessed modes are selected, HUB loads and filters the synthetic population and fills the UI profile’s reference <code>default_value</code> fields. It calculates reference values for all supported modes and common units up front; later UI changes can therefore switch displays without reloading the large data.</p>
 <p>Counterfactual controls with a matching reference control receive the reference value as their starting <code>default_value</code>. This represents a no-change scenario; it does not mark the control as user-filled and does not overwrite a submitted counterfactual value.</p>
 <p>For the advanced population total and per-mode counts, the initial geography-derived value is also stored as <code>additional_data$default_value_backup</code> on both reference and counterfactual fields. Refinement controls may change the live <code>default_value</code>; the backup retains the unrefined starting point for restoration. Selecting a new geography and rebuilding reference defaults refreshes the backup.</p>
 <p>Reference values include user and trip counts, mode share, average distance and duration, and compact five-category distributions. Weekly values are canonical. Trip counts can be converted between day, week, and year; user-count conversion currently uses a factor of one because repeat-user behavior outside the observed week is not identified by the data.</p>
 <p>Two Tab 3 selectors also receive derived <code>additional_data</code>. Separate <code>ref</code> and <code>cf</code> payloads hold absolute synthetic-row counts for each staged scenario. For each configured age group and PA group, HUB records the number of people in the category (<code>pop_tot</code>) and the numbers identified as walking, cycling, e-biking, or walk-to-public-transport users. Age groups use <code>age1year</code> and the configured age cut points. PA groups use weekly MMET-hours from <code>mmets</code> or <code>mmet_wkhr</code>; if neither is present, HUB reconstructs the value from walking, cycling, and sport hours and their configured intensities. Mode-user status is identified from person-level mode duration where available, with trip evidence as fallback. Missing evidence is retained as <code>NA</code>, not interpreted as no users. The categories exhaust the staged population: age includes under-18 and other/unknown groups, while PA includes an unknown group. These metadata populate labels/context for category choices while leaving the selector’s categorical <code>default_value</code> unchanged. They are counts in the filtered synthetic profile; population expansion factors are applied to health results rather than to these selector metadata.</p>
 </section>
-<section id="continuity-from-tab-2-to-tabs-3-and-4" class="level2" data-number="4.2">
-<h2 data-number="4.2" class="anchored" data-anchor-id="continuity-from-tab-2-to-tabs-3-and-4"><span class="header-section-number">4.2</span> Continuity from Tab 2 to Tabs 3 and 4</h2>
-<section id="workflow-overview" class="level3" data-number="4.2.1">
-<h3 data-number="4.2.1" class="anchored" data-anchor-id="workflow-overview"><span class="header-section-number">4.2.1</span> Workflow overview</h3>
+<section id="continuity-from-tab-2-to-tabs-3-and-4" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="continuity-from-tab-2-to-tabs-3-and-4"><span class="header-section-number">4.3</span> Continuity from Tab 2 to Tabs 3 and 4</h2>
+<section id="workflow-overview" class="level3" data-number="4.3.1">
+<h3 data-number="4.3.1" class="anchored" data-anchor-id="workflow-overview"><span class="header-section-number">4.3.1</span> Workflow overview</h3>
 <p>The diagrams below separate four ideas that can otherwise be conflated: the geographic donor data, the REF/CF volumes requested in Tab 2, the people represented by those volumes in Tab 3, and the trips finally selected in Tab 4.</p>
 <div class="cell" data-fig-width="6.3" data-layout-align="default">
 <div class="cell-output-display">
@@ -5551,8 +5580,9 @@ HALY_{i,t}=LY_{i,t}(1-pYLD_{i,t})
 </div>
 </div>
 </section>
-<section id="how-tab-2-units-reach-tabs-3-and-4" class="level3" data-number="4.2.2">
-<h3 data-number="4.2.2" class="anchored" data-anchor-id="how-tab-2-units-reach-tabs-3-and-4"><span class="header-section-number">4.2.2</span> How Tab 2 units reach Tabs 3 and 4</h3>
+<section id="how-tab-2-units-reach-tabs-3-and-4" class="level3" data-number="4.3.2">
+<h3 data-number="4.3.2" class="anchored" data-anchor-id="how-tab-2-units-reach-tabs-3-and-4"><span class="header-section-number">4.3.2</span> How Tab 2 units reach Tabs 3 and 4</h3>
+<p>At request receipt and staging, HUB ignores volume fields belonging to an inactive Tab 2 route, even if a hidden widget submitted them as filled. Their stored profile entries are preserved for switching back. This filtering happens before conversion to sampler targets: valid advanced Tab 3 population counts and Tab 4 trip-count overrides are not discarded simply because Tab 2 used a different unit. No assumption values are changed by this route safeguard.</p>
 <p>All four Tab 2 input routes are normalized to weekly synthetic-row targets. This conversion creates the same downstream contract regardless of which unit the user understands best.</p>
 <div class="cell" data-fig-width="6.2" data-layout-align="default">
 <div class="cell-output-display">
@@ -5589,8 +5619,8 @@ HALY_{i,t}=LY_{i,t}(1-pYLD_{i,t})
 </div>
 <p>For users, Tab 3 receives the requested mode-user counts directly. For all trip-derived routes, Tab 3 receives the unique owners of the staged trips and an estimated common population boundary. If no Tab 3 population refinement changes that boundary, Tab 4 receives the exact staged Tab 2 trip targets.</p>
 </section>
-<section id="what-refinements-change" class="level3" data-number="4.2.3">
-<h3 data-number="4.2.3" class="anchored" data-anchor-id="what-refinements-change"><span class="header-section-number">4.2.3</span> What refinements change</h3>
+<section id="what-refinements-change" class="level3" data-number="4.3.3">
+<h3 data-number="4.3.3" class="anchored" data-anchor-id="what-refinements-change"><span class="header-section-number">4.3.3</span> What refinements change</h3>
 <div class="cell" data-fig-width="6.2" data-layout-align="default">
 <div class="cell-output-display">
 <div>
@@ -5652,8 +5682,8 @@ N_{assessed} = N_{source}
 </ol>
 </section>
 </section>
-<section id="basic-specification-tab-2" class="level2" data-number="4.3">
-<h2 data-number="4.3" class="anchored" data-anchor-id="basic-specification-tab-2"><span class="header-section-number">4.3</span> Basic specification (Tab 2)</h2>
+<section id="basic-specification-tab-2" class="level2" data-number="4.4">
+<h2 data-number="4.4" class="anchored" data-anchor-id="basic-specification-tab-2"><span class="header-section-number">4.4</span> Basic specification (Tab 2)</h2>
 <p>The basic interface offers alternative currencies for describing change:</p>
 <table class="caption-top table">
 <colgroup>
@@ -5692,8 +5722,8 @@ N_{assessed} = N_{source}
 </tbody>
 </table>
 <p>Only one basic input route is intended to be active at a time. User and trip targets use the same counterfactual machinery as the advanced interface; the advanced controls add information about who changes and which trips change.</p>
-<section id="converting-distance-duration-and-mode-share" class="level3" data-number="4.3.1">
-<h3 data-number="4.3.1" class="anchored" data-anchor-id="converting-distance-duration-and-mode-share"><span class="header-section-number">4.3.1</span> Converting distance, duration, and mode share</h3>
+<section id="converting-distance-duration-and-mode-share" class="level3" data-number="4.4.1">
+<h3 data-number="4.4.1" class="anchored" data-anchor-id="converting-distance-duration-and-mode-share"><span class="header-section-number">4.4.1</span> Converting distance, duration, and mode share</h3>
 <p>The behavioral model uses one canonical unit for trip-volume manipulation: the number of synthetic trip rows in a reference week. Alternative Tab 2 inputs are therefore converted before either REF scoping or CF sampling.</p>
 <p>For mode <span class="math inline">\(m\)</span>, a distance or duration target is first converted to kilometres or minutes and then to one week. A per-person input is multiplied by the applicable scenario population <span class="math inline">\(N_s\)</span>; a total input is already an aggregate. Let <span class="math inline">\(A_{m,s}\)</span> be that weekly aggregate and let <span class="math inline">\(\bar{a}_{m,REF}\)</span> be the positive mean distance or duration among reference trips of mode <span class="math inline">\(m\)</span>. The trip-row target is</p>
 <p><span class="math display">\[
@@ -5711,14 +5741,14 @@ A_{m,s} = D_s \frac{p_{m,s}}{100}.
 <p>The values last displayed or entered in the Tab 4 table are the final trip-volume targets. Generated starting values already carry forward or derive from Tab 2, so accepting them preserves that scenario; an explicit Tab 4 edit supersedes it. Diversion settings are independent of this precedence rule because they influence source-trip selection rather than trip volume.</p>
 <p>For distance, duration, and mode-share input routes, the Tab 2 aggregate is the provenance used to derive Tab 4’s starting trip counts. An explicit Tab 4 count supersedes that derived target. HUB does not then force the original aggregate kilometres, minutes, or shares through a reverse adjustment of people or trips; it reports the values realized by the final sampled trips. Consequently, a Tab 4 change may alter trips per user and the final measured mode share while the accepted Tab 3 population and mode-user counts remain fixed.</p>
 <p>Tab 4 defaults are measured from the separate staged REF and CF snapshots created after Tab 2. With no Tab 3 population change, these snapshots pass through unchanged. When Tab 3 changes the population scope, HUB re-scopes each snapshot independently and allocates its carried trip target across the final users. This preserves the scenario-specific behavior already introduced by users, trips, distance/duration, or mode-share inputs.</p>
-<p>Tab 4 presents one source-mode diversion pie for each assessed target mode. A cycling pie, for example, describes the previous modes of existing trips that will shift to cycling; cycling itself is excluded. The pies apply only to shifted trips, while <code>induced_trips_percent</code> controls newly created trips separately. HUB uses these target-specific shares as donor sampling weights and records both requested and realized source-mode distributions. Defaults come from configured assumptions where available, otherwise from eligible local donor-trip composition. The pies are count-based conditional distributions and do not need a separate trip, distance, or duration denominator.</p>
+<p>Tab 4 presents one source-mode diversion pie for each assessed target mode. A cycling pie, for example, describes the previous modes of existing trips that will shift to cycling; cycling itself is excluded. The pies apply only to shifted trips, while <code>assump_induced_trips_percent</code> controls newly created trips separately. HUB uses these target-specific shares as donor sampling weights and records both requested and realized source-mode distributions. Defaults come from configured assumptions where available, otherwise from eligible local donor-trip composition. The pies are count-based conditional distributions and do not need a separate trip, distance, or duration denominator.</p>
 <p>This same fallback covers appraisals that stop at the basic Tab 2 mode-share input. In the absence of a submitted Tab 4 pie, HUB uses a configured target-specific split where one exists; otherwise it uses eligible utilitarian reference donors outside the assessed active modes. This avoids order-dependent competition between basic active-mode targets. It is a neutral sampling fallback, not an empirical estimate of intervention diversion behavior.</p>
 <p>The conversion is an expectation-based approximation. It preserves the requested aggregate when sampled rows resemble the reference mean, but it does not enforce an exact kilometre or minute total after finite, constrained sampling. HUB records all conversion inputs and derived row targets in <code>reference_scope_report$tab2_input_conversion</code> and <code>counterfactual_report$tab2_input_conversion</code> so requested and realized values can be compared.</p>
 <p>An average per trip is not a complete volume specification because it supplies no number of trips. HUB therefore rejects <code>average_per_trip</code> in this pathway; it belongs in Tab 4 as a characteristic constraint unless paired with a second volume input. Mode-share distance and duration denominators currently use canonical reference-week units of km/week and minutes/week. Explicit UI unit and timeframe controls remain a schema refinement if other interpretations are to be supported.</p>
 </section>
 </section>
-<section id="refined-population-specification-tab-3" class="level2" data-number="4.4">
-<h2 data-number="4.4" class="anchored" data-anchor-id="refined-population-specification-tab-3"><span class="header-section-number">4.4</span> Refined population specification (Tab 3)</h2>
+<section id="refined-population-specification-tab-3" class="level2" data-number="4.5">
+<h2 data-number="4.5" class="anchored" data-anchor-id="refined-population-specification-tab-3"><span class="header-section-number">4.5</span> Refined population specification (Tab 3)</h2>
 <p>The population equivalents inferred from Tab 2 are shared by the optional Tab 2 basic population modal and the Tab 3 handoff. HUB writes the staged counts to both the <code>*_basic</code> and <code>*_advanced</code> profile fields. Consequently, opening the basic modal after supplying mode shares should show the pooled Tab 2 population estimate and the corresponding REF/CF mode-user counts, not an unrelated copy of the full geographic source defaults. Non-user input routes retain the same total population in REF and CF while allowing mode-user counts to differ.</p>
 <p>For each assessed mode, Tab 3 can provide:</p>
 <ul>
@@ -5739,8 +5769,9 @@ A_{m,s} = D_s \frac{p_{m,s}}{100}.
 <li>PA: sedentary, low, moderate, high, and very high, using provisional MMET cutoffs in configuration.</li>
 </ul>
 </section>
-<section id="refined-trip-specification-tab-4" class="level2" data-number="4.5">
-<h2 data-number="4.5" class="anchored" data-anchor-id="refined-trip-specification-tab-4"><span class="header-section-number">4.5</span> Refined trip specification (Tab 4)</h2>
+<section id="refined-trip-specification-tab-4" class="level2" data-number="4.6">
+<h2 data-number="4.6" class="anchored" data-anchor-id="refined-trip-specification-tab-4"><span class="header-section-number">4.6</span> Refined trip specification (Tab 4)</h2>
+<p>The accepted Tab 3 population is retained through final results, including the identity of each person and their mode-user membership. This implements the existing downstream-only refinement rule: it is not a new sampling methodology. People recruited as new users during earlier staging remain part of CF. Tab 4 may shift existing trips or add induced trips within that accepted population, but does not recruit a different set of people to reproduce the same totals. For unchanged travel the staged activity dose is retained. A later trip edit adds only its incremental activity effect, rather than applying the original scheme again. Basic/standalone calculations without staged tables retain their existing construction path.</p>
 <p>For each assessed mode, Tab 4 can provide:</p>
 <ul>
 <li>a target number of weekly active trips;</li>
@@ -5758,15 +5789,17 @@ A_{m,s} = D_s \frac{p_{m,s}}{100}.
 <h2 data-number="5.1" class="anchored" data-anchor-id="general-design"><span class="header-section-number">5.1</span> General design</h2>
 <p>The complete filtered LAD synthetic population is retained as the baseline source pool. User-entered reference counts define an <strong>appraisal snapshot</strong> within that pool. HUB records separate scope flags for assessed people, mode-specific users, and mode-specific active trips. Selecting the reference snapshot does not alter behavior, MMET exposure, or health trajectories; it only sets the system boundary for the appraisal.</p>
 <p>Counterfactual data begin as a one-to-one copy of this flagged baseline. CF scope initially equals REF scope. New users are sampled first from baseline non-users inside that assessed population. If more are needed, baseline non-users from the retained LAD source pool are recruited and added to CF scope. No synthetic person is duplicated: the same source row supplies that person’s original and counterfactual exposure. Existing trips can be switched only for people in CF scope, while induced trips are assigned to CF scope. All behavioral changes are made only in the CF copy; REF scope and behavior remain unchanged.</p>
-<p>The random seed is fixed by the calling workflow, making a run reproducible for the same data and inputs. Sampling is without replacement when selecting people or existing trips. Induced trips and donor activity values may be sampled with replacement.</p>
-<p>The distinction between an appraisal boundary and the source pool is important. REF must be constructible as an observed subset: its mode-user counts must fit inside REF total population, and its trips must be observed among selected people. CF is not subject to the smaller REF population ceiling. It can recruit eligible non-users from the rest of the retained geography. Only exhaustion of that full eligible pool makes a CF user target infeasible. HUB reports such input incompatibilities separately from programming errors, with requested and available counts and the implicated profile fields.</p>
-<p>Age and PA category selections are treated as hard inclusion criteria. If a previous REF table value is stale, HUB reconstructs scenario-specific total and mode-user values from the absolute category counts stored in the profile during Tab 2 -&gt; Tab 3 staging. This duplicates the UI calculation deliberately and removes dependence on browser update timing. If stored counts are unavailable or remain infeasible, the category selection takes precedence: HUB caps stale REF totals and impossible REF mode-user margins to observed eligible capacity. Submitted and used values are retained in the scope report. HUB does not sample people with replacement or relax selected categories, because either response would alter the population represented by the appraisal.</p>
+<p>The random seed is fixed by the calling workflow, making a run reproducible for the same data and inputs. Existing trip records cannot be shifted repeatedly. Eligible person donors and trip patterns may be reused when distinct source capacity is insufficient. Copies have unique appraisal identities and retain their source-donor links; each copied person’s health history is loaded once. With unit person weight, each copy represents one additional appraisal person, but it does not add independent source evidence.</p>
+<p>The distinction between an appraisal boundary and the source pool is important. REF uses observed donor patterns: its mode-user counts must fit inside REF total population, but eligible donors can be reused for larger requests. CF is not subject to the smaller REF population ceiling. It can recruit eligible non-users from the rest of the retained geography and reuse donors when needed. No eligible evidence or incompatible margins still cause an error. HUB reports such input incompatibilities separately from programming errors, with requested and available counts and the implicated profile fields.</p>
+<p>Age and PA category selections are treated as hard inclusion criteria. If a previous REF table value is stale, HUB reconstructs scenario-specific total and mode-user values from the absolute category counts stored in the profile during Tab 2 -&gt; Tab 3 staging. This duplicates the UI calculation deliberately and removes dependence on browser update timing. If stored counts are unavailable or exceed distinct eligible capacity, HUB reuses eligible donors to preserve accepted targets. It does not relax selected categories. Donor reuse and proxy use are recorded in the replication report. A cycling proxy can supply labelled reference e-bike donors when native e-bike observations are absent.</p>
 <p>The final category-refined snapshot is currently reconstructed from eligible source rows using the staged category totals and a reproducible seed. It is not guaranteed to preserve literal row identity from the intermediate Tab 2 draw. This distinction should be revisited if variance analysis indicates that exact nested sampling materially changes results.</p>
 </section>
 <section id="changing-the-number-of-users" class="level2" data-number="5.2">
 <h2 data-number="5.2" class="anchored" data-anchor-id="changing-the-number-of-users"><span class="header-section-number">5.2</span> Changing the number of users</h2>
-<p>If the counterfactual target exceeds the reference user count, HUB samples baseline non-users and marks them as <code>new_users</code>. It exhausts eligible candidates already inside the assessed population before recruiting from the rest of the retained LAD. If the target is lower, HUB samples existing users and marks them as <code>ex_users</code>; those people remain members of CF scope.</p>
-<p>A CF target is not capped by the smaller scaled REF population. Its practical upper bound is the current CF users plus baseline non-users that remain eligible under the selected population refinements. If that geographic donor pool is insufficient, HUB returns a structured appraisal-input error with the requested and available counts.</p>
+<p>When a trip volume is divided by a trips-per-user assumption, the equivalent user count rounds upward. Before rounding, HUB snaps values within <code>8 * .Machine$double.eps * max(1, abs(value))</code> of a positive integer to that integer. This avoids manufacturing an extra user through floating-point error; it is not a rounding allowance for genuine fractional counts. Positive values near zero still round up to one. The same rule is used in allocation and its reported implied-user counts.</p>
+<p>If the counterfactual target exceeds the reference user count, HUB samples baseline non-users and marks them as <code>new_users</code>. It exhausts eligible candidates already inside the assessed population before recruiting from the rest of the retained LAD when the population is inferred. An explicit population total prohibits that expansion: new mode users must be selected within the accepted CF boundary, and may already use another active mode. If the target is lower, HUB samples existing users and marks them as <code>ex_users</code>; those people remain members of CF scope.</p>
+<p>A CF target is not capped by the source donor sample size. Its practical capacity can grow through reuse of baseline non-users that remain eligible under the selected population refinements. If no eligible donor evidence exists, HUB returns a structured appraisal-input error with requested and available counts.</p>
+<p>An explicit basic total fixes the same number of assessed people in REF and CF. Advanced Tab 3 may explicitly set different totals; each then remains binding downstream. Reusing 5,000 donors to construct 10,000 assessed records satisfies a fixed 10,000-person contract. It does not justify putting 12,000 mode users inside those 10,000 people: contradictory mode counts require an input correction. Walking/cycling membership can overlap, so their counts are not summed as exclusive populations. Trip increases can use donor-pattern replacement without increasing person counts. Zero REF activity can still use the CF-based population fallback when no total is explicitly supplied. Unused donor reserves remain available as evidence but are not additional assessed people.</p>
 <p>Candidate probabilities combine the available mode-specific Tab 3 constraints:</p>
 <p><span class="math display">\[
 w_i = w_{sex,i} \times w_{age,i} \times w_{PA,i}.
@@ -5790,7 +5823,8 @@ Warning
 </section>
 <section id="changing-the-number-of-trips" class="level2" data-number="5.3">
 <h2 data-number="5.3" class="anchored" data-anchor-id="changing-the-number-of-trips"><span class="header-section-number">5.3</span> Changing the number of trips</h2>
-<p>For an increase, the default mechanism treats 90% of additional active trips as mode shifts and 10% as induced recreational trips. The explicit parameter is <code>induced_trips_percent</code> in the submitted profile, optionally overridden by a mode-specific field such as <code>induced_trips_percent_walk</code>. If neither is provided, HUB uses <code>cfg$counterfactual$trips$induced_trips_percent_default</code>. This mechanism parameter is distinct from both trip purpose and the new-user percentage, even when defaults happen to use the same value.</p>
+<p>When converting aggregate distance or duration to trip counts, HUB first uses valid observed values for that mode and measure. E-bike distance and duration each fall back to cycling evidence only when their native measure is unavailable. Proxy adjustment factors apply only to cycling-derived values, not to observed e-bike values. If neither provides usable evidence, conversion reports an error rather than manufacturing a mean. Explicit applicable assumptions take priority over this observed-value fallback.</p>
+<p>For an increase, the default mechanism treats 90% of additional active trips as mode shifts and 10% as induced recreational trips. The explicit parameter is <code>assump_induced_trips_percent</code> in the submitted profile, optionally overridden by a mode-specific field such as <code>assump_induced_trips_percent_walk</code>. If neither is provided, HUB uses <code>cfg$counterfactual$trips$assump_induced_trips_percent_default</code>. This mechanism parameter is distinct from both trip purpose and the new-user percentage, even when defaults happen to use the same value.</p>
 <p>Mode-shift candidates are existing utilitarian trips. By default, trips already active in another assessed mode are excluded. A configured source-mode distribution can explicitly make them eligible, as for e-bike shifts from cycling or PT. Candidate distances are limited to 120% of the maximum observed reference active-mode distance to avoid implausible switches. Their sampling probabilities reflect the requested distance distribution or, when only a mean is available, a smooth preference for distances near that mean. The requested car-source share rebalances source-mode candidate pools while retaining the distance weights. For e-biking, the current configuration assigns the non-induced shifts equally across cycling, PT, and car because no England-derived split is yet available. This source-mode assumption is distinct from the cycling donor profile used to impute e-bike characteristics. A UI car-share value overrides the configured car share and leaves cycling/PT in their configured relative proportions. The realized share can differ in finite or constrained samples and is reported.</p>
 <p>Selected trips retain their observed raw distance and duration; the target active-mode fields are populated from those raw values. For induced travel, HUB copies observed active-trip donor rows, assigns them to people in CF scope, creates new trip identifiers, marks them recreational, and retains the donor trip weight.</p>
 <p>For a decrease, sampled active trips are switched to the configured alternative mode, currently car. Rows are not deleted because the underlying travel need is assumed to remain.</p>
@@ -5804,13 +5838,19 @@ Note
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Legacy scalar and spread-purpose controls may still be present in the profile schema. They are not authoritative sampling inputs. The explicit <code>induced_trips_percent</code> controls the mechanism split, from which purpose is inferred.</p>
+<p>Legacy scalar and spread-purpose controls may still be present in the profile schema. They are not authoritative sampling inputs. The explicit <code>assump_induced_trips_percent</code> controls the mechanism split, from which purpose is inferred.</p>
 </div>
 </div>
 </section>
 <section id="count-units-and-represented-totals" class="level2" data-number="5.4">
 <h2 data-number="5.4" class="anchored" data-anchor-id="count-units-and-represented-totals"><span class="header-section-number">5.4</span> Count units and represented totals</h2>
 <p>The current appraisal contract is deliberately direct: one synthetic person row is one user record and one synthetic trip row is one trip record. Reference defaults, UI trip targets, counterfactual sampling, result trip totals, and mode shares therefore do not apply <code>weight_tripXhh</code>. Distance and duration totals sum the corresponding values across included trip rows. Source weights remain in the data for future methodological work, but they do not change current count targets. Health-result population expansion is a separate configured operation.</p>
+<section id="distinguishing-appraisal-size-from-donor-evidence" class="level3" data-number="5.4.1">
+<h3 data-number="5.4.1" class="anchored" data-anchor-id="distinguishing-appraisal-size-from-donor-evidence"><span class="header-section-number">5.4.1</span> Distinguishing appraisal size from donor evidence</h3>
+<p>Population diagnostics accompany both the counterfactual and final results reports (<code>population_diagnostics</code>). They separate retained person records (including unused reserves), assessed REF/CF people, unique source donors, and copied records. Each assessed record remains one appraisal person under the default unit contract, including records produced by donor reuse. Thus 10,000 assessed people may be supported by only 5,000 distinct source donors. Reuse does not provide additional independent evidence, and distinct donor counts are not an estimate of effective sample size.</p>
+<p>Copies are identified by an appraisal ID differing from the source donor ID, not by duplicate position within the selected sample. A copy may be assessed while its original donor is not. Health aggregation does not discard copies or multiply results by these diagnostic counts.</p>
+<p>The diagnostics also count the union of assessed REF/CF people, those with a nonzero net MMET change, and those with any mode-specific MMET change (absolute tolerance <code>1e-10</code>). Each person is counted once, even if walking and cycling both change; opposite mode changes can cancel in net MMET. These exposure counts are not annual health-beneficiary counts. Unused donor reserves are excluded. Counts precede results filters and are unweighted; unavailable information is reported as <code>NA</code>, not zero. The README’s <strong>Population diagnostic counts</strong> section defines the individual output fields and missing-data rules.</p>
+</section>
 </section>
 </section>
 <section id="what-each-refinement-currently-controls" class="level1" data-number="6">
@@ -5907,8 +5947,16 @@ Note
 <li><strong>External validation:</strong> compare reference summaries, modeled behavioral changes, and health-response magnitudes with independent observed data and established appraisal tools.</li>
 </ol>
 </section>
-<section id="recommended-checks-for-each-appraisal" class="level2" data-number="7.2">
-<h2 data-number="7.2" class="anchored" data-anchor-id="recommended-checks-for-each-appraisal"><span class="header-section-number">7.2</span> Recommended checks for each appraisal</h2>
+<section id="current-sampling-variation-diagnostics" class="level2" data-number="7.2">
+<h2 data-number="7.2" class="anchored" data-anchor-id="current-sampling-variation-diagnostics"><span class="header-section-number">7.2</span> Current sampling-variation diagnostics</h2>
+<p>The <a href="sampling_variance_evaluation.html">current sampling report</a> repeats the production Tab 2/3/4 and final-results pipeline with fixed supplied counts, canonical <code>assump_*</code> values, data and health-model parameters. One experiment repeats both REF selection and CF allocation; the other holds one REF snapshot fixed and repeats CF allocation only. These are different conditional experiments, not components whose variances can simply be subtracted.</p>
+<p>The initial current-code diagnostic has ten seeds per scenario, with assessed sizes of 100, 500 and 1500 and walking, cycling and combined scenarios. It reports unrounded 40-year outcome means, SDs and empirical ranges, with retained exposure diagnostics and assumption provenance. Ten repetitions are not sufficient for reliable tail intervals. These results measure sampling variation conditional on the available donor data, not survey-weighting bias, parameter uncertainty or uncertainty in the health model.</p>
+<p>Variance tables and plot labels also identify REF, CF and additional weekly trips by mode, verified against saved profiles across repetitions. Population size alone is not an intervention-size measure: the 100-person cycling pilot adds only five weekly trips (26 to 31), versus 74 for walking (371 to 445). Relative SD divides health-benefit SD by the absolute mean health benefit, not by trips. Small expected benefits can therefore have large relative SDs; comparisons between modes must account for their different trip increments.</p>
+<p>The follow-up cycling-volume design holds all 5,000 available source people fixed and requests 100, 500 and 1,000 additional weekly cycling trips. It varies intervention size rather than selecting tiny person subsets; it does not retain the earlier 20% increase rule. Configured induced-trip and new-user assumptions remain unchanged, so the increments include both shifted and induced trips. With all source people included, the whole-appraisal versus fixed-REF comparison no longer measures person-subset selection variability. This still does not measure uncertainty in whether the source data represent the wider population. The <a href="cycling_trip_scale_variance.pdf">completed cycling-volume report</a> contains ten seeds per scenario and both calculation paths, which agree exactly. It uses 695 REF cycling trips and CF targets of 795, 1,195 and 1,695. The HALY relative SDs are approximately 15.6%, 6.7% and 5.6%, respectively. These remain diagnostic estimates rather than established tail intervals, and identical paired paths must not be counted as additional independent draws. The report’s aggregate curves show relative SD against additional cycling-trip volume and, separately, against population size in the earlier study. Mean +/- one SD bars show outcome-scale variability, not confidence intervals. Raw scatter colours identify fixed-REF versus whole-appraisal experiments, not the REF/CF comparison itself. Each dot is already a cumulative health-benefit difference in absolute HALYs or expected deaths, without a per-100,000 denominator.</p>
+<p>The separate <a href="route_benchmark.html">matched-route report</a> compares users-only and trips-only descriptions of one constructed scenario. Missing information and different allocation assumptions can produce systematic route differences; these must be distinguished from repeated-seed variation. Confirmed defects are reported separately, including the PT materialized-view discrepancy found in the current refresh. No production UI uncertainty interval is implemented.</p>
+</section>
+<section id="recommended-checks-for-each-appraisal" class="level2" data-number="7.3">
+<h2 data-number="7.3" class="anchored" data-anchor-id="recommended-checks-for-each-appraisal"><span class="header-section-number">7.3</span> Recommended checks for each appraisal</h2>
 <ul>
 <li>Confirm that reference user/trip counts and spread plots are credible for the selected geography and are not using a sparse-data fallback.</li>
 <li>Compare requested and realized counterfactual changes in the report.</li>
@@ -5919,8 +5967,13 @@ Note
 </ul>
 </section>
 </section>
-<section id="implementation-traceability" class="level1" data-number="8">
-<h1 data-number="8"><span class="header-section-number">8</span> Implementation traceability</h1>
+<section id="appraisal-population-summary" class="level1" data-number="8">
+<h1 data-number="8"><span class="header-section-number">8</span> Appraisal population summary</h1>
+<p>Appraisal inputs describe real people: one selected individual record represents one person. Health totals and population denominators use unit person weight by default. Geographic expansion factors are retained as source metadata only; they neither reduce sampling targets nor multiply appraisal outcomes. Thus a request for 1,000 users still samples 1,000 user records. Default counts describe the record-sized example appraisal, not the entire source geography. Existing saved configurations and results must be rebuilt to adopt this convention.</p>
+<p>The Tab 5 population summary describes the final counterfactual appraisal: total people including non-users, and users of walking, cycling, e-biking and public-transport active access. It counts assessed individual records without applying geographic expansion weights to these summary counts. It does not count the entire donor population or restrict the population to rows with health estimates. Mode groups overlap, so their sum is not the total population. These are realized counts rather than a second population estimate or sampling input.</p>
+</section>
+<section id="implementation-traceability" class="level1" data-number="9">
+<h1 data-number="9"><span class="header-section-number">9</span> Implementation traceability</h1>
 <p>This description is based on the current implementation, principally:</p>
 <ul>
 <li><code>R/reference_data_extract_reference_ui_values.R</code></li>

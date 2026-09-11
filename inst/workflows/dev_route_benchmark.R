@@ -4,6 +4,34 @@
 bm_hub <- function(name, ...) get(name, envir = asNamespace("MIAMAHUB"))(...)
 bm_field <- function(value = NULL) list(input_value = value, is_filled = !is.null(value))
 
+bm_override <- function(profile, field, value) {
+  profile[[field]]$input_value <- value
+  profile[[field]]$is_filled <- TRUE
+  profile
+}
+
+# Both experiments use the production final-results entry point, not rounded
+# headline metrics or a separate approximation of health aggregation.
+bm_final_results <- function(source, profile, cfg, seed, staged = NULL) {
+  hub <- MIAMAHUB::Hub$new(cfg)
+  hub$reference_data <- source
+  if (!is.null(staged)) {
+    hub$refinement_reference_data <- staged$reference_data
+    hub$refinement_counterfactual_data <- staged$counterfactual_data
+  }
+  hub$build_results(profile, seed = seed)
+}
+
+bm_health_totals <- function(result, horizon = 40L) {
+  cube <- result$results_data$plot_data$health_cube
+  cube <- cube[cube$mode == "all_modes" & cube$cycle > 0 & cube$cycle <= horizon, ]
+  benefit <- function(outcome, direction) {
+    x <- cube$delta_value[cube$outcome == outcome]
+    if (!length(x)) NA_real_ else direction * sum(x)
+  }
+  c(halys = benefit("halys", 1), deaths_prevented = benefit("mortality", -1))
+}
+
 bm_measure <- function(data, mode) {
   spec <- bm_hub(".counterfactual_mode_spec", mode)
   scope <- paste0("cf_user_scope_", spec$suffix)
@@ -39,7 +67,8 @@ bm_profile <- function(mode, route, workflow, ref_counts, cf_counts, cfg) {
     "pop_total_ref_advanced", "pop_total_cf_advanced",
     paste0("pop_number_", c("ref_", "cf_"), suffix, "_advanced"),
     paste0("trips_number_", c("ref_", "cf_"), suffix),
-    "trips_number_total_ref", "trips_number_total_cf")
+    "trips_number_total_ref", "trips_number_total_cf", "appraisal_model_parameters",
+    "appraisal_sampling_seed", "appraisal_data_sources", "appraisal_schema_version")
   for (field in setdiff(fields, names(profile))) profile[[field]] <- bm_field()
   profile
 }
@@ -160,39 +189,38 @@ run_route_benchmark <- function(n_seeds = 10L, population_size = 500L,
           if (assumptions == "benchmark_informed") {
             suffix <- bm_hub(".counterfactual_mode_spec", mode)$suffix
             # Supply completion assumptions only, never the other route's target.
-            profile$assump_new_user_percent <- bm_field(if (scenario == "new_users") 100 else 0)
+            profile <- bm_override(profile, "assump_new_user_percent", if (scenario == "new_users") 100 else 0)
             rows <- benchmark$rows
             spec <- bm_hub(".counterfactual_mode_spec", mode)
-            profile[[paste0("assump_trips_per_user_per_week_", suffix)]] <-
-              bm_field(length(rows) / length(benchmark$changed_ids))
-            profile[[paste0("assump_trip_distance_km_", suffix)]] <-
-              bm_field(mean(benchmark$data$trips[[spec$trip_distance_col]][rows]))
+            profile <- bm_override(profile, paste0("assump_trips_per_user_per_week_", suffix),
+              length(rows) / length(benchmark$changed_ids))
+            profile <- bm_override(profile, paste0("assump_trip_distance_km_", suffix),
+              mean(benchmark$data$trips[[spec$trip_distance_col]][rows]))
           }
+          profile <- bm_hub("prepare_assumption_profile", profile, source, source, cfg)
           if (workflow == "advanced") {
             tab3 <- bm_hub("prepare_refinement_profile_defaults", source, profile, cfg = cfg, seed = seed)
             tab4 <- bm_hub("prepare_trip_refinement_profile_defaults", source, tab3$profile, cfg = cfg,
               staged_reference_data = tab3$reference_data, staged_counterfactual_data = tab3$counterfactual_data,
               seed = seed)
-            data <- tab4$counterfactual_data
-            staged_ref <- tab4$reference_data
-            final_profile <- tab4$profile
+            final <- bm_final_results(source, tab4$profile, cfg, seed, tab4)
           } else {
-            values <- bm_hub("extract_input_values", profile)
-            staged_ref <- bm_hub("apply_reference_appraisal_scope", source, values, cfg = cfg, seed = seed)
-            data <- bm_hub("apply_counterfactual_ui_values", bm_hub("init_counterfactual_data", staged_ref),
-              values, staged_ref, constants = bm_hub("miama_counterfactual_defaults", cfg), seed = seed)
-            final_profile <- profile
+            final <- bm_final_results(source, profile, cfg, seed)
           }
+          data <- final$counterfactual_data
+          staged_ref <- final$reference_data
+          final_profile <- final$profile
           # Fail rather than silently letting REF sampling become another source
           # of variation. Fixed person and trip identities are the experiment.
           stopifnot(identical(staged_ref$ind$census_id, source$ind$census_id),
                     all(staged_ref$ind$ref_in_scope), all(data$ind$cf_in_scope),
                     nrow(data$ind) == population_size)
           measured <- bm_measure(data, mode)
-          h <- health(data)
+          h <- bm_health_totals(final)
           delta <- data$ind$cf_mmet_delta
           matched <- match(data$ind$census_id, benchmark$data$ind$census_id)
           artifacts[[id]] <- list(profile = final_profile,
+            assumptions = bm_hub("get_appraisal_assumptions", final_profile),
             people = as.data.frame(data$ind)[, intersect(c("census_id", "age1year", "mmets", "cf_mmet_delta"), names(data$ind))],
             trip_ids = data$trips[, c("census_id", "nts_tripid")],
             report = data$counterfactual_report)
@@ -225,7 +253,7 @@ run_route_benchmark <- function(n_seeds = 10L, population_size = 500L,
     hm_hash = digest::digest(hm), lookup_hash = digest::digest(lookup), cfg = cfg,
     master_seed = master_seed, seeds = seeds, population_size = population_size,
     zero_change_health = control, distinct_health_evaluations = length(ls(health_cache)), session = sessionInfo(),
-    boundary = "Controlled fixed population; basic low-level HUB and advanced Tab2/3/4 staging, not browser or final Hub$build_results rebuild")
+    boundary = "Fixed source sample; canonical persisted assumptions; basic and advanced paths through Hub$build_results; no browser")
   saveRDS(manifest, file.path(output_dir, "manifest.rds"))
   invisible(tab)
 }

@@ -50,10 +50,11 @@ knitr::kable(data.frame(Population = manifest$population_size,
   car-only diversion. **Benchmark-informed:** trip frequency and distance are
   derived from the actual switched trips; new-user preference is 100% or 0%
   according to scenario. These settings still do not encode recipient identities.
-- **Basic:** direct HUB scope/allocation APIs. **Advanced:** Tab 2 population
+- **Basic:** direct final-results API. **Advanced:** Tab 2 population
   staging followed by acceptance of the generated Tab 3 tables and Tab 4
-  staging. Both use the same health function afterwards. This is **not** a
-  browser test or a test of the final `Hub$build_results()` reconstruction.
+  staging. Both now use `Hub$build_results()` with canonical persisted
+  assumptions. This is not a browser test. Earlier rendered results must be
+  regenerated after this workflow change before interpreting them as current.
 - Seeds are shared across routes for convenience; identical seeds do not
   guarantee identical people are sampled. Source selection uses a separate,
   fixed seed. This pilot does not measure uncertainty in the source sample or HM.
@@ -87,15 +88,29 @@ if (nrow(unavailable)) knitr::kable(unavailable)
 keys <- c("mode", "scenario", "route", "assumptions", "seed")
 paired <- merge(filter(ok, workflow == "basic"), filter(ok, workflow == "advanced"), by = keys)
 if (nrow(paired)) cat("- Largest matched basic/advanced HALY difference: **",
-  format(max(abs(paired$halys.x - paired$halys.y)), digits = 4), "**. This covers staging, not the final results rebuild.\n", sep = "")
+  format(max(abs(paired$halys.x - paired$halys.y)), digits = 4), "**. Both paths include final results reconstruction.\n", sep = "")
 cat("- For extra trips among existing users, the users-only inputs are unchanged. Their zero-change result is expected.\n")
 cat("- Compare the two assumption settings before attributing a route difference to randomness. Even matching trip counts need not match person-level activity or baseline risk.\n")
-cat("- Review walking user counts in the audit table. The initial pilot exposed different counts from individual activity versus observed trip ownership; this is a definitional issue to investigate separately.\n")
+cat("- Walking and PT trips remain distinct. PT walkers qualify as existing walking recipients; their eligibility alone does not add them to separate-walking user counts.\n")
 ```
 
 Black horizontal lines show benchmark HALYs. Points are individual seeds;
 colours distinguish assumption settings. The panels deliberately have separate
-scales. Ten draws are an exploratory check, not a reliable confidence interval.
+scales. This refresh uses `r length(manifest$seeds)` draws per combination;
+it is a diagnostic comparison, not a reliable confidence interval.
+
+::: {.callout-warning title="PT correctness finding in this refresh"}
+The two-seed current-code refresh matches basic/advanced results exactly for
+walking, cycling and e-biking, but not PT. For the PT trips route, Tab 2 targets
+of 85 REF / 94 CF trips become generated Tab 4 defaults of zero; the final
+advanced result then contains zero CF PT trips. The largest paired HALY
+difference is 1.429874. Treat PT results below as diagnostic evidence of this
+defect, not sampling variation. A targeted replay confirms that staged data
+contains 85/94 PT access-walking trips, while the materialized REF/CF views
+contain zero. Shared walking-component columns are cleared during scope
+materialization. Preserve PT access activity there and add a real-data
+regression before rerunning.
+:::
 
 ```{r}
 #| fig-width: 12

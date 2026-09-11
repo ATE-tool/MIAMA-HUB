@@ -1054,6 +1054,59 @@ for empirical validation.
     changes, and health-response magnitudes with independent observed data and
     established appraisal tools.
 
+## Current sampling-variation diagnostics
+
+The [current sampling report](sampling_variance_evaluation.html) repeats the
+production Tab 2/3/4 and final-results pipeline with fixed supplied counts,
+canonical `assump_*` values, data and health-model parameters. One experiment
+repeats both REF selection and CF allocation; the other holds one REF snapshot
+fixed and repeats CF allocation only. These are different conditional
+experiments, not components whose variances can simply be subtracted.
+
+The initial current-code diagnostic has ten seeds per scenario, with assessed
+sizes of 100, 500 and 1500 and walking, cycling and combined scenarios. It reports
+unrounded 40-year outcome means, SDs and empirical ranges, with retained exposure
+diagnostics and assumption provenance. Ten repetitions are not sufficient for
+reliable tail intervals. These results measure sampling variation conditional
+on the available donor data, not survey-weighting bias, parameter uncertainty
+or uncertainty in the health model.
+
+Variance tables and plot labels also identify REF, CF and additional weekly
+trips by mode, verified against saved profiles across repetitions. Population
+size alone is not an intervention-size measure: the 100-person cycling pilot
+adds only five weekly trips (26 to 31), versus 74 for walking (371 to 445).
+Relative SD divides health-benefit SD by the absolute mean health benefit,
+not by trips. Small expected benefits can therefore have large relative SDs;
+comparisons between modes must account for their different trip increments.
+
+The follow-up cycling-volume design holds all 5,000 available source people
+fixed and requests 100, 500 and 1,000 additional weekly cycling trips. It varies
+intervention size rather than selecting tiny person subsets; it does not retain
+the earlier 20% increase rule. Configured induced-trip and new-user assumptions
+remain unchanged, so the increments include both shifted and induced trips.
+With all source people included, the whole-appraisal versus fixed-REF comparison
+no longer measures person-subset selection variability. This still does not
+measure uncertainty in whether the source data represent the wider population.
+The [completed cycling-volume report](cycling_trip_scale_variance.pdf) contains
+ten seeds per scenario and both calculation paths, which agree exactly. It uses
+695 REF cycling trips and CF targets of 795, 1,195 and 1,695. The HALY relative
+SDs are approximately 15.6%, 6.7% and 5.6%, respectively. These remain diagnostic
+estimates rather than established tail intervals, and identical paired paths
+must not be counted as additional independent draws.
+The report's aggregate curves show relative SD against additional cycling-trip
+volume and, separately, against population size in the earlier study. Mean +/-
+one SD bars show outcome-scale variability, not confidence intervals. Raw scatter
+colours identify fixed-REF versus whole-appraisal experiments, not the REF/CF
+comparison itself. Each dot is already a cumulative health-benefit difference
+in absolute HALYs or expected deaths, without a per-100,000 denominator.
+
+The separate [matched-route report](route_benchmark.html) compares users-only
+and trips-only descriptions of one constructed scenario. Missing information
+and different allocation assumptions can produce systematic route differences;
+these must be distinguished from repeated-seed variation. Confirmed defects
+are reported separately, including the PT materialized-view discrepancy found
+in the current refresh. No production UI uncertainty interval is implemented.
+
 ## Recommended checks for each appraisal
 
 - Confirm that reference user/trip counts and spread plots are credible for the
