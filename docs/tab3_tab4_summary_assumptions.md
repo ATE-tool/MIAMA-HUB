@@ -1,8 +1,12 @@
 # Tab 3 and Tab 4: summaries, assumptions and method inventory
 
-**Status: proposed card coverage for discussion.** This is not a claim that the
-full set of rows below is already implemented in UI. Small display/provenance
-fixes are separate from the proposed summary redesign.
+**Status: core dynamic coverage implemented on the UI assumptions feature branch.**
+`utilites/refinement_review.R` adds changed scope, age/sex/PA, trip-distance,
+source-mode and new-user/induced targets to the existing count summaries.
+Assumptions explain eligibility, weights, source priorities and donor reuse.
+Modal drafts are excluded until saved. The table remains a broader catalogue:
+realized audits, legacy purpose/distance restrictions and PA-panel sex-target
+precedence are not newly implemented or certified by this display change.
 
 ## 1. A simple rule
 

@@ -674,6 +674,12 @@ Source composition is only a diversion proxy. New-user and induced-trip rates
 cannot be inferred from cross-sectional donor records, so they start from fixed
 preferences. Existing feasibility-derived slider updates remain a separate step.
 
+The UI assumptions feature branch now updates Tab 3/4 summaries from changed
+scope controls and saved distribution targets. Assumption cards describe the
+applicable eligibility, weighting and donor-reuse rules alongside effective
+completion values. Modal drafts are excluded until saved; no sampling runs on
+card redraw. See [coverage and remaining gaps](tab3_tab4_summary_assumptions.md).
+
 The preset is selected with `miama_default_config(assumption_preset = "AMAT/TAG")`;
 alternatives are `"MIAMA"`, `"HEAT"`, and `"uniform"` (local mode composition,
 not equal mode shares). The selected preset resolves values into canonical

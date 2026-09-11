@@ -1514,6 +1514,12 @@ denominator.
 
 ### Sampling assumption presets
 
+The UI assumptions feature branch provides dynamic Tab 3/4 summaries of changed
+refinement targets and sampling-rule explanations beside editable assumptions.
+See the [coverage catalogue](docs/tab3_tab4_summary_assumptions.md) for completed
+items and remaining gaps. Saved modal changes, not canceled drafts, update the
+cards; rendering does not resample the appraisal.
+
 **Resolution order, in plain language:**
 
 1. Use a saved user edit when present (`user defined`). Never silently replace it.
