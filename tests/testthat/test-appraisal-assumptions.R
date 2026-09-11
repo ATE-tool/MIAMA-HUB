@@ -39,6 +39,37 @@ test_that("getters use schema IDs, are pure, and switch active trip size", {
   expect_false(any(startsWith(names(out), "assump_trip_distance_km_")))
 })
 
+test_that("intensities remain in the full inventory, not sampling cards", {
+  for (version in c("basic", "advanced")) {
+    p <- assumption_test_profile("trips", version)
+    expect_true(any(startsWith(names(get_appraisal_assumptions(p)), "assump_mmet_per_hour_")))
+    for (tab in 2:4) expect_false(any(startsWith(names(get_appraisal_assumptions(p, tab)) %||% character(), "assump_mmet_per_hour_")))
+  }
+})
+
+test_that("diversion defaults identify the actual source and user overrides", {
+  cfg <- miama_default_config()
+  trips <- data.frame(nts_tripid = 1:4, trip_mainmode = c("Car driver", "Car driver", "Car driver", "Walk"))
+  ref <- .reference_diversion_source_defaults(trips, "cycling", cfg)
+  expect_identical(ref$source, "REF trip mix (proxy)")
+  expect_equal(ref$value$car$percent, 75)
+  src <- .reference_diversion_source_defaults(data.frame(), "cycling", cfg, trips)
+  expect_identical(src$source, "Source trip mix (proxy)")
+  expect_identical(src$value, ref$value)
+  empty <- .reference_diversion_source_defaults(data.frame(), "cycling", cfg, data.frame())
+  expect_identical(empty$source, "Uniform fallback (no usable trip mix)")
+  fixed <- .reference_diversion_source_defaults(trips, "ebiking", cfg)
+  expect_identical(fixed$source, "Fixed assumption (configured source shares)")
+  expect_equal(fixed$value$car$percent, 100 / 3)
+
+  p <- prepare_assumption_profile(assumption_test_profile(), source_data = list(trips = trips), restore = TRUE)
+  expect_identical(p$assump_trip_source_shares_bike$additional_data$source, src$source)
+  p$assump_trip_source_shares_bike$input_value <- list(car = list(percent = 100))
+  p$assump_trip_source_shares_bike$is_filled <- TRUE
+  expect_identical(get_appraisal_assumptions(p)$assump_trip_source_shares_bike$display$source, "User provided")
+  expect_identical(p$assump_trip_source_shares_bike$additional_data$source, src$source)
+})
+
 test_that("defaults and explicit equal overrides survive refresh and serialization", {
   p <- assumption_test_profile()
   f <- "assump_trip_speed_kmh_walk"

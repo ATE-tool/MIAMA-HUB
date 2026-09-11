@@ -116,11 +116,10 @@ prepare_assumption_profile <- function(profile, reference_data = NULL,
       profile[[field]] <- entry
     }
     field <- paste0("assump_trip_source_shares_", suffix)
-    profile <- .prepare_mechanism_field(profile, field,
-      .reference_diversion_source_pie(reference_data$trips, mode, cfg, source_data$trips),
-      if (!is.null(cfg$counterfactual$trips$source_mode_shares[[mode]])) "Configured source shares"
-      else if (!is.null(reference_data$trips)) "REF/source trip distribution"
-      else "Source trip distribution or uniform fallback", restore)
+    if (!is.null(profile[[field]]) && (restore || !isTRUE(profile[[field]]$additional_data$resolved))) {
+      diversion <- .reference_diversion_source_defaults(reference_data$trips, mode, cfg, source_data$trips)
+      profile <- .prepare_mechanism_field(profile, field, diversion$value, diversion$source, restore)
+    }
     profile <- .prepare_mechanism_field(profile, paste0("assump_mmet_per_hour_", suffix),
       unname(cfg$physical_activity$mmet_per_hour[[mode]]), "Configured marginal intensity", restore)
   }
@@ -217,12 +216,16 @@ get_appraisal_assumptions <- function(profile, tab = NULL) {
         "trip_diversion" %in% values$trips_refine_choice
       reason <- "Source distribution for shifted trips, not mode shares"
     }
-    if (startsWith(field, "assump_mmet_per_hour_")) owner <- if (basic) 2L else 4L
+    if (startsWith(field, "assump_mmet_per_hour_")) {
+      # Retain intensity in the full inventory, not the population/trip cards.
+      owner <- integer(0)
+      reason <- "Converts active time to physical-activity exposure for health results"
+    }
     if (!is.null(tab) && (!used || collected || !tab %in% owner)) next
     entry$display <- list(value = .assumption_entry_value(entry), tab = owner,
       used = used, collected_elsewhere = collected, reason = reason,
       editable = !grepl("^assump_(mmet_per_hour_|new_user_activity_pattern$)", field),
-      source = if (isTRUE(entry$is_filled)) "User override" else entry$additional_data$source)
+      source = if (isTRUE(entry$is_filled)) "User provided" else entry$additional_data$source)
     rows[[field]] <- entry
   }
   rows

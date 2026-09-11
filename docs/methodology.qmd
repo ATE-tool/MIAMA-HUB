@@ -298,6 +298,23 @@ Reproduction requires preserving the referenced external data and compatible
 software. The [assumption API contract](appraisal_assumptions_api.md) documents
 the field names, dependencies and UI integration boundary.
 
+### What belongs in summaries and assumption cards
+
+The proposed rule is: **summaries describe the appraisal's counts and changed
+refinement targets; assumptions explain how sampling completes those inputs.**
+Untouched distribution sliders need no summary row. The assumptions explain
+which REF/source distributions supply weights and which eligibility/reuse rules
+apply; weighted sampling does not promise exact distribution matching.
+Realized counts, deviations and fallbacks belong in a separate sampling audit.
+MET/MMET intensity and health aggregation belong in the full results-method
+inventory, not the Tab 4 trip card.
+
+The [coverage table and method inventory](tab3_tab4_summary_assumptions.md)
+lists field IDs, proposed indicators, provenance labels and remaining decisions.
+It is a proposal for the broader summary redesign; the current UI does not yet
+implement every row. Observed source-trip mixes are explicitly labelled as
+proxies, not empirical scheme-diversion rates.
+
 ## Reference defaults
 
 After geography and assessed modes are selected, HUB loads and filters the

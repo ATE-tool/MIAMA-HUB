@@ -163,7 +163,7 @@ Important qualifications:
 | Induced-trip split | Tab 4 assumption if used and not already collected above. Do not equate it with recreational purpose. |
 | Shift-source distribution | Tab 4 assumption for each target mode with shifted trips, unless the diversion modal already owns that input. |
 | Frequency, trip-size, speed | Include only those still used to complete missing information or assign activity. Existing explicit user/trip contracts must not be overwritten. |
-| MMET intensity | Read-only exposure assumption; show once at the stage completing exposure (Tab 2 basic; normally Tab 4 advanced). |
+| MMET intensity | Results-method assumption, retained in the full inventory; omit from Tab 2-4 sampling cards. |
 | Donor reuse / replacement policy | Short methodology explanation and report metadata, not another percentage slider. |
 
 Preferences, hard filters and realized outcomes are different. Store requested

@@ -989,15 +989,25 @@ extract_reference_ui_values <- function(
                                              target_mode,
                                              cfg = NULL,
                                              fallback_trips = NULL) {
+  .reference_diversion_source_defaults(trips, target_mode, cfg, fallback_trips)$value
+}
+
+# Resolve values and provenance together: non-NULL REF data alone does not
+# establish that it contains usable donor trips for this particular mode.
+.reference_diversion_source_defaults <- function(trips, target_mode, cfg = NULL,
+                                                 fallback_trips = NULL) {
   cfg <- cfg %||% miama_default_config()
   configured <- cfg$counterfactual$trips$source_mode_shares[[target_mode]] %||% NULL
   shares <- .normalize_diversion_source_shares(configured, target_mode)
+  source <- "Fixed assumption (configured source shares)"
 
   if (is.null(shares)) {
     shares <- .observed_diversion_source_shares(trips, target_mode)
+    source <- "REF trip mix (proxy)"
   }
   if (is.null(shares) && !is.null(fallback_trips)) {
     shares <- .observed_diversion_source_shares(fallback_trips, target_mode)
+    source <- "Source trip mix (proxy)"
   }
 
   internal_modes <- setdiff(
@@ -1006,6 +1016,7 @@ extract_reference_ui_values <- function(
   )
   if (is.null(shares)) {
     shares <- stats::setNames(rep(1 / length(internal_modes), length(internal_modes)), internal_modes)
+    source <- "Uniform fallback (no usable trip mix)"
   }
   shares <- shares[intersect(internal_modes, names(shares))]
   shares <- shares / sum(shares)
@@ -1014,10 +1025,11 @@ extract_reference_ui_values <- function(
     driving = "car", cycling = "bike", ebiking = "ebike",
     walking = "walk", pt = "pt", other = "other"
   )
-  stats::setNames(
+  value <- stats::setNames(
     lapply(as.numeric(shares), function(value) list(percent = 100 * value)),
     unname(ui_names[names(shares)])
   )
+  list(value = value, source = source)
 }
 
 .observed_diversion_source_shares <- function(trips,

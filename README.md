@@ -11,6 +11,12 @@ field names, persistence, reset behavior and current limitations; the
 explains the design. This is a breaking field-name change: the matching UI
 schema and consumers must be updated together. No legacy aliases are retained.
 
+The [Tab 3/4 summary-versus-assumptions proposal](docs/tab3_tab4_summary_assumptions.md)
+distinguishes changed inputs, sampling rules and defaults, realized diagnostics,
+and the full results-method inventory. It is a design proposal, not a completed
+summary-card implementation. Marginal intensity remains in the full assumption
+inventory rather than the Tab 2-4 sampling cards.
+
 For a report-style description of the active-travel, sampling, physical-
 activity, and health-impact methodology, see
 [`docs/methodology.qmd`](docs/methodology.qmd). A concise presentation version
