@@ -12,7 +12,8 @@
 apply_reference_appraisal_scope <- function(reference_data,
                                              appraisal_input_values = list(),
                                              seed = 1L,
-                                             cfg = NULL) {
+                                             cfg = NULL,
+                                             preserve_person_scope = FALSE) {
   assert_named_list(reference_data, "reference_data")
   assert_named_list(appraisal_input_values, "appraisal_input_values")
   if (is.null(reference_data$ind)) {
@@ -137,7 +138,9 @@ apply_reference_appraisal_scope <- function(reference_data,
       seed + 350L
     )
   }
-  selected_people <- .sample_reference_people(
+  selected_people <- if (isTRUE(preserve_person_scope)) {
+    which(.true_values(out$ind$ref_in_scope))
+  } else .sample_reference_people(
     out$ind,
     target_n = person_target$value,
     user_targets = user_targets,
@@ -154,7 +157,9 @@ apply_reference_appraisal_scope <- function(reference_data,
     active <- .positive_col(out$ind, spec$activity_col)
     target <- user_targets[[mode]]
     candidates <- which(out$ind$ref_in_scope & active)
-    selected <- if (is.null(target$value)) {
+    selected <- if (isTRUE(preserve_person_scope)) {
+      which(out$ind$ref_in_scope & .true_values(out$ind[[.reference_user_scope_col(mode, "ref")]]))
+    } else if (is.null(target$value)) {
       candidates
     } else {
       .sample_reference_rows(candidates, target$value, seed + spec$seed_offset)

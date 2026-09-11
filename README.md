@@ -827,6 +827,17 @@ Current reference spread topics:
 
 #### Tab 3 population and PA spread lifecycle
 
+**Accepted cohort at results:** advanced final calculation continues the staged
+REF/CF person IDs and mode-user masks rather than drawing a new cohort from
+the same counts. `R/finalize_staged_appraisal.R` owns this handoff. Tab 4 can
+change trip targets within those people; it does not rerun user recruitment.
+New users already allocated during staging remain present, and induced trips
+can still be added to the accepted users. Their existing dose is retained; only
+the incremental effect of final trip edits is added, preventing a second scheme
+application after donor-pattern reuse. Synthpop-only stages receive matched HM
+baseline values without changing their identities. Upstream invalidation still
+applies; inconsistent accepted population counts require returning to Tab 3.
+
 Tab 3 spread controls are mode-specific. Profile field suffixes follow the UI
 mode naming convention: `walking -> walk`, `cycling -> bike`, `ebiking ->
 ebike`, and public transport/walking-to-PT -> `pt`. All four paths are

@@ -225,6 +225,27 @@ contract. This assessment has not checked that external contract.
   doses. Make the new-user control update its derived population before Tab 3
   acceptance, while respecting later manual counts. Freeze the final accepted
   people contract; Tab 4 must not reverse-calculate it. Effort: 2-4 days.
+  **HUB final-results tests now implemented:**
+  `tests/testthat/test-t3-final-results.R` uses fixed travel records linked to
+  eight packaged HM identities and runs real health lookup/aggregation.
+  Twenty unchanged-table scenarios (four modes, users/trips/distance/duration/
+  mode shares) pass, including staged versus final person-level MMET deltas,
+  repeated builds, accepted counts, and Tab 4 trip overrides without changing
+  person membership. Manual Tab 3 reduction from eight to six retains totals
+  and two walking users but FAILS exact CF membership: staged person 735482 is
+  replaced by 1963634 at results reconstruction, both with six and nine CF trips.
+  This was the pre-fix reproduction. The accepted-snapshot finalizer now fixes
+  those identity failures without re-running recruitment. The larger six-case
+  audit now has zero person or walking-member replacements, and unchanged
+  staged/final activity totals agree. HUB cohort preservation is implemented;
+  the wider T3 UI control-refresh/browser work remains open.
+  Source travel is a controlled fixture, not those people's observed behaviour.
+  Browser wiring and the new-user control remain outside this HUB test boundary.
+  **Realistic-size check confirms the defect:** observed Leeds subsets of 500
+  and 2000 people, reduced to 375/1500 through Tab 3, replace 22-24% of accepted
+  CF members during final reconstruction across three seeds each. Counts agree.
+  See [larger cohort audit](t3_cohort_audit.md) for results and the HUB-only
+  repair plan. This is not a measured percentage error in health benefits.
 - [ ] **T4 / P1: define and expose allocation semantics.** Decide new-to-mode
   versus new-to-any-AT, the percent denominator, candidate pool/weights, and dose
   assigned to current/new users. Keep induced trips a separate parameter. Show
@@ -350,11 +371,10 @@ contract. This assessment has not checked that external contract.
 4. **T3: split before implementation.** Start with tests showing where accepted
    population targets change between staging and results. Updating the new-user
    control and freezing the complete accepted scenario is a larger follow-up.
-   Coverage review: current high-level `build_results()` tests supply already
-   computed health outcomes; lifecycle tests exercise CF construction and staging
-   separately. Add a small health-enabled fixture exercising accepted Tab 3/4
-   values through final results, checking counts, identities and exposure, before
-   changing reconstruction logic. This gap is not evidence of a new defect.
+   Final-results coverage now exists in `test-t3-final-results.R`. It confirms
+   an identity mismatch after manual population reduction despite correct counts.
+   Accepted-cohort reconstruction is now fixed in HUB and those assertions
+   pass. UI control-refresh/browser verification remains separate.
 5. **T9: coordinate with UI assumptions work.** A focused manual/browser test
    pass is useful, but this is not a HUB-only fix. Test the intended integrated
    branch; avoid diagnosing a known older installed package as current code.

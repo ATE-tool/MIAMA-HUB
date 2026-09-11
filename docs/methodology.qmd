@@ -749,6 +749,17 @@ Current configured categories are:
 
 ## Refined trip specification (Tab 4)
 
+The accepted Tab 3 population is retained through final results, including the
+identity of each person and their mode-user membership. This implements the
+existing downstream-only refinement rule: it is not a new sampling methodology.
+People recruited as new users during earlier staging remain part of CF. Tab 4
+may shift existing trips or add induced trips within that accepted population,
+but does not recruit a different set of people to reproduce the same totals.
+For unchanged travel the staged activity dose is retained. A later trip edit
+adds only its incremental activity effect, rather than applying the original
+scheme again. Basic/standalone calculations without staged tables retain their
+existing construction path.
+
 For each assessed mode, Tab 4 can provide:
 
 - a target number of weekly active trips;

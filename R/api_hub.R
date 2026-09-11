@@ -670,6 +670,16 @@ Hub <- R6::R6Class(
       private$.require_request()
       reference_data <- private$.counterfactual_reference_data()
       appraisal_input_values <- private$.counterfactual_input_values()
+      if (identical(.ui_value(appraisal_input_values, "ui_version", "basic"), "advanced") &&
+          !is.null(self$refinement_reference_data) &&
+          !is.null(self$refinement_counterfactual_data)) {
+        accepted <- .finalize_staged_appraisal(self$refinement_reference_data,
+          self$refinement_counterfactual_data, appraisal_input_values, self$cfg, seed,
+          health_reference = reference_data)
+        self$reference_data <- accepted$reference
+        self$counterfactual_data <- accepted$counterfactual
+        return(self$counterfactual_data)
+      }
       reference_data <- apply_reference_appraisal_scope(
         reference_data,
         appraisal_input_values = appraisal_input_values,

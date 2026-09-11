@@ -70,10 +70,12 @@ apply_counterfactual_ui_values <- function(
     appraisal_input_values = list(),
     reference_data = counterfactual_data,
     constants = miama_counterfactual_defaults(),
-    seed = 1L
+    seed = 1L,
+    preserve_user_scope = FALSE
 ) {
   appraisal_input_values <- .assumption_values(appraisal_input_values)
   constants <- .assumption_cf_constants(appraisal_input_values, constants)
+  constants$allow_accepted_trip_removal <- isTRUE(preserve_user_scope)
   context <- .counterfactual_context(
     counterfactual_data = counterfactual_data,
     appraisal_input_values = appraisal_input_values,
@@ -87,7 +89,10 @@ apply_counterfactual_ui_values <- function(
   report$tab2_input_conversion <- context$tab2_input_conversion
   report$population_contract <- .explicit_population_contract(context$values)
 
-  for (handler in .counterfactual_ui_handler_registry()) {
+  handlers <- if (isTRUE(preserve_user_scope)) {
+    list(.apply_cf_active_trip_count_handler)
+  } else .counterfactual_ui_handler_registry()
+  for (handler in handlers) {
     result <- handler(counterfactual_data, context)
     counterfactual_data <- result$counterfactual_data
     report$changes <- c(report$changes, result$changes)
@@ -943,6 +948,9 @@ apply_counterfactual_ui_values <- function(
     realized_source_mode_shares <- shifted$realized_source_mode_shares
   } else {
     unlocked <- !.true_values(counterfactual_data$trips$cf_trip_locked)
+    # A later explicit reduction may undo previously accepted target-mode
+    # trips. This does not unlock them as donors for additional mode shifts.
+    if (isTRUE(constants$allow_accepted_trip_removal)) unlocked[] <- TRUE
     removal_candidates <- which(cf_active & unlocked)
     if (length(removal_candidates) < abs(delta)) {
       current_n <- sum(cf_active, na.rm = TRUE)
