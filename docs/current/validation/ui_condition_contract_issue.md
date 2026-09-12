@@ -1,5 +1,7 @@
 # UI conditions recently changed in `default.R`
 
+*Last content commit: 2026-09-02. Organized: 2026-09-11. Review/validation; conclusions retain their original scope.*
+
 This is a short implementation reference for the conditions recently changed
 in the profile schema. How these conditions are implemented in MIAMA-UI is left
 to the UI maintainer; the list below only defines the intended behavior.

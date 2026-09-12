@@ -1,5 +1,7 @@
 # Appraisal assumptions: proposed fields, rules and UI dependencies
 
+*Last content commit: 2026-09-11. Organized: 2026-09-11. Maintained documentation.*
+
 Status: design catalogue, 2026-09-09. The core contract is now implemented;
 see [the API handoff](appraisal_assumptions_api.md) for the exact supported
 fields, calls and remaining limitations. Proposed policy extensions below are

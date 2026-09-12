@@ -109,7 +109,7 @@ bm_benchmark <- function(ref, mode, scenario, constants, seed, n_changed = 5L) {
 }
 
 run_route_benchmark <- function(n_seeds = 10L, population_size = 500L,
-                                output_dir = "docs/_route_benchmark", master_seed = 20260910L) {
+                                output_dir = "docs/current/validation/_route_benchmark", master_seed = 20260910L) {
   stopifnot(n_seeds >= 2, population_size >= 10)
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   cfg <- bm_hub("miama_default_config", dataset_size = "leeds")

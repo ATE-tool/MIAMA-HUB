@@ -1,5 +1,7 @@
 # Tab 3 and Tab 4: summaries, assumptions and method inventory
 
+*Last content commit: 2026-09-11. Organized: 2026-09-11. Review/validation; conclusions retain their original scope.*
+
 **Status: core dynamic coverage implemented on the UI assumptions feature branch.**
 **Subsequent sampling review:** saved age/PA targets do not consistently steer
 staged advanced person selection. The card's weighting claims therefore require
@@ -97,18 +99,18 @@ should not be mistaken for a complete appraisal-specific parameter export.
 
 | Inventory group | Where to review the method / parameters |
 |---|---|
-| Selected geography, donor evidence and data versions | `appraisal_data_sources`; [health-data contract](hm_data_contract.md); methodology **Reference synthetic population**. |
-| Tab 2 unit conversion, defaults and e-bike proxies | [Assumption field catalogue](appraisal_assumptions_field_catalogue.md); `R/tab2_input_conversion.R`, `R/appraisal_assumptions.R`, `R/config.R`. |
+| Selected geography, donor evidence and data versions | `appraisal_data_sources`; [health-data contract](../documentation/hm_data_contract.md); methodology **Reference synthetic population**. |
+| Tab 2 unit conversion, defaults and e-bike proxies | [Assumption field catalogue](../documentation/appraisal_assumptions_field_catalogue.md); `R/tab2_input_conversion.R`, `R/appraisal_assumptions.R`, `R/config.R`. |
 | Accepted person/trip boundaries and target precedence | Methodology **Continuity from Tab 2 to Tabs 3 and 4**; `R/appraisal_population_contract.R`, `R/finalize_staged_appraisal.R`. |
 | Category eligibility, weight construction and fallback sampling | Methodology **Counterfactual sampling and redistribution**; `R/counterfactual_data_sampling_functions.R`, `R/counterfactual_data_apply_ui_values.R`. |
 | Person cloning, trip-pattern reuse and cross-mode trip locks | `R/population_donor_replication.R`, `R/reference_data_apply_appraisal_scope.R`; request-specific sampling reports. |
 | PT walking, e-bike activity patterns, distance/duration/speed | `R/mode_features.R`, `R/appraisal_assumptions.R`; `appraisal_model_parameters$counterfactual`. |
 | Exposure intensities and health lookup / HALYs | Methodology **From physical activity to health trajectories**; `assump_mmet_per_hour_*`; `R/counterfactual_data_apply_health_outcomes.R`, `R/health_outcomes_calculate_halys.R`. |
 | Scheme effect over time | Methodology **Scheme build-up, persistence and decline**; `R/scheme_effect_timeline.R`. |
-| Aggregation, units, signs, denominators and mode attribution | [README](../README.md) health-outcome aggregation sections; `R/results_data_prepare.R`; [health-outcome reference PDF](pdf/MIAMA-health-outcomes.pdf). |
-| Reproducibility and uncertainty | `appraisal_sampling_seed`, `appraisal_model_parameters`, `appraisal_schema_version`; [assumption API contract](appraisal_assumptions_api.md); sampling-variance reports. |
+| Aggregation, units, signs, denominators and mode attribution | [README](../../../README.md) health-outcome aggregation sections; `R/results_data_prepare.R`; [health-outcome reference PDF](../../archive/2026-09-11/pdf/MIAMA-health-outcomes.pdf). |
+| Reproducibility and uncertainty | `appraisal_sampling_seed`, `appraisal_model_parameters`, `appraisal_schema_version`; [assumption API contract](../documentation/appraisal_assumptions_api.md); sampling-variance reports. |
 
-See the [full methodology](methodology.qmd) and [README](../README.md).
+See the [full methodology](../documentation/methodology.qmd) and [README](../../../README.md).
 
 ## 5. Decisions before implementing the full cards
 

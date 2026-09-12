@@ -2,7 +2,7 @@
 title: "How MIAMA links active travel to health"
 subtitle: "Current methodology, assumptions, and validation priorities"
 author: "MIAMA project team"
-date: last-modified
+date: "2026-09-04"
 format:
   revealjs:
     slide-number: true
@@ -276,4 +276,4 @@ Does the current model allocate the requested active-travel change to plausible
 people and trips **in a way that is transparent, empirically defensible, and
 consistent with the question asked in the UI?**
 
-Full methods and TODO register: `docs/methodology.qmd`
+Full methods and TODO register: `docs/current/documentation/methodology.qmd`

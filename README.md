@@ -1,17 +1,21 @@
 # MIAMA-HUB
 
+Start with the [documentation and validation index](docs/README.md).
+Maintained guides and active investigations are separated from dated archives.
+Documentation layout updated 2026-09-11; this is not a new validation date.
+
 ## Assumptions: UI Integration Contract
 
 HUB now prepares effective assumptions in the canonical appraisal profile and
 exposes read-only, field-keyed card data through `get_appraisal_assumptions()`.
 `get_appraisal_assumption_dependencies()` supplies schema IDs for UI refreshes.
-See the [API and UI handoff](docs/appraisal_assumptions_api.md) for exact calls,
+See the [API and UI handoff](docs/current/documentation/appraisal_assumptions_api.md) for exact calls,
 field names, persistence, reset behavior and current limitations; the
-[field/dependency catalogue](docs/appraisal_assumptions_field_catalogue.md)
+[field/dependency catalogue](docs/current/documentation/appraisal_assumptions_field_catalogue.md)
 explains the design. This is a breaking field-name change: the matching UI
 schema and consumers must be updated together. No legacy aliases are retained.
 
-The [Tab 3/4 summary-versus-assumptions proposal](docs/tab3_tab4_summary_assumptions.md)
+The [Tab 3/4 summary-versus-assumptions proposal](docs/current/validation/tab3_tab4_summary_assumptions.md)
 distinguishes changed inputs, sampling rules and defaults, realized diagnostics,
 and the full results-method inventory. It is a design proposal, not a completed
 summary-card implementation. Marginal intensity remains in the full assumption
@@ -19,8 +23,8 @@ inventory rather than the Tab 2-4 sampling cards.
 
 For a report-style description of the active-travel, sampling, physical-
 activity, and health-impact methodology, see
-[`docs/methodology.qmd`](docs/methodology.qmd). A concise presentation version
-is available in [`docs/methodology_slides.qmd`](docs/methodology_slides.qmd).
+[`docs/current/documentation/methodology.qmd`](docs/current/documentation/methodology.qmd). A concise presentation version
+is available in [`docs/current/documentation/methodology_slides.qmd`](docs/current/documentation/methodology_slides.qmd).
 The documents distinguish implemented, approximate, and planned behavior; this
 README remains the developer-facing integration reference.
 
@@ -29,7 +33,7 @@ between `MIAMA-UI` and `MIAMA-HM`.
 
 ## README guide
 
-New feature: [Scheme effect over time](docs/scheme_effect_timeline.md) describes
+New feature: [Scheme effect over time](docs/current/documentation/scheme_effect_timeline.md) describes
 the Tab 2 year inputs, annual scaling, zero-effect years, and UI integration.
 
 This developer reference follows the appraisal from setup through results:
@@ -51,9 +55,9 @@ This developer reference follows the appraisal from setup through results:
    covers packaged profiles, external full data, manifests, and profiling.
 
 For a report-style methodological account, see
-[`docs/methodology.qmd`](docs/methodology.qmd). A concise handoff of recently
+[`docs/current/documentation/methodology.qmd`](docs/current/documentation/methodology.qmd). A concise handoff of recently
 changed UI conditions is in
-[`docs/ui_condition_contract_issue.md`](docs/ui_condition_contract_issue.md).
+[`docs/current/validation/ui_condition_contract_issue.md`](docs/current/validation/ui_condition_contract_issue.md).
 
 The package is intended to:
 
@@ -1475,7 +1479,7 @@ walking recipients, even without separate walking trips in REF. Walking and PT
 trips remain separate categories. Eligibility alone does not increase displayed
 walking-user counts; actual assigned trips establish those users. Explicit
 accepted population/user scopes remain binding. See the
-[walking/PT audit](docs/walking_pt_definition_audit.md).
+[walking/PT audit](docs/archive/2026-09-11/walking_pt_definition_audit.md).
 The trip-count handler supports `trips_count_cf_*` and `trips_number_cf_*` for
 active-mode trip rows. It converts Tab 2 targets from total or mean-per-person
 values into a base-week trip count. Increases are split into two mechanisms:
@@ -1517,12 +1521,12 @@ denominator.
 **Person-weighting caveat:** default PA weighting is not applied consistently
 across staged advanced and direct/basic results paths. Category exclusions are
 hard eligibility filters; distribution percentages are uncalibrated probability
-weights, not exact matching. See the [PA weighting and configuration review](docs/population_sampling_weighting_review.md)
+weights, not exact matching. See the [PA weighting and configuration review](docs/current/validation/population_sampling_weighting_review.md)
 for target origins, route differences, verification and proposed configuration.
 
 The UI assumptions feature branch provides dynamic Tab 3/4 summaries of changed
 refinement targets and sampling-rule explanations beside editable assumptions.
-See the [coverage catalogue](docs/tab3_tab4_summary_assumptions.md) for completed
+See the [coverage catalogue](docs/current/validation/tab3_tab4_summary_assumptions.md) for completed
 items and remaining gaps. Saved modal changes, not canceled drafts, update the
 cards; rendering does not resample the appraisal.
 
@@ -1803,7 +1807,7 @@ is required. Annual health calculation reads the full histories and matching
 lookup. Death-share columns and HALY formulas are unchanged.
 
 For future data-only updates, including smoothing, use the
-[health refresh procedure](docs/hm_data_contract.md). It preserves the existing
+[health refresh procedure](docs/current/documentation/hm_data_contract.md). It preserves the existing
 sampled people/trips and records the upstream revision and source checksums.
 
 Those artifacts are produced by `MIAMA-HM/scripts/sp_hm_join.R`. HUB does not
@@ -1893,7 +1897,7 @@ remain. LY/HLY exports scale annual occupancy differences, not accumulated scale
 transitions. This is an outcome-scaling approximation, not a time-varying exposure
 simulation or financial discounting. The existing `scheme_effect_duration`
 argument remains `"longterm"` for the underlying lookup model; the profile curve
-controls appraisal lifetime. See [the contract](docs/scheme_effect_timeline.md).
+controls appraisal lifetime. See [the contract](docs/current/documentation/scheme_effect_timeline.md).
 
 ## 6. Tab 5: Present and export results
 
@@ -2783,13 +2787,13 @@ columns are needed.
 ### Profiling full-data API performance
 
 For a controlled users-versus-trips comparison, see
-[`docs/route_benchmark.qmd`](docs/route_benchmark.qmd). Its companion runner,
+[`docs/current/validation/route_benchmark.qmd`](docs/current/validation/route_benchmark.qmd). Its companion runner,
 `inst/workflows/dev_route_benchmark.R`, fixes a sampled population and constructs
 explicit REF/CF trip switches before deriving alternative input descriptions.
 It covers all four modes, basic and advanced final-results paths, two canonical
 assumption settings, and repeated seeds. It records unavailable cases and failures.
 
-[`docs/sampling_variance_evaluation.qmd`](docs/sampling_variance_evaluation.qmd)
+[`docs/current/validation/sampling_variance_evaluation.qmd`](docs/current/validation/sampling_variance_evaluation.qmd)
 now uses `inst/workflows/dev_sampling_variance.R`: whole-appraisal versus fixed-REF
 repetition through staging and `Hub$build_results()`. Effective assumptions and
 their provenance are frozen per scenario and checked per replicate. Unrounded
@@ -2811,8 +2815,8 @@ cycling trips, retaining the configured new-user and induced-trip assumptions.
 It does not silently enlarge the donor population or call all additional trips
 mode shifts. The existing small-population results remain a separate comparison.
 The completed ten-draw follow-up is available as
-[PDF](docs/cycling_trip_scale_variance.pdf) and
-[HTML](docs/cycling_trip_scale_variance.html). It contains 60 successful appraisals
+[PDF](docs/archive/2026-09-11/cycling_trip_scale_variance.pdf) and
+[HTML](docs/archive/2026-09-11/cycling_trip_scale_variance.html). It contains 60 successful appraisals
 (three increments, ten seeds, two matching calculation paths); the paired paths
 are not independent repetitions. HALY relative SD is 15.6%, 6.7% and 5.6% for
 100, 500 and 1,000 additional weekly cycling trips, respectively.

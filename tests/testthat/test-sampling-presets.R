@@ -67,3 +67,31 @@ test_that("explicit profile values supersede preset source shares and percentage
   expect_equal(target$shares, c(walking = 1))
   expect_equal(target$source, "ui")
 })
+
+test_that("card provenance names the preset only when it supplies the shares", {
+  for (preset in c("AMAT/TAG", "HEAT", "MIAMA")) {
+    cfg <- miama_default_config(assumption_preset = preset)
+    for (mode in c("walking", "cycling")) {
+      suffix <- .miama_mode_suffix(mode)
+      field <- paste0("assump_trip_source_shares_", suffix)
+      profile <- list(modes = list(default_value = mode))
+      profile[[field]] <- list(default_value = NULL, input_value = NULL, is_filled = FALSE)
+      profile <- prepare_assumption_profile(profile, cfg = cfg)
+      original <- profile[[field]]$default_value
+      expect_match(get_appraisal_assumptions(profile)[[field]]$display$source, preset, fixed = TRUE)
+      profile[[field]]$input_value <- list(car = list(percent = 100))
+      profile[[field]]$is_filled <- TRUE
+      card <- get_appraisal_assumptions(profile)[[field]]
+      expect_identical(card$display$source, "user defined")
+      expect_identical(card$display$value, list(car = list(percent = 100)))
+      expect_identical(card$default_value, original)
+      restored <- prepare_assumption_profile(profile, cfg = cfg, restore = TRUE)
+      expect_match(get_appraisal_assumptions(restored)[[field]]$display$source, preset, fixed = TRUE)
+      expect_identical(restored[[field]]$default_value, original)
+    }
+  }
+  # An e-bike approximation is not TAG evidence merely because TAG is selected.
+  ebike <- .reference_diversion_source_defaults(NULL, "ebiking", miama_default_config())
+  expect_match(ebike$source, "Bigazzi and Wong", fixed = TRUE)
+  expect_false(grepl("AMAT/TAG", ebike$source, fixed = TRUE))
+})

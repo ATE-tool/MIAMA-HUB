@@ -1,10 +1,9 @@
-# Run from the MIAMA-HUB project in Positron. Until the aggregation docs merge:
-# options(miama.docs.source = "/private/tmp/MIAMA-HUB-release")
+# Run from the MIAMA-HUB project in Positron (paths updated 2026-09-11).
 # source("inst/workflows/dev_render_documentation_pdfs.R")
 # Optional: options(miama.docs.source = "/path/to/another/HUB/worktree")
 # Requires Quarto, Pandoc and a working LaTeX installation.
 source_root <- normalizePath(getOption("miama.docs.source", "."), mustWork = TRUE)
-output_dir <- file.path(getwd(), "docs", "pdf")
+output_dir <- file.path(getwd(), "docs", "current", "documentation", "pdf")
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 output_dir <- normalizePath(output_dir)
 
@@ -66,7 +65,8 @@ render_markdown <- function(input, output, title) {
     "--pdf-engine=xelatex", "--highlight-style=tango", "--include-in-header", header,
     "-V", "geometry:margin=20mm", "-V", "fontsize:10pt",
     "-V", "documentclass:scrartcl", "-V", "colorlinks:true",
-    "-M", paste0("title:", title), "-o", file.path(output_dir, output)
+    "-M", paste0("title:", title), "-M", paste0("date:", Sys.Date()),
+    "-o", file.path(output_dir, output)
   ))
 }
 render_markdown(file.path(source_root, "README.md"), "MIAMA-README.pdf", "MIAMA-HUB developer reference")
@@ -75,7 +75,7 @@ render_methodology <- function() {
   # Stage the self-contained QMD so Quarto cannot overwrite tracked PDFs/caches.
   stage <- tempfile("miama-methodology-")
   dir.create(stage)
-  file.copy(file.path(source_root, "docs", "methodology.qmd"), stage)
+  file.copy(file.path(source_root, "docs", "current", "documentation", "methodology.qmd"), stage)
   previous_dir <- setwd(stage)
   on.exit({ setwd(previous_dir); unlink(stage, recursive = TRUE) })
   writeLines(c(

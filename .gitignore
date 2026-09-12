@@ -11,7 +11,15 @@ Thumbs.db
 /data/
 
 # Resumable outputs from the executable sampling-variance report.
-/docs/_sampling_variance_cache/
-/docs/_route_benchmark/
-/docs/_sampling_variance_current/
-/docs/_sampling_variance_cycling_trips/
+/docs/archive/_sampling_variance_cache/
+/docs/current/validation/_route_benchmark/
+/docs/current/validation/_sampling_variance_current/
+/docs/current/validation/_sampling_variance_cycling_trips/
+/docs/current/validation/t3_cohort_audit_after.csv
+/docs/current/documentation/pdf/
+/docs/current/**/*.html
+/docs/current/**/*.pdf
+/docs/current/**/*_files/
+~$*
+# Preserve the one previously tracked lock file in the historical inventory.
+!/docs/archive/2026-09-11/~$Introduction to user testing.pptx

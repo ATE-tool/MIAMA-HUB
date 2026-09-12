@@ -1,5 +1,7 @@
 # External Review: Current Bugs, Route Differences and Sampling Variance
 
+*Last content commit: 2026-09-10. Organized: 2026-09-11. Review/validation; conclusions retain their original scope.*
+
 Original assessment: 9 September 2026. Status refreshed 10 September after
 HUB dev `9796294`; UI dev remains `bd4f9c3`. This refresh changes documentation
 only, not calculation, UI, or assumptions code.
@@ -106,7 +108,7 @@ HALYs above are the sum of `d_haly` retained in the health diagnostic report,
 not a sum over the released person-cycle table after `build_results()` returns.
 The packaged lookup has zero slopes at cycle 0. These checks are not an exact
 reproduction of the PDF's exported 40-year numbers or original UI click sequence.
-See [probe results](external_review_route_probes_2026-09-09.csv).
+See [probe results](../../archive/2026-09-11/external_review_route_probes_2026-09-09.csv).
 
 Three seeds are far too few for an uncertainty interval or a stability threshold.
 They establish that draws vary. They do not establish that variability is small
@@ -244,7 +246,7 @@ contract. This assessment has not checked that external contract.
   **Realistic-size check confirms the defect:** observed Leeds subsets of 500
   and 2000 people, reduced to 375/1500 through Tab 3, replace 22-24% of accepted
   CF members during final reconstruction across three seeds each. Counts agree.
-  See [larger cohort audit](t3_cohort_audit.md) for results and the HUB-only
+  See [larger cohort audit](../../archive/2026-09-11/t3_cohort_audit.md) for results and the HUB-only
   repair plan. This is not a measured percentage error in health benefits.
 - [ ] **T4 / P1: define and expose allocation semantics.** Decide new-to-mode
   versus new-to-any-AT, the percent denominator, candidate pool/weights, and dose
@@ -256,7 +258,7 @@ contract. This assessment has not checked that external contract.
   population comparison of users/trips inputs, all four modes where source
   evidence permits, basic/advanced staging, and 10 diagnostic sampling draws.
   The broader original variance/lifecycle scope is tracked separately in T5b.
-  A matched-snapshot pilot is now implemented in `docs/route_benchmark.qmd` and
+  A matched-snapshot pilot is now implemented in `docs/current/validation/route_benchmark.qmd` and
   `inst/workflows/dev_route_benchmark.R`: one fixed population, explicit car-to-AT
   switches, users-only/trips-only reconstructions, normal and benchmark-informed
   completion assumptions, basic and advanced staging, and repeated seeds.
@@ -272,7 +274,7 @@ contract. This assessment has not checked that external contract.
   197 owned observed walking trips. All 13 additional people have PT access
   walking only: 197 walking-trip owners + 33 PT-access owners - 20 overlapping
   owners = 210. This is a mode-definition mismatch, not random loss. See
-  [walking/PT audit](walking_pt_definition_audit.md) for the agreed rule:
+  [walking/PT audit](../../archive/2026-09-11/walking_pt_definition_audit.md) for the agreed rule:
   trip categories remain separate, but PT walkers qualify as existing recipients
   of additional walking trips. The eligibility change has focused regression
   coverage. The original 560-run report predates that change.
@@ -283,7 +285,7 @@ contract. This assessment has not checked that external contract.
   of 85/94, and final CF trips become zero. Maximum paired HALY difference is
   1.429874. This is a correctness finding, not an estimate of sampling variance;
   resolve it before treating PT route comparisons as valid.
-  See `docs/route_benchmark.html` for the completed diagnostic report.
+  See `docs/archive/2026-09-11/route_benchmark.html` for the completed diagnostic report.
 - [ ] **T5b: expanded variance and integrated lifecycle verification.** The
   matched benchmark has been refreshed after PT eligibility changes and now
   includes final `Hub$build_results()` reconstruction. A new variance runner
@@ -291,7 +293,7 @@ contract. This assessment has not checked that external contract.
   on one fixed REF, keeping canonical assumption values/provenance unchanged.
   Completed diagnostic: 180 appraisals, ten seeds, assessed sizes 100/500/1500,
   walking/cycling/combined; no failures or warnings. The report is refreshed in
-  `docs/sampling_variance_evaluation.html`. Sixteen analysis-helper assertions pass.
+  `docs/archive/2026-09-11/sampling_variance_evaluation.html`. Sixteen analysis-helper assertions pass.
   The report now verifies and displays mode-specific REF/CF weekly trip counts
   and increments across all saved runs. The 100-person cycling pilot adds only
   five trips/week, so population-only comparisons overstate comparability with
@@ -300,7 +302,7 @@ contract. This assessment has not checked that external contract.
   weekly cycling trips: 60 successful appraisals, ten seeds per scenario/path,
   no warnings, exact agreement between paths and matching Tab 4 trip defaults.
   HALY relative SD is 15.6%/6.7%/5.6%; do not pool the duplicate path checks as
-  independent draws. See `docs/cycling_trip_scale_variance.pdf` and `.html`.
+  independent draws. See `docs/archive/2026-09-11/cycling_trip_scale_variance.pdf` and `.html`.
   Remaining: resolve the PT finding above, increase to 50-100 draws for selected
   small/threshold scenarios, and test browser route switching/back-navigation
   when UI changes are integrated (T9/T11). These are conditional sampling
@@ -463,7 +465,7 @@ health-model random draw in that conditional step.
 | Changed-person diagnostic | HUB `R/counterfactual_data_apply_health_outcomes.R:468-484` |
 | Donor identities and replication | HUB `R/population_donor_replication.R` |
 | Refresh rules | HUB `R/shared_state_invalidation.R`; `R/api_hub.R:284` |
-| Current Monte Carlo study | HUB `docs/sampling_variance_evaluation.qmd`, `inst/workflows/dev_sampling_variance.R`; previous study archived under `docs/archive/` |
+| Current Monte Carlo study | HUB `docs/current/validation/sampling_variance_evaluation.qmd`, `inst/workflows/dev_sampling_variance.R`; previous study archived under `docs/archive/` |
 
 Line numbers refer to inspected source snapshots and may move. HUB 9002 improved
 assumption persistence, provenance and API visibility; later HUB dev fixes route

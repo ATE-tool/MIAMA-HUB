@@ -1,11 +1,13 @@
 # Brief Response to the MIAMAT Review
 
+*Last content commit: 2026-09-10. Organized: 2026-09-11. Historical snapshot; not current guidance.*
+
 **10 September update:** inactive-route input leakage is fixed in HUB dev,
 though not yet in UI's installed 9001 package. The HLY/LY fix now also covers
 the top-level export caller, with a regression for baseline occupancy and
 reported-year filtering. Scheme build-up/decline is implemented as outcome scaling, not a
-dynamic cohort model. See the [updated assessment](external_review_assessment_2026-09-09.md)
-and [basic population/navigation follow-up](basic_population_navigation_review_2026-09-10.md).
+dynamic cohort model. See the [updated assessment](../../current/validation/external_review_assessment_2026-09-09.md)
+and [basic population/navigation follow-up](../../current/validation/basic_population_navigation_review_2026-09-10.md).
 The response below records the original review findings.
 
 Thank you for tracing the input routes and highlighting how strongly recipient
@@ -75,5 +77,5 @@ reproducible, matched scenarios; then decide whether recruitment policy and
 production uncertainty reporting need changing. No calculation/UI code has been
 changed as part of this assessment.
 
-See [the detailed assessment and to-do list](external_review_assessment_2026-09-09.md)
+See [the detailed assessment and to-do list](../../current/validation/external_review_assessment_2026-09-09.md)
 for verification limits, code pointers and indicative effort estimates.

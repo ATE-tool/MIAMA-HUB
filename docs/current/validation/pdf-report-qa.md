@@ -1,5 +1,7 @@
 # Existing report PDF support
 
+*Last content commit: 2026-09-11. Organized: 2026-09-11. Review/validation; conclusions retain their original scope.*
+
 This change is confined to `R/results_data_export_functions.R` and focused
 tests. It reuses the existing report content and writer. There are no changes
 to results preparation, aggregation, input/assumption handling, export-bundle

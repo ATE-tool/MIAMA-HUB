@@ -1,5 +1,7 @@
 # Tab 2 distance/duration: refresh displayed units and investigate PT save failure
 
+*Last content commit: 2026-09-07. Organized: 2026-09-11. Review/validation; conclusions retain their original scope.*
+
 Two findings from the test-user review (IDs 32 and 39). Scope: the distance/duration modal, not a sampling redesign.
 
 ## 32: REF amount does not follow its displayed units

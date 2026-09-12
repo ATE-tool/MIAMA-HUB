@@ -1,4 +1,5 @@
 ---
+date: "2026-09-10"
 title: "Users versus trips: a matched-snapshot experiment"
 format:
   html:
@@ -175,10 +176,10 @@ From the HUB root, with the project's R dependencies available:
 
 ```bash
 Rscript inst/workflows/dev_route_benchmark.R 10 500
-quarto render docs/route_benchmark.qmd
+quarto render docs/current/validation/route_benchmark.qmd
 ```
 
-Outputs in `docs/_route_benchmark/` include CSV summaries, exact benchmark
+Outputs in `docs/current/validation/_route_benchmark/` include CSV summaries, exact benchmark
 snapshots and per-run profiles/exposure records, and a manifest with code checksums,
 source/health/lookup hashes, configuration and seeds. Runs are recomputed rather
 than reusing the older variance report's caches. This directory is git-ignored;

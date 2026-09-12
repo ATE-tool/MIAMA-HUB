@@ -2,7 +2,7 @@
 title: "Sampling variance in MIAMA counterfactual assessments"
 subtitle: "ARCHIVED: pre-canonical-assumptions, pre-T3 implementation"
 author: "MIAMA project team"
-date: last-modified
+date: "2026-09-10"
 format:
   html:
     toc: true
@@ -44,7 +44,7 @@ execute:
 
 **Archived implementation, not current evidence.** Its units, assumptions and
 low-level execution predate the current contract. Do not use its results to
-describe present HUB behaviour. Use `docs/sampling_variance_evaluation.qmd`.
+describe present HUB behaviour. Use `docs/current/validation/sampling_variance_evaluation.qmd`.
 
 This is an executable pilot study of **Monte Carlo sampling variance in the
 current MIAMA-HUB implementation**. It is not yet a validation of structural
@@ -1181,7 +1181,7 @@ This experiment is disabled by default because its configured design adds
 health-model runs. Enable it with:
 
 ```sh
-quarto render docs/sampling_variance_evaluation.qmd --to html \
+quarto render docs/current/validation/sampling_variance_evaluation.qmd --to html \
   -P run_sample_size_experiment:true
 ```
 

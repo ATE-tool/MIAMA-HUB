@@ -1,5 +1,7 @@
 # Basic population modal and Tab 2 navigation
 
+*Last content commit: 2026-09-10. Organized: 2026-09-11. Review/validation; conclusions retain their original scope.*
+
 Assessment of 10 September 2026, updated after the targeted HUB fixes below.
 The UI modal/navigation findings remain assessment-only; assumptions are unchanged.
 

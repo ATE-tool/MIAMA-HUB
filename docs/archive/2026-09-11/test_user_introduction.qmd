@@ -1,4 +1,5 @@
 ---
+date: "2026-09-04"
 format:
   pptx:
     slide-level: 2
@@ -38,7 +39,7 @@ Synthetic people represent population patterns. They are not identified resident
 
 The geographic source and the population assessed by a particular scheme are distinct. For a demonstration using the Leeds sample profile, explain that it contains 5,000 synthetic people and is a testing dataset, not the full Leeds population. Availability depends on the deployed data profile.
 
-Sources: docs/methodology.qmd, Reference synthetic population; README.md, Tab 1 and runtime data profiles.
+Sources: docs/current/documentation/methodology.qmd, Reference synthetic population; README.md, Tab 1 and runtime data profiles.
 :::
 
 ## Tab 2: active-travel volume
@@ -65,7 +66,7 @@ The initial values are suggestions, not estimates of your intervention. REF desc
 
 In the basic workflow, people who supply trips, distance/duration or mode shares can optionally specify the assessed population as additional information. Otherwise the app uses its population estimate. Basic users can then proceed to results without reviewing Tabs 3 and 4.
 
-Sources: R/tab2_input_conversion.R; docs/methodology.qmd, Basic specification and Continuity from Tab 2 to Tabs 3 and 4.
+Sources: R/tab2_input_conversion.R; docs/current/documentation/methodology.qmd, Basic specification and Continuity from Tab 2 to Tabs 3 and 4.
 :::
 
 ## Tab 3: the assessed population
@@ -94,7 +95,7 @@ REF determines the starting scope and current mode users. CF specifies the desir
 
 When the input is trips rather than people, a rise in trips does not imply the same proportional rise in users. Existing users can make more trips. The current/new-user assumption helps allocate the additional travel when user counts have not been supplied explicitly. Explicit user counts take precedence over that assumption. Advanced age, sex and activity distributions influence sampling probabilities.
 
-Sources: R/api_refinement_profile_defaults.R; R/counterfactual_data_apply_ui_values.R; docs/methodology.qmd, Continuity and Counterfactual sampling and redistribution.
+Sources: R/api_refinement_profile_defaults.R; R/counterfactual_data_apply_ui_values.R; docs/current/documentation/methodology.qmd, Continuity and Counterfactual sampling and redistribution.
 :::
 
 ## Tab 4: trips and physical activity
@@ -123,7 +124,7 @@ HUB uses precomputed MIAMA-HM health trajectories and exposure-response lookup i
 
 The assessment period is configurable. Use the period shown in the app rather than promising a fixed number of years here. This is a model of expected health effects under the scenario assumptions, not a forecast of individual outcomes. These slides describe the physical-activity health pathway; they do not claim to include every transport benefit or harm.
 
-Sources: R/counterfactual_data_apply_health_outcomes.R; docs/methodology.qmd, From physical activity to health trajectories and Health-adjusted life years.
+Sources: R/counterfactual_data_apply_health_outcomes.R; docs/current/documentation/methodology.qmd, From physical activity to health trajectories and Health-adjusted life years.
 :::
 
 {{< include source_ref_cf_slide_content.qmd >}}
@@ -177,7 +178,7 @@ For feedback, record the data profile and geography, selected modes, input route
 
 Sampling can introduce variation. Small effects and rounded headline values need careful interpretation. Outputs are conditional model estimates and do not themselves quantify all sources of uncertainty.
 
-Sources: R/results_data_prepare.R; README.md, Tab 5: Present and export results; docs/methodology.qmd, Validation, uncertainty, and remaining work.
+Sources: R/results_data_prepare.R; README.md, Tab 5: Present and export results; docs/current/documentation/methodology.qmd, Validation, uncertainty, and remaining work.
 :::
 
 ## Backup: user-count inputs
@@ -187,7 +188,7 @@ Sources: R/results_data_prepare.R; README.md, Tab 5: Present and export results;
 ::: {.notes}
 User counts are the provided quantity. Source patterns supply initial trip estimates. Tab 3 establishes the final person targets, and Tab 4 can adjust the trips assigned to those people.
 
-Full-resolution diagram: [User-count route](ui_data_authority_workflow_png/01-user-count-route.png). Open the original PNG and zoom for detailed discussion. Source: docs/ui_data_authority_workflow_diagrams.qmd.
+Full-resolution diagram: [User-count route](ui_data_authority_workflow_png/01-user-count-route.png). Open the original PNG and zoom for detailed discussion. Source: docs/archive/2026-09-11/ui_data_authority_workflow_diagrams.qmd.
 :::
 
 ## Backup: trip-count inputs
@@ -197,7 +198,7 @@ Full-resolution diagram: [User-count route](ui_data_authority_workflow_png/01-us
 ::: {.notes}
 Trip counts are the provided quantity. The app estimates the people needed to represent that travel. Population refinements preserve the trip targets until an explicit Tab 4 edit. Changed user counts therefore change trips per user.
 
-Full-resolution diagram: [Trip-count route](ui_data_authority_workflow_png/02-trip-count-route.png). Source: docs/ui_data_authority_workflow_diagrams.qmd.
+Full-resolution diagram: [Trip-count route](ui_data_authority_workflow_png/02-trip-count-route.png). Source: docs/archive/2026-09-11/ui_data_authority_workflow_diagrams.qmd.
 :::
 
 ## Backup: distance or duration inputs
@@ -207,7 +208,7 @@ Full-resolution diagram: [Trip-count route](ui_data_authority_workflow_png/02-tr
 ::: {.notes}
 The app converts supplied distance or duration into estimated trip counts using source means per trip, then derives person equivalents. Realized totals reflect sampled trip patterns; these are not guaranteed to reproduce an exact aggregate distance or duration. A later explicit Tab 4 trip count supersedes the derived trip count.
 
-Full-resolution diagram: [Distance/duration route](ui_data_authority_workflow_png/03-distance-duration-route.png). Source: docs/ui_data_authority_workflow_diagrams.qmd.
+Full-resolution diagram: [Distance/duration route](ui_data_authority_workflow_png/03-distance-duration-route.png). Source: docs/archive/2026-09-11/ui_data_authority_workflow_diagrams.qmd.
 :::
 
 ## Backup: mode-share inputs
@@ -217,7 +218,7 @@ Full-resolution diagram: [Distance/duration route](ui_data_authority_workflow_pn
 ::: {.notes}
 The app combines mode shares with the supplied or suggested denominator to derive per-mode trip targets. Shares alone do not define population size. Later explicit trip edits can change the realized shares.
 
-Full-resolution diagram: [Mode-share route](ui_data_authority_workflow_png/04-mode-share-route.png). Source: docs/ui_data_authority_workflow_diagrams.qmd.
+Full-resolution diagram: [Mode-share route](ui_data_authority_workflow_png/04-mode-share-route.png). Source: docs/archive/2026-09-11/ui_data_authority_workflow_diagrams.qmd.
 :::
 
 ## Backup: population-to-results handoff
@@ -227,7 +228,7 @@ Full-resolution diagram: [Mode-share route](ui_data_authority_workflow_png/04-mo
 ::: {.notes}
 Trace how accepted population counts pass to trip allocation and final results. The aim is a forward sequence: later trip refinements do not recalculate the accepted person counts. Filters and sampling weights refine allocation within this sequence.
 
-Full-resolution diagram: [Tab 3 to results](ui_data_authority_workflow_png/05-tab3-to-results-handoff.png). Source: docs/ui_data_authority_workflow_diagrams.qmd.
+Full-resolution diagram: [Tab 3 to results](ui_data_authority_workflow_png/05-tab3-to-results-handoff.png). Source: docs/archive/2026-09-11/ui_data_authority_workflow_diagrams.qmd.
 :::
 
 ## Backup: complete workflow
@@ -237,5 +238,5 @@ Full-resolution diagram: [Tab 3 to results](ui_data_authority_workflow_png/05-ta
 ::: {.notes}
 Use this as an orientation map, not a diagram to read box by box when projected. The preceding route-specific backups are easier to discuss. The complete workflow connects source data, all four Tab 2 routes, population and trip refinements, sampling, and health results.
 
-Full-resolution diagram: [Complete workflow](ui_data_authority_workflow_png/06-comprehensive-workflow.png). Source: docs/ui_data_authority_workflow_diagrams.qmd. The diagrams describe the intended data-authority workflow; use the sampling slide and its notes for current fallback details and implementation nuances.
+Full-resolution diagram: [Complete workflow](ui_data_authority_workflow_png/06-comprehensive-workflow.png). Source: docs/archive/2026-09-11/ui_data_authority_workflow_diagrams.qmd. The diagrams describe the intended data-authority workflow; use the sampling slide and its notes for current fallback details and implementation nuances.
 :::

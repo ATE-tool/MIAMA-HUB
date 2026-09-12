@@ -286,10 +286,10 @@
     "uniform" = list()
   )
   sources <- list(
-    cycling = switch(preset, "AMAT/TAG" = "TAG A5.4.7 (shifted-only, aggregated)",
+    cycling = switch(preset, "AMAT/TAG" = "AMAT/TAG: TAG A5.4.7 (shifted-only, aggregated)",
       "HEAT" = "HEAT v4.2 (PT aggregated)", "MIAMA" = "MIAMA (rounded TAG)",
       "uniform" = "Local trip mix"),
-    walking = switch(preset, "AMAT/TAG" = "TAG cycling proxy (MIAMA walking mapping)",
+    walking = switch(preset, "AMAT/TAG" = "AMAT/TAG: TAG cycling proxy (MIAMA walking mapping)",
       "HEAT" = "HEAT v4.2 (PT aggregated)", "MIAMA" = "MIAMA (HEAT walking)",
       "uniform" = "Local trip mix"),
     ebiking = "MIAMA approximation (Bigazzi and Wong, 2020)",

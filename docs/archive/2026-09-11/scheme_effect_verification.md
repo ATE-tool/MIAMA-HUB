@@ -1,5 +1,7 @@
 # Scheme timeline: full-results verification
 
+*Last content commit: 2026-09-10. Organized: 2026-09-11. Historical snapshot; not current guidance.*
+
 ## Test setup (10 September 2026)
 
 Full `Hub$build_results()` calls using the UI branch's actual `default.R` schema:

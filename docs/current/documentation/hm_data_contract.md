@@ -1,5 +1,7 @@
 # Health model data contract
 
+*Last content commit: 2026-09-10. Organized: 2026-09-11. Maintained documentation.*
+
 ## Current release
 
 HUB uses the two standard exports from `MIAMA-HM/scripts/sp_hm_join.R`:

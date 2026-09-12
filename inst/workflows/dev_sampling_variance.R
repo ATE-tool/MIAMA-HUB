@@ -63,7 +63,7 @@ sv_summary <- function(runs) {
 run_sampling_variance <- function(n_replicates = 100L, sizes = c(100L, 500L, 1500L),
                                   mode_sets = list("walking", "cycling", c("walking", "cycling")),
                                   master_seed = 20260911L,
-                                  output_dir = "docs/_sampling_variance_current",
+                                  output_dir = "docs/current/validation/_sampling_variance_current",
                                   additional_cycling_trips = NULL) {
   stopifnot(n_replicates >= 2L, all(sizes > 0))
   trip_scale_design <- !is.null(additional_cycling_trips)

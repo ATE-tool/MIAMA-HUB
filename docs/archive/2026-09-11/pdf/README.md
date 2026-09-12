@@ -1,5 +1,7 @@
 # Review PDFs
 
+*Last content commit: 2026-09-07. Organized: 2026-09-11. Historical snapshot; not current guidance.*
+
 Rendered from `codex/release-advanced`, HUB commit `4e43b99`, on 2026-09-07.
 The full health aggregation section is on that branch, not yet on HUB `dev`.
 These are documentation exports, not a new validation of model calculations.

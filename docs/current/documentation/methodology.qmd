@@ -2,7 +2,7 @@
 title: "MIAMA active travel and health impact methodology"
 subtitle: "Draft methods description for methodological review and early testing"
 author: "MIAMA project team"
-date: last-modified
+date: "2026-09-11"
 format:
   html:
     toc: true
@@ -309,7 +309,7 @@ Realized counts, deviations and fallbacks belong in a separate sampling audit.
 MET/MMET intensity and health aggregation belong in the full results-method
 inventory, not the Tab 4 trip card.
 
-The [coverage table and method inventory](tab3_tab4_summary_assumptions.md)
+The [coverage table and method inventory](../validation/tab3_tab4_summary_assumptions.md)
 lists field IDs, proposed indicators, provenance labels and remaining decisions.
 It is a proposal for the broader summary redesign; the current UI does not yet
 implement every row. Observed source-trip mixes are explicitly labelled as
@@ -678,7 +678,7 @@ The UI assumptions feature branch now updates Tab 3/4 summaries from changed
 scope controls and saved distribution targets. Assumption cards describe the
 applicable eligibility, weighting and donor-reuse rules alongside effective
 completion values. Modal drafts are excluded until saved; no sampling runs on
-card redraw. See [coverage and remaining gaps](tab3_tab4_summary_assumptions.md).
+card redraw. See [coverage and remaining gaps](../validation/tab3_tab4_summary_assumptions.md).
 
 The preset is selected with `miama_default_config(assumption_preset = "AMAT/TAG")`;
 alternatives are `"MIAMA"`, `"HEAT"`, and `"uniform"` (local mode composition,
@@ -708,7 +708,7 @@ falls back to fixed MIAMA values for walking, cycling and e-bike if observations
 are unusable. Receiving-PT fixed rates remain an open evidence question.
 
 Sources and exact transformations are documented beside `.miama_sampling_preset`
-in `R/config.R` and in the [README preset section](../README.md#sampling-assumption-presets):
+in `R/config.R` and in the [README preset section](../../../README.md#sampling-assumption-presets):
 [TAG](https://www.gov.uk/government/publications/tag-data-book),
 [HEAT](https://heat4.heatwalkingcycling.org/),
 [Bigazzi and Wong, 2020](https://doi.org/10.1016/j.trd.2020.102412).
@@ -945,7 +945,7 @@ Tab 2 staging strips downstream spread targets; changed Tab 3 snapshots use a
 reference scoper that applies category filters but not these distribution
 weights. Advanced finalization preserves those people. Thus saved advanced PA
 means are not consistently applied, and the current review-card wording can
-overstate their effect. See the [detailed route/configuration review](population_sampling_weighting_review.md).
+overstate their effect. See the [detailed route/configuration review](../validation/population_sampling_weighting_review.md).
 :::
 
 When invoked, candidate probabilities combine the available mode-specific constraints:
@@ -1132,7 +1132,7 @@ for empirical validation.
 
 ## Current sampling-variation diagnostics
 
-The [current sampling report](sampling_variance_evaluation.html) repeats the
+The [current sampling report](../../archive/2026-09-11/sampling_variance_evaluation.html) repeats the
 production Tab 2/3/4 and final-results pipeline with fixed supplied counts,
 canonical `assump_*` values, data and health-model parameters. One experiment
 repeats both REF selection and CF allocation; the other holds one REF snapshot
@@ -1163,7 +1163,7 @@ remain unchanged, so the increments include both shifted and induced trips.
 With all source people included, the whole-appraisal versus fixed-REF comparison
 no longer measures person-subset selection variability. This still does not
 measure uncertainty in whether the source data represent the wider population.
-The [completed cycling-volume report](cycling_trip_scale_variance.pdf) contains
+The [completed cycling-volume report](../../archive/2026-09-11/cycling_trip_scale_variance.pdf) contains
 ten seeds per scenario and both calculation paths, which agree exactly. It uses
 695 REF cycling trips and CF targets of 795, 1,195 and 1,695. The HALY relative
 SDs are approximately 15.6%, 6.7% and 5.6%, respectively. These remain diagnostic
@@ -1176,7 +1176,7 @@ colours identify fixed-REF versus whole-appraisal experiments, not the REF/CF
 comparison itself. Each dot is already a cumulative health-benefit difference
 in absolute HALYs or expected deaths, without a per-100,000 denominator.
 
-The separate [matched-route report](route_benchmark.html) compares users-only
+The separate [matched-route report](../../archive/2026-09-11/route_benchmark.html) compares users-only
 and trips-only descriptions of one constructed scenario. Missing information
 and different allocation assumptions can produce systematic route differences;
 these must be distinguished from repeated-seed variation. Confirmed defects
@@ -1227,7 +1227,7 @@ This description is based on the current implementation, principally:
 - `R/results_data_prepare.R`
 - `R/config.R` and `R/constants.R`
 
-The companion slide deck is `docs/methodology_slides.qmd`. The package README
+The companion slide deck is `docs/current/documentation/methodology_slides.qmd`. The package README
 remains the developer-facing integration reference; where terminology differs,
 the implementation and the status statements in this methods document take
 precedence until the discrepancy is resolved.

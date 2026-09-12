@@ -1,5 +1,7 @@
 # Population sampling: eligibility, PA preferences and configuration
 
+*Last content commit: 2026-09-11. Organized: 2026-09-11. Review/validation; conclusions retain their original scope.*
+
 Assessment of HUB dev and the combined assumptions test backend, 11 September
 2026. This describes current code, not a proposed matching algorithm already
 implemented. No sampling behavior was changed for this review.

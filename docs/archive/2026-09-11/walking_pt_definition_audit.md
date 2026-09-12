@@ -1,10 +1,12 @@
 # Walking versus PT access: matched-route audit
 
+*Last content commit: 2026-09-10. Organized: 2026-09-11. Historical snapshot; not current guidance.*
+
 ## Finding
 
 The T5 Leeds benchmark's 210 versus 197 walking-user discrepancy is explained
 by mode definitions, not random sampling or missing person records.
-Verified against `docs/_route_benchmark/snapshots.rds` (fixed 500-person sample):
+Verified against `docs/current/validation/_route_benchmark/snapshots.rds` (fixed 500-person sample):
 
 | Definition | People |
 |---|---:|

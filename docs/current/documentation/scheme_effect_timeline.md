@@ -1,5 +1,7 @@
 # Scheme effect over time
 
+*Last content commit: 2026-09-10. Organized: 2026-09-11. Maintained documentation.*
+
 ## Profile contract
 
 All four fields live in UI `schemes/default.R`, with normal `default_value`,

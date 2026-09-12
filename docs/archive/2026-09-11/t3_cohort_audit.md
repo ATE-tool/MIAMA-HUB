@@ -1,5 +1,7 @@
 # T3: realistic-size cohort reconstruction check
 
+*Last content commit: 2026-09-10. Organized: 2026-09-11. Historical snapshot; not current guidance.*
+
 ## Method
 
 Used observed individual and trip records from packaged Leeds 5000, with real

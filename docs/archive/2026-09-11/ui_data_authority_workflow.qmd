@@ -1,4 +1,5 @@
 ---
+date: "2026-09-04"
 title: "MIAMA UI data authority workflow"
 subtitle: "Draft one-way contract from Tab 2 volume inputs to Tab 5 results"
 format:

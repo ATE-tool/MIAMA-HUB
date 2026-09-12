@@ -1,5 +1,7 @@
 # Assumption API for UI developers
 
+*Last content commit: 2026-09-11. Organized: 2026-09-11. Maintained documentation.*
+
 HUB dev now implements the canonical profile-based assumption contract. The UI
 schema PR changes `schemes/default.R` only; existing modules still need the
 matching field renames and reactive integration before that PR is deployable.
@@ -101,6 +103,23 @@ no trips ultimately use them. No claim of exact sampled distance/minute totals
 is made; see the methodology's sampling limitations.
 
 ## Verification
+
+### Diversion-share source labels (clarified 2026-09-11)
+
+Use the entry's `display$source` for the card's effective source. Saved edits
+(`is_filled = TRUE`) return `user defined`; `additional_data$source` retains
+the default's provenance so restoring defaults can recover the original label.
+The UI must save the canonical `assump_trip_source_shares_{mode}` field and
+refresh `get_appraisal_assumptions()` after saving; reading default provenance
+alone will not show user overrides.
+
+The configured preset is a fallback, not necessarily the effective source.
+Usable REF/source trip data yield `REF trip mix (proxy)` or
+`Source trip mix (proxy)`. Only when those data are unavailable do walking and
+cycling TAG fallbacks show `AMAT/TAG: ...`, with the aggregation/proxy detail.
+E-bike fallbacks retain their Bigazzi/Wong approximation label rather than
+being misattributed to TAG. Selecting a preset does not override local evidence.
+
 
 Run `tests/testthat/test-appraisal-assumptions.R` for naming, purity, applicability,
 overrides, serialization, conversion and configuration-snapshot checks. With the

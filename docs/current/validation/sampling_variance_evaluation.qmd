@@ -1,4 +1,5 @@
 ---
+date: "2026-09-10"
 title: "Sampling variation in the current HUB pipeline"
 format:
   html:
@@ -41,7 +42,7 @@ whole-appraisal mean. Its SD need not be smaller in a short pilot. Population-si
 comparisons also use different observed trip totals and completion assumptions;
 they are realistic scenario comparisons, not an isolated sample-size experiment.
 Neither tests browser save/discard state. User/trip route sensitivity is examined
-separately in [the matched-route report](route_benchmark.html).
+separately in [the matched-route report](../../archive/2026-09-11/route_benchmark.html).
 
 ```{r}
 library(dplyr)
@@ -51,7 +52,7 @@ summary <- read.csv(file.path(params$data_dir, "summary.csv")) |> mutate(varianc
 diagnostics <- read.csv(file.path(params$data_dir, "diagnostics.csv"))
 manifest <- readRDS(file.path(params$data_dir, "manifest.rds"))
 assumptions <- readRDS(file.path(params$data_dir, "assumptions.rds"))
-source("../inst/workflows/dev_sampling_variance.R")
+source("../../../inst/workflows/dev_sampling_variance.R")
 trip_inputs <- sv_trip_inputs(runs, params$data_dir)
 scenario_keys <- sv_scenario_keys(trip_inputs)
 mode_labels <- c(walking = "Walking", cycling = "Cycling", ebiking = "E-biking", pt = "PT access walking")
@@ -311,7 +312,7 @@ For the larger cycling-trip study, hold the full source population fixed:
 ```r
 run_sampling_variance(n_replicates = 10,
   additional_cycling_trips = c(100, 500, 1000),
-  output_dir = "docs/_sampling_variance_cycling_trips")
+  output_dir = "docs/current/validation/_sampling_variance_cycling_trips")
 ```
 
 Render this batch by passing `-P data_dir:_sampling_variance_cycling_trips`
@@ -322,7 +323,7 @@ included, the whole-appraisal arm cannot measure geographic person-subset
 variation; differences from fixed REF can still involve trip allocation or
 staging. This is an intervention-volume comparison, not a larger source sample.
 
-Render from `docs`: `quarto render sampling_variance_evaluation.qmd`.
+Render from `docs/current/validation`: `quarto render sampling_variance_evaluation.qmd`.
 Runs are fresh, never reused from the old pilot cache. The manifest saves
 configuration, seeds, source/code/data fingerprints and the R session.
 The original implementation is retained under `docs/archive/`, not used here.

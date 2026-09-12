@@ -1,7 +1,8 @@
 # Run after pkgload::load_all(".") from the HUB root. This diagnostic uses
 # observed Leeds travel and real HM outcomes; it does not change runtime defaults.
 run_t3_cohort_audit <- function(sizes = c(500L, 2000L), seeds = c(1L, 13L, 27L),
-                                output = "docs/t3_cohort_audit_after.csv") {
+                                output = "docs/current/validation/t3_cohort_audit_after.csv") {
+  dir.create(dirname(output), recursive = TRUE, showWarnings = FALSE)
   source("inst/workflows/dev_route_benchmark.R", local = TRUE)
   cfg <- miama_default_config("leeds")
   hub <- Hub$new(cfg)

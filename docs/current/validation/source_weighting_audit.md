@@ -1,5 +1,7 @@
 # Source weights versus appraisal units
 
+*Last content commit: 2026-09-10. Organized: 2026-09-11. Review/validation; conclusions retain their original scope.*
+
 ## Current verified contract
 
 Appraisal person weight is one; source expansion metadata remains separate.
